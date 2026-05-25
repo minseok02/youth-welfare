@@ -29,6 +29,11 @@ import java.util.Locale;
 @RequiredArgsConstructor
 public class CollectAdminController {
 
+    static final int MAX_CALLS_PER_RUN_LIMIT = 5_000;
+    static final int MAX_LIMIT_PER_SOURCE = 1_000;
+    static final int MAX_ROUNDS = 10;
+    static final int MAX_CALLS_PER_ROUND = 1_000;
+
     private final CollectBatchService collectBatchService;
     private final CollectAdminService collectAdminService;
     private final NormalizedPolicySidecarBackfillService normalizedPolicySidecarBackfillService;
@@ -60,7 +65,7 @@ public class CollectAdminController {
             ));
         }
         if (maxCallsPerRun != null) {
-            if (maxCallsPerRun <= 0) {
+            if (maxCallsPerRun <= 0 || maxCallsPerRun > MAX_CALLS_PER_RUN_LIMIT) {
                 throw new CustomException(ErrorCode.INVALID_INPUT);
             }
             CollectResult result = collectAdminService.collect(source, maxCallsPerRun);
@@ -95,25 +100,26 @@ public class CollectAdminController {
             @RequestParam(defaultValue = "all") String scope,
             @RequestParam(defaultValue = "0") int limitPerSource
     ) {
+        int effectiveLimitPerSource = normalizeLimitPerSource(limitPerSource);
         String normalizedScope = scope.toLowerCase(Locale.ROOT);
         NormalizedPolicySidecarBackfillService.BackfillResult result = switch (normalizedScope) {
-            case "all" -> normalizedPolicySidecarBackfillService.backfillBokjiroListSidecars(limitPerSource)
-                    .plus(normalizedPolicySidecarBackfillService.backfillBokjiroDetailSidecars(limitPerSource));
-            case "list" -> normalizedPolicySidecarBackfillService.backfillBokjiroListSidecars(limitPerSource);
-            case "detail" -> normalizedPolicySidecarBackfillService.backfillBokjiroDetailSidecars(limitPerSource);
+            case "all" -> normalizedPolicySidecarBackfillService.backfillBokjiroListSidecars(effectiveLimitPerSource)
+                    .plus(normalizedPolicySidecarBackfillService.backfillBokjiroDetailSidecars(effectiveLimitPerSource));
+            case "list" -> normalizedPolicySidecarBackfillService.backfillBokjiroListSidecars(effectiveLimitPerSource);
+            case "detail" -> normalizedPolicySidecarBackfillService.backfillBokjiroDetailSidecars(effectiveLimitPerSource);
             default -> throw new CustomException(ErrorCode.INVALID_INPUT);
         };
 
         log.info("[Admin] 복지로 sidecar backfill 수동 트리거 scope={} limitPerSource={} scanned={} upserted={} missing={} failed={}",
                 normalizedScope,
-                limitPerSource,
+                effectiveLimitPerSource,
                 result.scannedCount(),
                 result.upsertedCount(),
                 result.missingServiceCount(),
                 result.failedCount());
         return ResponseEntity.ok(ApiResponse.success(new SidecarBackfillResponse(
                 normalizedScope,
-                limitPerSource,
+                effectiveLimitPerSource,
                 result.scannedCount(),
                 result.upsertedCount(),
                 result.missingServiceCount(),
@@ -125,18 +131,19 @@ public class CollectAdminController {
     public ResponseEntity<ApiResponse<SidecarBackfillResponse>> backfillGov24Sidecars(
             @RequestParam(defaultValue = "0") int limitPerSource
     ) {
+        int effectiveLimitPerSource = normalizeLimitPerSource(limitPerSource);
         NormalizedPolicySidecarBackfillService.BackfillResult result =
-                normalizedPolicySidecarBackfillService.backfillGov24ListSidecars(limitPerSource);
+                normalizedPolicySidecarBackfillService.backfillGov24ListSidecars(effectiveLimitPerSource);
 
         log.info("[Admin] Gov24 sidecar backfill 수동 트리거 limitPerSource={} scanned={} upserted={} missing={} failed={}",
-                limitPerSource,
+                effectiveLimitPerSource,
                 result.scannedCount(),
                 result.upsertedCount(),
                 result.missingServiceCount(),
                 result.failedCount());
         return ResponseEntity.ok(ApiResponse.success(new SidecarBackfillResponse(
                 "gov24-list",
-                limitPerSource,
+                effectiveLimitPerSource,
                 result.scannedCount(),
                 result.upsertedCount(),
                 result.missingServiceCount(),
@@ -147,9 +154,12 @@ public class CollectAdminController {
     @PostMapping("/bokjiro-details-gap-fill")
     public ResponseEntity<ApiResponse<DetailGapFillResponse>> fillBokjiroDetailGaps(
             @RequestParam(defaultValue = "1") int rounds,
-            @RequestParam(defaultValue = "10000") int maxCallsPerRound
+            @RequestParam(defaultValue = "1000") int maxCallsPerRound
     ) {
-        if (rounds <= 0 || maxCallsPerRound <= 0) {
+        if (rounds <= 0
+                || rounds > MAX_ROUNDS
+                || maxCallsPerRound <= 0
+                || maxCallsPerRound > MAX_CALLS_PER_ROUND) {
             throw new CustomException(ErrorCode.INVALID_INPUT);
         }
 
@@ -176,6 +186,19 @@ public class CollectAdminController {
                 result.failedCount(),
                 result.stoppedAfterNoSaves()
         )));
+    }
+
+    private int normalizeLimitPerSource(int limitPerSource) {
+        if (limitPerSource < 0) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+        if (limitPerSource == 0) {
+            return MAX_LIMIT_PER_SOURCE;
+        }
+        if (limitPerSource > MAX_LIMIT_PER_SOURCE) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+        return limitPerSource;
     }
 
     public record SidecarBackfillResponse(

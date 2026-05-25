@@ -82,7 +82,10 @@ public class AuthController {
     }
 
     @PostMapping("/password-reset/request")
-    public ResponseEntity<ApiResponse<Void>> requestPasswordReset(@Valid @RequestBody PasswordResetRequest request) {
+    public ResponseEntity<ApiResponse<Void>> requestPasswordReset(
+            @Valid @RequestBody PasswordResetRequest request,
+            HttpServletRequest httpServletRequest) {
+        authRateLimitService.checkPasswordResetRequestLimit(clientFingerprintService.build(httpServletRequest));
         passwordResetService.requestPasswordReset(request.getEmail());
         return ResponseEntity.ok(ApiResponse.success(null));
     }
@@ -95,7 +98,10 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<TokenResponse>> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<ApiResponse<TokenResponse>> login(
+            @Valid @RequestBody LoginRequest request,
+            HttpServletRequest httpServletRequest) {
+        authRateLimitService.checkLoginLimit(clientFingerprintService.build(httpServletRequest));
         TokenResponse token = authLoginService.login(request);
 
         ResponseCookie refreshCookie = buildRefreshCookie(token.getRefreshToken(), 7 * 24 * 60 * 60L);

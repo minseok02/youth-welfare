@@ -40,4 +40,18 @@ class RecommendationAccessServiceTest {
         assertThat(result).containsExactly(saved);
         verify(recommendationResultReadService).findTopRecommendations("user-key-1", 5);
     }
+
+    @Test
+    @DisplayName("저장된 추천 목록 조회는 size를 1..100 범위로 정규화한다")
+    void getRecommendationsNormalizesSize() {
+        UserRecommendation saved = UserRecommendation.builder().id(404L).userKey("user-key-1").build();
+        given(userKeyLookupService.findRequired(1L)).willReturn("user-key-1");
+        given(recommendationResultReadService.findTopRecommendations("user-key-1", 100))
+                .willReturn(List.of(saved));
+
+        List<UserRecommendation> result = recommendationAccessService.getRecommendations(1L, 100000);
+
+        assertThat(result).containsExactly(saved);
+        verify(recommendationResultReadService).findTopRecommendations("user-key-1", 100);
+    }
 }

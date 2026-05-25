@@ -13,6 +13,13 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: 1g
     restart: unless-stopped
 
   redis:
@@ -25,4 +32,12 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    read_only: true
+    tmpfs:
+      - /data:size=64m,mode=700
+      - /tmp:size=16m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 256m
     restart: unless-stopped

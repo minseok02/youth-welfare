@@ -30,6 +30,7 @@ public class WebPushDispatchService {
     private final WebPushSenderClient webPushSenderClient;
     private final RecommendationDigestContentService recommendationDigestContentService;
     private final DeadlineReminderContentService deadlineReminderContentService;
+    private final WebPushEndpointPolicyService webPushEndpointPolicyService;
 
     @Value("${app.base-url:http://localhost:5173}")
     private String appBaseUrl;
@@ -67,8 +68,9 @@ public class WebPushDispatchService {
             try {
                 result = webPushSenderClient.send(subscription, content);
             } catch (RuntimeException | LinkageError e) {
-                log.warn("[WebPushDispatchService] unexpected web push test send failure endpoint={}: {}",
-                        subscription.getEndpoint(), e.getMessage());
+                log.warn("[WebPushDispatchService] unexpected web push test send failure endpointHost={}: {}",
+                        webPushEndpointPolicyService.describeEndpointForLog(subscription.getEndpoint()),
+                        e.getMessage());
                 subscription.markError(e.getMessage());
                 failedCount++;
                 continue;
@@ -118,8 +120,9 @@ public class WebPushDispatchService {
             try {
                 result = webPushSenderClient.send(subscription, content);
             } catch (RuntimeException | LinkageError e) {
-                log.warn("[WebPushDispatchService] unexpected web push send failure endpoint={}: {}",
-                        subscription.getEndpoint(), e.getMessage());
+                log.warn("[WebPushDispatchService] unexpected web push send failure endpointHost={}: {}",
+                        webPushEndpointPolicyService.describeEndpointForLog(subscription.getEndpoint()),
+                        e.getMessage());
                 subscription.markError(e.getMessage());
                 continue;
             }

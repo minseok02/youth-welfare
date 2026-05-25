@@ -263,6 +263,21 @@ class RecommendationPolicyFlowWebMvcTest {
     }
 
     @Test
+    @DisplayName("추천 목록 조회는 100을 초과하는 size를 400 invalid input으로 거부한다")
+    void getRecommendationsRejectsOversizedRequest() throws Exception {
+        mockMvc.perform(get("/api/recommendations")
+                        .param("size", "100000")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(
+                                new AuthenticatedUser(1L, "user-key-1"),
+                                null,
+                                Collections.emptyList()
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+    }
+
+    @Test
     @DisplayName("정책 검색 rate limit 초과 시 429를 반환한다")
     void searchReturnsTooManyRequestsWhenRateLimitExceeded() throws Exception {
         given(clientFingerprintService.build(any())).willReturn("fp-search");

@@ -15,10 +15,16 @@ RUN --mount=type=cache,target=/root/.gradle \
     ./gradlew bootJar -x test --no-daemon
 
 FROM eclipse-temurin:17-jre-jammy
+
+RUN groupadd -r --gid 10001 appuser \
+    && useradd -r --uid 10001 --gid appuser --home-dir /app --shell /usr/sbin/nologin appuser
+
 WORKDIR /app
 
-COPY --from=build /app/build/libs/*.jar app.jar
+COPY --from=build --chown=appuser:appuser /app/build/libs/*.jar app.jar
 
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "-Dspring.profiles.active=prod", "app.jar"]
+USER appuser:appuser
+
+ENTRYPOINT ["java", "-Djava.io.tmpdir=/tmp", "-jar", "app.jar"]

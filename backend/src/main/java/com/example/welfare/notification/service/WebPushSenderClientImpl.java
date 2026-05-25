@@ -23,6 +23,7 @@ public class WebPushSenderClientImpl implements WebPushSenderClient {
     private final ObjectMapper objectMapper;
     private final WebPushKeyValidator webPushKeyValidator;
     private final WebPushServiceFactory webPushServiceFactory;
+    private final WebPushEndpointPolicyService webPushEndpointPolicyService;
 
     @Value("${notification.web-push.public-key:}")
     private String publicKey;
@@ -44,6 +45,9 @@ public class WebPushSenderClientImpl implements WebPushSenderClient {
     public WebPushSendResult send(WebPushSubscription subscription, NotificationContent content) {
         if (!isConfigured()) {
             return WebPushSendResult.failure("web push sender is not configured");
+        }
+        if (!webPushEndpointPolicyService.isAllowedSubscriptionEndpoint(subscription.getEndpoint())) {
+            return WebPushSendResult.disable("web push endpoint rejected by policy");
         }
 
         try {
@@ -73,13 +77,17 @@ public class WebPushSenderClientImpl implements WebPushSenderClient {
             }
             return WebPushSendResult.failure("web push send failed with status " + statusCode);
         } catch (GeneralSecurityException | JoseException | IOException | ExecutionException e) {
-            log.warn("[WebPushSenderClient] web push send failed endpoint={}: {}", subscription.getEndpoint(), e.getMessage());
+            log.warn("[WebPushSenderClient] web push send failed endpointHost={}: {}",
+                    webPushEndpointPolicyService.describeEndpointForLog(subscription.getEndpoint()),
+                    e.getMessage());
             return WebPushSendResult.failure(e.getMessage());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return WebPushSendResult.failure(e.getMessage());
         } catch (RuntimeException | LinkageError e) {
-            log.warn("[WebPushSenderClient] web push sender initialization failed endpoint={}: {}", subscription.getEndpoint(), e.getMessage());
+            log.warn("[WebPushSenderClient] web push sender initialization failed endpointHost={}: {}",
+                    webPushEndpointPolicyService.describeEndpointForLog(subscription.getEndpoint()),
+                    e.getMessage());
             return WebPushSendResult.failure(e.getMessage());
         }
     }

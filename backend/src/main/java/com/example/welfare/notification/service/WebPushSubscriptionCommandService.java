@@ -19,9 +19,12 @@ public class WebPushSubscriptionCommandService {
 
     private final WebPushSubscriptionRepository webPushSubscriptionRepository;
     private final WebPushSubscriptionCleanupCommandRepository webPushSubscriptionCleanupCommandRepository;
+    private final WebPushEndpointPolicyService webPushEndpointPolicyService;
 
     @Transactional
     public WebPushSubscriptionResponse register(String userKey, WebPushSubscriptionRequest request) {
+        webPushEndpointPolicyService.validateSubscriptionEndpoint(request.getEndpoint());
+
         WebPushSubscription subscription = webPushSubscriptionRepository.findByEndpoint(request.getEndpoint())
                 .orElseGet(() -> WebPushSubscription.builder()
                         .userKey(userKey)

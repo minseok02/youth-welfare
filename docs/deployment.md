@@ -153,6 +153,13 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up -d redis
 
 에 바인딩한다. nginx는 host에서 `127.0.0.1:8082` 로 reverse proxy 한다.
 
+현재 운영 compose hardening 기준:
+
+- `app` 이미지는 [backend/Dockerfile](/home/minseok/youth-welfare/backend/Dockerfile:1) 에서 `UID/GID 10001` non-root 사용자로 실행한다.
+- `app` 은 `read_only: true`, `/tmp` tmpfs, `security_opt: no-new-privileges:true`, `pids_limit: 256`, `mem_limit: 1g` 를 사용한다.
+- `redis` 는 현재 persistence를 기대하지 않는 운영 구조를 전제로 `read_only: true`, `/data`/`/tmp` tmpfs, `security_opt: no-new-privileges:true`, `pids_limit: 128`, `mem_limit: 256m` 으로 띄운다.
+- app가 임시 파일을 써야 하는 경로는 `/tmp` 로 제한되고, Dockerfile entrypoint는 `-Djava.io.tmpdir=/tmp` 를 강제한다.
+
 ## 8. nginx 연결
 
 현재 conf 기준:
@@ -165,6 +172,7 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up -d redis
 현재 운영 템플릿 원칙:
 
 - `Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options` 는 edge nginx가 단일 책임으로 내려준다.
+- `server_tokens off;` 로 edge nginx 버전 문자열을 응답에서 숨긴다.
 - `/api/`, `/swagger-ui/`, `/v3/api-docs/`, `/actuator/` 프록시 경로에서는 upstream Spring이 내려준 같은 헤더를 `proxy_hide_header` 로 숨긴다.
 - `/actuator/` 는 외부 인터넷에 공개하지 않고 `127.0.0.1` / `::1` 및 명시적으로 허용한 내부 모니터링 IP만 통과시킨다.
 

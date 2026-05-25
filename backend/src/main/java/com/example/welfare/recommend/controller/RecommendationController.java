@@ -12,9 +12,12 @@ import com.example.welfare.recommend.service.RecommendationBookmarkCommandServic
 import com.example.welfare.recommend.service.RecommendationGenerationService;
 import com.example.welfare.recommend.service.RecommendationLogReadService;
 import com.example.welfare.recommend.service.RecommendationProjectionReadService;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,6 +27,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/recommendations")
 @RequiredArgsConstructor
+@Validated
 public class RecommendationController {
 
     private final RecommendationAccessService recommendationAccessService;
@@ -37,7 +41,7 @@ public class RecommendationController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<RecommendationResponse>>> getRecommendations(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
         Long userId = resolveUserId(authenticatedUser);
         List<UserRecommendation> recs = recommendationAccessService.getRecommendations(userId, size);
 

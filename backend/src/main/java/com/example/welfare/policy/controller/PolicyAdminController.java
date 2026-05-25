@@ -1,6 +1,8 @@
 package com.example.welfare.policy.controller;
 
 import com.example.welfare.global.response.ApiResponse;
+import com.example.welfare.global.exception.CustomException;
+import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.policy.dto.PolicyCategoryAuditResponse;
 import com.example.welfare.policy.dto.PolicyEmbeddingRefreshResponse;
 import com.example.welfare.policy.dto.PolicyReferenceUrlBackfillResponse;
@@ -37,6 +39,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PolicyAdminController {
 
+    static final int MAX_REFERENCE_URL_REBUILD_LIMIT_PER_SOURCE = 1_000;
+
     private final SearchYouthRelevanceService searchYouthRelevanceService;
     private final PolicyEmbeddingAdminService policyEmbeddingAdminService;
     private final PolicyRetrievalEvaluationService policyRetrievalEvaluationService;
@@ -72,12 +76,13 @@ public class PolicyAdminController {
             @RequestParam(defaultValue = "0") int limitPerSource,
             @RequestParam(defaultValue = "true") boolean missingOnly
     ) {
+        int effectiveLimitPerSource = normalizeReferenceUrlLimitPerSource(limitPerSource);
         PolicyReferenceUrlBackfillResponse response =
-                policyReferenceUrlAdminService.rebuildReferenceUrls(sourceType, limitPerSource, missingOnly);
+                policyReferenceUrlAdminService.rebuildReferenceUrls(sourceType, effectiveLimitPerSource, missingOnly);
         log.info("[Admin] 정책 참고 URL 재구축 트리거 scope={} sourceTypes={} limitPerSource={} missingOnly={} scanned={} skipped={} updated={} missing={} failed={}",
                 response.scope(),
                 response.sourceTypes(),
-                response.limitPerSource(),
+                effectiveLimitPerSource,
                 response.missingOnly(),
                 response.scannedCount(),
                 response.skippedCount(),
@@ -85,6 +90,19 @@ public class PolicyAdminController {
                 response.missingServiceCount(),
                 response.failedCount());
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    private int normalizeReferenceUrlLimitPerSource(int limitPerSource) {
+        if (limitPerSource < 0) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+        if (limitPerSource == 0) {
+            return MAX_REFERENCE_URL_REBUILD_LIMIT_PER_SOURCE;
+        }
+        if (limitPerSource > MAX_REFERENCE_URL_REBUILD_LIMIT_PER_SOURCE) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+        return limitPerSource;
     }
 
     @PostMapping("/retrieval-evaluations/run")

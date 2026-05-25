@@ -31,7 +31,7 @@ class AuthRateLimitServiceTest {
 
     @BeforeEach
     void setUp() {
-        authRateLimitService = new AuthRateLimitService(redisTemplate, 10, 60, 2, 300);
+        authRateLimitService = new AuthRateLimitService(redisTemplate, 10, 60, 2, 300, 3, 120, 2, 300);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
     }
 
@@ -66,5 +66,37 @@ class AuthRateLimitServiceTest {
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.AUTH_RATE_LIMIT_EXCEEDED);
+    }
+
+    @Test
+    @DisplayName("로그인 첫 요청이면 fingerprint rate limit 키에 만료시간을 설정한다")
+    void checkLoginLimitSetsExpiryForFirstRequest() {
+        when(valueOperations.increment("auth:rate-limit:login:fp:login")).thenReturn(1L);
+
+        authRateLimitService.checkLoginLimit("fp:login");
+
+        verify(redisTemplate).expire("auth:rate-limit:login:fp:login", Duration.ofSeconds(120));
+    }
+
+    @Test
+    @DisplayName("로그인 fingerprint 제한을 초과하면 429 auth rate limit 오류를 반환한다")
+    void checkLoginLimitThrowsWhenLimitExceeded() {
+        when(valueOperations.increment("auth:rate-limit:login:fp:login")).thenReturn(4L);
+        when(redisTemplate.getExpire("auth:rate-limit:login:fp:login")).thenReturn(90L);
+
+        assertThatThrownBy(() -> authRateLimitService.checkLoginLimit("fp:login"))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.AUTH_RATE_LIMIT_EXCEEDED);
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 요청 첫 요청이면 fingerprint rate limit 키에 만료시간을 설정한다")
+    void checkPasswordResetRequestLimitSetsExpiryForFirstRequest() {
+        when(valueOperations.increment("auth:rate-limit:password-reset-request:fp:reset")).thenReturn(1L);
+
+        authRateLimitService.checkPasswordResetRequestLimit("fp:reset");
+
+        verify(redisTemplate).expire("auth:rate-limit:password-reset-request:fp:reset", Duration.ofSeconds(300));
     }
 }

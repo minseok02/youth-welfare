@@ -1,9 +1,11 @@
 package com.example.welfare.notification.service;
 
 import com.example.welfare.global.exception.CustomException;
+import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.notification.entity.WebPushSubscription;
 import com.example.welfare.notification.repository.WebPushSubscriptionCleanupCommandRepository;
 import com.example.welfare.notification.repository.WebPushSubscriptionRepository;
+import com.example.welfare.notification.dto.WebPushSubscriptionRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,6 +27,8 @@ class WebPushSubscriptionCommandServiceTest {
 
     @Mock
     private WebPushSubscriptionCleanupCommandRepository webPushSubscriptionCleanupCommandRepository;
+    @Mock
+    private WebPushEndpointPolicyService webPushEndpointPolicyService;
 
     @InjectMocks
     private WebPushSubscriptionCommandService webPushSubscriptionCommandService;
@@ -56,5 +60,22 @@ class WebPushSubscriptionCommandServiceTest {
         assertThatThrownBy(() -> webPushSubscriptionCommandService.delete("user-key-7", 7L))
                 .isInstanceOf(CustomException.class);
         then(webPushSubscriptionCleanupCommandRepository).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("웹푸시 구독 등록은 unsafe endpoint를 거부한다")
+    void registerRejectsUnsafeEndpoint() {
+        WebPushSubscriptionRequest request = new WebPushSubscriptionRequest();
+        org.springframework.test.util.ReflectionTestUtils.setField(request, "endpoint", "http://127.0.0.1/push");
+        org.mockito.BDDMockito.willThrow(new CustomException(ErrorCode.INVALID_INPUT))
+                .given(webPushEndpointPolicyService)
+                .validateSubscriptionEndpoint("http://127.0.0.1/push");
+
+        assertThatThrownBy(() -> webPushSubscriptionCommandService.register("user-key-7", request))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_INPUT);
+
+        then(webPushSubscriptionRepository).shouldHaveNoInteractions();
     }
 }

@@ -146,6 +146,8 @@ class AuthControllerWebMvcTest {
     @Test
     @DisplayName("비밀번호 재설정 요청은 인증 없이도 사용 가능하다")
     void requestPasswordResetWithoutAuthentication() throws Exception {
+        given(clientFingerprintService.build(org.mockito.ArgumentMatchers.any())).willReturn("fp-reset");
+
         mockMvc.perform(post("/api/auth/password-reset/request")
                         .contentType("application/json")
                         .content("""
@@ -156,7 +158,30 @@ class AuthControllerWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
+        then(authRateLimitService).should().checkPasswordResetRequestLimit("fp-reset");
         then(passwordResetService).should().requestPasswordReset("user@example.com");
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 요청은 fingerprint rate limit 초과 시 429를 반환한다")
+    void requestPasswordResetReturnsTooManyRequestsWhenFingerprintLimitExceeded() throws Exception {
+        given(clientFingerprintService.build(org.mockito.ArgumentMatchers.any())).willReturn("fp-reset");
+        org.mockito.BDDMockito.willThrow(new CustomException(ErrorCode.AUTH_RATE_LIMIT_EXCEEDED))
+                .given(authRateLimitService)
+                .checkPasswordResetRequestLimit("fp-reset");
+
+        mockMvc.perform(post("/api/auth/password-reset/request")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "user@example.com"
+                                }
+                                """))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("A010"));
+
+        then(passwordResetService).should(never()).requestPasswordReset(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -174,6 +199,51 @@ class AuthControllerWebMvcTest {
                 .andExpect(jsonPath("$.success").value(true));
 
         then(passwordResetService).should().confirmPasswordReset("reset-token", "new-password123");
+    }
+
+    @Test
+    @DisplayName("로그인은 fingerprint rate limit을 먼저 확인한다")
+    void loginChecksFingerprintRateLimit() throws Exception {
+        given(clientFingerprintService.build(org.mockito.ArgumentMatchers.any())).willReturn("fp-login");
+        given(authLoginService.login(org.mockito.ArgumentMatchers.any()))
+                .willReturn(com.example.welfare.user.dto.response.TokenResponse.of("access-token", "refresh-token"));
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "user@example.com",
+                                  "password": "password123"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        then(authRateLimitService).should().checkLoginLimit("fp-login");
+        then(authLoginService).should().login(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("로그인은 fingerprint rate limit 초과 시 429를 반환한다")
+    void loginReturnsTooManyRequestsWhenFingerprintLimitExceeded() throws Exception {
+        given(clientFingerprintService.build(org.mockito.ArgumentMatchers.any())).willReturn("fp-login");
+        org.mockito.BDDMockito.willThrow(new CustomException(ErrorCode.AUTH_RATE_LIMIT_EXCEEDED))
+                .given(authRateLimitService)
+                .checkLoginLimit("fp-login");
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "user@example.com",
+                                  "password": "password123"
+                                }
+                                """))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("A010"));
+
+        then(authLoginService).should(never()).login(org.mockito.ArgumentMatchers.any());
     }
 
     @Test

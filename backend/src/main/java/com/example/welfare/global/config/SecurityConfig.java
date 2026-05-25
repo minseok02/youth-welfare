@@ -78,6 +78,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/refresh").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/logout").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/notifications/unsubscribe").permitAll()
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/notifications/push-test-send",
+                                "/api/notifications/digest-test-dispatch",
+                                "/api/notifications/deadline-test-dispatch"
+                        ).hasRole("ADMIN")
                         .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         // 정책 조회/검색/랭킹 — 비로그인도 허용 (북마크 상태는 null 처리)

@@ -36,6 +36,8 @@ class WebPushDispatchServiceTest {
     private RecommendationDigestContentService recommendationDigestContentService;
     @Mock
     private DeadlineReminderContentService deadlineReminderContentService;
+    @Mock
+    private WebPushEndpointPolicyService webPushEndpointPolicyService;
 
     @InjectMocks
     private WebPushDispatchService webPushDispatchService;

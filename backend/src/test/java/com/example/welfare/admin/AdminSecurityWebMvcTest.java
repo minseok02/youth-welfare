@@ -190,6 +190,22 @@ class AdminSecurityWebMvcTest {
     }
 
     @Test
+    @DisplayName("관리자 수집 API는 maxCallsPerRun 상한을 넘기면 400을 반환한다")
+    void adminEndpointRejectsTooLargeMaxCallsPerRun() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+
+        mockMvc.perform(post("/api/admin/collect/youth")
+                        .param("maxCallsPerRun", "5001")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+    }
+
+    @Test
     @DisplayName("관리자 토큰으로 recommendation promotion approval record write API를 호출하면 approval record service를 실행한다")
     void adminEndpointAllowsRecommendationPromotionApprovalRecordWrite() throws Exception {
         mockAuthenticatedToken("admin-token", List.of(
@@ -313,6 +329,22 @@ class AdminSecurityWebMvcTest {
                 com.example.welfare.policy.entity.WelfareService.SourceType.YOUTH,
                 com.example.welfare.policy.entity.WelfareService.SourceType.BOKJIRO_LOCAL
         ), 50, true);
+    }
+
+    @Test
+    @DisplayName("정책 참고 URL 재구축 API는 limitPerSource 상한 초과 시 400을 반환한다")
+    void adminEndpointRejectsTooLargeReferenceUrlRebuildLimit() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+
+        mockMvc.perform(post("/api/admin/policies/reference-urls/rebuild")
+                        .param("limitPerSource", "1001")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
     }
 
     @Test
@@ -2033,6 +2065,23 @@ class AdminSecurityWebMvcTest {
     }
 
     @Test
+    @DisplayName("복지로 sidecar backfill API는 limitPerSource 상한 초과 시 400을 반환한다")
+    void adminEndpointRejectsTooLargeSidecarBackfillLimit() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+
+        mockMvc.perform(post("/api/admin/collect/bokjiro-sidecars-backfill")
+                        .param("scope", "list")
+                        .param("limitPerSource", "1001")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+    }
+
+    @Test
     @DisplayName("관리자 토큰으로 복지로 detail gap fill API를 호출하면 여러 라운드 수집을 실행한다")
     void adminEndpointAllowsBokjiroDetailGapFill() throws Exception {
         mockAuthenticatedToken("admin-token", List.of(
@@ -2072,6 +2121,22 @@ class AdminSecurityWebMvcTest {
 
         mockMvc.perform(post("/api/admin/collect/bokjiro-details-gap-fill")
                         .param("rounds", "0")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        mockMvc.perform(post("/api/admin/collect/bokjiro-details-gap-fill")
+                        .param("rounds", "11")
+                        .param("maxCallsPerRound", "100")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        mockMvc.perform(post("/api/admin/collect/bokjiro-details-gap-fill")
+                        .param("rounds", "1")
+                        .param("maxCallsPerRound", "1001")
                         .header("Authorization", "Bearer admin-token"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
