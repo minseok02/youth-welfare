@@ -162,122 +162,113 @@ echo "applying base schema to ${DB_HOST}:${DB_PORT}/${DB_NAME}"
 "${psql_base[@]}" < "${SCHEMA_FILE}"
 
 echo "creating runtime roles and grants"
-"${psql_base[@]}" <<SQL
-DO \$\$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${DB_USERNAME}') THEN
-        EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', '${DB_USERNAME}', '${DB_PASSWORD}');
-    ELSE
-        EXECUTE format('ALTER ROLE %I LOGIN PASSWORD %L', '${DB_USERNAME}', '${DB_PASSWORD}');
-    END IF;
+"${psql_base[@]}" \
+  -v "db_name=${DB_NAME}" \
+  -v "db_username=${DB_USERNAME}" \
+  -v "db_password=${DB_PASSWORD}" \
+  -v "db_app_pii_username=${DB_APP_PII_USERNAME}" \
+  -v "db_app_pii_password=${DB_APP_PII_PASSWORD}" \
+  -v "db_notification_pii_ro_username=${DB_NOTIFICATION_PII_RO_USERNAME}" \
+  -v "db_notification_pii_ro_password=${DB_NOTIFICATION_PII_RO_PASSWORD}" \
+  -v "db_admin_ro_username=${DB_ADMIN_RO_USERNAME}" \
+  -v "db_admin_ro_password=${DB_ADMIN_RO_PASSWORD}" \
+  -v "db_cluster_ai_cleanup_username=${DB_CLUSTER_AI_CLEANUP_USERNAME}" \
+  -v "db_cluster_ai_cleanup_password=${DB_CLUSTER_AI_CLEANUP_PASSWORD}" \
+  -v "db_recommendation_retention_cleanup_username=${DB_RECOMMENDATION_RETENTION_CLEANUP_USERNAME}" \
+  -v "db_recommendation_retention_cleanup_password=${DB_RECOMMENDATION_RETENTION_CLEANUP_PASSWORD}" \
+  -v "db_collect_execution_lock_cleanup_username=${DB_COLLECT_EXECUTION_LOCK_CLEANUP_USERNAME}" \
+  -v "db_collect_execution_lock_cleanup_password=${DB_COLLECT_EXECUTION_LOCK_CLEANUP_PASSWORD}" \
+  -v "db_web_push_subscription_cleanup_username=${DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_USERNAME}" \
+  -v "db_web_push_subscription_cleanup_password=${DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_PASSWORD}" \
+  -v "db_migration_username=${DB_MIGRATION_USERNAME}" \
+  -v "db_migration_password=${DB_MIGRATION_PASSWORD}" \
+  -v "rds_master_username=${RDS_MASTER_USERNAME}" <<'SQL'
+SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'db_username', :'db_password')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_username') \gexec
+SELECT format('ALTER ROLE %I LOGIN PASSWORD %L', :'db_username', :'db_password')
+WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_username') \gexec
 
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${DB_APP_PII_USERNAME}') THEN
-        EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', '${DB_APP_PII_USERNAME}', '${DB_APP_PII_PASSWORD}');
-    ELSE
-        EXECUTE format('ALTER ROLE %I LOGIN PASSWORD %L', '${DB_APP_PII_USERNAME}', '${DB_APP_PII_PASSWORD}');
-    END IF;
+SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'db_app_pii_username', :'db_app_pii_password')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_app_pii_username') \gexec
+SELECT format('ALTER ROLE %I LOGIN PASSWORD %L', :'db_app_pii_username', :'db_app_pii_password')
+WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_app_pii_username') \gexec
 
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${DB_NOTIFICATION_PII_RO_USERNAME}') THEN
-        EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', '${DB_NOTIFICATION_PII_RO_USERNAME}', '${DB_NOTIFICATION_PII_RO_PASSWORD}');
-    ELSE
-        EXECUTE format('ALTER ROLE %I LOGIN PASSWORD %L', '${DB_NOTIFICATION_PII_RO_USERNAME}', '${DB_NOTIFICATION_PII_RO_PASSWORD}');
-    END IF;
+SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'db_notification_pii_ro_username', :'db_notification_pii_ro_password')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_notification_pii_ro_username') \gexec
+SELECT format('ALTER ROLE %I LOGIN PASSWORD %L', :'db_notification_pii_ro_username', :'db_notification_pii_ro_password')
+WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_notification_pii_ro_username') \gexec
 
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${DB_ADMIN_RO_USERNAME}') THEN
-        EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', '${DB_ADMIN_RO_USERNAME}', '${DB_ADMIN_RO_PASSWORD}');
-    ELSE
-        EXECUTE format('ALTER ROLE %I LOGIN PASSWORD %L', '${DB_ADMIN_RO_USERNAME}', '${DB_ADMIN_RO_PASSWORD}');
-    END IF;
+SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'db_admin_ro_username', :'db_admin_ro_password')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_admin_ro_username') \gexec
+SELECT format('ALTER ROLE %I LOGIN PASSWORD %L', :'db_admin_ro_username', :'db_admin_ro_password')
+WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_admin_ro_username') \gexec
 
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${DB_CLUSTER_AI_CLEANUP_USERNAME}') THEN
-        EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', '${DB_CLUSTER_AI_CLEANUP_USERNAME}', '${DB_CLUSTER_AI_CLEANUP_PASSWORD}');
-    ELSE
-        EXECUTE format('ALTER ROLE %I LOGIN PASSWORD %L', '${DB_CLUSTER_AI_CLEANUP_USERNAME}', '${DB_CLUSTER_AI_CLEANUP_PASSWORD}');
-    END IF;
+SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'db_cluster_ai_cleanup_username', :'db_cluster_ai_cleanup_password')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_cluster_ai_cleanup_username') \gexec
+SELECT format('ALTER ROLE %I LOGIN PASSWORD %L', :'db_cluster_ai_cleanup_username', :'db_cluster_ai_cleanup_password')
+WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_cluster_ai_cleanup_username') \gexec
 
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${DB_RECOMMENDATION_RETENTION_CLEANUP_USERNAME}') THEN
-        EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', '${DB_RECOMMENDATION_RETENTION_CLEANUP_USERNAME}', '${DB_RECOMMENDATION_RETENTION_CLEANUP_PASSWORD}');
-    ELSE
-        EXECUTE format('ALTER ROLE %I LOGIN PASSWORD %L', '${DB_RECOMMENDATION_RETENTION_CLEANUP_USERNAME}', '${DB_RECOMMENDATION_RETENTION_CLEANUP_PASSWORD}');
-    END IF;
+SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'db_recommendation_retention_cleanup_username', :'db_recommendation_retention_cleanup_password')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_recommendation_retention_cleanup_username') \gexec
+SELECT format('ALTER ROLE %I LOGIN PASSWORD %L', :'db_recommendation_retention_cleanup_username', :'db_recommendation_retention_cleanup_password')
+WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_recommendation_retention_cleanup_username') \gexec
 
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${DB_COLLECT_EXECUTION_LOCK_CLEANUP_USERNAME}') THEN
-        EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', '${DB_COLLECT_EXECUTION_LOCK_CLEANUP_USERNAME}', '${DB_COLLECT_EXECUTION_LOCK_CLEANUP_PASSWORD}');
-    ELSE
-        EXECUTE format('ALTER ROLE %I LOGIN PASSWORD %L', '${DB_COLLECT_EXECUTION_LOCK_CLEANUP_USERNAME}', '${DB_COLLECT_EXECUTION_LOCK_CLEANUP_PASSWORD}');
-    END IF;
+SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'db_collect_execution_lock_cleanup_username', :'db_collect_execution_lock_cleanup_password')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_collect_execution_lock_cleanup_username') \gexec
+SELECT format('ALTER ROLE %I LOGIN PASSWORD %L', :'db_collect_execution_lock_cleanup_username', :'db_collect_execution_lock_cleanup_password')
+WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_collect_execution_lock_cleanup_username') \gexec
 
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_USERNAME}') THEN
-        EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', '${DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_USERNAME}', '${DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_PASSWORD}');
-    ELSE
-        EXECUTE format('ALTER ROLE %I LOGIN PASSWORD %L', '${DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_USERNAME}', '${DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_PASSWORD}');
-    END IF;
+SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'db_web_push_subscription_cleanup_username', :'db_web_push_subscription_cleanup_password')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_web_push_subscription_cleanup_username') \gexec
+SELECT format('ALTER ROLE %I LOGIN PASSWORD %L', :'db_web_push_subscription_cleanup_username', :'db_web_push_subscription_cleanup_password')
+WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_web_push_subscription_cleanup_username') \gexec
 
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${DB_MIGRATION_USERNAME}') THEN
-        EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', '${DB_MIGRATION_USERNAME}', '${DB_MIGRATION_PASSWORD}');
-    ELSE
-        EXECUTE format('ALTER ROLE %I LOGIN PASSWORD %L', '${DB_MIGRATION_USERNAME}', '${DB_MIGRATION_PASSWORD}');
-    END IF;
-END
-\$\$;
+SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'db_migration_username', :'db_migration_password')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_migration_username') \gexec
+SELECT format('ALTER ROLE %I LOGIN PASSWORD %L', :'db_migration_username', :'db_migration_password')
+WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_migration_username') \gexec
 
-GRANT CONNECT ON DATABASE ${DB_NAME} TO ${DB_USERNAME}, ${DB_APP_PII_USERNAME}, ${DB_NOTIFICATION_PII_RO_USERNAME}, ${DB_ADMIN_RO_USERNAME}, ${DB_CLUSTER_AI_CLEANUP_USERNAME}, ${DB_RECOMMENDATION_RETENTION_CLEANUP_USERNAME}, ${DB_COLLECT_EXECUTION_LOCK_CLEANUP_USERNAME}, ${DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_USERNAME}, ${DB_MIGRATION_USERNAME};
+GRANT CONNECT ON DATABASE :"db_name" TO :"db_username", :"db_app_pii_username", :"db_notification_pii_ro_username", :"db_admin_ro_username", :"db_cluster_ai_cleanup_username", :"db_recommendation_retention_cleanup_username", :"db_collect_execution_lock_cleanup_username", :"db_web_push_subscription_cleanup_username", :"db_migration_username";
 
-GRANT USAGE ON SCHEMA public TO ${DB_USERNAME}, ${DB_ADMIN_RO_USERNAME}, ${DB_CLUSTER_AI_CLEANUP_USERNAME}, ${DB_RECOMMENDATION_RETENTION_CLEANUP_USERNAME}, ${DB_COLLECT_EXECUTION_LOCK_CLEANUP_USERNAME}, ${DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_USERNAME}, ${DB_MIGRATION_USERNAME};
-GRANT CREATE ON SCHEMA public TO ${DB_MIGRATION_USERNAME};
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${DB_USERNAME};
-GRANT SELECT ON ALL TABLES IN SCHEMA public TO ${DB_ADMIN_RO_USERNAME};
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ${DB_USERNAME};
+GRANT USAGE ON SCHEMA public TO :"db_username", :"db_admin_ro_username", :"db_cluster_ai_cleanup_username", :"db_recommendation_retention_cleanup_username", :"db_collect_execution_lock_cleanup_username", :"db_web_push_subscription_cleanup_username", :"db_migration_username";
+GRANT CREATE ON SCHEMA public TO :"db_migration_username";
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO :"db_username";
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO :"db_admin_ro_username";
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO :"db_username";
 
-DO \$\$
-BEGIN
-    IF to_regclass('public.cluster_ai_results') IS NOT NULL THEN
-        EXECUTE format('GRANT DELETE ON TABLE public.cluster_ai_results TO %I', '${DB_CLUSTER_AI_CLEANUP_USERNAME}');
-        EXECUTE format('GRANT SELECT (created_at) ON TABLE public.cluster_ai_results TO %I', '${DB_CLUSTER_AI_CLEANUP_USERNAME}');
-    END IF;
-END
-\$\$;
+SELECT format('GRANT DELETE ON TABLE public.cluster_ai_results TO %I', :'db_cluster_ai_cleanup_username')
+WHERE to_regclass('public.cluster_ai_results') IS NOT NULL \gexec
+SELECT format('GRANT SELECT (created_at) ON TABLE public.cluster_ai_results TO %I', :'db_cluster_ai_cleanup_username')
+WHERE to_regclass('public.cluster_ai_results') IS NOT NULL \gexec
 
-DO \$\$
-BEGIN
-    IF to_regclass('public.user_recommendations') IS NOT NULL THEN
-        EXECUTE format('GRANT DELETE ON TABLE public.user_recommendations TO %I', '${DB_RECOMMENDATION_RETENTION_CLEANUP_USERNAME}');
-        EXECUTE format('GRANT SELECT (recommended_at, is_bookmarked) ON TABLE public.user_recommendations TO %I', '${DB_RECOMMENDATION_RETENTION_CLEANUP_USERNAME}');
-    END IF;
-END
-\$\$;
+SELECT format('GRANT DELETE ON TABLE public.user_recommendations TO %I', :'db_recommendation_retention_cleanup_username')
+WHERE to_regclass('public.user_recommendations') IS NOT NULL \gexec
+SELECT format('GRANT SELECT (recommended_at, is_bookmarked) ON TABLE public.user_recommendations TO %I', :'db_recommendation_retention_cleanup_username')
+WHERE to_regclass('public.user_recommendations') IS NOT NULL \gexec
 
-DO \$\$
-BEGIN
-    IF to_regclass('public.collect_execution_locks') IS NOT NULL THEN
-        EXECUTE format('GRANT DELETE ON TABLE public.collect_execution_locks TO %I', '${DB_COLLECT_EXECUTION_LOCK_CLEANUP_USERNAME}');
-        EXECUTE format('GRANT SELECT (lock_name, owner_token) ON TABLE public.collect_execution_locks TO %I', '${DB_COLLECT_EXECUTION_LOCK_CLEANUP_USERNAME}');
-    END IF;
-END
-\$\$;
+SELECT format('GRANT DELETE ON TABLE public.collect_execution_locks TO %I', :'db_collect_execution_lock_cleanup_username')
+WHERE to_regclass('public.collect_execution_locks') IS NOT NULL \gexec
+SELECT format('GRANT SELECT (lock_name, owner_token) ON TABLE public.collect_execution_locks TO %I', :'db_collect_execution_lock_cleanup_username')
+WHERE to_regclass('public.collect_execution_locks') IS NOT NULL \gexec
 
-DO \$\$
-BEGIN
-    IF to_regclass('public.web_push_subscriptions') IS NOT NULL THEN
-        EXECUTE format('GRANT DELETE ON TABLE public.web_push_subscriptions TO %I', '${DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_USERNAME}');
-        EXECUTE format('GRANT SELECT (id, user_key) ON TABLE public.web_push_subscriptions TO %I', '${DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_USERNAME}');
-    END IF;
-END
-\$\$;
+SELECT format('GRANT DELETE ON TABLE public.web_push_subscriptions TO %I', :'db_web_push_subscription_cleanup_username')
+WHERE to_regclass('public.web_push_subscriptions') IS NOT NULL \gexec
+SELECT format('GRANT SELECT (id, user_key) ON TABLE public.web_push_subscriptions TO %I', :'db_web_push_subscription_cleanup_username')
+WHERE to_regclass('public.web_push_subscriptions') IS NOT NULL \gexec
 
-GRANT USAGE ON SCHEMA youth_welfare_pii TO ${DB_APP_PII_USERNAME}, ${DB_NOTIFICATION_PII_RO_USERNAME}, ${DB_MIGRATION_USERNAME};
-GRANT CREATE ON SCHEMA youth_welfare_pii TO ${DB_MIGRATION_USERNAME};
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA youth_welfare_pii TO ${DB_APP_PII_USERNAME};
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA youth_welfare_pii TO ${DB_APP_PII_USERNAME};
-GRANT SELECT (user_key, email_enc) ON youth_welfare_pii.user_pii TO ${DB_NOTIFICATION_PII_RO_USERNAME};
+GRANT USAGE ON SCHEMA youth_welfare_pii TO :"db_app_pii_username", :"db_notification_pii_ro_username", :"db_migration_username";
+GRANT CREATE ON SCHEMA youth_welfare_pii TO :"db_migration_username";
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA youth_welfare_pii TO :"db_app_pii_username";
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA youth_welfare_pii TO :"db_app_pii_username";
+GRANT SELECT (user_key, email_enc) ON youth_welfare_pii.user_pii TO :"db_notification_pii_ro_username";
 
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ${DB_MIGRATION_USERNAME};
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA youth_welfare_pii TO ${DB_MIGRATION_USERNAME};
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ${DB_MIGRATION_USERNAME};
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA youth_welfare_pii TO ${DB_MIGRATION_USERNAME};
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO :"db_migration_username";
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA youth_welfare_pii TO :"db_migration_username";
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO :"db_migration_username";
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA youth_welfare_pii TO :"db_migration_username";
 
-ALTER DEFAULT PRIVILEGES FOR ROLE ${RDS_MASTER_USERNAME} IN SCHEMA public
-GRANT SELECT ON TABLES TO ${DB_ADMIN_RO_USERNAME};
+ALTER DEFAULT PRIVILEGES FOR ROLE :"rds_master_username" IN SCHEMA public
+GRANT SELECT ON TABLES TO :"db_admin_ro_username";
 SQL
 
 echo "configuring migration role default privileges"
