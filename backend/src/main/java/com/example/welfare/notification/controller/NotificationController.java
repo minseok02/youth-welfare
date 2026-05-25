@@ -26,9 +26,12 @@ import com.example.welfare.user.service.UserAccountCommandService;
 import com.example.welfare.user.service.UserNotificationReadService;
 import com.example.welfare.user.entity.User;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
@@ -37,6 +40,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/notifications")
 @RequiredArgsConstructor
+@Validated
 public class NotificationController {
 
     private final JwtUtil jwtUtil;
@@ -152,7 +156,7 @@ public class NotificationController {
     @PostMapping("/deadline-test-dispatch")
     public ResponseEntity<ApiResponse<NotificationDeadlineTestDispatchResponse>> sendDeadlineTestDispatch(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
-            @RequestParam(defaultValue = "3") int days) {
+            @RequestParam(defaultValue = "3") @Min(1) @Max(30) int days) {
         String userKey = resolveUserKey(authenticatedUser);
         User user = activeUserReadService.getActiveUserByUserKey(userKey);
         String email = userNotificationReadService.getNotificationEmailByUserKey(userKey);

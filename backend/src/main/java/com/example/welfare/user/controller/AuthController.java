@@ -20,6 +20,9 @@ import com.example.welfare.user.service.EmailVerificationService;
 import com.example.welfare.user.service.PasswordResetService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -52,7 +55,7 @@ public class AuthController {
 
     @GetMapping("/check-email")
     public ResponseEntity<ApiResponse<EmailAvailabilityResponse>> checkEmailAvailability(
-            @RequestParam String email,
+            @RequestParam @NotBlank @Email @Size(max = 254) String email,
             HttpServletRequest request) {
         authRateLimitService.checkEmailCheckLimit(clientFingerprintService.build(request));
         return ResponseEntity.ok(ApiResponse.success(authAvailabilityService.checkEmailAvailability(email)));
@@ -60,7 +63,7 @@ public class AuthController {
 
     @PostMapping("/email-verification/send")
     public ResponseEntity<ApiResponse<Void>> sendEmailVerificationCode(
-            @RequestParam @Email String email,
+            @RequestParam @NotBlank @Email @Size(max = 254) String email,
             HttpServletRequest request) {
         authRateLimitService.checkEmailVerificationSendLimit(clientFingerprintService.build(request));
         emailVerificationService.sendCode(email);
@@ -69,8 +72,8 @@ public class AuthController {
 
     @PostMapping("/email-verification/verify")
     public ResponseEntity<ApiResponse<Void>> verifyEmailCode(
-            @RequestParam String email,
-            @RequestParam String code) {
+            @RequestParam @NotBlank @Email @Size(max = 254) String email,
+            @RequestParam @NotBlank @Pattern(regexp = "\\d{6}") String code) {
         emailVerificationService.verifyCode(email, code);
         return ResponseEntity.ok(ApiResponse.success(null));
     }

@@ -101,7 +101,7 @@ public class RecommendationExecutionGuard {
     private void release(String userKey, String ownerToken) {
         Long released = redisTemplate.execute(releaseIfOwnedScript, List.of(lockKey(userKey)), ownerToken);
         if (!Long.valueOf(1L).equals(released)) {
-            log.warn("[RecommendationExecutionGuard] 추천 lock 해제 확인 실패 userKey={} ownerToken={}", userKey, ownerToken);
+            log.warn("[RecommendationExecutionGuard] 추천 lock 해제 확인 실패 userKey={}", userKey);
         }
     }
 

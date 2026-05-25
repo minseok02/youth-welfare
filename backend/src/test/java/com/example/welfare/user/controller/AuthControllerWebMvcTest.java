@@ -86,6 +86,19 @@ class AuthControllerWebMvcTest {
     }
 
     @Test
+    @DisplayName("이메일 확인은 잘못된 이메일 형식을 서비스 호출 전에 거부한다")
+    void checkEmailAvailabilityRejectsInvalidEmail() throws Exception {
+        mockMvc.perform(get("/api/auth/check-email")
+                        .param("email", "not-an-email"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        then(authAvailabilityService).should(never()).checkEmailAvailability(org.mockito.ArgumentMatchers.any());
+        then(authRateLimitService).should(never()).checkEmailCheckLimit(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     @DisplayName("이메일 인증코드 발송은 fingerprint rate limit을 먼저 확인한다")
     void sendEmailVerificationChecksFingerprintRateLimit() throws Exception {
         given(clientFingerprintService.build(org.mockito.ArgumentMatchers.any())).willReturn("fp-email-send");
@@ -127,6 +140,20 @@ class AuthControllerWebMvcTest {
                 .andExpect(jsonPath("$.errorCode").value("A010"));
 
         then(emailVerificationService).should(never()).sendCode(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("이메일 인증 확인은 6자리 숫자가 아닌 코드를 서비스 호출 전에 거부한다")
+    void verifyEmailCodeRejectsInvalidCodeFormat() throws Exception {
+        mockMvc.perform(post("/api/auth/email-verification/verify")
+                        .param("email", "new@example.com")
+                        .param("code", "12ab"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        then(emailVerificationService).should(never())
+                .verifyCode(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }
 
     @Test

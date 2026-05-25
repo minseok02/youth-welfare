@@ -40,8 +40,8 @@ public class PolicySearchLogService {
                     .pageSize(Math.max(1, command.size()))
                     .build());
         } catch (RuntimeException e) {
-            log.warn("[PolicySearchLogService] 검색 로그 저장 실패 keyword={} resultCount={} page={} size={}",
-                    command.keyword(),
+            log.warn("[PolicySearchLogService] 검색 로그 저장 실패 keywordLength={} resultCount={} page={} size={}",
+                    command.keyword().trim().length(),
                     command.resultCount(),
                     command.page(),
                     command.size(),

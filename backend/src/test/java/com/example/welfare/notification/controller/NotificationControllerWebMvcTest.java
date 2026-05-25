@@ -21,12 +21,15 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.never;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -126,5 +129,37 @@ class NotificationControllerWebMvcTest {
                 .andExpect(jsonPath("$.errorCode").value("A001"));
 
         then(userAccountCommandService).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("푸시 테스트 발송은 과도하게 긴 제목을 서비스 호출 전에 거부한다")
+    void pushTestSendRejectsTooLongTitle() throws Exception {
+        mockMvc.perform(post("/api/notifications/push-test-send")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title": "%s",
+                                  "body": "body",
+                                  "url": "/mypage?tab=3"
+                                }
+                                """.formatted("t".repeat(101))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        then(webPushDispatchService).should(never())
+                .sendTestMessage(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("마감 테스트 발송은 허용 범위를 벗어난 일수를 서비스 호출 전에 거부한다")
+    void deadlineTestDispatchRejectsOutOfRangeDays() throws Exception {
+        mockMvc.perform(post("/api/notifications/deadline-test-dispatch")
+                        .param("days", "365"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        then(deadlineReminderDispatchService).shouldHaveNoInteractions();
     }
 }

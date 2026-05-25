@@ -55,7 +55,7 @@ public class CollectExecutionGuard {
         } finally {
             heartbeat.shutdownNow();
             if (!collectExecutionLockCleanupCommandRepository.release(GLOBAL_LOCK_NAME, ownerToken)) {
-                log.warn("[CollectExecutionGuard] 수집 lock 해제 확인 실패 job={} ownerToken={}", jobName, ownerToken);
+                log.warn("[CollectExecutionGuard] 수집 lock 해제 확인 실패 job={}", jobName);
             }
             log.info("[CollectExecutionGuard] 수집 실행 종료 job={}", jobName);
         }
@@ -73,7 +73,7 @@ public class CollectExecutionGuard {
         LocalDateTime lockedUntil = now.plusMinutes(lockLeaseMinutes);
         boolean refreshed = collectExecutionLockRepository.refresh(GLOBAL_LOCK_NAME, ownerToken, now, lockedUntil);
         if (!refreshed) {
-            log.error("[CollectExecutionGuard] 수집 lock heartbeat 갱신 실패 job={} ownerToken={}", jobName, ownerToken);
+            log.error("[CollectExecutionGuard] 수집 lock heartbeat 갱신 실패 job={}", jobName);
         }
     }
 

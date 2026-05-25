@@ -108,11 +108,11 @@ public class ChatRetrievalSnapshotService {
         try {
             chatRetrievalSnapshotRepository.save(snapshot);
         } catch (RuntimeException e) {
-            log.warn("[ChatRetrievalSnapshotService] snapshot 저장 실패 type={} scenarioKey={} sessionId={} question={}",
+            log.warn("[ChatRetrievalSnapshotService] snapshot 저장 실패 type={} scenarioKey={} sessionId={} questionLength={}",
                     snapshot.getSnapshotType(),
                     snapshot.getScenarioKey(),
                     snapshot.getSessionId(),
-                    trimForLog(snapshot.getQuestion()),
+                    lengthOf(snapshot.getQuestion()),
                     e);
         }
     }
@@ -132,10 +132,7 @@ public class ChatRetrievalSnapshotService {
         return value.trim();
     }
 
-    private String trimForLog(String question) {
-        if (question == null || question.length() <= 60) {
-            return question;
-        }
-        return question.substring(0, 60);
+    private Integer lengthOf(String question) {
+        return question != null ? question.length() : null;
     }
 }

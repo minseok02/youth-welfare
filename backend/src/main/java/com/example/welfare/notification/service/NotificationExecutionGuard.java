@@ -58,7 +58,7 @@ public class NotificationExecutionGuard {
         } finally {
             Long released = redisTemplate.execute(releaseIfOwnedScript, List.of(lockKey), ownerToken);
             if (!Long.valueOf(1L).equals(released)) {
-                log.warn("[NotificationExecutionGuard] 알림 lock 해제 확인 실패 lock={} ownerToken={}", lockName, ownerToken);
+                log.warn("[NotificationExecutionGuard] 알림 lock 해제 확인 실패 lock={}", lockName);
             }
             log.info("[NotificationExecutionGuard] 알림 실행 종료 lock={}", lockName);
         }
