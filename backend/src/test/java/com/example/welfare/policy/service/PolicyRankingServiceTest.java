@@ -7,6 +7,7 @@ import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -18,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class PolicyRankingServiceTest {
@@ -129,6 +131,36 @@ class PolicyRankingServiceTest {
         assertEquals(3, ranking.size());
         // 신규 정책이 탐색 슬롯으로 포함되는지 확인
         assertEquals(true, ids.contains(3L));
+    }
+
+    @Test
+    @DisplayName("랭킹 projection 조회는 정규화된 응답 후보에만 수행한다")
+    void rankingProjectionLookupUsesSelectedServicesOnly() {
+        List<WelfareService> services = java.util.stream.LongStream.rangeClosed(1, 150)
+                .mapToObj(id -> WelfareService.builder()
+                        .id(id)
+                        .sourceType(WelfareService.SourceType.YOUTH)
+                        .sourceId("S-" + id)
+                        .title("정책 " + id)
+                        .status(WelfareService.ServiceStatus.ACTIVE)
+                        .viewCount((int) id)
+                        .apiViewCount(id)
+                        .registeredAt(LocalDateTime.now().minusDays(id))
+                        .build())
+                .toList();
+
+        given(policyRankingReadRepository.findRankableServices()).willReturn(services);
+        given(policyRankingReadRepository.findUniqueViewCountsSince(anyCollection(), any()))
+                .willReturn(List.of());
+        given(policyPresentationReadService.findProjections(any()))
+                .willReturn(java.util.Map.of());
+
+        List<PolicyRankingResponse> ranking = policyRankingService.getRanking(100_000);
+
+        ArgumentCaptor<List<WelfareService>> projectionServices = ArgumentCaptor.forClass(List.class);
+        verify(policyPresentationReadService).findProjections(projectionServices.capture());
+        assertEquals(100, ranking.size());
+        assertEquals(100, projectionServices.getValue().size());
     }
 
     private PolicyRankingReadRepository.ServiceUniqueViewCount uniqueCount(Long serviceId, Long uniqueCount) {

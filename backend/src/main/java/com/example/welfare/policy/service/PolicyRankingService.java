@@ -48,9 +48,6 @@ public class PolicyRankingService {
                         PolicyRankingReadRepository.ServiceUniqueViewCount::getServiceId,
                         row -> safeLong(row.getUniqueViewCount())
                 ));
-        Map<Long, RecommendationCandidateProjection> projections =
-                policyPresentationReadService.findProjections(services);
-
         double maxUniqueRaw = services.stream()
                 .mapToDouble(s -> log1p(uniqueViewsByServiceId.getOrDefault(s.getId(), 0L)))
                 .max()
@@ -118,7 +115,13 @@ public class PolicyRankingService {
                         (a, b) -> a
                 ));
 
-        return applyExplorationSlots(sortedByScore, services, scoredByServiceId, limit).stream()
+        List<ScoredService> selected = applyExplorationSlots(sortedByScore, services, scoredByServiceId, limit);
+        Map<Long, RecommendationCandidateProjection> projections =
+                policyPresentationReadService.findProjections(selected.stream()
+                        .map(ScoredService::service)
+                        .toList());
+
+        return selected.stream()
                 .map(scored -> PolicyRankingResponse.of(
                         scored.service(),
                         uniqueViewsByServiceId.getOrDefault(scored.service().getId(), 0L),
