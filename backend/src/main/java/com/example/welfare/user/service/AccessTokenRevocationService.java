@@ -6,7 +6,10 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Date;
+import java.util.HexFormat;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -44,7 +47,20 @@ public class AccessTokenRevocationService {
         return Boolean.TRUE.equals(redisTemplate.hasKey(revocationKey(accessToken)));
     }
 
+    String storageKeyForTest(String accessToken) {
+        return revocationKey(accessToken);
+    }
+
     private String revocationKey(String accessToken) {
-        return REVOKED_ACCESS_TOKEN_PREFIX + accessToken;
+        return REVOKED_ACCESS_TOKEN_PREFIX + sha256(accessToken);
+    }
+
+    private String sha256(String accessToken) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(accessToken.getBytes(StandardCharsets.UTF_8)));
+        } catch (Exception e) {
+            throw new IllegalStateException("failed to hash revoked access token", e);
+        }
     }
 }

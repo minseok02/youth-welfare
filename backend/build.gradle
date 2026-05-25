@@ -70,6 +70,15 @@ def sanitizedRedisPort = { String value ->
 }
 
 dependencies {
+    constraints {
+        implementation('org.asynchttpclient:async-http-client:2.15.0') {
+            because 'web-push transitively pulls a vulnerable async-http-client on older versions'
+        }
+        implementation('org.bitbucket.b_c:jose4j:0.9.6') {
+            because 'web-push transitively pulls a vulnerable jose4j on older versions'
+        }
+    }
+
     // Spring Boot
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
@@ -97,7 +106,9 @@ dependencies {
     implementation 'org.jsoup:jsoup:1.17.2'
 
     // Web Push
-    implementation 'nl.martijndwars:web-push:5.1.1'
+    implementation 'nl.martijndwars:web-push:5.1.2'
+    implementation 'org.bitbucket.b_c:jose4j:0.9.6'
+    implementation 'org.apache.httpcomponents:httpclient:4.5.14'
     implementation 'org.bouncycastle:bcprov-jdk18on:1.84'
     implementation 'org.bouncycastle:bcpkix-jdk18on:1.84'
 

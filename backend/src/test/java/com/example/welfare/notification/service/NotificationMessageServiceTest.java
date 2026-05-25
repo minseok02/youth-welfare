@@ -1,6 +1,5 @@
 package com.example.welfare.notification.service;
 
-import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.recommend.entity.RecommendationLog;
 import com.example.welfare.recommend.entity.UserRecommendation;
@@ -23,7 +22,7 @@ import static org.mockito.BDDMockito.given;
 class NotificationMessageServiceTest {
 
     @Mock
-    private JwtUtil jwtUtil;
+    private NotificationUnsubscribeTokenService notificationUnsubscribeTokenService;
 
     @InjectMocks
     private NotificationMessageService notificationMessageService;
@@ -46,7 +45,7 @@ class NotificationMessageServiceTest {
                 .aiReason("주거비 부담 완화에 적합")
                 .build();
         RecommendationLog log = RecommendationLog.builder().id(100L).build();
-        given(jwtUtil.generateNotificationToken("user-key-1", 1L)).willReturn("unsubscribe-token");
+        given(notificationUnsubscribeTokenService.issueToken("user-key-1")).willReturn("unsubscribe-token");
 
         String message = notificationMessageService.buildRecommendationMessage(
                 "user-key-1",

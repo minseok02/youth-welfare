@@ -73,6 +73,19 @@ class AuthControllerWebMvcTest {
     }
 
     @Test
+    @DisplayName("이메일 확인은 email 파라미터가 없으면 500 대신 400 invalid input을 반환한다")
+    void checkEmailAvailabilityWithoutEmailReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/api/auth/check-email"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"))
+                .andExpect(jsonPath("$.message").value("입력값이 올바르지 않습니다."));
+
+        then(authAvailabilityService).should(never()).checkEmailAvailability(org.mockito.ArgumentMatchers.any());
+        then(authRateLimitService).should(never()).checkEmailCheckLimit(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     @DisplayName("이메일 인증코드 발송은 fingerprint rate limit을 먼저 확인한다")
     void sendEmailVerificationChecksFingerprintRateLimit() throws Exception {
         given(clientFingerprintService.build(org.mockito.ArgumentMatchers.any())).willReturn("fp-email-send");

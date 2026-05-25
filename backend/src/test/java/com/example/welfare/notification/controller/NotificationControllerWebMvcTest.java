@@ -3,6 +3,7 @@ package com.example.welfare.notification.controller;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.util.JwtUtil;
+import com.example.welfare.notification.service.NotificationUnsubscribeTokenService;
 import com.example.welfare.notification.service.DeadlineReminderDispatchService;
 import com.example.welfare.notification.service.NotificationDispatchService;
 import com.example.welfare.notification.service.UserAlertCommandService;
@@ -39,6 +40,8 @@ class NotificationControllerWebMvcTest {
     @MockBean
     private JwtUtil jwtUtil;
     @MockBean
+    private NotificationUnsubscribeTokenService notificationUnsubscribeTokenService;
+    @MockBean
     private UserAccountCommandService userAccountCommandService;
     @MockBean
     private UserAlertReadService userAlertReadService;
@@ -64,16 +67,33 @@ class NotificationControllerWebMvcTest {
     @Test
     @DisplayName("수신 거부 토큰으로 알림 설정을 해제한다")
     void unsubscribeByToken() throws Exception {
-        given(jwtUtil.getSubject("unsubscribe-token")).willReturn("user-key-7");
+        given(notificationUnsubscribeTokenService.consumeUserKey("unsubscribe-token"))
+                .willReturn(java.util.Optional.of("user-key-7"));
 
         mockMvc.perform(get("/api/notifications/unsubscribe")
                         .param("token", "unsubscribe-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
-        then(jwtUtil).should().validate("unsubscribe-token");
-        then(jwtUtil).should().getSubject("unsubscribe-token");
+        then(notificationUnsubscribeTokenService).should().consumeUserKey("unsubscribe-token");
         then(userAccountCommandService).should().unsubscribeNotificationsByUserKey("user-key-7");
+    }
+
+    @Test
+    @DisplayName("opaque token이 없으면 기존 JWT unsubscribe token fallback을 허용한다")
+    void unsubscribeFallsBackToLegacyJwtToken() throws Exception {
+        given(notificationUnsubscribeTokenService.consumeUserKey("legacy-jwt-token"))
+                .willReturn(java.util.Optional.empty());
+        given(jwtUtil.getSubject("legacy-jwt-token")).willReturn("user-key-9");
+
+        mockMvc.perform(get("/api/notifications/unsubscribe")
+                        .param("token", "legacy-jwt-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        then(jwtUtil).should().validate("legacy-jwt-token");
+        then(jwtUtil).should().getSubject("legacy-jwt-token");
+        then(userAccountCommandService).should().unsubscribeNotificationsByUserKey("user-key-9");
     }
 
     @Test

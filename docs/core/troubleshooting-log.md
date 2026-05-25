@@ -1,5 +1,33 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 984) CSP를 nginx에 추가할 때는 헤더만 더하는 게 아니라 upstream CSP 중복 가능성도 같이 막아야 edge 단일 책임이 유지된다
+- 문제: 현재 운영 템플릿은 HSTS/XFO/XCTO를 edge nginx가 직접 내려 주고, 프록시 경로에서는 upstream 헤더를 `proxy_hide_header` 로 숨기게 이미 정리돼 있었다. 여기서 CSP만 단순 `add_header` 로 더하면 지금은 괜찮더라도, 나중에 Spring이나 Swagger upstream이 CSP를 내리기 시작했을 때 중복/충돌이 생길 수 있다.
+- 해결: [deploy/nginx/youth-welfare.conf](/home/minseok/youth-welfare/deploy/nginx/youth-welfare.conf:1) 와 [deploy/nginx/youth-welfare.bootstrap.conf](/home/minseok/youth-welfare/deploy/nginx/youth-welfare.bootstrap.conf:1) 에 baseline CSP를 추가하는 동시에, `/api/`, `/actuator/`, `/swagger-ui/`, `/v3/api-docs/` 프록시 경로에 `proxy_hide_header Content-Security-Policy;` 도 같이 넣었다. 이렇게 해야 CSP도 HSTS/XFO/XCTO와 같은 “edge 단일 책임” 패턴으로 유지된다.
+
+## 983) body validation만 400으로 내려도 request parameter 누락/타입 오류는 generic 500으로 새어 나갈 수 있다
+- 문제: [GlobalExceptionHandler](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/global/exception/GlobalExceptionHandler.java:1) 는 `MethodArgumentNotValidException`, `ConstraintViolationException`, `HttpMessageNotReadableException` 만 직접 잡고 있었다. 그래서 `/api/auth/check-email` 처럼 `@RequestParam` 을 쓰는 경로에 `email` 없이 들어오면 `MissingServletRequestParameterException` 이 generic handler로 흘러 500처럼 보일 수 있었다.
+- 해결: `MissingServletRequestParameterException`, `MethodArgumentTypeMismatchException`, `MissingPathVariableException` 을 전용 400 `INVALID_INPUT(C001)` handler로 묶었다. 사용자 응답은 계속 `"입력값이 올바르지 않습니다."` 로 통일하고, stack trace는 서버 로그에만 남긴다. 검증은 `AuthControllerWebMvcTest` 에 `/api/auth/check-email` without `email` -> `400/C001` 케이스를 추가해 다시 닫는다.
+
+## 982) access token revocation 자체는 맞아도 Redis key에 JWT 원문을 남기면 “저장소 hardening” 관점에서는 여전히 불필요한 노출이 남는다
+- 문제: revoke 동작은 이미 정확했지만, [AccessTokenRevocationService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AccessTokenRevocationService.java:1) 가 `access-revoked:{JWT원문}` 형식 key를 쓰고 있었다. Redis가 내부 저장소라 해도, key만 봐도 access token 원문이 드러나는 건 불필요한 노출이다.
+- 해결: Redis key를 `access-revoked:{sha256(accessToken)}` 로 바꾸고, 값 `"1"` 과 TTL 계산은 그대로 유지했다. 즉 revoke 계약 자체는 안 바꾸고, 저장소에 남는 민감도를 낮추는 쪽으로만 hardening 한다. 테스트도 `revoke 후 true`, `만료 토큰 저장 안 함`, `Redis key에 JWT 원문 미포함` 세 가지를 직접 검증한다.
+
+## 980) unsubscribe 링크에서 query parameter 자체를 없애지 못하더라도, JWT를 opaque token으로 바꾸고 서버 저장소에서 원문을 제거하는 것이 우선이다
+- 문제: 이번 지적의 본질은 `/api/notifications/unsubscribe?token=...` 쿼리 자체보다, 거기에 실리는 값이 JWT라서 query string 노출만으로도 바로 인증수단처럼 쓸 수 있다는 점이었다. 프론트 확인 페이지를 새로 두지 않는 이상 query parameter는 남을 수 있지만, 그 값이 의미 없는 opaque string이 되면 노출면이 크게 줄어든다.
+- 해결: 새 [NotificationUnsubscribeTokenService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/notification/service/NotificationUnsubscribeTokenService.java:1) 가 32-byte random opaque token을 발급하고, Redis에는 `notification:unsubscribe:{sha256(token)}` key에 `userKey` 만 TTL과 함께 저장하게 바꿨다. mail body는 opaque token만 싣고, controller는 받은 token을 hash해서 lookup 후 1회성으로 delete한다. 이렇게 하면 query에 값이 남더라도 JWT claims 같은 자체 정보가 없고, 서버 저장소에도 원문 token은 남지 않는다.
+
+## 981) unsubscribe migration은 기존 메일 링크를 바로 끊지 않고, opaque token 우선 + JWT fallback 과도기를 두는 편이 운영 리스크가 낮다
+- 문제: 새로 발송되는 메일을 opaque token으로 바꾸는 것 자체는 간단하지만, 이미 나간 메일의 `/api/notifications/unsubscribe?token={JWT}` 링크를 즉시 끊으면 정상 사용자가 오래된 메일에서 수신거부를 눌렀을 때 바로 장애처럼 보일 수 있다.
+- 해결: [NotificationController](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/notification/controller/NotificationController.java:1) 는 먼저 `NotificationUnsubscribeTokenService.consumeUserKey(token)` 를 시도하고, 저장된 opaque token이 없을 때만 기존 `jwtUtil.validate(token) -> getSubject(token)` fallback을 허용한다. 이로써 새 메일은 안전한 opaque token 구조로 전환하면서도, 운영 중 이미 발송된 legacy JWT unsubscribe 링크는 당분간 계속 처리할 수 있다.
+
+## 978) `web-push` 만 패치해도 runtimeClasspath 취약 버전이 그대로 남을 수 있어, 전이 의존성 해석 결과를 먼저 확인해야 했다
+- 문제: 이번 follow-up의 시작점은 `nl.martijndwars:web-push` 자체보다 그것이 끌고 오는 `async-http-client`, `jose4j` 의 실제 런타임 버전이었다. `dependencyInsight` 를 먼저 찍어 보니 코드 추측이 아니라 실제 `runtimeClasspath` 가 `async-http-client:2.10.4`, `jose4j:0.7.0` 으로 해석되고 있었다.
+- 해결: `web-push` 를 `5.1.2` 로 올리는 것만으로 끝내지 않고, [build.gradle](/home/minseok/youth-welfare/backend/build.gradle:1) 에 dependency constraint를 추가해 `async-http-client >= 2.15.0`, `jose4j >= 0.9.6` 을 명시적으로 고정한다. 이 프로젝트는 이미 `tomcat.version` override를 쓰고 있으므로, 보안 취약 전이 의존성도 같은 식으로 “실제 해석 버전 고정 + dependencyInsight 재검증” 흐름으로 닫는 편이 맞다.
+
+## 979) `web-push 5.1.2` 는 취약 전이 의존성은 올려도, 우리 코드가 예전 transitive compile classpath에 기대던 타입은 더 이상 직접 안 보일 수 있다
+- 문제: `web-push 5.1.2` 와 constraint만 넣은 뒤 `./gradlew test` 를 돌리자 compile 단계에서 `org.jose4j.lang.JoseException`, `org.apache.http.HttpResponse` 를 못 찾는 오류가 바로 났다. 즉 문제는 “버전이 안 올라갔다”가 아니라, 우리 코드가 `web-push` 예전 전이 compile classpath에 기대고 있었다는 점이었다.
+- 해결: 취약 버전을 피하는 목적과 compile 계약을 동시에 맞추기 위해 `jose4j 0.9.6`, `httpclient 4.5.14` 를 direct dependency로 명시한다. 이 프로젝트에서는 보안 패치와 함께 “전이 의존성에 암묵적으로 기대던 compile 타입을 직접 선언하는 정리”까지 같이 하는 편이 더 안전하다.
+
 ## 976) logout에 user-wide cutoff를 바로 붙이면 immediate relogin access token까지 같은 millisecond에 false-negative로 막힐 수 있다
 - 문제: `UserSessionRevocationService.isAccessAllowed()` 는 `issuedAtMillis > cutoffMillis` 인 경우만 허용한다. 그래서 일반 logout에도 `revokeUserSessions(userKey, System.currentTimeMillis())` 를 연결하면 older access token은 막을 수 있지만, 바로 뒤 로그인/refresh가 같은 millisecond에 새 access token을 발급받으면 `iatm == cutoffMillis` 로 잘못 차단될 수 있다.
 - 해결: logout/write 경계만 바꾸지 않고 token issue 경계도 같이 수정했다. `AuthTokenService.issueTokens()` 는 이제 `UserSessionRevocationService.resolveNextAccessIssuedAtMillis(userKey, candidateIssuedAtMillis)` 를 통해 현재 cutoff를 읽고, candidate가 cutoff 이하이면 `cutoff + 1` 로 access token `iatm` 을 밀어낸다. `JwtUtil.generateAccessToken(..., issuedAtMillis)` overload를 추가해 이 값을 실제 claim으로 넣게 했고, 결과적으로 `older_login_token_after_logout` 는 `401/A006` 으로 막으면서도 immediate relogin token은 계속 통과한다.

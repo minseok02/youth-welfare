@@ -1,6 +1,5 @@
 package com.example.welfare.notification.service;
 
-import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.recommend.entity.RecommendationLog;
 import com.example.welfare.recommend.entity.UserRecommendation;
@@ -14,7 +13,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class NotificationMessageService {
 
-    private final JwtUtil jwtUtil;
+    private final NotificationUnsubscribeTokenService notificationUnsubscribeTokenService;
 
     @Value("${app.base-url:https://youth-welfare.kr}")
     private String appBaseUrl;
@@ -38,8 +37,9 @@ public class NotificationMessageService {
                     .append("?log_id=").append(logId).append("\n\n");
         }
         if (userKey != null && userId != null) {
+            String unsubscribeToken = notificationUnsubscribeTokenService.issueToken(userKey);
             sb.append("수신 거부: ").append(appBaseUrl).append("/api/notifications/unsubscribe?token=")
-                    .append(jwtUtil.generateNotificationToken(userKey, userId))
+                    .append(unsubscribeToken)
                     .append("\n");
         }
         return sb.toString();
@@ -63,8 +63,9 @@ public class NotificationMessageService {
                     .append(service.getId()).append("\n\n");
         }
         if (userKey != null && userId != null) {
+            String unsubscribeToken = notificationUnsubscribeTokenService.issueToken(userKey);
             sb.append("수신 거부: ").append(appBaseUrl).append("/api/notifications/unsubscribe?token=")
-                    .append(jwtUtil.generateNotificationToken(userKey, userId))
+                    .append(unsubscribeToken)
                     .append("\n");
         }
         return sb.toString();

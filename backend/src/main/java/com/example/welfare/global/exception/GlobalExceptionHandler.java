@@ -6,9 +6,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MissingPathVariableException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @Slf4j
 @RestControllerAdvice
@@ -44,6 +47,17 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiResponse<Void>> handleUnreadableMessage(HttpMessageNotReadableException e) {
+        return ResponseEntity
+                .badRequest()
+                .body(ApiResponse.error("입력값이 올바르지 않습니다.", ErrorCode.INVALID_INPUT.getCode()));
+    }
+
+    @ExceptionHandler({
+            MissingServletRequestParameterException.class,
+            MethodArgumentTypeMismatchException.class,
+            MissingPathVariableException.class
+    })
+    public ResponseEntity<ApiResponse<Void>> handleRequestParameterExceptions(Exception e) {
         return ResponseEntity
                 .badRequest()
                 .body(ApiResponse.error("입력값이 올바르지 않습니다.", ErrorCode.INVALID_INPUT.getCode()));

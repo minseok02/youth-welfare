@@ -15,6 +15,7 @@ import com.example.welfare.notification.dto.WebPushTestSendResponse;
 import com.example.welfare.notification.dto.NotificationTarget;
 import com.example.welfare.notification.service.NotificationDispatchService;
 import com.example.welfare.notification.service.DeadlineReminderDispatchService;
+import com.example.welfare.notification.service.NotificationUnsubscribeTokenService;
 import com.example.welfare.notification.service.UserAlertCommandService;
 import com.example.welfare.notification.service.UserAlertReadService;
 import com.example.welfare.notification.service.WebPushDispatchService;
@@ -39,6 +40,7 @@ import java.util.List;
 public class NotificationController {
 
     private final JwtUtil jwtUtil;
+    private final NotificationUnsubscribeTokenService notificationUnsubscribeTokenService;
     private final UserAccountCommandService userAccountCommandService;
     private final UserAlertReadService userAlertReadService;
     private final UserAlertCommandService userAlertCommandService;
@@ -52,8 +54,11 @@ public class NotificationController {
 
     @GetMapping("/unsubscribe")
     public ResponseEntity<ApiResponse<Void>> unsubscribe(@RequestParam String token) {
-        jwtUtil.validate(token);
-        String userKey = jwtUtil.getSubject(token);
+        String userKey = notificationUnsubscribeTokenService.consumeUserKey(token)
+                .orElseGet(() -> {
+                    jwtUtil.validate(token);
+                    return jwtUtil.getSubject(token);
+                });
         userAccountCommandService.unsubscribeNotificationsByUserKey(userKey);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
