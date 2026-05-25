@@ -31,7 +31,12 @@
 - [deployment.md](./deployment.md)
   `EC2 + RDS` 전환을 실제로 준비하거나 실행할 때만 봅니다. 로컬 compose와 운영 compose/env 차이, RDS bootstrap, 운영 smoke 순서를 한 장으로 정리합니다.
 
+- [core/security-hardening-current-state.md](./core/security-hardening-current-state.md)
+  최근 보안 점검 follow-up과 운영 반영 상태를 볼 때 먼저 봅니다. dependency hardening, logout/session revoke, nginx edge 경계, admin forced logout smoke 입력값을 한 장으로 정리합니다.
+
 ## 지금 기준 한 줄 요약
+
+- 최근 보안/운영 후속은 [core/security-hardening-current-state.md](./core/security-hardening-current-state.md) 를 먼저 보면 됩니다. 지금 active 보안 기준은 `Tomcat 10.1.55`, `logout => older access token 401/A006`, `nginx edge header single-owner`, `외부 /actuator 차단 템플릿 반영` 입니다.
 
 - `2026-05-19` 기준 로컬 full collect baseline도 다시 닫혔습니다. `YOUTH`, `BOKJIRO_CENTRAL`, `BOKJIRO_LOCAL`, `GOV24`, `GOV24_DETAIL`, `GOV24_SUPPORT_CONDITIONS`, `YOUTH_DETAILS`, `BOKJIRO_DETAIL_REFRESH` 를 실제로 다시 태워 hard failure 없이 끝냈고, `run-local-ops-baseline-suite.sh` 도 같은 로컬 runtime에서 다시 통과했습니다.
 - `2026-05-18` 기준 YOUTH/Gov24 신호는 `raw -> fact/token -> admin diagnostics -> detail read-only -> policy card compact badge -> admin facet` 까지 닫혔습니다.

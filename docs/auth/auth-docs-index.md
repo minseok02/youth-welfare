@@ -20,8 +20,15 @@
 
 - [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md)
 - [auth-admin-forced-logout-closeout.md](./auth-admin-forced-logout-closeout.md)
+- [../core/security-hardening-current-state.md](../core/security-hardening-current-state.md)
 
-이 두 문서가 현재 구현 기준의 source of truth 입니다.
+읽는 순서 권장:
+
+1. `security-hardening-current-state`
+2. `auth-session-revocation-current-state`
+3. 필요할 때만 `auth-admin-forced-logout-closeout`
+
+위 세 문서가 현재 구현 기준의 source of truth 입니다.
 
 ### 로컬/런타임 확인
 

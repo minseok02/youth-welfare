@@ -2,6 +2,9 @@
 
 이 문서는 `로컬 Docker Compose(app + db + redis)` 와 `운영 EC2 + RDS(app + redis + RDS)` 의 차이와 실제 전환 순서를 한 장으로 정리한다.
 
+최근 보안/운영 hardening 현재 상태는 [core/security-hardening-current-state.md](./core/security-hardening-current-state.md) 를 먼저 본다.
+이 문서는 그 상태를 실제 운영 절차에 어떻게 반영하는지에 집중한다.
+
 현재 기준:
 
 - 로컬 개발/검증은 계속 [docker-compose.yml](/home/minseok/youth-welfare/docker-compose.yml:1) 을 사용한다.
