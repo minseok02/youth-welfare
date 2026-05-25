@@ -1,3 +1,9 @@
+x-json-logging: &json-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   app:
     build:
@@ -20,6 +26,7 @@ services:
       - no-new-privileges:true
     pids_limit: 256
     mem_limit: 1g
+    logging: *json-logging
     restart: unless-stopped
 
   redis:
@@ -40,4 +47,5 @@ services:
       - no-new-privileges:true
     pids_limit: 128
     mem_limit: 256m
+    logging: *json-logging
     restart: unless-stopped
