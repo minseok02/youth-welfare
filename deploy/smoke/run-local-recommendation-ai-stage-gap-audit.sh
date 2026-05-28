@@ -7,7 +7,7 @@ source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
 APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:8082}"
 APP_HEALTH_URL="${APP_HEALTH_URL:-${APP_BASE_URL}/actuator/health}"
 TARGET_USER_KEY="${TARGET_USER_KEY:-}"
-TARGET_SERVICE_IDS_CSV="${TARGET_SERVICE_IDS_CSV:-2736,3257,3281,3575,3714}"
+TARGET_SERVICE_IDS_CSV="${TARGET_SERVICE_IDS_CSV:-}"
 TOP_REFRESH_LIMIT="${TOP_REFRESH_LIMIT:-10}"
 KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
 HEALTH_RETRY_COUNT="${HEALTH_RETRY_COUNT:-15}"
@@ -106,6 +106,9 @@ PY
 
 if [[ -z "${TARGET_USER_KEY}" ]]; then
   TARGET_USER_KEY="$(resolve_target_user_key_from_latest)"
+fi
+if [[ -z "${TARGET_SERVICE_IDS_CSV}" && -n "${TARGET_USER_KEY}" ]]; then
+  TARGET_SERVICE_IDS_CSV="$(smoke_resolve_recommendation_local_target_family_ids_csv "${TARGET_USER_KEY}")"
 fi
 
 if [[ -z "${TARGET_USER_KEY}" ]]; then

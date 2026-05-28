@@ -135,6 +135,7 @@ public class WelfareService extends BaseTimeEntity {
         if ((this.applyMethodName == null || this.applyMethodName.isBlank()) && applyMethodName != null && !applyMethodName.isBlank()) {
             this.applyMethodName = applyMethodName;
         }
+        repairInvalidAgeRange(minAge, maxAge);
         if (this.minAge == null && minAge != null) {
             this.minAge = minAge;
         }
@@ -150,6 +151,31 @@ public class WelfareService extends BaseTimeEntity {
         if ((this.detailUrl == null || this.detailUrl.isBlank()) && detailUrl != null && !detailUrl.isBlank()) {
             this.detailUrl = detailUrl;
         }
+    }
+
+    private void repairInvalidAgeRange(Integer fallbackMinAge, Integer fallbackMaxAge) {
+        if (!hasInvalidAgeRange()) {
+            return;
+        }
+        if (fallbackMinAge != null && fallbackMaxAge != null && isValidAgeRange(fallbackMinAge, fallbackMaxAge)) {
+            this.minAge = fallbackMinAge;
+            this.maxAge = fallbackMaxAge;
+            return;
+        }
+        if (fallbackMinAge != null && isValidAgeRange(fallbackMinAge, this.maxAge)) {
+            this.minAge = fallbackMinAge;
+        }
+        if (fallbackMaxAge != null && isValidAgeRange(this.minAge, fallbackMaxAge)) {
+            this.maxAge = fallbackMaxAge;
+        }
+    }
+
+    private boolean hasInvalidAgeRange() {
+        return this.minAge != null && this.maxAge != null && this.minAge > this.maxAge;
+    }
+
+    private boolean isValidAgeRange(Integer minAge, Integer maxAge) {
+        return minAge == null || maxAge == null || minAge <= maxAge;
     }
 
     public enum SourceType {

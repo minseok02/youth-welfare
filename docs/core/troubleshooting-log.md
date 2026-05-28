@@ -1,5 +1,29 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 1013) `2855` 는 retrieval miss가 아니라 `TARGET_GROUP=장애인` 이 projection special target으로 승격된 current exclusion 계약이다
+- 문제: current auto family `3516,3689,2738,2855,3605` 를 `saved-batch-gap` 으로 다시 읽으면 `2855(청년 발달장애인 자산형성 지원사업)` 만 `FILTERED_BY_SPECIAL_TARGET_MISMATCH` 에서 빠진다. superficially 보면 latest retrieval bug나 saved-batch 누락처럼 보이지만, DB를 보면 이 정책은 official `TARGET_GROUP=장애인` 을 들고 있고 projection heuristic은 이를 `SPECIAL_TARGET_DISABILITY` bucket으로 승격한다.
+- 해결: current target user `bc3fa9952df14f188fa5bf03e05e77c0` 는 `age=25`, `income=5`, `household_type=1인 가구`, `employment_status=미취업`, `INTEREST_FIELD=교육` 만 있고 `TARGET_TYPE` attribute가 비어 있다. 따라서 현재 rule scoring 계약에서는 이 정책을 일반 청년 사용자와 special-target mismatch로 읽는 것이 맞다. 같은 해석이 다시 흔들리지 않게 [RuleScoringServiceTest.java](/home/minseok/youth-welfare/backend/src/test/java/com/example/welfare/recommend/service/RuleScoringServiceTest.java:353) 에 장애 target group mismatch 회귀 테스트를 추가했고, saved-batch-gap runbook에도 이 해석을 explicit note로 남겼다.
+
+## 1012) local age inversion은 `3700` 한 건으로 끝나지 않으므로 self-heal fix와 existing-row sweep을 분리해서 읽어야 한다
+- 문제: `welfare_services` 에서 `min_age > max_age` row를 sweep 해 보니 `3700` 만의 문제가 아니었다. current local DB에는 `YOUTH`, `BOKJIRO_LOCAL`, `GOV24` 전반에 `19/0`, `65/12`, `35/34` 같은 뒤집힌 age range가 다수 남아 있었다. 즉 이번 extractor/fallback 수정은 “새 refresh부터는 self-heal 가능”을 보장하지만, 기존 stale row까지 즉시 고쳐 주는 일괄 backfill은 아니다.
+- 해결: 현재 단계에서는 `POST /api/admin/collect/bokjiro-details-refresh?sourceId=WLF00004717` 로 `3700` self-heal path를 실제로 검증했고, 같은 contract를 [BokjiroSidecarMergeIntegrationTest.java](/home/minseok/youth-welfare/backend/src/test/java/com/example/welfare/integration/BokjiroSidecarMergeIntegrationTest.java:343) 에 회귀 테스트로 고정했다. 추가로 local sweep 결과를 남겨 “코드 fix 완료”와 “legacy row repair/backfill 필요성”을 분리해 읽게 했다.
+
+## 1011) recommendation saved-batch-gap smoke는 코드보다 먼저 admin credential preflight를 통과해야 한다
+- 문제: `run-local-recommendation-saved-batch-gap-audit.sh` 는 admin diagnostics API를 직접 치기 때문에 `ADMIN_PASSWORD` 가 비어 있으면 recommendation bug처럼 보이기 전에 wrapper가 `ADMIN_PASSWORD is empty; export ADMIN_PASSWORD or set /tmp/youth-welfare-admin-smoke-password` 에서 바로 멈춘다.
+- 해결: current local baseline에서는 `ADMIN_EMAIL=admin@example.com`, `ADMIN_PASSWORD=password123!` 를 명시해 다시 실행한다. 재실행 결과 current auto family `3516,3689,2738,2855,3605` 중 `3689/3605/2738/3516` 는 saved batch에 남고, `2855` 만 `FILTERED_BY_SPECIAL_TARGET_MISMATCH` 에서 빠지는 것이 현재 blocker로 확인됐다.
+
+## 1010) 복지로 `sourceId` detail refresh self-heal은 코드 수정 뒤 app runtime을 다시 띄워야 실제로 열린다
+- 문제: `BOKJIRO_DETAIL_REFRESH` 에 `?sourceId=` 경로를 코드에 추가한 뒤에도, 이미 떠 있던 app container는 이전 이미지라 `POST /api/admin/collect/bokjiro-details-refresh?sourceId=WLF00004717` 에서 `sourceId override is not supported for source=BOKJIRO_DETAIL_REFRESH` 로 500을 반환했다. 이 상태에서는 코드가 맞아도 runtime이 아직 옛 계약을 잡고 있어 self-heal 검증이 막힌다.
+- 해결: `docker compose up -d --build app` 로 app runtime을 다시 올린 뒤 health check와 admin login을 거쳐 같은 endpoint를 재호출했다. 그 결과 `복지로 상세 refresh 완료 requested=1 saved=1 skipped=0 failed=0` 가 내려왔고, `welfare_services.id=3700` row는 `35/34 -> 35/39`, `service_facts.AGE` 도 `35/39` 로 실제 복구됐다. 이 경계는 collect current-state/runbook에도 sourceId self-heal 예시로 함께 남겼다.
+
+## 1009) recommendation local-signal smoke는 same-region youth 정책군만 볼 게 아니라 current user age/income predicate까지 같이 맞춰야 한다
+- 문제: `smoke_resolve_recommendation_local_target_family_ids_csv()` 가 same-region/same-sido `BOKJIRO_LOCAL` 청년 family만 보고 current user의 `age`, `income_level` 기본 predicate를 안 보면, latest user가 `25세` 인 상황에서도 `3700(인천형 청년월세 지원사업, 35~39세)` 같은 비대상 정책을 target family로 집어온다. 그러면 signal-gap/region-window wrapper에서 `NOT_IN_SQL_RETRIEVAL` 이 실제 retrieval bug처럼 보이지만, SQL 입장에서는 age mismatch로 빠지는 게 맞다.
+- 해결: [smoke-common.sh](/home/minseok/youth-welfare/deploy/smoke/smoke-common.sh:496) 의 auto family resolver에 `ws.min_age/max_age`, `ws.min_income/max_income` predicate를 current user context와 같은 축으로 추가했다. 재검증 결과 latest user `bc3fa9952df14f188fa5bf03e05e77c0(age=25, income=5)` 기준 auto family는 `3700` 이 빠진 `3516,3689,2738,2855,3605` 로 바뀌었고, `signal-gap`, `region-window` wrapper도 같은 기준으로 다시 통과했다.
+
+## 1008) 복지로 age 요약은 full-width range와 참조 사업 연령대가 같이 나오면 `35/34` 같은 불가능한 bounds를 만들 수 있다
+- 문제: `인천형 청년월세 지원사업(3700)` local row를 보니 `min_age=35`, `max_age=34` 로 저장돼 있었다. 원문은 `경제적으로 어려움을 겪고 있는 인천 청년(35~39세)... 국가사업(...19~34세)...` 와 detail `35세～39세이하` 조합인데, [TextConstraintExtractor.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/validation/TextConstraintExtractor.java:1) 가 full-width `～` range를 읽지 못하고 여러 age token을 전역 min/max로만 접으면 primary range와 참조 range가 뒤섞여 불가능한 조합이 나온다. 게다가 기존 [WelfareService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/policy/entity/WelfareService.java:1) `applyDetailFallbacks()` 는 age 값이 이미 non-null이면 detail이 sane한 bound를 줘도 복구하지 못했다.
+- 해결: extractor는 이제 `～` 를 range separator로 읽고, 다중 age range가 충돌할 때는 primary range를 sane하게 선택한다. 동시에 `applyDetailFallbacks()` 는 기존 age range가 뒤집혀 있으면 detail fallback과 합쳐 복구한다. 회귀 방지는 `TextConstraintExtractorTest`, `WelfareServiceTest` 에 추가했고 `cd backend && ./gradlew test --tests 'com.example.welfare.collect.validation.TextConstraintExtractorTest' --tests 'com.example.welfare.policy.entity.WelfareServiceTest' --no-daemon` 로 다시 통과시켰다.
+
 ## 1007) auth/session wrapper는 코드 회귀가 없어도 admin 자격이 비어 있으면 마지막 forced-logout 단계에서만 끊긴다
 - 문제: `run-local-auth-session-smoke.sh` 는 `runtime/logout`, `login failure`, `account lockout`, `withdraw` 까지는 일반 계정만으로 끝나지만, 마지막 `run-local-admin-forced-logout-smoke.sh` 는 `ADMIN_EMAIL`, `ADMIN_PASSWORD` 또는 `/tmp/youth-welfare-admin-smoke-*` 준비가 필요하다. 이 값이 비어 있으면 앞 단계가 다 green이어도 wrapper 전체는 마지막에만 멈춰, 기능 회귀와 smoke credential 누락이 섞여 보일 수 있다.
 - 해결: local closeout rerun에서는 [run-local-admin-forced-logout-smoke.sh](/home/minseok/youth-welfare/deploy/smoke/run-local-admin-forced-logout-smoke.sh:1) 의 현재 기준선인 `ADMIN_EMAIL=admin@example.com`, `ADMIN_PASSWORD=password123!` 를 명시해 wrapper를 끝까지 다시 태운다. 현재 결과는 `old access 401/A006`, `old refresh 401/A003`, `relogin 200` 이고, auth/session wrapper 전체도 다시 통과했다.
@@ -6529,3 +6553,15 @@ admin API와 latest artifact에
 - 문제: 인기 검색어 integration을 HTTP endpoint 기준으로 검증했더니, 테스트 fixture 자체는 맞아도 같은 DB의 기존 `search_logs` 가 함께 집계되어 기대 길이/순서가 흔들렸다.
 - 해결: integration은 endpoint 대신 [PolicySearchKeywordReadRepository.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/policy/repository/PolicySearchKeywordReadRepository.java:12) 를 직접 호출하고, `windowStart` 를 짧게 잡아 fixture만 읽는 방식으로 바꿨다. HTTP contract는 별도 WebMvc 테스트로 유지했다.
 - 이유: global ranking/trending 성격의 API는 운영 데이터와 섞인 shared integration DB에서 완전한 응답 shape를 고정하기 어렵다. 이 경우 query semantics는 repository integration으로, 공개 응답 contract는 WebMvc로 나눠 검증하는 편이 더 안정적이다.
+
+## 988) active-track 문서가 closeout 후에도 “다음 구현” 어조를 유지하면 이미 끝난 Gov24 lane을 다시 열려는 혼선이 생긴다
+
+- 문제: [policy-next-active-track-priority.md](/home/minseok/youth-welfare/docs/policy/policy-next-active-track-priority.md:1) 는 `Gov24 canonical promotion` 을 다음 active track처럼 서술하고 있었지만, 실제 코드와 [phase-plan.md](/home/minseok/youth-welfare/docs/phase-plan.md:1) 은 이미 label-first canonical 경계가 read-model/admin/presentation/test까지 닫힌 상태였다. 이 차이 때문에 “다음 로컬 작업”을 고를 때 이미 끝난 구현을 또 열어야 하는 것처럼 읽힐 수 있었다.
+- 해결: active-track 문서에 `2026-05-29` 재확인 기준 이 lane은 local closeout 됐고, 현재 역할은 새 구현 queue가 아니라 reopen 판단 근거라는 점을 명시했다. 같은 턴에 `Gov24NormalizationSupportTest`, `NormalizedPolicySidecarPersistenceIntegrationTest`, `CanonicalRecommendationReadModelIntegrationTest`, `AdminDashboardRecommendationReadRepositoryIntegrationTest` 를 다시 실행해 코드와 문서 해석이 맞는지도 확인했다.
+- 이유: active 문서는 “지금 무엇을 새로 구현할지”를 고르는 진입 문서라서, 이미 닫힌 lane과 future reopen lane을 같은 어조로 적어 두면 다음 작업 우선순위를 잘못 잡기 쉽다. closeout 완료와 reopen 조건을 분리해서 써야 로컬 구현 범위가 다시 흔들리지 않는다.
+
+## 989) recommendation smoke wrapper가 historical target family를 기본값으로 들고 있으면 current latest user context에서 region mismatch만 먼저 읽게 된다
+
+- 문제: `run-local-recommendation-signal-gap-audit.sh` 와 이어지는 local-signal chain wrapper들이 기본 `TARGET_SERVICE_IDS_CSV=2736,3257,3281,3575,3714` 를 그대로 쓰고 있었다. 하지만 현재 local latest user context에서는 이 family 상당수가 `REGION_MISMATCH` 또는 stale family가 되어, 기본 실행만으로 “현재 lane 병목”보다 historical sample drift를 먼저 보게 만들었다.
+- 해결: [smoke-common.sh](/home/minseok/youth-welfare/deploy/smoke/smoke-common.sh:1) 에 `smoke_resolve_recommendation_local_target_family_ids_csv()` helper를 추가해, `TARGET_SERVICE_IDS_CSV` 가 비어 있으면 latest user context 기준 same-region/same-sido `BOKJIRO_LOCAL` 청년/생활지원 family를 자동으로 고르게 바꿨다. `signal-gap`, `region-window`, `latest-window`, `pipeline-lane`, `rebalance`, `saved-batch-gap`, `fresh-saved-gap`, `ai-stage-gap`, `ai-zero-*` wrapper들이 이 helper를 공통으로 쓰고, runbook도 “기본값 = auto-resolution” 기준으로 다시 맞췄다.
+- 이유: recommendation bounded audit는 historical 대표 서비스 id보다 **현재 latest user context에서 실제로 비교할 가치가 있는 family** 를 먼저 잡는 쪽이 더 중요하다. default target family가 stale하면 operator가 retrieval/scoring 병목이 아니라 sample drift부터 해석하게 되고, 다음 bounded step 결정도 흔들린다.

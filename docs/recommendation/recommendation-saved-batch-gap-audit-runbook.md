@@ -36,7 +36,8 @@ bash deploy/smoke/run-local-recommendation-saved-batch-gap-audit.sh
 
 기본값:
 
-- `TARGET_SERVICE_IDS_CSV=2736,3257,3281,3575,3714`
+- `TARGET_SERVICE_IDS_CSV` 를 비우면 current latest batch user context에서
+  region-matched `BOKJIRO_LOCAL` 청년/생활지원 family를 자동 선택
 - `TOP_SAVED_LIMIT=10`
 
 ## 출력
@@ -91,6 +92,20 @@ latest saved top N competitor를 같이 보여 줍니다.
 
 retrieval/filter/post-scoring 까지는 살아 있습니다.  
 남은 병목은 saved top window 또는 rerank 이후 경쟁입니다.
+
+### 1-1. `dropStage=FILTERED_BY_SPECIAL_TARGET_MISMATCH`
+
+이 경우는 retrieval bug보다 현재 special-target 계약을 먼저 읽습니다.
+
+- service projection에 `specialTargetBuckets` 가 잡혀 있고
+- user snapshot `targetTypes` 가 비어 있거나 다른 bucket 이며
+- 저소득/한부모/조손 같은 profile fallback도 매칭되지 않으면
+
+현재 rule scoring은 의도적으로 mismatch penalty를 줍니다.
+
+현재 local example은 `2855(청년 발달장애인 자산형성 지원사업)` 이고,
+official `TARGET_GROUP=장애인` 이 projection `SPECIAL_TARGET_DISABILITY` 로 승격돼
+일반 청년 사용자에게 `FILTERED_BY_SPECIAL_TARGET_MISMATCH` 로 빠집니다.
 
 ### 2. `rerank_rank` 는 높은데 `saved_rank` 가 없다
 

@@ -35,7 +35,8 @@ bash deploy/smoke/run-local-recommendation-pipeline-lane-audit.sh
 
 기본값:
 
-- `TARGET_SERVICE_IDS_CSV=2736,3257,3281,3575,3714`
+- `TARGET_SERVICE_IDS_CSV` 를 비우면 current latest batch user context에서
+  region-matched `BOKJIRO_LOCAL` 청년/생활지원 family를 자동 선택
 - `TOP_COMPETITOR_LIMIT=3`
 
 ## 출력

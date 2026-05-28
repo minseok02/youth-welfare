@@ -379,6 +379,36 @@ class RuleScoringServiceTest {
     }
 
     @Test
+    @DisplayName("장애인 target group special target은 일반 청년 사용자에게 mismatch penalty를 준다")
+    void disabilityTargetGroupAppliesSpecialTargetMismatchForGeneralYouthUser() {
+        RecommendationUserSnapshot user = snapshot(List.of("교육"), List.of(), (byte) 5, "1인 가구", "미취업");
+
+        WelfareService baseline = welfareService(86L, "일반 청년 지원");
+        WelfareService projected = welfareService(87L, "청년 발달장애인 자산형성 지원사업");
+
+        when(recommendationCandidateReadRepository.findTagsByServiceIds(anyList())).thenReturn(Map.of());
+
+        List<ScoredCandidate> scored = ruleScoringService.score(
+                new RetrievedRecommendationCandidates(
+                        List.of(baseline, projected),
+                        Map.of(
+                                projected.getId(),
+                                RecommendationCandidateProjection.builder()
+                                        .serviceId(projected.getId())
+                                        .targetGroupsRaw(Set.of("장애인"))
+                                        .specialTargetBuckets(Set.of(RecommendationProjectionHeuristicSupport.SPECIAL_TARGET_DISABILITY))
+                                        .build()
+                        )
+                ),
+                user
+        );
+
+        assertThat(findByServiceId(scored, 87L).getRuleBaseScore())
+                .isEqualTo(findByServiceId(scored, 86L).getRuleBaseScore() - 8.0);
+        assertThat(findByServiceId(scored, 87L).isHasSpecialTargetMismatch()).isTrue();
+    }
+
+    @Test
     @DisplayName("projection factKeys는 deadline helper 경계에 연결되어도 기존 applyEndDate bonus 의미를 유지한다")
     void projectionFactKeysKeepsLegacyDeadlineBonusMeaning() {
         RecommendationUserSnapshot user = snapshot(List.of(), List.of(), (byte) 5, null, null);

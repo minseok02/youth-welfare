@@ -22,15 +22,22 @@
 ## 결론
 
 현재 `2026-05-18` 기준으로는 recommendation/collect 쪽은 기준선 유지가 맞고,
-정책 트랙에서는 **`Gov24 canonical promotion` 설계 lane** 을 다시 여는 것이 우선입니다.
+정책 트랙에서는 **`Gov24 canonical promotion` 설계 lane** 을 다시 여는 것이 우선이었습니다.
 
 즉
 
 - `YOUTH/Gov24 signal 소비` 는 admin facet까지 닫혔고
 - `collect/runtime governance` 는 lane inventory, latest run, config summary까지 닫혔으며
 - recommendation 은 제품 판단 대기 상태다
-- 따라서 다음 active track은 `Gov24 canonical deferred` 를 막연한 backlog가 아니라
-  **label-first canonical promotion 설계** 범위로 다시 여는 쪽이 맞습니다.
+- 따라서 당시 다음 active track은 `Gov24 canonical deferred` 를 막연한 backlog가 아니라
+  **label-first canonical promotion 설계** 범위로 다시 여는 쪽이 맞았습니다.
+
+추가로 `2026-05-29` 코드/테스트 재확인 기준,
+이 문서가 열었던 local lane은 이미 closeout truth로 닫힌 상태입니다.
+현재 [phase-plan.md](../phase-plan.md) 과 코드 기준 practical next action은
+`Gov24 canonical promotion` 을 새로 구현하는 것이 아니라,
+이미 닫힌 label-first canonical 경계를 유지하면서
+stable code/import-backfill 또는 public/scoring 확장 같은 **reopen 조건이 생길 때만 다시 여는 것**입니다.
 
 추가로 `2026-05-19` 공식 문서 재확인 기준,
 `서비스분야 / 사용자구분 / 지원유형` 은 공공데이터포털 공식 Swagger에서도 enum/codebook 이 아니라 `string` 필드로만 공개됩니다.
@@ -45,7 +52,7 @@
 2. 새 재현 버그가 생기면 그 축만 다시 연다
 3. 코드 작업을 더 하려면 deferred/product lane 중 하나를 명시적으로 선택한다
 
-현재 다시 열 후보를 고른다면 아래 순서를 권장합니다.
+현재 다시 열 후보를 고른다면 아래 순서를 권장했습니다.
 
 1. `Gov24` canonical promotion 설계
 2. recommendation 제품 판단
@@ -99,15 +106,17 @@
 - runtime collect closeout (`list/detail/support raw=10942`)
 - runtime audit / unmapped inventory 정리
 
-즉 이제 `Gov24` 쪽 액션은 세 갈래로 나뉩니다.
+즉 이제 `Gov24` 쪽 액션은 세 갈래로 나뉘었습니다.
 
 1. `serviceField/userType/benefitType` 의 label-first canonical promotion 설계
 2. hard import/backfill 쪽은 **stable code/schema 확보 전까지 blocked 유지**
 3. runtime support gap 쪽은 **현재 제품이 사업체/업종 축을 실제로 소비하기 전까지 deferred 유지**
 
-여기서 지금 당장 local 코드/문서로 끝낼 수 있는 것은 1번뿐입니다.
-즉 현재 active lane은 stable code SQL 이 아니라,
-무엇을 `service_taxonomy_terms` 로 올리고 무엇을 raw-only/deferred 로 남길지 경계를 먼저 고정하는 일입니다.
+여기서 당시 local 코드/문서로 끝낼 수 있었던 것은 1번뿐이었습니다.
+그리고 그 경계 고정은 현재 코드/문서/검증 기준으로 이미 닫혔습니다.
+즉 지금 이 문서는 "다음 구현 목록"보다
+`stable code SQL 이 아니라 무엇을 service_taxonomy_terms 로 올리고 무엇을 raw-only/deferred 로 남길지`
+판단했던 근거와 reopen 우선순위를 보관하는 문서로 읽는 편이 맞습니다.
 
 ## 2. future infra/deploy 메모는 지금 active track이 아니다
 
@@ -185,5 +194,5 @@ blocked SQL 과 deferred Gov24 business-code 승격보다 먼저
 | 항목 | 지금 안 하는 이유 | 다시 열 조건 |
 |---|---|---|
 | recommendation 제품 판단 | bug closeout은 끝났고, 남은 것은 local 청년 정책 신호를 더 강하게 넣을지에 대한 제품/모델링 선택이다. | 새 재현 버그가 생기거나, local 청년 정책 노출 강화가 명시 목표로 승인될 때 |
-| `Gov24` canonical promotion | `supportConditions` 는 partial runtime fact가 active 이고, `serviceField/userType/benefitType` raw inventory와 1차 내부 매핑 초안도 정리됐다. 현재 practical next action은 stable code SQL 이 아니라, exact label 유지 + allowlist token split 을 `service_taxonomy_terms` 중심 canonical 층으로 어디까지 올릴지 고정하는 것이다. | 현재 active |
+| `Gov24` canonical promotion | `supportConditions` 는 partial runtime fact가 active 이고, `serviceField/userType/benefitType` raw inventory와 1차 내부 매핑 초안도 정리됐다. label-first canonical 경계는 이미 local closeout 됐고, 현재 practical next action은 새 구현이 아니라 그 경계를 유지하는 것이다. | stable code/import-backfill, public filter/scoring, full-scope supportConditions 확장이 실제 목표로 승인될 때 |
 | infra/server 확장 | 서버 reality는 확인됐지만, 현재 main track은 bounded runtime 기준선 유지와 drift 정리다. | 배포/운영 절차 고도화가 별도 active 목표로 승격될 때 |
