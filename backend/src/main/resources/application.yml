@@ -138,6 +138,12 @@ policy:
     search:
       max-requests: ${POLICY_SEARCH_RATE_LIMIT_MAX_REQUESTS:60}
       window-seconds: ${POLICY_SEARCH_RATE_LIMIT_WINDOW_SECONDS:60}
+    suggestion:
+      max-requests: ${POLICY_SUGGESTION_RATE_LIMIT_MAX_REQUESTS:180}
+      window-seconds: ${POLICY_SUGGESTION_RATE_LIMIT_WINDOW_SECONDS:60}
+    trending:
+      max-requests: ${POLICY_TRENDING_RATE_LIMIT_MAX_REQUESTS:30}
+      window-seconds: ${POLICY_TRENDING_RATE_LIMIT_WINDOW_SECONDS:60}
     detail:
       max-requests-per-service: ${POLICY_DETAIL_RATE_LIMIT_MAX_REQUESTS_PER_SERVICE:20}
       window-seconds: ${POLICY_DETAIL_RATE_LIMIT_WINDOW_SECONDS:60}

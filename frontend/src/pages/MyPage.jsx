@@ -133,7 +133,7 @@ const formatDday = (dateText, status) => {
   return `D-${diff}`;
 };
 
-const mapBookmark = (p) => ({
+const mapPolicyListItem = (p) => ({
   id: p.id, title: p.title,
   category: p.unifiedCategory || "기타",
   dday: formatDday(p.applyEndDate, p.status),
@@ -379,6 +379,8 @@ export default function MyPage() {
 
   const [bookmarks, setBookmarks] = useState([]);
   const [bookmarkLoading, setBookmarkLoading] = useState(false);
+  const [recentViewedPolicies, setRecentViewedPolicies] = useState([]);
+  const [recentViewedLoading, setRecentViewedLoading] = useState(false);
 
   const [notifOn, setNotifOn] = useState(false);
   const [notifEmailOn, setNotifEmailOn] = useState(true);
@@ -494,7 +496,7 @@ export default function MyPage() {
       setBookmarkLoading(true);
       try {
         const { data } = await api.get("/api/users/me/bookmarks", { signal: controller.signal });
-        setBookmarks((data.data ?? []).map(mapBookmark));
+        setBookmarks((data.data ?? []).map(mapPolicyListItem));
       } catch (err) {
         if (err.name === "CanceledError" || err.code === "ERR_CANCELED") return;
       } finally {
@@ -502,8 +504,24 @@ export default function MyPage() {
       }
     };
 
+    const fetchRecentViewedPolicies = async () => {
+      setRecentViewedLoading(true);
+      try {
+        const { data } = await api.get("/api/users/me/recent-viewed-policies", {
+          params: { limit: 10 },
+          signal: controller.signal,
+        });
+        setRecentViewedPolicies((data.data ?? []).map(mapPolicyListItem));
+      } catch (err) {
+        if (err.name === "CanceledError" || err.code === "ERR_CANCELED") return;
+      } finally {
+        if (!controller.signal.aborted) setRecentViewedLoading(false);
+      }
+    };
+
     fetchProfile();
     fetchBookmarks();
+    fetchRecentViewedPolicies();
     return () => controller.abort();
   }, [isLoggedIn, setUser, showToast]);
 
@@ -1248,59 +1266,108 @@ export default function MyPage() {
 
             {/* ── 북마크 ── */}
             {activeTab === "bookmark" && (
-              <SectionCard>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-                  <div>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: INK }}>
-                      북마크한 정책 <span style={{ color: A }}>({bookmarks.length})</span>
+              <>
+                <SectionCard>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+                    <div>
+                      <div style={{ fontSize: 18, fontWeight: 800, color: INK }}>
+                        북마크한 정책 <span style={{ color: A }}>({bookmarks.length})</span>
+                      </div>
+                      <div style={{ fontSize: 13, color: INK3, marginTop: 4 }}>마감일을 놓치지 않도록 알림을 설정해보세요</div>
                     </div>
-                    <div style={{ fontSize: 13, color: INK3, marginTop: 4 }}>마감일을 놓치지 않도록 알림을 설정해보세요</div>
-                  </div>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <select
-                      value={bookmarkSort}
-                      onChange={e => setBookmarkSort(e.target.value)}
-                      style={{ padding: "8px 12px", border: `1px solid ${LINE}`, borderRadius: 8, fontSize: 13, background: WHITE, fontFamily: "inherit", cursor: "pointer", outline: "none" }}
-                    >
-                      <option value="latest">최신순</option>
-                      <option value="deadline">마감임박순</option>
-                    </select>
-                    <div style={{ display: "flex", border: `1px solid ${LINE}`, borderRadius: 8, overflow: "hidden" }}>
-                      <button
-                        onClick={() => setBookmarkView("list")}
-                        style={{ padding: "8px 12px", background: bookmarkView === "list" ? A : WHITE, color: bookmarkView === "list" ? WHITE : INK3, border: 0, fontSize: 13, cursor: "pointer" }}
-                      >☰</button>
-                      <button
-                        onClick={() => setBookmarkView("grid")}
-                        style={{ padding: "8px 12px", background: bookmarkView === "grid" ? A : WHITE, color: bookmarkView === "grid" ? WHITE : INK3, border: 0, fontSize: 13, cursor: "pointer" }}
-                      >▦</button>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <select
+                        value={bookmarkSort}
+                        onChange={e => setBookmarkSort(e.target.value)}
+                        style={{ padding: "8px 12px", border: `1px solid ${LINE}`, borderRadius: 8, fontSize: 13, background: WHITE, fontFamily: "inherit", cursor: "pointer", outline: "none" }}
+                      >
+                        <option value="latest">최신순</option>
+                        <option value="deadline">마감임박순</option>
+                      </select>
+                      <div style={{ display: "flex", border: `1px solid ${LINE}`, borderRadius: 8, overflow: "hidden" }}>
+                        <button
+                          onClick={() => setBookmarkView("list")}
+                          style={{ padding: "8px 12px", background: bookmarkView === "list" ? A : WHITE, color: bookmarkView === "list" ? WHITE : INK3, border: 0, fontSize: 13, cursor: "pointer" }}
+                        >☰</button>
+                        <button
+                          onClick={() => setBookmarkView("grid")}
+                          style={{ padding: "8px 12px", background: bookmarkView === "grid" ? A : WHITE, color: bookmarkView === "grid" ? WHITE : INK3, border: 0, fontSize: 13, cursor: "pointer" }}
+                        >▦</button>
+                      </div>
                     </div>
                   </div>
-                </div>
-                {bookmarkLoading ? (
-                  <div style={{ display: "flex", justifyContent: "center", padding: "40px 0" }}><CircularProgress /></div>
-                ) : displayedBookmarks.length > 0 ? (
-                  bookmarkView === "grid" ? (
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  {bookmarkLoading ? (
+                    <div style={{ display: "flex", justifyContent: "center", padding: "40px 0" }}><CircularProgress /></div>
+                  ) : displayedBookmarks.length > 0 ? (
+                    bookmarkView === "grid" ? (
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                        {displayedBookmarks.map(p => {
+                          const urgent = ddayUrgent(p.dday);
+                          const closed = p.dday === "종료";
+                          return (
+                            <div
+                              key={p.id}
+                              style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 14,
+                                padding: "18px 20px",
+                                background: closed ? BG : WHITE,
+                                border: `1px solid ${urgent ? WARN : LINE}`,
+                                borderRadius: 14,
+                                opacity: closed ? 0.7 : 1,
+                                cursor: "pointer",
+                              }}
+                              onClick={() => navigateToPolicyDetail(p.id)}
+                            >
+                              <div>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+                                  <span style={{ padding: "3px 10px", borderRadius: 99, fontSize: 12, fontWeight: 600, background: AS, color: AI }}>{p.category}</span>
+                                  <span style={{
+                                    padding: "3px 10px", borderRadius: 99, fontSize: 12, fontWeight: 600,
+                                    background: closed ? LINE2 : urgent ? "#fee2e2" : "#dcfce7",
+                                    color: closed ? INK3 : urgent ? "#991b1b" : "#166534",
+                                  }}>{p.dday}</span>
+                                </div>
+                                <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6, color: INK, lineHeight: 1.45 }}>{p.title}</div>
+                                {p.source && <div style={{ fontSize: 12, color: INK3 }}>{p.source}</div>}
+                              </div>
+                              <div style={{ display: "flex", gap: 8, marginTop: "auto" }}>
+                                <button style={{ flex: 1, padding: "8px 14px", borderRadius: 8, border: `1px solid ${LINE}`, background: WHITE, color: INK2, fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+                                  onClick={async e => {
+                                    e.stopPropagation();
+                                    try {
+                                      await api.post(`/api/policies/${p.id}/bookmark`);
+                                      setBookmarks(prev => prev.filter(b => b.id !== p.id));
+                                    } catch {
+                                      showToast("북마크 해제에 실패했습니다", "error");
+                                    }
+                                  }}>
+                                  해제
+                                </button>
+                                <button style={{ flex: 1, padding: "8px 14px", borderRadius: 8, border: 0, background: A, color: WHITE, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                                  onClick={e => { e.stopPropagation(); navigateToPolicyDetail(p.id); }}>
+                                  상세 →
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                       {displayedBookmarks.map(p => {
                         const urgent = ddayUrgent(p.dday);
                         const closed = p.dday === "종료";
                         return (
-                          <div
-                            key={p.id}
-                            style={{
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: 14,
-                              padding: "18px 20px",
-                              background: closed ? BG : WHITE,
-                              border: `1px solid ${urgent ? WARN : LINE}`,
-                              borderRadius: 14,
-                              opacity: closed ? 0.7 : 1,
-                              cursor: "pointer",
-                            }}
-                            onClick={() => navigateToPolicyDetail(p.id)}
-                          >
+                          <div key={p.id} style={{
+                            display: "grid", gridTemplateColumns: "1fr auto", gap: 16, padding: "18px 20px",
+                            background: closed ? BG : WHITE,
+                            border: `1px solid ${urgent ? WARN : LINE}`,
+                            borderRadius: 14, opacity: closed ? 0.7 : 1,
+                            cursor: "pointer",
+                          }}
+                            onClick={() => navigateToPolicyDetail(p.id)}>
                             <div>
                               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
                                 <span style={{ padding: "3px 10px", borderRadius: 99, fontSize: 12, fontWeight: 600, background: AS, color: AI }}>{p.category}</span>
@@ -1310,11 +1377,11 @@ export default function MyPage() {
                                   color: closed ? INK3 : urgent ? "#991b1b" : "#166534",
                                 }}>{p.dday}</span>
                               </div>
-                              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6, color: INK, lineHeight: 1.45 }}>{p.title}</div>
+                              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4, color: INK }}>{p.title}</div>
                               {p.source && <div style={{ fontSize: 12, color: INK3 }}>{p.source}</div>}
                             </div>
-                            <div style={{ display: "flex", gap: 8, marginTop: "auto" }}>
-                              <button style={{ flex: 1, padding: "8px 14px", borderRadius: 8, border: `1px solid ${LINE}`, background: WHITE, color: INK2, fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+                            <div style={{ display: "flex", flexDirection: "column", gap: 6, justifyContent: "center" }}>
+                              <button style={{ padding: "8px 14px", borderRadius: 8, border: `1px solid ${LINE}`, background: WHITE, color: INK2, fontSize: 12, fontWeight: 600, cursor: "pointer" }}
                                 onClick={async e => {
                                   e.stopPropagation();
                                   try {
@@ -1326,7 +1393,7 @@ export default function MyPage() {
                                 }}>
                                 해제
                               </button>
-                              <button style={{ flex: 1, padding: "8px 14px", borderRadius: 8, border: 0, background: A, color: WHITE, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                              <button style={{ padding: "8px 14px", borderRadius: 8, border: 0, background: A, color: WHITE, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
                                 onClick={e => { e.stopPropagation(); navigateToPolicyDetail(p.id); }}>
                                 상세 →
                               </button>
@@ -1335,65 +1402,74 @@ export default function MyPage() {
                         );
                       })}
                     </div>
+                    )
                   ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    {displayedBookmarks.map(p => {
-                      const urgent = ddayUrgent(p.dday);
-                      const closed = p.dday === "종료";
-                      return (
-                        <div key={p.id} style={{
-                          display: "grid", gridTemplateColumns: "1fr auto", gap: 16, padding: "18px 20px",
-                          background: closed ? BG : WHITE,
-                          border: `1px solid ${urgent ? WARN : LINE}`,
-                          borderRadius: 14, opacity: closed ? 0.7 : 1,
-                          cursor: "pointer",
-                        }}
-                          onClick={() => navigateToPolicyDetail(p.id)}>
-                          <div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
-                              <span style={{ padding: "3px 10px", borderRadius: 99, fontSize: 12, fontWeight: 600, background: AS, color: AI }}>{p.category}</span>
-                              <span style={{
-                                padding: "3px 10px", borderRadius: 99, fontSize: 12, fontWeight: 600,
-                                background: closed ? LINE2 : urgent ? "#fee2e2" : "#dcfce7",
-                                color: closed ? INK3 : urgent ? "#991b1b" : "#166534",
-                              }}>{p.dday}</span>
+                    <div style={{ textAlign: "center", padding: "60px 0", color: INK3 }}>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: INK, marginBottom: 6 }}>북마크한 정책이 없어요</div>
+                      <div style={{ fontSize: 13 }}>관심 정책을 저장해보세요</div>
+                      <button onClick={() => navigate("/policies")} style={{ marginTop: 16, padding: "10px 24px", borderRadius: 8, background: A, color: WHITE, border: 0, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                        정책 둘러보기
+                      </button>
+                    </div>
+                  )}
+                </SectionCard>
+
+                <SectionCard title="최근 본 정책" desc="최근 확인한 정책을 최신순으로 다시 볼 수 있어요">
+                  {recentViewedLoading ? (
+                    <div style={{ display: "flex", justifyContent: "center", padding: "32px 0" }}><CircularProgress /></div>
+                  ) : recentViewedPolicies.length > 0 ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      {recentViewedPolicies.map((policy) => {
+                        const urgent = ddayUrgent(policy.dday);
+                        const closed = policy.dday === "종료";
+                        return (
+                          <div
+                            key={policy.id}
+                            onClick={() => navigateToPolicyDetail(policy.id)}
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "1fr auto",
+                              gap: 16,
+                              padding: "18px 20px",
+                              background: closed ? BG : WHITE,
+                              border: `1px solid ${urgent ? WARN : LINE}`,
+                              borderRadius: 14,
+                              opacity: closed ? 0.7 : 1,
+                              cursor: "pointer",
+                            }}
+                          >
+                            <div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+                                <span style={{ padding: "3px 10px", borderRadius: 99, fontSize: 12, fontWeight: 600, background: AS, color: AI }}>{policy.category}</span>
+                                <span style={{
+                                  padding: "3px 10px", borderRadius: 99, fontSize: 12, fontWeight: 600,
+                                  background: closed ? LINE2 : urgent ? "#fee2e2" : "#dcfce7",
+                                  color: closed ? INK3 : urgent ? "#991b1b" : "#166534",
+                                }}>{policy.dday}</span>
+                              </div>
+                              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4, color: INK }}>{policy.title}</div>
+                              {policy.source && <div style={{ fontSize: 12, color: INK3 }}>{policy.source}</div>}
                             </div>
-                            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4, color: INK }}>{p.title}</div>
-                            {p.source && <div style={{ fontSize: 12, color: INK3 }}>{p.source}</div>}
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <button
+                                style={{ padding: "8px 14px", borderRadius: 8, border: 0, background: A, color: WHITE, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                                onClick={e => { e.stopPropagation(); navigateToPolicyDetail(policy.id); }}
+                              >
+                                상세 →
+                              </button>
+                            </div>
                           </div>
-                          <div style={{ display: "flex", flexDirection: "column", gap: 6, justifyContent: "center" }}>
-                            <button style={{ padding: "8px 14px", borderRadius: 8, border: `1px solid ${LINE}`, background: WHITE, color: INK2, fontSize: 12, fontWeight: 600, cursor: "pointer" }}
-                              onClick={async e => {
-                                e.stopPropagation();
-                                try {
-                                  await api.post(`/api/policies/${p.id}/bookmark`);
-                                  setBookmarks(prev => prev.filter(b => b.id !== p.id));
-                                } catch {
-                                  showToast("북마크 해제에 실패했습니다", "error");
-                                }
-                              }}>
-                              해제
-                            </button>
-                            <button style={{ padding: "8px 14px", borderRadius: 8, border: 0, background: A, color: WHITE, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
-                              onClick={e => { e.stopPropagation(); navigateToPolicyDetail(p.id); }}>
-                              상세 →
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  )
-                ) : (
-                  <div style={{ textAlign: "center", padding: "60px 0", color: INK3 }}>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: INK, marginBottom: 6 }}>북마크한 정책이 없어요</div>
-                    <div style={{ fontSize: 13 }}>관심 정책을 저장해보세요</div>
-                    <button onClick={() => navigate("/policies")} style={{ marginTop: 16, padding: "10px 24px", borderRadius: 8, background: A, color: WHITE, border: 0, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-                      정책 둘러보기
-                    </button>
-                  </div>
-                )}
-              </SectionCard>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: "center", padding: "52px 0", color: INK3 }}>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: INK, marginBottom: 6 }}>최근 본 정책이 아직 없어요</div>
+                      <div style={{ fontSize: 13 }}>정책 상세를 확인하면 여기에 다시 모아볼 수 있어요</div>
+                    </div>
+                  )}
+                </SectionCard>
+              </>
             )}
 
             {/* ── 알림 설정 ── */}

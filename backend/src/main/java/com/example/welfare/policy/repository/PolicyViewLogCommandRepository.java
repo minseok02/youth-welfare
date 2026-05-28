@@ -8,5 +8,7 @@ public interface PolicyViewLogCommandRepository {
 
     boolean existsDuplicateAnonymousView(Long serviceId, String clientFingerprint, LocalDateTime cutoff);
 
-    void saveView(Long serviceId, String userKey, String clientFingerprint);
+    void saveView(Long serviceId, String userKey, String clientFingerprint, LocalDateTime viewedAt);
+
+    void upsertRecentView(Long serviceId, String userKey, LocalDateTime viewedAt);
 }

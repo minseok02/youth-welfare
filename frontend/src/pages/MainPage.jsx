@@ -41,6 +41,14 @@ const mapRec = (r) => ({
   bookmarked: Boolean(r.isBookmarked),
 });
 
+const mapRecentViewedPolicy = (policy) => ({
+  id: policy.id,
+  title: policy.title,
+  category: policy.unifiedCategory || "기타",
+  dday: formatDday(policy.applyEndDate, policy.status),
+  source: policy.hostOrg || policy.sido || policy.operatingOrg || "",
+});
+
 // ── 디자인 상수 ───────────────────────────────────────────────────────────────
 
 const A = "#2563eb";
@@ -291,6 +299,48 @@ function DeadlineRail({ policies, navigate, onPolicyNavigate }) {
   );
 }
 
+function RecentViewedRail({ policies, navigate, onPolicyNavigate }) {
+  if (!policies.length) return null;
+  return (
+    <section style={{ marginTop: 48 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", color: INK }}>최근 본 정책</div>
+          <div style={{ fontSize: 13, color: INK3, marginTop: 4 }}>다시 확인하고 싶은 정책을 빠르게 이어서 볼 수 있어요</div>
+        </div>
+        <button
+          onClick={() => navigate("/mypage?tab=2")}
+          style={{ background: "none", border: "none", fontSize: 13, color: INK3, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+          onMouseEnter={e => { e.currentTarget.style.color = A; }}
+          onMouseLeave={e => { e.currentTarget.style.color = INK3; }}
+        >
+          마이페이지에서 보기 →
+        </button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${policies.length}, 1fr)`, gap: 14 }}>
+        {policies.map((policy) => (
+          <div
+            key={policy.id}
+            onClick={() => onPolicyNavigate(policy.id)}
+            style={{ background: "white", border: `1px solid ${LINE}`, borderRadius: 16, padding: 18, cursor: "pointer", transition: "box-shadow .15s" }}
+            onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 4px 16px rgba(37,99,235,0.10)"; }}
+            onMouseLeave={e => { e.currentTarget.style.boxShadow = ""; }}
+          >
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <Tag style={{ background: AS, color: AI }}>{policy.category}</Tag>
+              <Tag style={policy.dday === "종료" ? { background: "#f3f4f6", color: INK3 } : { background: "#ecfdf5", color: OK }}>
+                {policy.dday}
+              </Tag>
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 700, marginTop: 12, lineHeight: 1.4, letterSpacing: "-0.01em", color: INK }}>{policy.title}</div>
+            {policy.source && <div style={{ fontSize: 12, color: INK3, marginTop: 4 }}>{policy.source}</div>}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function PopularSection({ teaserPolicies, categoryCounts, navigate, onPolicyNavigate }) {
   return (
     <section style={{ marginTop: 56 }}>
@@ -499,6 +549,7 @@ export default function MainPage() {
   const [categoryCounts, setCategoryCounts] = useState({});
   const [teaserPolicies, setTeaserPolicies] = useState({});
   const [deadlinePolicies, setDeadlinePolicies] = useState([]);
+  const [recentViewedPolicies, setRecentViewedPolicies] = useState([]);
 
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
   const showToast = useCallback((msg, severity = "info") => setToast({ open: true, msg, severity }), []);
@@ -548,6 +599,28 @@ export default function MainPage() {
       .finally(() => { if (!controller.signal.aborted) setLoadingRec(false); });
     return () => controller.abort();
   }, [isLoggedIn, setUser, showToast]);
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setRecentViewedPolicies([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    api.get("/api/users/me/recent-viewed-policies", {
+      params: { limit: 4 },
+      signal: controller.signal,
+    })
+      .then(({ data }) => setRecentViewedPolicies((data.data ?? []).map(mapRecentViewedPolicy)))
+      .catch((err) => {
+        if (err.name === "CanceledError" || err.code === "ERR_CANCELED") {
+          return;
+        }
+        setRecentViewedPolicies([]);
+      });
+
+    return () => controller.abort();
+  }, [isLoggedIn]);
 
   // ── 공통 데이터 fetch (전체 수, 카테고리별, 마감임박) ─────────────────────
   useEffect(() => {
@@ -783,6 +856,14 @@ export default function MainPage() {
             </div>
           )}
         </section>
+
+        {isLoggedIn && (
+          <RecentViewedRail
+            policies={recentViewedPolicies}
+            navigate={navigate}
+            onPolicyNavigate={navigateToPolicyDetail}
+          />
+        )}
 
         {/* 마감임박 */}
         <DeadlineRail policies={deadlinePolicies} navigate={navigate} onPolicyNavigate={navigateToPolicyDetail} />

@@ -16,6 +16,7 @@ import com.example.welfare.policy.service.PolicyDetailService;
 import com.example.welfare.policy.service.PolicyListService;
 import com.example.welfare.policy.service.PolicyRankingService;
 import com.example.welfare.policy.service.PolicySearchLogService;
+import com.example.welfare.policy.service.PolicySearchKeywordReadService;
 import com.example.welfare.policy.service.PolicySearchService;
 import com.example.welfare.policy.service.PolicyTrafficRateLimitService;
 import com.example.welfare.policy.service.PolicyViewLogService;
@@ -83,6 +84,8 @@ class RecommendationPolicyFlowWebMvcTest {
     private PolicySearchService policySearchService;
     @MockBean
     private PolicySearchLogService policySearchLogService;
+    @MockBean
+    private PolicySearchKeywordReadService policySearchKeywordReadService;
     @MockBean
     private PolicyTrafficRateLimitService policyTrafficRateLimitService;
     @MockBean

@@ -31,7 +31,7 @@ class PolicyTrafficRateLimitServiceTest {
 
     @BeforeEach
     void setUp() {
-        policyTrafficRateLimitService = new PolicyTrafficRateLimitService(redisTemplate, 2, 60, 2, 60);
+        policyTrafficRateLimitService = new PolicyTrafficRateLimitService(redisTemplate, 2, 60, 4, 60, 3, 60, 2, 60);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
     }
 
@@ -66,6 +66,27 @@ class PolicyTrafficRateLimitServiceTest {
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.POLICY_RATE_LIMIT_EXCEEDED);
+    }
+
+    @Test
+    @DisplayName("자동완성 요청은 검색과 다른 rate limit 키를 사용한다")
+    void checkSuggestionLimitUsesDedicatedBucket() {
+        when(valueOperations.increment("policy:rate-limit:suggestion:fp:test")).thenReturn(1L);
+
+        policyTrafficRateLimitService.checkSuggestionLimit("fp:test");
+
+        verify(redisTemplate).expire("policy:rate-limit:suggestion:fp:test", Duration.ofSeconds(60));
+        verify(redisTemplate, never()).expire("policy:rate-limit:search:fp:test", Duration.ofSeconds(60));
+    }
+
+    @Test
+    @DisplayName("인기 검색어 요청은 전용 rate limit 버킷을 사용한다")
+    void checkTrendingLimitUsesDedicatedBucket() {
+        when(valueOperations.increment("policy:rate-limit:trending:user:test")).thenReturn(1L);
+
+        policyTrafficRateLimitService.checkTrendingLimit("user:test");
+
+        verify(redisTemplate).expire("policy:rate-limit:trending:user:test", Duration.ofSeconds(60));
     }
 
     @Test

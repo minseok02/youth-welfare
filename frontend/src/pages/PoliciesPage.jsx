@@ -85,7 +85,9 @@ const SOURCE_LABEL_BY_TYPE = Object.fromEntries(
 
 const SORT_MAP = { relevance: "RELEVANCE", views: "VIEWS", latest: "LATEST", deadline: "DEADLINE" };
 
-const TRENDING = ["월세 지원", "국민취업제도", "도약계좌", "창업캠프", "자격증 응시료", "대학생 생활안정"];
+const FALLBACK_TRENDING = ["월세 지원", "국민취업제도", "도약계좌", "창업캠프", "자격증 응시료", "대학생 생활안정"];
+const TRENDING_LIMIT = 6;
+const SUGGESTION_LIMIT = 8;
 
 // ── 디자인 상수 ───────────────────────────────────────────────────────────────
 const A = "#2563eb";
@@ -365,7 +367,8 @@ export default function PoliciesPage() {
   const { isLoggedIn, filterSettings } = useAuthStore();
   const defaultStatusFilter = filterSettings?.includeExpired ? "전부표기" : "신청가능";
 
-  const [search, setSearch] = useState(searchParams.get("search") || "");
+  const [draftSearch, setDraftSearch] = useState(searchParams.get("search") || "");
+  const [appliedSearch, setAppliedSearch] = useState(searchParams.get("search") || "");
   const [selectedCat, setSelectedCat] = useState(searchParams.get("category") || "");
   const [region, setRegion] = useState(searchParams.get("region") || "전체");
   const [subRegion, setSubRegion] = useState(searchParams.get("subRegion") || "전체");
@@ -382,14 +385,34 @@ export default function PoliciesPage() {
   const [loading, setLoading] = useState(false);
   const [policiesLoaded, setPoliciesLoaded] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
+  const [trendingKeywords, setTrendingKeywords] = useState(FALLBACK_TRENDING);
+  const [suggestions, setSuggestions] = useState([]);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [highlightedSuggestionIndex, setHighlightedSuggestionIndex] = useState(-1);
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
   const [incomeCalcOpen, setIncomeCalcOpen] = useState(false);
+  const [viewportWidth, setViewportWidth] = useState(() => (typeof window === "undefined" ? 1280 : window.innerWidth));
   const bookmarkActionKeyRef = useRef(null);
+  const searchSurfaceRef = useRef(null);
+
+  const hasSearch = Boolean(appliedSearch.trim());
+  const hasActiveFilters = Boolean(
+    selectedCat
+    || region !== "전체"
+    || subRegion !== "전체"
+    || income !== "전체"
+    || targetGroup
+    || sourceType !== "전체"
+    || statusFilter !== defaultStatusFilter
+  );
+  const canResetSearch = Boolean(draftSearch.trim() || appliedSearch.trim());
+  const isTablet = viewportWidth < 1100;
+  const isMobile = viewportWidth < 760;
 
   // ── URL 파라미터 동기화 ──────────────────────────────────────────────────────
   useEffect(() => {
     const params = {};
-    if (search) params.search = search;
+    if (appliedSearch) params.search = appliedSearch;
     if (selectedCat) params.category = selectedCat;
     if (region !== "전체") params.region = region;
     if (subRegion !== "전체") params.subRegion = subRegion;
@@ -398,12 +421,12 @@ export default function PoliciesPage() {
     const sourceTypeParam = serializeSourceTypeParam(sourceType);
     if (sourceTypeParam) params.sourceType = sourceTypeParam;
     if (statusFilter !== defaultStatusFilter) params.statusFilter = statusFilter;
-    const defaultSort = search.trim() ? "relevance" : "latest";
+    const defaultSort = appliedSearch.trim() ? "relevance" : "latest";
     if (sort !== defaultSort) params.sort = sort;
     if (page !== 1) params.page = String(page);
     if (pageSize !== 10) params.pageSize = String(pageSize);
     setSearchParams(params, { replace: true, state: location.state });
-  }, [defaultStatusFilter, income, location.state, page, pageSize, region, search, selectedCat, setSearchParams, sort, sourceType, statusFilter, subRegion, targetGroup]);
+  }, [appliedSearch, defaultStatusFilter, income, location.state, page, pageSize, region, selectedCat, setSearchParams, sort, sourceType, statusFilter, subRegion, targetGroup]);
 
   useEffect(() => {
     const nextSearch = searchParams.get("search") || "";
@@ -418,7 +441,8 @@ export default function PoliciesPage() {
     const nextPageSize = Number(searchParams.get("pageSize")) || 10;
     const nextPage = Number(searchParams.get("page")) || 1;
 
-    setSearch((prev) => (prev === nextSearch ? prev : nextSearch));
+    setDraftSearch((prev) => (prev === nextSearch ? prev : nextSearch));
+    setAppliedSearch((prev) => (prev === nextSearch ? prev : nextSearch));
     setSelectedCat((prev) => (prev === nextSelectedCat ? prev : nextSelectedCat));
     setRegion((prev) => (prev === nextRegion ? prev : nextRegion));
     setSubRegion((prev) => (prev === nextSubRegion ? prev : nextSubRegion));
@@ -432,9 +456,80 @@ export default function PoliciesPage() {
   }, [defaultStatusFilter, searchParams]);
 
   useEffect(() => {
-    if (!search.trim() && sort === "relevance") { setSort("latest"); return; }
-    if (search.trim() && !searchParams.get("sort") && sort !== "relevance") setSort("relevance");
-  }, [search]); // eslint-disable-line
+    if (!appliedSearch.trim() && sort === "relevance") { setSort("latest"); return; }
+    if (appliedSearch.trim() && !searchParams.get("sort") && sort !== "relevance") setSort("relevance");
+  }, [appliedSearch]); // eslint-disable-line
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const fetchTrendingKeywords = async () => {
+      try {
+        const { data } = await api.get("/api/policies/search/trending", {
+          params: { limit: TRENDING_LIMIT },
+          signal: controller.signal,
+        });
+        const nextKeywords = Array.isArray(data.data) ? data.data.filter(Boolean) : [];
+        setTrendingKeywords(nextKeywords.length > 0 ? nextKeywords : FALLBACK_TRENDING);
+      } catch (error) {
+        if (error.name === "CanceledError" || error.code === "ERR_CANCELED") return;
+        setTrendingKeywords(FALLBACK_TRENDING);
+      }
+    };
+
+    fetchTrendingKeywords();
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    if (!draftSearch.trim()) {
+      setSuggestions([]);
+      setHighlightedSuggestionIndex(-1);
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    const timerId = window.setTimeout(async () => {
+      try {
+        const { data } = await api.get("/api/policies/search/suggestions", {
+          params: {
+            keyword: draftSearch.trim(),
+            limit: SUGGESTION_LIMIT,
+          },
+          signal: controller.signal,
+        });
+        const nextSuggestions = Array.isArray(data.data) ? data.data.filter(Boolean) : [];
+        setSuggestions(nextSuggestions);
+        setHighlightedSuggestionIndex(-1);
+      } catch (error) {
+        if (error.name === "CanceledError" || error.code === "ERR_CANCELED") return;
+        setSuggestions([]);
+        setHighlightedSuggestionIndex(-1);
+      }
+    }, 180);
+
+    return () => {
+      window.clearTimeout(timerId);
+      controller.abort();
+    };
+  }, [draftSearch]);
+
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (!searchSurfaceRef.current?.contains(event.target)) {
+        setSearchFocused(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // ── 정책 fetch ───────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -448,7 +543,7 @@ export default function PoliciesPage() {
           sido: region === "전체" ? undefined : region,
           sgg: subRegion === "전체" ? undefined : subRegion,
           sourceType: sourceType === "전체" ? undefined : SOURCE_TYPE_MAP[sourceType],
-          sort: search.trim() ? (SORT_MAP[sort] ?? "RELEVANCE") : (sort === "relevance" ? "LATEST" : (SORT_MAP[sort] ?? "LATEST")),
+          sort: appliedSearch.trim() ? (SORT_MAP[sort] ?? "RELEVANCE") : (sort === "relevance" ? "LATEST" : (SORT_MAP[sort] ?? "LATEST")),
           incomeLevel: income === "전체" ? undefined : Number(income),
           targetGroup: targetGroup || undefined,
           page: page - 1,
@@ -457,8 +552,8 @@ export default function PoliciesPage() {
         const STATUS_FILTER_MAP = { "신청가능": "ACTIVE_ONLY", "마감": "EXPIRED_ONLY", "전부표기": "ALL" };
         const apiStatusFilter = STATUS_FILTER_MAP[statusFilter] ?? "ACTIVE_ONLY";
 
-        const endpoint = search.trim() ? "/api/policies/search" : "/api/policies";
-        const reqParams = search.trim() ? { ...commonParams, keyword: search.trim(), statusFilter: apiStatusFilter } : { ...commonParams, statusFilter: apiStatusFilter };
+        const endpoint = appliedSearch.trim() ? "/api/policies/search" : "/api/policies";
+        const reqParams = appliedSearch.trim() ? { ...commonParams, keyword: appliedSearch.trim(), statusFilter: apiStatusFilter } : { ...commonParams, statusFilter: apiStatusFilter };
         const { data } = await api.get(endpoint, { params: reqParams, signal: controller.signal });
         const pageData = data.data ?? {};
         setPolicies((pageData.content ?? []).map(mapPolicySummary));
@@ -477,7 +572,7 @@ export default function PoliciesPage() {
     };
     fetchPolicies();
     return () => controller.abort();
-  }, [isLoggedIn, statusFilter, page, pageSize, region, search, selectedCat, sort, sourceType, subRegion, income, targetGroup]);
+  }, [appliedSearch, isLoggedIn, statusFilter, page, pageSize, region, selectedCat, sort, sourceType, subRegion, income, targetGroup]);
 
   // ── 핸들러 ───────────────────────────────────────────────────────────────────
   const handleBookmark = async (id, event) => {
@@ -510,12 +605,34 @@ export default function PoliciesPage() {
   const handleResetFilter = () => {
     setSelectedCat(""); setRegion("전체"); setSubRegion("전체"); setIncome("전체");
     setTargetGroup(""); setSourceType("전체"); setStatusFilter(defaultStatusFilter);
-    setSort(search.trim() ? "relevance" : "latest"); setPage(1);
+    setSort(appliedSearch.trim() ? "relevance" : "latest"); setPage(1);
+  };
+  const handleClearSearch = () => {
+    setDraftSearch("");
+    setAppliedSearch("");
+    setSuggestions([]);
+    setSearchFocused(false);
+    setHighlightedSuggestionIndex(-1);
+    setSort("latest");
+    setPage(1);
+  };
+
+  const applyKeywordSearch = (keyword) => {
+    const normalizedKeyword = keyword.trim();
+    setDraftSearch(normalizedKeyword);
+    setAppliedSearch(normalizedKeyword);
+    setSort(normalizedKeyword ? "relevance" : "latest");
+    setPage(1);
+    setSearchFocused(false);
+    setHighlightedSuggestionIndex(-1);
   };
 
   const handleSearch = () => {
-    if (search.trim()) setSort("relevance");
-    setPage(1);
+    if (highlightedSuggestionIndex >= 0 && suggestions[highlightedSuggestionIndex]) {
+      applyKeywordSearch(suggestions[highlightedSuggestionIndex]);
+      return;
+    }
+    applyKeywordSearch(draftSearch);
   };
   const chatFromTarget = location.state?.chatFrom?.pathname === "/chat"
     ? location.state.chatFrom
@@ -619,31 +736,111 @@ export default function PoliciesPage() {
           <div style={{ fontSize: 14, color: INK3, marginTop: 6 }}>
             {totalCount > 0 ? `${totalCount.toLocaleString()}개 정책 중에서 내 조건에 맞는 정책만 골라보세요.` : "조건에 맞는 정책을 검색해보세요."}
           </div>
-          <div style={{ marginTop: 20, display: "flex", gap: 10, background: "white", border: `1px solid ${LINE}`, borderRadius: 14, padding: 8, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, padding: "0 12px" }}>
-              <SearchIcon style={{ color: INK3, fontSize: 20 }} />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
-                placeholder="정책명, 키워드를 검색해보세요 (예: 월세, 창업)"
-                style={{ border: 0, outline: 0, flex: 1, fontSize: 15, padding: "12px 0", background: "transparent", fontFamily: "inherit", color: INK }}
-              />
+          <div ref={searchSurfaceRef} style={{ marginTop: 20, position: "relative" }}>
+            <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 10, background: "white", border: `1px solid ${LINE}`, borderRadius: 14, padding: 8, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+              <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, padding: "0 12px" }}>
+                <SearchIcon style={{ color: INK3, fontSize: 20 }} />
+                <input
+                  value={draftSearch}
+                  onChange={(e) => {
+                    setDraftSearch(e.target.value);
+                    setHighlightedSuggestionIndex(-1);
+                  }}
+                  onFocus={() => setSearchFocused(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowDown") {
+                      if (suggestions.length === 0) return;
+                      e.preventDefault();
+                      setHighlightedSuggestionIndex((prev) => (prev + 1) % suggestions.length);
+                      return;
+                    }
+                    if (e.key === "ArrowUp") {
+                      if (suggestions.length === 0) return;
+                      e.preventDefault();
+                      setHighlightedSuggestionIndex((prev) => (prev <= 0 ? suggestions.length - 1 : prev - 1));
+                      return;
+                    }
+                    if (e.key === "Escape") {
+                      setSearchFocused(false);
+                      setHighlightedSuggestionIndex(-1);
+                      return;
+                    }
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleSearch();
+                    }
+                  }}
+                  placeholder="정책명, 키워드를 검색해보세요 (예: 월세, 창업)"
+                  style={{ border: 0, outline: 0, flex: 1, fontSize: 15, padding: "12px 0", background: "transparent", fontFamily: "inherit", color: INK, minWidth: 0 }}
+                />
+                {canResetSearch && (
+                  <button
+                    onClick={handleClearSearch}
+                    style={{ border: 0, background: "none", color: INK3, cursor: "pointer", fontSize: 13, fontWeight: 700, padding: 0, flexShrink: 0 }}
+                  >
+                    지우기
+                  </button>
+                )}
+              </div>
+              <button
+                onClick={handleSearch}
+                style={{ padding: isMobile ? "12px 0" : "0 22px", background: A, color: "white", border: 0, borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer", width: isMobile ? "100%" : "auto" }}
+              >
+                검색
+              </button>
             </div>
-            <button
-              onClick={handleSearch}
-              style={{ padding: "0 22px", background: A, color: "white", border: 0, borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer" }}
-            >
-              검색
-            </button>
+            {searchFocused && draftSearch.trim() && suggestions.length > 0 && (
+              <div style={{ position: "absolute", top: "calc(100% + 10px)", left: 0, right: 0, background: "white", border: `1px solid ${LINE}`, borderRadius: 14, boxShadow: "0 14px 32px rgba(17,19,26,0.08)", overflow: "hidden", zIndex: 5 }}>
+                {suggestions.map((keyword, index) => (
+                  <button
+                    key={keyword}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => applyKeywordSearch(keyword)}
+                    onMouseEnter={() => setHighlightedSuggestionIndex(index)}
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "13px 16px",
+                      background: index === highlightedSuggestionIndex ? "#f8fbff" : "white",
+                      border: 0,
+                      borderTop: `1px solid ${LINE2}`,
+                      cursor: "pointer",
+                      textAlign: "left",
+                    }}
+                  >
+                    <SearchIcon style={{ color: INK3, fontSize: 18 }} />
+                    <span style={{ fontSize: 14, color: INK }}>{keyword}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {searchFocused && draftSearch.trim() && suggestions.length === 0 && (
+              <div style={{ position: "absolute", top: "calc(100% + 10px)", left: 0, right: 0, background: "white", border: `1px solid ${LINE}`, borderRadius: 14, boxShadow: "0 14px 32px rgba(17,19,26,0.08)", overflow: "hidden", zIndex: 5 }}>
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => applyKeywordSearch(draftSearch)}
+                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "13px 16px", background: "white", border: 0, cursor: "pointer", textAlign: "left" }}
+                >
+                  <SearchIcon style={{ color: INK3, fontSize: 18 }} />
+                  <span style={{ fontSize: 14, color: INK }}>
+                    <strong style={{ fontWeight: 800 }}>&quot;{draftSearch.trim()}&quot;</strong>로 바로 검색
+                  </span>
+                </button>
+                <div style={{ padding: "0 16px 14px", fontSize: 12, color: INK3 }}>
+                  추천 검색어가 없으면 현재 입력어로 바로 찾아볼 수 있어요.
+                </div>
+              </div>
+            )}
           </div>
           {/* 인기 검색어 */}
           <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <span style={{ fontSize: 12, color: INK3, fontWeight: 700 }}>인기 검색어</span>
-            {TRENDING.map((t, i) => (
+            {trendingKeywords.map((t, i) => (
               <button
-                key={i}
-                onClick={() => { setSearch(t); setTimeout(handleSearch, 0); }}
+                key={t}
+                onClick={() => applyKeywordSearch(t)}
                 style={{ fontSize: 12, color: INK2, padding: "4px 10px", background: "white", border: `1px solid ${LINE}`, borderRadius: 99, cursor: "pointer" }}
               >
                 <span style={{ color: A, fontWeight: 700, marginRight: 4 }}>{i + 1}</span>{t}
@@ -654,10 +851,10 @@ export default function PoliciesPage() {
       </div>
 
       {/* 콘텐츠 영역 */}
-      <div style={{ maxWidth: 1240, margin: "0 auto", padding: "28px 24px 80px", display: "grid", gridTemplateColumns: "280px 1fr", gap: 28, alignItems: "flex-start" }}>
+      <div style={{ maxWidth: 1240, margin: "0 auto", padding: "28px 24px 80px", display: "grid", gridTemplateColumns: isTablet ? "1fr" : "280px 1fr", gap: 28, alignItems: "flex-start" }}>
 
         {/* ── 필터 사이드바 ── */}
-        <aside style={{ background: "white", border: `1px solid ${LINE}`, borderRadius: 16, padding: "6px 20px 18px", position: "sticky", top: 80 }}>
+        <aside style={{ background: "white", border: `1px solid ${LINE}`, borderRadius: 16, padding: "6px 20px 18px", position: isTablet ? "static" : "sticky", top: isTablet ? "auto" : 80 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0 8px", borderBottom: `1px solid ${LINE2}` }}>
             <span style={{ fontSize: 15, fontWeight: 800, color: INK }}>상세 필터</span>
             <button onClick={handleResetFilter} style={{ background: "none", border: "none", fontSize: 12, color: INK3, cursor: "pointer" }}>초기화</button>
@@ -776,18 +973,18 @@ export default function PoliciesPage() {
           )}
 
           {/* 결과 수 + 정렬 + 뷰 토글 */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: isMobile ? "stretch" : "center", flexDirection: isMobile ? "column" : "row", gap: 12, marginBottom: 14 }}>
             <div style={{ fontSize: 13, color: INK2 }}>
               총 <strong style={{ color: INK }}>{totalCount.toLocaleString()}</strong>개의 정책
               {loading && <span style={{ marginLeft: 8, color: INK3 }}>· 로딩 중</span>}
             </div>
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
               <select
                 value={sort}
                 onChange={(e) => { setSort(e.target.value); setPage(1); }}
                 style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: "6px 10px", fontSize: 12, background: "white", fontFamily: "inherit", color: INK2 }}
               >
-                {search.trim() && <option value="relevance">관련도순</option>}
+                {appliedSearch.trim() && <option value="relevance">관련도순</option>}
                 <option value="views">인기순</option>
                 <option value="latest">최신순</option>
                 <option value="deadline">마감임박순</option>
@@ -831,7 +1028,7 @@ export default function PoliciesPage() {
                 ))}
               </div>
             ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
                 {policies.map((p) => (
                   <PolicyCard key={p.id} p={p} onNavigate={navigateToPolicyDetail} onBookmark={handleBookmark} />
                 ))}
@@ -840,8 +1037,34 @@ export default function PoliciesPage() {
           ) : (
             <div style={{ textAlign: "center", padding: "64px 24px", background: "white", borderRadius: 16, border: `1px solid ${LINE}` }}>
               <div style={{ fontSize: 40 }}>🔍</div>
-              <div style={{ marginTop: 12, fontSize: 15, color: INK2 }}>검색 결과가 없습니다</div>
-              <div style={{ marginTop: 6, fontSize: 13, color: INK3 }}>다른 키워드나 조건으로 검색해보세요</div>
+              <div style={{ marginTop: 12, fontSize: 15, color: INK2 }}>
+                {hasSearch || hasActiveFilters ? "조건에 맞는 정책을 찾지 못했어요" : "검색 결과가 없습니다"}
+              </div>
+              <div style={{ marginTop: 6, fontSize: 13, color: INK3 }}>
+                {hasSearch || hasActiveFilters
+                  ? "검색어를 바꾸거나 필터를 줄이면 더 많은 정책을 볼 수 있어요."
+                  : "다른 키워드나 조건으로 검색해보세요."}
+              </div>
+              {(hasSearch || hasActiveFilters) && (
+                <div style={{ display: "flex", justifyContent: "center", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
+                  {hasSearch && (
+                    <button
+                      onClick={handleClearSearch}
+                      style={{ padding: "10px 14px", borderRadius: 10, border: `1px solid ${LINE}`, background: "white", color: INK2, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+                    >
+                      검색어 지우기
+                    </button>
+                  )}
+                  {hasActiveFilters && (
+                    <button
+                      onClick={handleResetFilter}
+                      style={{ padding: "10px 14px", borderRadius: 10, border: 0, background: AS, color: AI, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+                    >
+                      필터 초기화
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

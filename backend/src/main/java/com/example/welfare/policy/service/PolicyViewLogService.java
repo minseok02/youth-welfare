@@ -4,11 +4,13 @@ import com.example.welfare.policy.repository.PolicyViewLogCommandRepository;
 import com.example.welfare.user.service.UserKeyLookupService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class PolicyViewLogService {
 
@@ -19,7 +21,8 @@ public class PolicyViewLogService {
 
     @Transactional
     public boolean registerViewIfFirstInWindow(Long serviceId, Long userId, String clientFingerprint) {
-        LocalDateTime cutoff = LocalDateTime.now().minusHours(DEDUP_WINDOW_HOURS);
+        LocalDateTime viewedAt = LocalDateTime.now();
+        LocalDateTime cutoff = viewedAt.minusHours(DEDUP_WINDOW_HOURS);
         String userKey = userKeyLookupService.findNullable(userId);
 
         boolean duplicate = userKey != null
@@ -30,12 +33,25 @@ public class PolicyViewLogService {
                 serviceId, clientFingerprint, cutoff
         );
 
+        updateRecentViewIfLoggedIn(serviceId, userKey, viewedAt);
+
         if (duplicate) {
             return false;
         }
 
-        policyViewLogCommandRepository.saveView(serviceId, userKey, clientFingerprint);
+        policyViewLogCommandRepository.saveView(serviceId, userKey, clientFingerprint, viewedAt);
 
         return true;
+    }
+
+    private void updateRecentViewIfLoggedIn(Long serviceId, String userKey, LocalDateTime viewedAt) {
+        if (userKey == null) {
+            return;
+        }
+        try {
+            policyViewLogCommandRepository.upsertRecentView(serviceId, userKey, viewedAt);
+        } catch (RuntimeException exception) {
+            log.warn("recent policy view upsert failed serviceId={} userKey={}", serviceId, userKey, exception);
+        }
     }
 }

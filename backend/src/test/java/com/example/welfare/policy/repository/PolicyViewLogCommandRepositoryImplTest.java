@@ -5,6 +5,7 @@ import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -23,6 +24,8 @@ class PolicyViewLogCommandRepositoryImplTest {
     private ServiceViewLogRepository serviceViewLogRepository;
     @Mock
     private EntityManager entityManager;
+    @Mock
+    private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
     @Test
     @DisplayName("policy view log command repository는 로그인 dedup 조회를 위임한다")
@@ -32,7 +35,8 @@ class PolicyViewLogCommandRepositoryImplTest {
 
         PolicyViewLogCommandRepositoryImpl repository = new PolicyViewLogCommandRepositoryImpl(
                 serviceViewLogRepository,
-                entityManager
+                entityManager,
+                namedParameterJdbcTemplate
         );
 
         assertThat(repository.existsDuplicateUserView(10L, "user-key-1", LocalDateTime.now())).isTrue();
@@ -46,7 +50,8 @@ class PolicyViewLogCommandRepositoryImplTest {
 
         PolicyViewLogCommandRepositoryImpl repository = new PolicyViewLogCommandRepositoryImpl(
                 serviceViewLogRepository,
-                entityManager
+                entityManager,
+                namedParameterJdbcTemplate
         );
 
         assertThat(repository.existsDuplicateAnonymousView(10L, "fp", LocalDateTime.now())).isTrue();
@@ -60,10 +65,11 @@ class PolicyViewLogCommandRepositoryImplTest {
 
         PolicyViewLogCommandRepositoryImpl repository = new PolicyViewLogCommandRepositoryImpl(
                 serviceViewLogRepository,
-                entityManager
+                entityManager,
+                namedParameterJdbcTemplate
         );
 
-        repository.saveView(10L, "user-key-1", "fp");
+        repository.saveView(10L, "user-key-1", "fp", LocalDateTime.now());
 
         then(serviceViewLogRepository).should().save(any());
     }

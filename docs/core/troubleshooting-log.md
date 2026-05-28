@@ -1,5 +1,45 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 1001) 검색 API 호출을 submit 기준으로 줄여도, 검색창 clear/reset과 모바일 레이아웃이 없으면 여전히 사용자가 막힌다
+- 문제: 본 검색과 자동완성 호출 시점을 분리해도, 검색어를 빠르게 비우는 clear 동선이 없고 검색 결과 empty state가 "다시 시도해보세요" 수준에만 머무르면 사용자는 막힌 화면에서 다시 어디를 눌러야 할지 모른다. 게다가 정책 페이지는 데스크톱 기준 `sidebar + 2열 카드` 비중이 커서 모바일 폭에서는 필터와 결과 영역이 답답하게 눌릴 수 있다.
+- 해결: [PoliciesPage.jsx](/home/minseok/youth-welfare/frontend/src/pages/PoliciesPage.jsx:1) 에 검색창 `지우기` 액션, suggestion이 비었을 때 현재 입력어로 바로 검색하는 fallback row, 검색/필터 active 여부에 따라 달라지는 empty state CTA를 추가했다. 동시에 viewport width 기준으로 `sidebar stack`, `검색 버튼 full width`, `2열 카드 -> 1열` 전환을 넣어 기존 UI 패턴을 유지한 채 모바일에서도 무리 없이 읽히게 정리했다.
+
+## 1000) 최근 본 정책 read path는 빈 결과나 recent-view 보조 write 실패를 본 기능 실패로 전파하지 않는 편이 맞다
+- 문제: 최근 본 정책은 상세 조회/마이페이지를 보조하는 read model이라, recent row가 비어 있을 때도 presentation 변환을 한 번 더 타거나, `recent_policy_views` upsert 실패를 상세 응답 자체 실패로 올리면 기능 중요도에 비해 장애 반경이 커진다. 특히 기존 `service_view_logs` 저장과 상세 응답은 계속 살아 있어야 하므로, recent-view 보조 경계가 본 흐름을 깨면 우선순위가 뒤집힌다.
+- 해결: [UserRecentViewedPolicyReadService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/UserRecentViewedPolicyReadService.java:1) 는 recent row가 비면 바로 `List.of()` 로 반환해 추가 presentation read를 건너뛴다. [PolicyViewLogService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/policy/service/PolicyViewLogService.java:1) 의 `recent_policy_views` upsert는 계속 `try/catch` 로 감싸 두고, 테스트도 “upsert 실패해도 상세 조회 로그 저장은 계속 진행”, “비활성 정책도 기존 북마크 패턴처럼 recent-view에 포함”까지 같이 고정했다.
+
+## 999) 새 recent-view 테이블을 migration에만 추가하면 오래된 로컬 PostgreSQL volume에서는 relation missing으로 다시 끊길 수 있다
+- 문제: `recent_policy_views` 를 migration과 `schema.sql` 에만 추가해도, 이미 떠 있는 로컬 PostgreSQL volume은 새 테이블/grant를 자동으로 따라오지 않는다. 이 상태에서 최근 본 정책 상세/통합 테스트나 runtime 확인을 바로 태우면 relation missing으로 보이기 쉽고, 기능 코드 문제와 런타임 drift가 섞여 보인다.
+- 해결: 기존 drift patch 경로인 `deploy/postgres/patches/V2026_05_27_01__add_recent_policy_views.sql` 과 `bash deploy/postgres/apply-local-runtime-schema-patch.sh` 를 active 운영/테스트 문서에도 같이 명시했다. 이번 점검에서 patch 스크립트를 다시 실행해 `recent_policy_views already exists` 상태로 idempotent 적용되는 것도 확인했으므로, 앞으로는 recent-view 관련 relation missing이 보이면 볼륨 삭제보다 runtime patch 적용을 먼저 보는 편이 맞다.
+
+## 998) 자동완성에 정책 title 후보를 항상 먼저 합치면 `search_logs` ranking 의미가 최종 응답 상단에서 사라진다
+- 문제: 자동완성 품질을 높이려고 정책 title 후보와 `search_logs` 후보를 한 응답으로 합칠 때, 정책명을 무조건 먼저 넣으면 repository가 계산한 `exact match -> prefix match -> search_count -> recentness` 정렬이 최종 상단에서 밀린다. limit이 작을수록 로그 후보는 "남는 자리 채우기"로만 남아, API는 자동완성처럼 보여도 실제 의미는 "정책명 우선 노출"로 바뀐다.
+- 해결: [PolicySearchKeywordReadService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/policy/service/PolicySearchKeywordReadService.java:1) 는 이제 `search_logs` 후보를 먼저 읽고, limit을 다 못 채운 경우에만 기존 `searchChatCandidates()` 정책 title 후보를 뒤에 붙인다. 즉 자동완성의 기본 정렬 의미는 로그 ranking으로 유지하고, 정책명 후보는 회수율 보강으로만 사용한다. 로그 후보만으로 limit이 닫히면 정책 title 조회 자체도 건너뛰어 불필요한 read 비용도 줄인다.
+
+## 997) 조회수 dedupe 로그와 최근 본 순서를 같은 테이블 의미로 묶으면 둘 중 하나는 반드시 어긋난다
+- 문제: `service_view_logs` 는 24시간 dedupe가 핵심이라 조회수 집계 보호에는 맞지만, “방금 다시 본 정책이 맨 위로 와야 한다”는 최근 본 UX와는 충돌한다. 이 테이블을 그대로 recent-view source로 쓰면 같은 날 재조회가 순서에 즉시 반영되지 않는다.
+- 해결: 최근 본 정확도는 새 `recent_policy_views` 테이블로 분리했다. 상세 조회 write path는 로그인 사용자면 매번 `recent_policy_views(user_key, service_id)` 의 `last_viewed_at` 을 upsert하고, 기존 `service_view_logs` 는 계속 24시간 dedupe 규칙대로만 저장한다. 즉 조회수 집계 보호와 최근순 UX를 서로 다른 저장 의미로 분리해, 기존 view log semantics는 안 깨고 recent-view 정확도만 보정한다.
+
+## 996) 검색 input state와 실제 query state를 같은 값으로 두면 타이핑만으로 본 검색 API가 계속 호출된다
+- 문제: 검색창 입력값과 실제 조회에 쓰는 keyword를 같은 state로 두면, 사용자가 글자를 입력할 때마다 `/api/policies/search` 와 `/api/policies/search/suggestions` 가 함께 호출된다. rate-limit bucket을 나눠도 비용과 UX는 그대로 나쁘고, 사용자는 결과 목록이 입력 도중 계속 바뀌는 불안정한 화면을 보게 된다.
+- 해결: [PoliciesPage.jsx](/home/minseok/youth-welfare/frontend/src/pages/PoliciesPage.jsx:1) 에서 검색 state를 `draftSearch` 와 `appliedSearch` 로 분리했다. `draftSearch` 는 input/suggestions 전용, `appliedSearch` 는 URL sync와 실제 `/api/policies` `/api/policies/search` 조회 전용으로 쓰고, 엔터/검색 버튼/추천어 선택 시점에만 `appliedSearch` 를 갱신한다. 즉 타이핑 중에는 suggestion만 움직이고, 실제 목록은 명시적 submit 뒤에만 바뀌게 한다.
+
+## 993) 검색 자동완성을 로그 집계만으로 두면 실제 정책명보다 과거 인기 문자열을 더 자주 내보내게 된다
+- 문제: `search_logs` 기반 자동완성은 구현이 가장 단순하지만, 사용자가 지금 찾고 싶은 실제 정책 title보다 과거에 많이 검색된 문구를 우선 보여 주기 쉽다. 특히 새 정책이나 노출량이 적은 정책은 로그가 충분히 쌓이기 전까지 suggestion 후보에서 뒤로 밀리고, 프론트는 API shape가 단순한 `List<String>` 이라 이 빈약한 후보 품질이 그대로 UI에 드러난다.
+- 해결: 이번 단계에서는 검색엔진을 새로 들이지 않고 기존 [WelfareServiceSearchRepositoryImpl.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/policy/repository/WelfareServiceSearchRepositoryImpl.java:107) 의 `searchChatCandidates()` read 경계를 재사용해, suggestion 응답을 `정책 title 후보 우선 + search_logs 후보 보강` 순서로 합쳤다. `LinkedHashSet` 으로 dedupe한 뒤 limit을 적용해 API shape는 그대로 유지하면서도 실제 정책명 회수율을 먼저 올린다.
+
+## 994) 검색과 자동완성의 입력 정규화가 다르면 사용자는 “검색은 되는데 자동완성은 안 뜬다”고 느끼게 된다
+- 문제: 본 검색은 [SearchKeywordSupport.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/global/util/SearchKeywordSupport.java:1) 로 구두점/특수문자를 걷어내고 토큰화하지만, 자동완성이 별도 규칙으로 입력과 로그를 비교하면 `월세!`, `청년-지원` 같은 입력에서 검색 결과와 suggestion 결과가 서로 다른 뜻으로 동작한다.
+- 해결: 자동완성 service 입력 정규화와 `search_logs` read SQL 둘 다 검색 본문과 같은 토큰 기준으로 맞췄다. 즉 입력은 `SearchKeywordSupport.normalizeText()` 로 정규화하고, 로그 SQL도 `regexp_replace(..., '[^0-9a-z가-힣]+', ' ', 'g')` 기준으로 비교해 검색과 suggestion이 같은 문맥으로 후보를 찾게 한다.
+
+## 995) 공개 검색 보조 endpoint를 열었으면 방어는 유지하되 본 검색과 같은 rate-limit bucket을 공유시키면 안 된다
+- 문제: `/api/policies/search` 와 `/api/policies/search/suggestions` 를 같은 rate-limit bucket으로 묶으면, 프론트가 타이핑 중 본 검색과 자동완성을 같이 호출하는 현재 구조에서 사용자는 몇 번 입력하지 않아도 `429` 를 맞기 쉽다. `trending` 까지 같은 bucket이면 페이지 진입 1회도 같은 한도를 깎는다.
+- 해결: [PolicyTrafficRateLimitService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/policy/service/PolicyTrafficRateLimitService.java:1) 에 `search / suggestion / trending / detail` 전용 bucket을 분리했다. 현재 기본값은 `search=60/60s`, `suggestion=180/60s`, `trending=30/60s` 이고, [PolicyController.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/policy/controller/PolicyController.java:141) 는 endpoint별로 각기 다른 checker를 탄다. 즉 permit-all 공개 계약은 유지하되, 타이핑 트래픽이 본 검색 한도를 잠식하지 않게 경계를 나눈다.
+
+## 992) `service_view_logs` 를 최근 본 정책 source로 재사용할 때는 24시간 dedupe write semantics를 read UX 요구와 혼동하면 안 된다
+- 문제: 최근 본 정책을 빨리 붙일 때 기존 `service_view_logs` 를 그대로 읽는 선택은 안전했지만, 이 테이블은 원래 조회수 집계 보호용이라 로그인 사용자의 같은 정책 재조회가 24시간 안에는 새 row로 저장되지 않는다. 이걸 recent-view 정확도와 같은 의미로 보면, 같은 날 재조회가 순서에 반영되지 않는 이유를 다시 디버깅하게 된다.
+- 해결: 1차에서는 이 제약을 명시한 채 read query만 붙였고, 후속 보정에서 최근 본 정확도는 `recent_policy_views` 로 분리했다. 따라서 현재 `GET /api/users/me/recent-viewed-policies` 는 “마지막 저장된 조회 로그”가 아니라 “마지막 상세 진입 시각” 기준 최신순으로 읽고, `service_view_logs` 는 계속 조회수 dedupe 의미만 유지한다.
+
 ## 991) manual dispatch 권한을 admin-only로 줄였으면 smoke와 active 문서도 “현재 로그인 admin 사용자” 기준으로 같이 바꿔야 drift가 안 난다
 - 문제: `digest-test-dispatch`, `deadline-test-dispatch`, `push-test-send` 는 이미 `ROLE_ADMIN` 경계로 줄었는데, smoke 스크립트와 current-state 문서 일부는 여전히 “일반 로그인 사용자로 수동 dispatch를 때린다”는 전제를 유지하고 있었다. 이 상태로는 실제 서버에선 smoke가 `403` 으로 깨지거나, 문서가 최신 계약과 다른 설명을 하게 된다.
 - 해결: `run-local-notification-channel-smoke.sh`, `run-local-deadline-reminder-smoke.sh` 를 admin credential helper 기반으로 다시 묶어 현재 로그인 admin 사용자 경계에서 수동 dispatch를 검증하게 바꿨다. 동시에 runtime smoke 명령 문서, notification checklist, collect current-state/ops, security hardening current-state 문서도 “admin-only manual dispatch”, “admin 수동 파라미터 capped default/상한”, “latest hardening baseline” 기준으로 다시 정리했다.
@@ -6453,3 +6493,15 @@ admin API와 latest artifact에
 - 문제: 기존 [frontend/public/sw.js](/home/minseok/youth-welfare/frontend/public/sw.js:1) 는 notification payload의 `url` 을 그대로 `navigate()` / `openWindow()` 에 넘겼고, [WebPushDispatchService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/notification/service/WebPushDispatchService.java:1) 의 test send도 `request.url` 을 그대로 payload에 실었다. 이 상태에선 외부 origin URL이나 비정상 scheme이 push payload에 들어오면, 사용자는 "앱 알림"을 눌렀는데 외부 사이트로 이동할 수 있다.
 - 해결: 서비스워커에 `resolveSafeNotificationUrl()` 을 추가해 same-origin path 또는 same-origin absolute URL만 내부 path로 정규화하고, 그 외는 `/mypage?tab=3` 로 fallback 하게 바꿨다. 서버 test send도 `app.base-url` 과 같은 origin absolute URL 또는 `/...` path만 허용하고, 외부 origin/잘못된 scheme은 `INVALID_INPUT(C001)` 로 거부한다.
 - 이유: 알림 클릭은 신뢰도가 높은 UX 경계이므로, URL을 "외부 링크"가 아니라 "앱 내부 라우팅 토큰"처럼 다루는 편이 맞다. 특히 수동 test send 경계부터 같은 정책을 강제해야 운영 중 잘못된 payload가 쌓이지 않는다.
+
+## 986) 검색 관련 새 GET endpoint를 public 정책 surface에 추가하지 않으면 프론트 fallback만 남고 API는 401로 닫힌다
+
+- 문제: `GET /api/policies/search/trending`, `GET /api/policies/search/suggestions` 를 추가한 뒤 controller/WebMvc 테스트는 통과했지만, 실제 integration에서는 두 endpoint가 보안 설정의 public allowlist에 없어서 401이 났다.
+- 해결: [SecurityConfig.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/global/config/SecurityConfig.java:89) 의 public 정책 조회 그룹에 두 endpoint를 명시적으로 추가했다.
+- 이유: 이 두 API는 북마크/마이페이지처럼 사용자 상태를 바꾸지 않고, 기존 `/api/policies`, `/api/policies/search`, `/api/policies/ranking` 과 같은 public discovery surface다. controller 추가만으로는 런타임 접근 경계가 열리지 않는다.
+
+## 987) 운영 데이터가 섞인 integration에서 global trending endpoint를 바로 검증하면 fixture보다 실데이터가 먼저 잡힐 수 있다
+
+- 문제: 인기 검색어 integration을 HTTP endpoint 기준으로 검증했더니, 테스트 fixture 자체는 맞아도 같은 DB의 기존 `search_logs` 가 함께 집계되어 기대 길이/순서가 흔들렸다.
+- 해결: integration은 endpoint 대신 [PolicySearchKeywordReadRepository.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/policy/repository/PolicySearchKeywordReadRepository.java:12) 를 직접 호출하고, `windowStart` 를 짧게 잡아 fixture만 읽는 방식으로 바꿨다. HTTP contract는 별도 WebMvc 테스트로 유지했다.
+- 이유: global ranking/trending 성격의 API는 운영 데이터와 섞인 shared integration DB에서 완전한 응답 shape를 고정하기 어렵다. 이 경우 query semantics는 repository integration으로, 공개 응답 contract는 WebMvc로 나눠 검증하는 편이 더 안정적이다.
