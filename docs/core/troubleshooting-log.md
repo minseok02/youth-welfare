@@ -1,5 +1,29 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 1007) auth/session wrapper는 코드 회귀가 없어도 admin 자격이 비어 있으면 마지막 forced-logout 단계에서만 끊긴다
+- 문제: `run-local-auth-session-smoke.sh` 는 `runtime/logout`, `login failure`, `account lockout`, `withdraw` 까지는 일반 계정만으로 끝나지만, 마지막 `run-local-admin-forced-logout-smoke.sh` 는 `ADMIN_EMAIL`, `ADMIN_PASSWORD` 또는 `/tmp/youth-welfare-admin-smoke-*` 준비가 필요하다. 이 값이 비어 있으면 앞 단계가 다 green이어도 wrapper 전체는 마지막에만 멈춰, 기능 회귀와 smoke credential 누락이 섞여 보일 수 있다.
+- 해결: local closeout rerun에서는 [run-local-admin-forced-logout-smoke.sh](/home/minseok/youth-welfare/deploy/smoke/run-local-admin-forced-logout-smoke.sh:1) 의 현재 기준선인 `ADMIN_EMAIL=admin@example.com`, `ADMIN_PASSWORD=password123!` 를 명시해 wrapper를 끝까지 다시 태운다. 현재 결과는 `old access 401/A006`, `old refresh 401/A003`, `relogin 200` 이고, auth/session wrapper 전체도 다시 통과했다.
+
+## 1006) education replay smoke는 compose-host JDBC를 조용히 흡수하지 않고 local-host URL을 명시할 때만 다시 태우는 편이 맞다
+- 문제: [run-local-education-priority-replay.sh](/home/minseok/youth-welfare/deploy/smoke/run-local-education-priority-replay.sh:1) 는 현재 `.env` 의 `jdbc:postgresql://db:...` 같은 compose-host URL을 만나면 `DB_URL must target local PostgreSQL host, not docker-compose service host` 로 즉시 멈춘다. 이건 코드 회귀가 아니라, compose 내부 host를 active local replay truth처럼 쓰지 않게 막는 preflight다.
+- 해결: replay closeout rerun은 `DB_URL`, `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL` 를 `127.0.0.1:5433` 기준 local PostgreSQL URL로 명시해 다시 실행한다. 현재 결과는 `A_top10_target=3->3`, `B_top10_target=2->2`, `A_fp/B_fp=same`, `reason_changed=0` 으로 통과했고, artifact는 `/tmp/tmp.NlA1Q9E5so` 에 남았다.
+
+## 1005) 검색 결과 페이지에서 검색어는 상단 input에만 남고 summary chip에는 안 보이면 사용자가 “왜 이 결과가 나왔는지”를 다시 읽어야 한다
+- 문제: [PoliciesPage.jsx](/home/minseok/youth-welfare/frontend/src/pages/PoliciesPage.jsx:1) 는 이미 카테고리/지역/소득 같은 active filter chip은 보여 주고 있었지만, 정작 가장 강한 조건인 `검색어` 와 결과 순서를 바꾼 `정렬` 은 summary 영역에 없었다. 이 상태에서는 결과가 비거나 너무 많을 때 “현재 어떤 조합이 적용 중인가”를 사용자가 위아래로 다시 훑어야 했다.
+- 해결: active summary chip에 `검색어`, `정렬` 도 같이 포함하고, `모두 해제` 를 `search + filter + sort + pageSize` 를 한 번에 초기화하는 동작으로 정리했다. 따라서 사용자는 검색 input, 사이드바, 결과 정렬 셀렉트를 따로 되돌리지 않아도 현재 조합을 한 줄에서 읽고 바로 초기화할 수 있다.
+
+## 1004) 정책 상세의 비슷한 정책을 카테고리 하나로만 고르면 비어 있거나 지나치게 얇은 rail이 자주 생긴다
+- 문제: [PolicyDetailPage.jsx](/home/minseok/youth-welfare/frontend/src/pages/PolicyDetailPage.jsx:1) 의 기존 `비슷한 정책` 섹션은 `unifiedCategory` 하나로만 후보를 읽었다. 카테고리 데이터가 성긴 정책이나 같은 분류 내 활성 정책 수가 적은 경우에는 rail이 비거나, 실제로는 같은 출처/같은 지역으로 이어서 볼 만한 정책이 있는데도 못 보여 주는 상태가 생긴다.
+- 해결: related 후보를 `같은 분야 -> 같은 출처 -> 같은 지역` 순서로 보강하고, 각 카드에 relation label과 source/org line을 같이 붙였다. 즉 새 추천 엔진을 도입하지 않고도 기존 `/api/policies` read 경계를 재사용해 상세 하단 이어보기 품질을 높인다.
+
+## 1003) 최근 본 정책을 그대로 길게 쌓아만 두면, 마이페이지에서는 다시 찾기보다 스크롤 비용이 먼저 커진다
+- 문제: 최근 본 정책 API가 최대 30건까지 안정적으로 내려와도, 마이페이지가 그 목록을 항상 전부 렌더링하면 “방금 본 2~3건을 다시 확인”하려는 사용자는 오히려 긴 리스트를 다시 읽어야 한다. 게다가 종료된 정책까지 한 줄 리스트에 섞여 있으면 현재 신청 가능한 정책만 다시 보고 싶은 경우 눈에 거슬릴 수 있다.
+- 해결: [MyPage.jsx](/home/minseok/youth-welfare/frontend/src/pages/MyPage.jsx:1) 에 recent-view를 `기본 5건 요약 + 더보기/접기`, `전체 / 진행중만` 토글, empty CTA 구조로 정리했다. API는 여전히 최대 30건을 한 번에 읽되, 화면은 기본적으로 짧게 유지하고 필요할 때만 펼치는 쪽으로 UX 비용을 낮춘다.
+
+## 1002) 자동완성 후보를 단순 source 우선순위로만 합치면 더 정확히 맞는 정책 title이 약한 로그 후보 뒤로 밀릴 수 있다
+- 문제: `search_logs` 후보를 그대로 먼저 두고 정책 title 후보를 뒤에 보강하면, 자동완성의 기본 의미는 유지되지만 입력과 훨씬 정확히 맞는 실제 정책명이 약한 부분 일치 로그 후보 뒤로 밀릴 수 있다. 예를 들어 사용자가 `국민취업지원제도` 를 치면, compact exact/prefix에 가까운 정책 title보다 `취업 지원`, `국민 지원` 같은 짧은 로그 후보가 먼저 노출돼 정책명 회수율이 다시 떨어진다.
+- 해결: [PolicySearchKeywordReadService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/policy/service/PolicySearchKeywordReadService.java:1) 는 `search_logs` 와 `searchChatCandidates()` 결과를 한 번에 모은 뒤, `exact/prefix/contains` match priority를 먼저 보고 같은 등급 안에서만 source 우선순위와 원래 order를 tie-break로 쓰게 바꿨다. 따라서 더 정확히 맞는 정책 title은 상단으로 올리되, 같은 match tier에서는 기존 로그 ranking 의미를 계속 유지한다.
+
 ## 1001) 검색 API 호출을 submit 기준으로 줄여도, 검색창 clear/reset과 모바일 레이아웃이 없으면 여전히 사용자가 막힌다
 - 문제: 본 검색과 자동완성 호출 시점을 분리해도, 검색어를 빠르게 비우는 clear 동선이 없고 검색 결과 empty state가 "다시 시도해보세요" 수준에만 머무르면 사용자는 막힌 화면에서 다시 어디를 눌러야 할지 모른다. 게다가 정책 페이지는 데스크톱 기준 `sidebar + 2열 카드` 비중이 커서 모바일 폭에서는 필터와 결과 영역이 답답하게 눌릴 수 있다.
 - 해결: [PoliciesPage.jsx](/home/minseok/youth-welfare/frontend/src/pages/PoliciesPage.jsx:1) 에 검색창 `지우기` 액션, suggestion이 비었을 때 현재 입력어로 바로 검색하는 fallback row, 검색/필터 active 여부에 따라 달라지는 empty state CTA를 추가했다. 동시에 viewport width 기준으로 `sidebar stack`, `검색 버튼 full width`, `2열 카드 -> 1열` 전환을 넣어 기존 UI 패턴을 유지한 채 모바일에서도 무리 없이 읽히게 정리했다.
