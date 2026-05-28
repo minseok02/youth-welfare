@@ -26,16 +26,34 @@ public class PolicyPresentationReadService {
 
     @Transactional(readOnly = true)
     public Page<PolicySummaryResponse> buildSummaryPage(Long userId, Page<WelfareService> page) {
-        Set<Long> bookmarkedServiceIds = recommendationBookmarkReadService.findBookmarkedServiceIds(userId, page.getContent());
-        Map<Long, RecommendationCandidateProjection> projections = findProjections(page.getContent());
-        // 카드 source 표시: hostOrg 없는 복지로 지자체 정책에 sido 제공 (B안)
-        Map<Long, String> sidoMap = buildSidoMap(page.getContent());
-        return page.map(service -> PolicySummaryResponse.from(
-                service,
-                bookmarkedServiceIds.contains(service.getId()),
-                projections.get(service.getId()),
-                sidoMap.get(service.getId())
-        ));
+        List<PolicySummaryResponse> responses = buildSummaryResponses(userId, page.getContent());
+        Map<Long, PolicySummaryResponse> responseById = responses.stream()
+                .collect(Collectors.toMap(
+                        PolicySummaryResponse::getId,
+                        response -> response,
+                        (left, right) -> left
+                ));
+        return page.map(service -> responseById.getOrDefault(service.getId(), PolicySummaryResponse.from(service, false)));
+    }
+
+    @Transactional(readOnly = true)
+    public List<PolicySummaryResponse> buildSummaryResponses(Long userId, List<WelfareService> services) {
+        if (services == null || services.isEmpty()) {
+            return List.of();
+        }
+
+        Set<Long> bookmarkedServiceIds = recommendationBookmarkReadService.findBookmarkedServiceIds(userId, services);
+        Map<Long, RecommendationCandidateProjection> projections = findProjections(services);
+        Map<Long, String> sidoMap = buildSidoMap(services);
+
+        return services.stream()
+                .map(service -> PolicySummaryResponse.from(
+                        service,
+                        bookmarkedServiceIds.contains(service.getId()),
+                        projections.get(service.getId()),
+                        sidoMap.get(service.getId())
+                ))
+                .toList();
     }
 
     @Transactional(readOnly = true)

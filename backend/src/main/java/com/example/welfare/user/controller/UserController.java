@@ -12,6 +12,7 @@ import com.example.welfare.user.service.UserAccountCommandService;
 import com.example.welfare.user.service.UserBookmarkReadService;
 import com.example.welfare.user.service.UserProfileCommandService;
 import com.example.welfare.user.service.UserProfileReadService;
+import com.example.welfare.user.service.UserRecentViewedPolicyReadService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -29,6 +30,7 @@ public class UserController {
 
     private final UserProfileReadService userProfileReadService;
     private final UserBookmarkReadService userBookmarkReadService;
+    private final UserRecentViewedPolicyReadService userRecentViewedPolicyReadService;
     private final UserProfileCommandService userProfileCommandService;
     private final UserAccountCommandService userAccountCommandService;
 
@@ -42,6 +44,15 @@ public class UserController {
     public ResponseEntity<ApiResponse<List<PolicySummaryResponse>>> getBookmarks(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
         return ResponseEntity.ok(ApiResponse.success(userBookmarkReadService.getBookmarks(resolveUserId(authenticatedUser))));
+    }
+
+    @GetMapping("/recent-viewed-policies")
+    public ResponseEntity<ApiResponse<List<PolicySummaryResponse>>> getRecentViewedPolicies(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @RequestParam(required = false) Integer limit) {
+        return ResponseEntity.ok(ApiResponse.success(
+                userRecentViewedPolicyReadService.getRecentViewedPolicies(resolveUserId(authenticatedUser), limit)
+        ));
     }
 
     @PutMapping

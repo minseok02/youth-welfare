@@ -6,6 +6,7 @@ import com.example.welfare.user.service.UserAccountCommandService;
 import com.example.welfare.user.service.UserBookmarkReadService;
 import com.example.welfare.user.service.UserProfileCommandService;
 import com.example.welfare.user.service.UserProfileReadService;
+import com.example.welfare.user.service.UserRecentViewedPolicyReadService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,6 +40,8 @@ class UserControllerWebMvcTest {
     private UserProfileReadService userProfileReadService;
     @MockBean
     private UserBookmarkReadService userBookmarkReadService;
+    @MockBean
+    private UserRecentViewedPolicyReadService userRecentViewedPolicyReadService;
     @MockBean
     private UserProfileCommandService userProfileCommandService;
     @MockBean
@@ -83,6 +86,35 @@ class UserControllerWebMvcTest {
                 .andExpect(jsonPath("$.data[0].gov24BenefitTypeLabel").value("서비스"));
 
         then(userBookmarkReadService).should().getBookmarks(isNull());
+    }
+
+    @Test
+    @DisplayName("마이페이지 최근 본 정책 조회는 성공 응답을 반환한다")
+    void getRecentViewedPoliciesReturnsSuccessResponse() throws Exception {
+        given(userRecentViewedPolicyReadService.getRecentViewedPolicies(isNull(), org.mockito.ArgumentMatchers.eq(5)))
+                .willReturn(List.of(
+                        PolicySummaryResponse.builder()
+                                .id(31L)
+                                .title("최근 본 청년 정책")
+                                .description("최근 조회 정책 설명")
+                                .unifiedCategory("주거")
+                                .status("ACTIVE")
+                                .build()
+                ));
+
+        mockMvc.perform(get("/api/users/me/recent-viewed-policies")
+                        .param("limit", "5")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(
+                                new AuthenticatedUser(1L, "user-key-1"),
+                                null,
+                                Collections.emptyList()
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data[0].id").value(31))
+                .andExpect(jsonPath("$.data[0].title").value("최근 본 청년 정책"));
+
+        then(userRecentViewedPolicyReadService).should().getRecentViewedPolicies(isNull(), org.mockito.ArgumentMatchers.eq(5));
     }
 
     @Test
