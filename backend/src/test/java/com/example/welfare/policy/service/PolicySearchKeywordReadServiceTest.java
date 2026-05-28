@@ -99,6 +99,27 @@ class PolicySearchKeywordReadServiceTest {
     }
 
     @Test
+    @DisplayName("검색 자동완성은 더 정확히 맞는 정책 title 후보를 로그 후보보다 먼저 올린다")
+    void getSuggestionsPromotesBetterMatchingPolicyTitle() {
+        given(welfareServiceSearchRepository.searchChatCandidates(eq("국민취업지원제도"), eq(5)))
+                .willReturn(List.of(
+                        WelfareService.builder().title("국민 취업 지원 제도").build(),
+                        WelfareService.builder().title("국민 취업 지원 프로그램").build()
+                ));
+        given(policySearchKeywordReadRepository.findSuggestions(eq("국민취업지원제도"), any(LocalDateTime.class), eq(2), eq(5)))
+                .willReturn(List.of("취업 지원", "국민 지원"));
+
+        List<String> response = policySearchKeywordReadService.getSuggestions("국민취업지원제도", 5);
+
+        assertThat(response).containsExactly(
+                "국민 취업 지원 제도",
+                "취업 지원",
+                "국민 지원",
+                "국민 취업 지원 프로그램"
+        );
+    }
+
+    @Test
     @DisplayName("검색 자동완성은 로그 후보가 limit을 채우면 정책 title 조회를 건너뛴다")
     void getSuggestionsSkipsPolicyCandidatesWhenLogSuggestionsFillLimit() {
         given(policySearchKeywordReadRepository.findSuggestions(eq("청년"), any(LocalDateTime.class), eq(2), eq(3)))
