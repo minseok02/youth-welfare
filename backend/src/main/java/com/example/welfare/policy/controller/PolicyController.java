@@ -12,6 +12,7 @@ import com.example.welfare.policy.service.PolicyDetailService;
 import com.example.welfare.policy.service.PolicyListService;
 import com.example.welfare.policy.service.PolicySearchLogCommand;
 import com.example.welfare.policy.service.PolicySearchLogService;
+import com.example.welfare.policy.service.PolicySearchKeywordReadService;
 import com.example.welfare.policy.service.PolicyRankingService;
 import com.example.welfare.policy.service.PolicySearchService;
 import com.example.welfare.policy.service.PolicyTrafficRateLimitService;
@@ -39,6 +40,7 @@ public class PolicyController {
     private final PolicyBookmarkCommandService policyBookmarkCommandService;
     private final PolicyRankingService policyRankingService;
     private final PolicySearchService policySearchService;
+    private final PolicySearchKeywordReadService policySearchKeywordReadService;
     private final RecommendationLogService recommendationLogService;
     private final PolicyViewLogService policyViewLogService;
     private final PolicySearchLogService policySearchLogService;
@@ -137,6 +139,27 @@ public class PolicyController {
                 .size(size)
                 .build());
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @GetMapping("/search/trending")
+    public ResponseEntity<ApiResponse<List<String>>> trending(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @RequestParam(required = false) Integer limit,
+            HttpServletRequest request) {
+        String clientFingerprint = clientFingerprintService.build(request);
+        policyTrafficRateLimitService.checkTrendingLimit(resolveRateLimitActorKey(authenticatedUser, clientFingerprint));
+        return ResponseEntity.ok(ApiResponse.success(policySearchKeywordReadService.getTrendingKeywords(limit)));
+    }
+
+    @GetMapping("/search/suggestions")
+    public ResponseEntity<ApiResponse<List<String>>> suggestions(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @RequestParam String keyword,
+            @RequestParam(required = false) Integer limit,
+            HttpServletRequest request) {
+        String clientFingerprint = clientFingerprintService.build(request);
+        policyTrafficRateLimitService.checkSuggestionLimit(resolveRateLimitActorKey(authenticatedUser, clientFingerprint));
+        return ResponseEntity.ok(ApiResponse.success(policySearchKeywordReadService.getSuggestions(keyword, limit)));
     }
 
     // 조회수 기반 랭킹 (내부 조회수 + 외부 조회수 보조 + 최신성)

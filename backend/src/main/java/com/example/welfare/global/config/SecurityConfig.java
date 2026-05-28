@@ -89,6 +89,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET,
                                 "/api/policies",
                                 "/api/policies/search",
+                                "/api/policies/search/trending",
+                                "/api/policies/search/suggestions",
                                 "/api/policies/ranking",
                                 "/api/policies/{id}"
                         ).permitAll()
