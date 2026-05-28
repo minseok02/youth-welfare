@@ -62,6 +62,18 @@
   - 일반 배치는 기본 경로를 유지해 호출량을 억제한다.
   - 상세 본문 포맷이 바뀌었거나 기존 적재값을 다시 동기화해야 할 때만 refresh 경로를 쓴다.
   - 특정 stale row만 다시 맞출 때는 `sourceId` 단건 refresh를 먼저 쓴다. 현재 local self-heal 기준 예시는 `POST /api/admin/collect/bokjiro-details-refresh?sourceId=WLF00004717` 이고, 이 경로로 `3700(인천형 청년월세 지원사업)` 의 뒤집힌 `min_age/max_age=35/34` row를 `35/39` 로 복구했다.
+  - 기존 legacy row 분포를 먼저 보고 싶으면 아래 sweep SQL을 쓴다.
+
+```sql
+SELECT id, source_type, source_id, title, min_age, max_age
+FROM welfare_services
+WHERE min_age IS NOT NULL
+  AND max_age IS NOT NULL
+  AND min_age > max_age
+ORDER BY id;
+```
+
+  - `2026-05-29` local sweep 기준 이 inverted row는 `3700` 한 건이 아니라 `YOUTH`, `BOKJIRO_LOCAL(2726, 3197)`, `GOV24` 전반에 더 남아 있었다. 즉 sourceId self-heal은 특정 row 복구용이고, 전체 backfill은 별도 작업으로 읽는 편이 맞다.
   - stored detail payload coverage 가 낮아 sidecar density가 detail raw 개수에 묶여 있을 때만 gap fill 경로를 써서 여러 라운드 backlog 를 메운다.
   - 기존 raw payload 로 sidecar를 다시 채우거나 density를 재측정할 때만 backfill 경로를 쓴다.
   - 특히 Gov24 상세에서 `gov24ServiceFieldLabel/userType/benefitType` 같은 summary label이 비는 소수 row drift는 `gov24-sidecars-backfill` 로 먼저 메운다.

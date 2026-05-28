@@ -1,5 +1,9 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 1013) `2855` 는 retrieval miss가 아니라 `TARGET_GROUP=장애인` 이 projection special target으로 승격된 current exclusion 계약이다
+- 문제: current auto family `3516,3689,2738,2855,3605` 를 `saved-batch-gap` 으로 다시 읽으면 `2855(청년 발달장애인 자산형성 지원사업)` 만 `FILTERED_BY_SPECIAL_TARGET_MISMATCH` 에서 빠진다. superficially 보면 latest retrieval bug나 saved-batch 누락처럼 보이지만, DB를 보면 이 정책은 official `TARGET_GROUP=장애인` 을 들고 있고 projection heuristic은 이를 `SPECIAL_TARGET_DISABILITY` bucket으로 승격한다.
+- 해결: current target user `bc3fa9952df14f188fa5bf03e05e77c0` 는 `age=25`, `income=5`, `household_type=1인 가구`, `employment_status=미취업`, `INTEREST_FIELD=교육` 만 있고 `TARGET_TYPE` attribute가 비어 있다. 따라서 현재 rule scoring 계약에서는 이 정책을 일반 청년 사용자와 special-target mismatch로 읽는 것이 맞다. 같은 해석이 다시 흔들리지 않게 [RuleScoringServiceTest.java](/home/minseok/youth-welfare/backend/src/test/java/com/example/welfare/recommend/service/RuleScoringServiceTest.java:353) 에 장애 target group mismatch 회귀 테스트를 추가했고, saved-batch-gap runbook에도 이 해석을 explicit note로 남겼다.
+
 ## 1012) local age inversion은 `3700` 한 건으로 끝나지 않으므로 self-heal fix와 existing-row sweep을 분리해서 읽어야 한다
 - 문제: `welfare_services` 에서 `min_age > max_age` row를 sweep 해 보니 `3700` 만의 문제가 아니었다. current local DB에는 `YOUTH`, `BOKJIRO_LOCAL`, `GOV24` 전반에 `19/0`, `65/12`, `35/34` 같은 뒤집힌 age range가 다수 남아 있었다. 즉 이번 extractor/fallback 수정은 “새 refresh부터는 self-heal 가능”을 보장하지만, 기존 stale row까지 즉시 고쳐 주는 일괄 backfill은 아니다.
 - 해결: 현재 단계에서는 `POST /api/admin/collect/bokjiro-details-refresh?sourceId=WLF00004717` 로 `3700` self-heal path를 실제로 검증했고, 같은 contract를 [BokjiroSidecarMergeIntegrationTest.java](/home/minseok/youth-welfare/backend/src/test/java/com/example/welfare/integration/BokjiroSidecarMergeIntegrationTest.java:343) 에 회귀 테스트로 고정했다. 추가로 local sweep 결과를 남겨 “코드 fix 완료”와 “legacy row repair/backfill 필요성”을 분리해 읽게 했다.
