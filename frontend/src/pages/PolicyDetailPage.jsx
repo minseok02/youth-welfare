@@ -175,6 +175,21 @@ const parseReferenceUrls = (raw) => {
   }
 };
 
+const appendRelatedPolicies = (bucket, items, currentId, relationLabel, limit = 3) => {
+  for (const item of items ?? []) {
+    if (!item || String(item.id) === String(currentId) || bucket.some((candidate) => String(candidate.id) === String(item.id))) {
+      continue;
+    }
+    bucket.push({
+      ...item,
+      relationLabel,
+    });
+    if (bucket.length >= limit) {
+      break;
+    }
+  }
+};
+
 function Tag({ children, color, bg, border }) {
   return (
     <span style={{
@@ -255,16 +270,55 @@ export default function PolicyDetailPage() {
   }, [id, isLoggedIn, searchParams]);
 
   useEffect(() => {
-    if (!policy?.unifiedCategory) return;
-    api.get("/api/policies", {
-      params: { category: policy.unifiedCategory, size: 6, statusFilter: "ACTIVE_ONLY" },
-    }).then(res => {
-      const items = (res.data?.data?.content ?? [])
-        .filter(p => String(p.id) !== String(id))
-        .slice(0, 3);
-      setRelated(items);
-    }).catch(() => {});
-  }, [policy?.unifiedCategory, id]);
+    if (!policy) {
+      setRelated([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    const fetchRelated = async () => {
+      try {
+        const relatedItems = [];
+        if (policy.unifiedCategory) {
+          const { data } = await api.get("/api/policies", {
+            params: { category: policy.unifiedCategory, size: 6, statusFilter: "ACTIVE_ONLY" },
+            signal: controller.signal,
+          });
+          appendRelatedPolicies(relatedItems, data?.data?.content, id, "같은 분야");
+        }
+
+        if (relatedItems.length < 3 && policy.sourceType) {
+          const { data } = await api.get("/api/policies", {
+            params: { sourceType: policy.sourceType, size: 6, statusFilter: "ACTIVE_ONLY" },
+            signal: controller.signal,
+          });
+          appendRelatedPolicies(relatedItems, data?.data?.content, id, "같은 출처");
+        }
+
+        if (relatedItems.length < 3 && policy.sido) {
+          const { data } = await api.get("/api/policies", {
+            params: { sido: policy.sido, size: 6, statusFilter: "ACTIVE_ONLY" },
+            signal: controller.signal,
+          });
+          appendRelatedPolicies(relatedItems, data?.data?.content, id, "같은 지역");
+        }
+
+        if (!controller.signal.aborted) {
+          setRelated(relatedItems.slice(0, 3));
+        }
+      } catch (error) {
+        if (error.name === "CanceledError" || error.code === "ERR_CANCELED") {
+          return;
+        }
+        if (!controller.signal.aborted) {
+          setRelated([]);
+        }
+      }
+    };
+
+    fetchRelated();
+    return () => controller.abort();
+  }, [policy, id]);
 
   const contacts = useMemo(() => parseContacts(policy?.contactList), [policy?.contactList]);
   const referenceUrls = useMemo(() => parseReferenceUrls(policy?.referenceUrlsJson), [policy?.referenceUrlsJson]);
@@ -939,6 +993,9 @@ export default function PolicyDetailPage() {
                           onMouseLeave={e => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.borderColor = LINE; }}
                         >
                           <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
+                            {p.relationLabel && (
+                              <Tag bg="#eff6ff" color={A7} border={`${A}22`}>{p.relationLabel}</Tag>
+                            )}
                             <Tag bg={AS} color={AI} border={`${A}33`}>{p.unifiedCategory || "기타"}</Tag>
                             <Tag
                               bg={dday === "종료" ? LINE2 : dday === "상시/문의" ? "#dcfce7" : urgent ? "#fee2e2" : AS}
@@ -948,6 +1005,11 @@ export default function PolicyDetailPage() {
                             </Tag>
                           </div>
                           <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.01em", color: INK, lineHeight: 1.4, marginBottom: 8 }}>{p.title}</div>
+                          {(p.hostOrg || p.sido || p.operatingOrg) && (
+                            <div style={{ fontSize: 12, color: INK3, marginBottom: 6 }}>
+                              {joinMetaParts([p.hostOrg, p.sido, p.operatingOrg])}
+                            </div>
+                          )}
                           <div style={{ fontSize: 12, color: INK3 }}>자세히 보기 →</div>
                         </div>
                       );

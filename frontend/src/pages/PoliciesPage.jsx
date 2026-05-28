@@ -396,6 +396,7 @@ export default function PoliciesPage() {
   const searchSurfaceRef = useRef(null);
 
   const hasSearch = Boolean(appliedSearch.trim());
+  const defaultSort = appliedSearch.trim() ? "relevance" : "latest";
   const hasActiveFilters = Boolean(
     selectedCat
     || region !== "전체"
@@ -405,6 +406,7 @@ export default function PoliciesPage() {
     || sourceType !== "전체"
     || statusFilter !== defaultStatusFilter
   );
+  const hasCustomSort = sort !== defaultSort;
   const canResetSearch = Boolean(draftSearch.trim() || appliedSearch.trim());
   const isTablet = viewportWidth < 1100;
   const isMobile = viewportWidth < 760;
@@ -421,12 +423,11 @@ export default function PoliciesPage() {
     const sourceTypeParam = serializeSourceTypeParam(sourceType);
     if (sourceTypeParam) params.sourceType = sourceTypeParam;
     if (statusFilter !== defaultStatusFilter) params.statusFilter = statusFilter;
-    const defaultSort = appliedSearch.trim() ? "relevance" : "latest";
     if (sort !== defaultSort) params.sort = sort;
     if (page !== 1) params.page = String(page);
     if (pageSize !== 10) params.pageSize = String(pageSize);
     setSearchParams(params, { replace: true, state: location.state });
-  }, [appliedSearch, defaultStatusFilter, income, location.state, page, pageSize, region, selectedCat, setSearchParams, sort, sourceType, statusFilter, subRegion, targetGroup]);
+  }, [appliedSearch, defaultSort, defaultStatusFilter, income, location.state, page, pageSize, region, selectedCat, setSearchParams, sort, sourceType, statusFilter, subRegion, targetGroup]);
 
   useEffect(() => {
     const nextSearch = searchParams.get("search") || "";
@@ -607,6 +608,23 @@ export default function PoliciesPage() {
     setTargetGroup(""); setSourceType("전체"); setStatusFilter(defaultStatusFilter);
     setSort(appliedSearch.trim() ? "relevance" : "latest"); setPage(1);
   };
+  const handleResetAll = () => {
+    setDraftSearch("");
+    setAppliedSearch("");
+    setSuggestions([]);
+    setSearchFocused(false);
+    setHighlightedSuggestionIndex(-1);
+    setSelectedCat("");
+    setRegion("전체");
+    setSubRegion("전체");
+    setIncome("전체");
+    setTargetGroup("");
+    setSourceType("전체");
+    setStatusFilter(defaultStatusFilter);
+    setSort("latest");
+    setPageSize(10);
+    setPage(1);
+  };
   const handleClearSearch = () => {
     setDraftSearch("");
     setAppliedSearch("");
@@ -653,12 +671,18 @@ export default function PoliciesPage() {
 
   // ── 활성 필터 칩 목록 ────────────────────────────────────────────────────────
   const activeFilters = [
+    appliedSearch.trim() && { key: "search", label: `검색어 ${appliedSearch.trim()}`, clear: handleClearSearch },
     selectedCat && { key: "cat", label: CATEGORIES.find(c => c.value === selectedCat)?.label || selectedCat, clear: () => setSelectedCat("") },
     region !== "전체" && { key: "region", label: subRegion !== "전체" ? `${region} ${subRegion}` : region, clear: () => { setRegion("전체"); setSubRegion("전체"); } },
     income !== "전체" && { key: "income", label: INCOME_ROWS.find(r => r.value === income)?.label, clear: () => setIncome("전체") },
     targetGroup && { key: "tg", label: targetGroup, clear: () => setTargetGroup("") },
     sourceType !== "전체" && { key: "src", label: sourceType, clear: () => setSourceType("전체") },
     statusFilter !== defaultStatusFilter && { key: "status", label: statusFilter, clear: () => setStatusFilter(defaultStatusFilter) },
+    hasCustomSort && {
+      key: "sort",
+      label: sort === "relevance" ? "관련도순" : sort === "views" ? "인기순" : sort === "deadline" ? "마감임박순" : "최신순",
+      clear: () => setSort(defaultSort),
+    },
   ].filter(Boolean);
 
   useEffect(() => {
@@ -956,7 +980,7 @@ export default function PoliciesPage() {
           {/* 활성 필터 칩 */}
           {activeFilters.length > 0 && (
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 12, color: INK3 }}>선택된 조건:</span>
+              <span style={{ fontSize: 12, color: INK3 }}>현재 적용 중:</span>
               {activeFilters.map((f) => (
                 <span
                   key={f.key}
@@ -966,7 +990,7 @@ export default function PoliciesPage() {
                   <button onClick={f.clear} style={{ background: "none", border: "none", cursor: "pointer", color: AI, fontSize: 14, padding: 0, lineHeight: 1 }}>×</button>
                 </span>
               ))}
-              <button onClick={handleResetFilter} style={{ fontSize: 12, color: A, fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}>
+              <button onClick={handleResetAll} style={{ fontSize: 12, color: A, fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}>
                 모두 해제
               </button>
             </div>

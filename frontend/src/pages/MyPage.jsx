@@ -142,6 +142,9 @@ const mapPolicyListItem = (p) => ({
   status: p.status,
 });
 
+const RECENT_VIEWED_COLLAPSED_COUNT = 5;
+const RECENT_VIEWED_MAX_COUNT = 30;
+
 // ── Shared UI components ─────────────────────────────────────────────────────
 
 const iCss = (err, disabled) => ({
@@ -381,6 +384,8 @@ export default function MyPage() {
   const [bookmarkLoading, setBookmarkLoading] = useState(false);
   const [recentViewedPolicies, setRecentViewedPolicies] = useState([]);
   const [recentViewedLoading, setRecentViewedLoading] = useState(false);
+  const [recentViewedExpanded, setRecentViewedExpanded] = useState(false);
+  const [recentViewedStatusFilter, setRecentViewedStatusFilter] = useState("all");
 
   const [notifOn, setNotifOn] = useState(false);
   const [notifEmailOn, setNotifEmailOn] = useState(true);
@@ -444,7 +449,10 @@ export default function MyPage() {
 
   // ── Data fetch ───────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!isLoggedIn) return;
+    if (!isLoggedIn) {
+      setRecentViewedExpanded(false);
+      return;
+    }
     const controller = new AbortController();
 
     const fetchProfile = async () => {
@@ -508,9 +516,10 @@ export default function MyPage() {
       setRecentViewedLoading(true);
       try {
         const { data } = await api.get("/api/users/me/recent-viewed-policies", {
-          params: { limit: 10 },
+          params: { limit: RECENT_VIEWED_MAX_COUNT },
           signal: controller.signal,
         });
+        setRecentViewedExpanded(false);
         setRecentViewedPolicies((data.data ?? []).map(mapPolicyListItem));
       } catch (err) {
         if (err.name === "CanceledError" || err.code === "ERR_CANCELED") return;
@@ -759,6 +768,12 @@ export default function MyPage() {
 
   const ddayUrgent = (dday) => dday !== "종료" && dday !== "상시/문의" && dday !== "예정"
     && (dday === "D-Day" || (dday.startsWith("D-") && Number(dday.slice(2)) <= 14));
+  const filteredRecentViewedPolicies = recentViewedPolicies.filter((policy) => (
+    recentViewedStatusFilter === "open" ? policy.status !== "CLOSED" : true
+  ));
+  const displayedRecentViewedPolicies = recentViewedExpanded
+    ? filteredRecentViewedPolicies
+    : filteredRecentViewedPolicies.slice(0, RECENT_VIEWED_COLLAPSED_COUNT);
   const displayedBookmarks = [...bookmarks].sort((left, right) => {
     if (bookmarkSort === "deadline") {
       const leftDeadlineToday = left.dday === "D-Day" ? 0 : 1;
@@ -1415,11 +1430,43 @@ export default function MyPage() {
                 </SectionCard>
 
                 <SectionCard title="최근 본 정책" desc="최근 확인한 정책을 최신순으로 다시 볼 수 있어요">
+                  {!recentViewedLoading && recentViewedPolicies.length > 0 && (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, gap: 12, flexWrap: "wrap" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <div style={{ fontSize: 13, color: INK3 }}>
+                          최근 본 정책 <strong style={{ color: INK2 }}>{recentViewedPolicies.length}</strong>건
+                        </div>
+                        <div style={{ display: "inline-flex", padding: 4, borderRadius: 999, background: BG, border: `1px solid ${LINE2}` }}>
+                          <button
+                            onClick={() => setRecentViewedStatusFilter("all")}
+                            style={{ padding: "7px 12px", borderRadius: 999, border: 0, background: recentViewedStatusFilter === "all" ? WHITE : "transparent", color: recentViewedStatusFilter === "all" ? INK : INK3, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                          >
+                            전체
+                          </button>
+                          <button
+                            onClick={() => setRecentViewedStatusFilter("open")}
+                            style={{ padding: "7px 12px", borderRadius: 999, border: 0, background: recentViewedStatusFilter === "open" ? WHITE : "transparent", color: recentViewedStatusFilter === "open" ? INK : INK3, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                          >
+                            진행중만
+                          </button>
+                        </div>
+                      </div>
+                      {filteredRecentViewedPolicies.length > RECENT_VIEWED_COLLAPSED_COUNT && (
+                        <button
+                          onClick={() => setRecentViewedExpanded((prev) => !prev)}
+                          style={{ padding: "8px 14px", borderRadius: 10, border: `1px solid ${LINE}`, background: WHITE, color: INK2, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                        >
+                          {recentViewedExpanded ? "접기" : `더 보기 +${filteredRecentViewedPolicies.length - RECENT_VIEWED_COLLAPSED_COUNT}`}
+                        </button>
+                      )}
+                    </div>
+                  )}
                   {recentViewedLoading ? (
                     <div style={{ display: "flex", justifyContent: "center", padding: "32px 0" }}><CircularProgress /></div>
                   ) : recentViewedPolicies.length > 0 ? (
+                    filteredRecentViewedPolicies.length > 0 ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                      {recentViewedPolicies.map((policy) => {
+                      {displayedRecentViewedPolicies.map((policy) => {
                         const urgent = ddayUrgent(policy.dday);
                         const closed = policy.dday === "종료";
                         return (
@@ -1462,10 +1509,22 @@ export default function MyPage() {
                         );
                       })}
                     </div>
+                    ) : (
+                      <div style={{ textAlign: "center", padding: "52px 0", color: INK3 }}>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: INK, marginBottom: 6 }}>진행 중인 최근 본 정책이 없어요</div>
+                        <div style={{ fontSize: 13 }}>전체 탭으로 바꾸면 종료된 정책까지 함께 볼 수 있어요</div>
+                      </div>
+                    )
                   ) : (
                     <div style={{ textAlign: "center", padding: "52px 0", color: INK3 }}>
                       <div style={{ fontSize: 16, fontWeight: 700, color: INK, marginBottom: 6 }}>최근 본 정책이 아직 없어요</div>
                       <div style={{ fontSize: 13 }}>정책 상세를 확인하면 여기에 다시 모아볼 수 있어요</div>
+                      <button
+                        onClick={() => navigate("/policies")}
+                        style={{ marginTop: 16, padding: "10px 24px", borderRadius: 8, background: A, color: WHITE, border: 0, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                      >
+                        정책 둘러보기
+                      </button>
                     </div>
                   )}
                 </SectionCard>
