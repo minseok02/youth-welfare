@@ -2008,6 +2008,26 @@ class AdminSecurityWebMvcTest {
     }
 
     @Test
+    @DisplayName("관리자 토큰으로 detail refresh sourceId override를 호출하면 단건 refresh 수집을 실행한다")
+    void adminEndpointAllowsDetailRefreshForSourceId() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(collectAdminService.collect(CollectSource.BOKJIRO_DETAIL_REFRESH, "WLF00004717"))
+                .willReturn(CollectResult.of(1, 1, 0, 0, 0));
+
+        mockMvc.perform(post("/api/admin/collect/bokjiro-details-refresh")
+                        .header("Authorization", "Bearer admin-token")
+                        .param("sourceId", "WLF00004717"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data").value("복지로 상세 refresh 완료 requested=1 saved=1 skipped=0 failed=0"));
+
+        then(collectAdminService).should().collect(CollectSource.BOKJIRO_DETAIL_REFRESH, "WLF00004717");
+    }
+
+    @Test
     @DisplayName("관리자 토큰으로 알 수 없는 collect source 를 호출하면 400을 반환한다")
     void adminEndpointRejectsUnknownCollectSource() throws Exception {
         mockAuthenticatedToken("admin-token", List.of(

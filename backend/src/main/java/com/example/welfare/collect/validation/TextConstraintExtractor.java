@@ -2,7 +2,9 @@ package com.example.welfare.collect.validation;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -23,7 +25,7 @@ public final class TextConstraintExtractor {
     private TextConstraintExtractor() {}
 
     private static final Pattern AGE_RANGE =
-            Pattern.compile("(?:만\\s*)?(\\d{1,2})(?:\\s*세)?\\s*(?:~|\\-|–|부터)\\s*(?:만\\s*)?(\\d{1,2})\\s*세");
+            Pattern.compile("(?:만\\s*)?(\\d{1,2})(?:\\s*세)?\\s*(?:~|～|\\-|–|부터)\\s*(?:만\\s*)?(\\d{1,2})\\s*세");
     private static final Pattern AGE_MIN =
             Pattern.compile("(?:만\\s*)?(\\d{1,2})\\s*세\\s*이상");
     private static final Pattern AGE_MAX =
@@ -81,22 +83,7 @@ public final class TextConstraintExtractor {
 
     public static ConstraintSummary summarize(String... texts) {
         Set<String> tokens = extract(texts);
-
-        Integer minAge = tokens.stream()
-                .filter(v -> v.startsWith("COND_AGE_MIN_"))
-                .map(v -> v.substring("COND_AGE_MIN_".length()))
-                .map(TextConstraintExtractor::safeInt)
-                .filter(v -> v > 0)
-                .max(Integer::compareTo)
-                .orElse(null);
-
-        Integer maxAge = tokens.stream()
-                .filter(v -> v.startsWith("COND_AGE_MAX_"))
-                .map(v -> v.substring("COND_AGE_MAX_".length()))
-                .map(TextConstraintExtractor::safeInt)
-                .filter(v -> v > 0)
-                .min(Integer::compareTo)
-                .orElse(null);
+        AgeBounds ageBounds = summarizeAgeBounds(texts);
 
         Integer incomePercentMax = tokens.stream()
                 .filter(v -> v.startsWith("COND_INCOME_PCT_LE_"))
@@ -124,7 +111,8 @@ public final class TextConstraintExtractor {
 
         LocalDate applyEndDate = extractApplyEndDate(texts);
 
-        return new ConstraintSummary(minAge, maxAge, incomePercentMax, incomeManWonMax, rentManWonMax, applyEndDate);
+        return new ConstraintSummary(ageBounds.minAge(), ageBounds.maxAge(),
+                incomePercentMax, incomeManWonMax, rentManWonMax, applyEndDate);
     }
 
     public static LocalDate extractApplyEndDate(String... texts) {
@@ -159,11 +147,10 @@ public final class TextConstraintExtractor {
     private static void extractAge(String text, Set<String> out) {
         Matcher range = AGE_RANGE.matcher(text);
         while (range.find()) {
-            int min = safeInt(range.group(1));
-            int max = safeInt(range.group(2));
-            if (min > 0 && max > 0) {
-                out.add("COND_AGE_MIN_" + Math.min(min, max));
-                out.add("COND_AGE_MAX_" + Math.max(min, max));
+            AgeRange ageRange = toAgeRange(range.group(1), range.group(2));
+            if (ageRange != null) {
+                out.add("COND_AGE_MIN_" + ageRange.min());
+                out.add("COND_AGE_MAX_" + ageRange.max());
             }
         }
 
@@ -210,6 +197,106 @@ public final class TextConstraintExtractor {
         } catch (Exception ignored) {
             return -1;
         }
+    }
+
+    private static AgeBounds summarizeAgeBounds(String... texts) {
+        if (texts == null) {
+            return new AgeBounds(null, null);
+        }
+
+        List<AgeRange> ranges = new ArrayList<>();
+        List<Integer> mins = new ArrayList<>();
+        List<Integer> maxes = new ArrayList<>();
+
+        for (String text : texts) {
+            if (text == null || text.isBlank()) {
+                continue;
+            }
+            String normalized = text.replace('\u00A0', ' ');
+            collectAgeRanges(normalized, ranges);
+            collectAgeMins(normalized, mins);
+            collectAgeMaxes(normalized, maxes);
+        }
+
+        if (!ranges.isEmpty()) {
+            AgeBounds selected = selectPrimaryAgeRange(ranges);
+            Integer minAge = selected.minAge();
+            Integer maxAge = selected.maxAge();
+
+            Integer tightenedMin = mins.stream().filter(v -> v > 0).max(Integer::compareTo).orElse(null);
+            if (tightenedMin != null && (maxAge == null || tightenedMin <= maxAge)) {
+                minAge = minAge == null ? tightenedMin : Math.max(minAge, tightenedMin);
+            }
+
+            Integer tightenedMax = maxes.stream().filter(v -> v > 0).min(Integer::compareTo).orElse(null);
+            if (tightenedMax != null && (minAge == null || tightenedMax >= minAge)) {
+                maxAge = maxAge == null ? tightenedMax : Math.min(maxAge, tightenedMax);
+            }
+
+            if (minAge != null && maxAge != null && minAge > maxAge) {
+                return selected;
+            }
+            return new AgeBounds(minAge, maxAge);
+        }
+
+        Integer minAge = mins.stream().filter(v -> v > 0).max(Integer::compareTo).orElse(null);
+        Integer maxAge = maxes.stream().filter(v -> v > 0).min(Integer::compareTo).orElse(null);
+        if (minAge != null && maxAge != null && minAge > maxAge) {
+            return new AgeBounds(null, null);
+        }
+        return new AgeBounds(minAge, maxAge);
+    }
+
+    private static void collectAgeRanges(String text, List<AgeRange> ranges) {
+        Matcher range = AGE_RANGE.matcher(text);
+        while (range.find()) {
+            AgeRange ageRange = toAgeRange(range.group(1), range.group(2));
+            if (ageRange != null) {
+                ranges.add(ageRange);
+            }
+        }
+    }
+
+    private static void collectAgeMins(String text, List<Integer> mins) {
+        Matcher minMatcher = AGE_MIN.matcher(text);
+        while (minMatcher.find()) {
+            int min = safeInt(minMatcher.group(1));
+            if (min > 0) {
+                mins.add(min);
+            }
+        }
+    }
+
+    private static void collectAgeMaxes(String text, List<Integer> maxes) {
+        Matcher maxMatcher = AGE_MAX.matcher(text);
+        while (maxMatcher.find()) {
+            int max = safeInt(maxMatcher.group(1));
+            if (max > 0) {
+                maxes.add(max);
+            }
+        }
+    }
+
+    private static AgeBounds selectPrimaryAgeRange(List<AgeRange> ranges) {
+        if (ranges.isEmpty()) {
+            return new AgeBounds(null, null);
+        }
+        int intersectionMin = ranges.stream().mapToInt(AgeRange::min).max().orElse(-1);
+        int intersectionMax = ranges.stream().mapToInt(AgeRange::max).min().orElse(-1);
+        if (intersectionMin > 0 && intersectionMax > 0 && intersectionMin <= intersectionMax) {
+            return new AgeBounds(intersectionMin, intersectionMax);
+        }
+        AgeRange first = ranges.get(0);
+        return new AgeBounds(first.min(), first.max());
+    }
+
+    private static AgeRange toAgeRange(String rawMin, String rawMax) {
+        int min = safeInt(rawMin);
+        int max = safeInt(rawMax);
+        if (min <= 0 || max <= 0) {
+            return null;
+        }
+        return new AgeRange(Math.min(min, max), Math.max(min, max));
     }
 
     private static LocalDate parseLooseDate(String raw) {
@@ -266,4 +353,8 @@ public final class TextConstraintExtractor {
         if (current == null || candidate.isAfter(current)) return candidate;
         return current;
     }
+
+    private record AgeRange(int min, int max) {}
+
+    private record AgeBounds(Integer minAge, Integer maxAge) {}
 }

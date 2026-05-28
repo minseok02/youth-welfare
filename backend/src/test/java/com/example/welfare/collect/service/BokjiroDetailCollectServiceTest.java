@@ -6,6 +6,7 @@ import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.collect.repository.BokjiroDetailReadRepository;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.policy.repository.WelfareServiceRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -42,6 +43,8 @@ class BokjiroDetailCollectServiceTest {
     private RawApiPayloadService rawApiPayloadService;
     @Mock
     private CollectPolicyAggregateApplyService collectPolicyAggregateApplyService;
+    @Mock
+    private WelfareServiceRepository welfareServiceRepository;
 
     private final WelfareServiceMapper welfareServiceMapper = new WelfareServiceMapper();
     private BokjiroDetailCollectService service;
@@ -53,7 +56,8 @@ class BokjiroDetailCollectServiceTest {
                 detailClient,
                 rawApiPayloadService,
                 welfareServiceMapper,
-                collectPolicyAggregateApplyService
+                collectPolicyAggregateApplyService,
+                welfareServiceRepository
         );
         ReflectionTestUtils.setField(service, "centralMaxCallsPerRun", 95);
         ReflectionTestUtils.setField(service, "localMaxCallsPerRun", 95);

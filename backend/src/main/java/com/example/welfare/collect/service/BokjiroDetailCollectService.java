@@ -9,6 +9,7 @@ import com.example.welfare.collect.validation.RawFieldValidator;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.policy.repository.WelfareServiceRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -35,18 +36,21 @@ public class BokjiroDetailCollectService {
     private final RawApiPayloadService rawApiPayloadService;
     private final WelfareServiceMapper welfareServiceMapper;
     private final CollectPolicyAggregateApplyService collectPolicyAggregateApplyService;
+    private final WelfareServiceRepository welfareServiceRepository;
     private final Map<WelfareService.SourceType, DetailCollectCapability> detailCapabilities;
 
     public BokjiroDetailCollectService(BokjiroDetailReadRepository bokjiroDetailReadRepository,
                                        BokjiroDetailClient detailClient,
                                        RawApiPayloadService rawApiPayloadService,
                                        WelfareServiceMapper welfareServiceMapper,
-                                       CollectPolicyAggregateApplyService collectPolicyAggregateApplyService) {
+                                       CollectPolicyAggregateApplyService collectPolicyAggregateApplyService,
+                                       WelfareServiceRepository welfareServiceRepository) {
         this.bokjiroDetailReadRepository = bokjiroDetailReadRepository;
         this.detailClient = detailClient;
         this.rawApiPayloadService = rawApiPayloadService;
         this.welfareServiceMapper = welfareServiceMapper;
         this.collectPolicyAggregateApplyService = collectPolicyAggregateApplyService;
+        this.welfareServiceRepository = welfareServiceRepository;
         this.detailCapabilities = buildDetailCapabilities(detailClient, welfareServiceMapper);
     }
 
@@ -93,6 +97,14 @@ public class BokjiroDetailCollectService {
 
     public CollectResult collectBokjiroDetailsRefreshResult(int maxCalls) {
         return collectBokjiroDetailsRun(uniformSourceBudgets(maxCalls), true).collectResult();
+    }
+
+    public CollectResult collectBokjiroDetailsForSourceId(String sourceId) {
+        return collectBokjiroDetailsForSourceId(sourceId, false);
+    }
+
+    public CollectResult collectBokjiroDetailsRefreshForSourceId(String sourceId) {
+        return collectBokjiroDetailsForSourceId(sourceId, true);
     }
 
     public GapFillResult collectBokjiroDetailGapFillResult(int rounds, int maxCallsPerRound) {
@@ -182,6 +194,22 @@ public class BokjiroDetailCollectService {
                 rateLimitedAbort,
                 failedServiceIds
         );
+    }
+
+    private CollectResult collectBokjiroDetailsForSourceId(String sourceId, boolean refreshExisting) {
+        WelfareService service = findBokjiroServiceBySourceId(sourceId);
+        if (service == null) {
+            return CollectResult.of(0, 0, 1, 0, 0);
+        }
+
+        CollectStats stats = collectBySource(
+                detailCapabilities.get(service.getSourceType()),
+                List.of(service),
+                1,
+                refreshExisting,
+                java.util.Set.of()
+        );
+        return CollectResult.of(stats.calls(), stats.saved(), stats.skipped(), 0, stats.failed());
     }
 
     private CollectStats collectBySource(DetailCollectCapability capability,
@@ -279,6 +307,18 @@ public class BokjiroDetailCollectService {
             );
         }
         return targetsBySource;
+    }
+
+    private WelfareService findBokjiroServiceBySourceId(String sourceId) {
+        WelfareService local = welfareServiceRepository
+                .findBySourceTypeAndSourceId(WelfareService.SourceType.BOKJIRO_LOCAL, sourceId)
+                .orElse(null);
+        if (local != null) {
+            return local;
+        }
+        return welfareServiceRepository
+                .findBySourceTypeAndSourceId(WelfareService.SourceType.BOKJIRO_CENTRAL, sourceId)
+                .orElse(null);
     }
 
     private Map<WelfareService.SourceType, Integer> configuredSourceBudgets() {

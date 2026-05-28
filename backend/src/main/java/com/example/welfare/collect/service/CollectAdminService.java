@@ -38,6 +38,8 @@ public class CollectAdminService {
         collectExecutionGuard.runExclusive(source.lockName(), () -> resultRef.set(switch (source) {
             case GOV24_DETAIL -> collectSourceExecutionService.collectGov24DetailsForSourceId(sourceId);
             case GOV24_SUPPORT_CONDITIONS -> collectSourceExecutionService.collectGov24SupportConditionsForSourceId(sourceId);
+            case BOKJIRO_DETAIL -> collectSourceExecutionService.collectBokjiroDetailsForSourceId(sourceId);
+            case BOKJIRO_DETAIL_REFRESH -> collectSourceExecutionService.collectBokjiroDetailsRefreshForSourceId(sourceId);
             default -> throw new IllegalArgumentException("sourceId override is not supported for source=" + source);
         }));
         return resultRef.get();

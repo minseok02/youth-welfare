@@ -62,6 +62,26 @@ class CollectAdminServiceTest {
     }
 
     @Test
+    @DisplayName("복지로 detail refresh sourceId override는 전용 실행 엔진으로 위임한다")
+    void collectBokjiroDetailRefreshBySourceIdDelegates() {
+        CollectResult expected = CollectResult.of(1, 1, 0, 0, 0);
+
+        doAnswer(invocation -> {
+            Runnable task = invocation.getArgument(1);
+            task.run();
+            return null;
+        }).when(collectExecutionGuard).runExclusive(eq("collect-bokjiro-details-refresh"), any(Runnable.class));
+        when(collectSourceExecutionService.collectBokjiroDetailsRefreshForSourceId("WLF00004717"))
+                .thenReturn(expected);
+
+        CollectResult actual = collectAdminService.collect(CollectSource.BOKJIRO_DETAIL_REFRESH, "WLF00004717");
+
+        assertThat(actual).isEqualTo(expected);
+        verify(collectExecutionGuard).runExclusive(eq("collect-bokjiro-details-refresh"), any(Runnable.class));
+        verify(collectSourceExecutionService).collectBokjiroDetailsRefreshForSourceId("WLF00004717");
+    }
+
+    @Test
     @DisplayName("detail gap fill 수집은 전용 lock 과 실행 엔진을 사용한다")
     void collectDetailGapFillUsesExclusiveLock() {
         BokjiroDetailCollectService.GapFillResult expected =

@@ -93,6 +93,30 @@ public class CollectSourceExecutionService {
         return resultRef.get();
     }
 
+    public CollectResult collectBokjiroDetailsForSourceId(String sourceId) {
+        AtomicReference<CollectResult> resultRef = new AtomicReference<>();
+        apiSyncLogService.runWithLog(CollectSource.BOKJIRO_DETAIL.jobName(), () -> {
+            CollectResult result = policyEmbeddingRefreshRequestService.runInBatch(
+                    () -> bokjiroDetailCollectService.collectBokjiroDetailsForSourceId(sourceId)
+            );
+            resultRef.set(result);
+            return result;
+        });
+        return resultRef.get();
+    }
+
+    public CollectResult collectBokjiroDetailsRefreshForSourceId(String sourceId) {
+        AtomicReference<CollectResult> resultRef = new AtomicReference<>();
+        apiSyncLogService.runWithLog(CollectSource.BOKJIRO_DETAIL_REFRESH.jobName(), () -> {
+            CollectResult result = policyEmbeddingRefreshRequestService.runInBatch(
+                    () -> bokjiroDetailCollectService.collectBokjiroDetailsRefreshForSourceId(sourceId)
+            );
+            resultRef.set(result);
+            return result;
+        });
+        return resultRef.get();
+    }
+
     public CollectResult collectGov24SupportConditions(int maxCallsPerRun) {
         AtomicReference<CollectResult> resultRef = new AtomicReference<>();
         apiSyncLogService.runWithLog(CollectSource.GOV24_SUPPORT_CONDITIONS.jobName(), () -> {

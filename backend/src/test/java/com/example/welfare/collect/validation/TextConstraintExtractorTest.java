@@ -51,6 +51,18 @@ class TextConstraintExtractorTest {
     }
 
     @Test
+    @DisplayName("full-width range와 참조 사업 연령대가 함께 있어도 primary age range를 sane하게 요약한다")
+    void summarizePrefersPrimaryRangeWhenReferencedRangeWouldInvertBounds() {
+        TextConstraintExtractor.ConstraintSummary summary = TextConstraintExtractor.summarize(
+                "경제적으로 어려움을 겪고 있는 인천 청년(35~39세) 주거비 부담 완화 * 국가사업(청년월세 한시 특별지원(19~34세))과 동일한 사업기준 적용, 대상연령만 확대",
+                "ㅇ (나이) 35세～39세이하 (2025년 신청의 경우 1985~1989년)"
+        );
+
+        assertThat(summary.minAge()).isEqualTo(35);
+        assertThat(summary.maxAge()).isEqualTo(39);
+    }
+
+    @Test
     @DisplayName("한 자리 월/일이 포함된 복지로 신청 마감 문구도 apply end date로 추출한다")
     void extractApplyEndDateFromSingleDigitMonthDay() {
         LocalDate applyEndDate = TextConstraintExtractor.extractApplyEndDate(

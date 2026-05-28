@@ -187,7 +187,8 @@ class BokjiroSidecarMergeIntegrationTest {
                     detailClient,
                     rawApiPayloadService,
                     welfareServiceMapper,
-                    aggregateApplyService
+                    aggregateApplyService,
+                    welfareServiceRepository
             );
             ReflectionTestUtils.setField(detailCollectService, "centralMaxCallsPerRun", 1);
             ReflectionTestUtils.setField(detailCollectService, "localMaxCallsPerRun", 1);
@@ -337,6 +338,102 @@ class BokjiroSidecarMergeIntegrationTest {
             assertThat(row.get("source_field")).isEqualTo("targetDetail/selectionCriteria");
             assertThat(row.get("authority")).isEqualTo("SYSTEM_DERIVED");
         });
+    }
+
+    @Test
+    @DisplayName("복지로 sourceId detail refresh 는 뒤집힌 age range row 를 35 39로 self heal 한다")
+    void detailRefreshForSourceIdRepairsInvalidAgeRangeRow() {
+        sourceId = "IT-BK-AR-" + UUID.randomUUID();
+
+        BokjiroLocalDto.Item item = bokjiroLocalItem(
+                sourceId,
+                "인천형 청년월세 지원사업",
+                "경제적으로 어려움을 겪고 있는 인천 청년(35~39세)에게 월세를 지원합니다.",
+                "청년",
+                "주거",
+                "청년,1인가구",
+                "온라인 신청 가능",
+                "https://bokjiro.go.kr/service/" + sourceId
+        );
+
+        NormalizedPolicyAggregate listAggregate = welfareServiceMapper.toNormalizedBokjiroLocal(item, null);
+        collectItemSaver.save(ListCollectSourceBindings.bokjiroLocal(welfareServiceMapper), item, listAggregate);
+
+        WelfareService saved = welfareServiceRepository
+                .findBySourceTypeAndSourceId(WelfareService.SourceType.BOKJIRO_LOCAL, sourceId)
+                .orElseThrow();
+
+        jdbcTemplate.update("""
+                UPDATE welfare_services
+                SET min_age = ?, max_age = ?
+                WHERE id = ?
+                """, 35, 34, saved.getId());
+        jdbcTemplate.update("""
+                UPDATE service_facts
+                SET range_min_int = ?, range_max_int = ?, evidence_text = ?
+                WHERE service_id = ?
+                  AND fact_merge_key = ?
+                """, 35, 34, "stale invalid age row", saved.getId(), "BK_AGE_ELIGIBILITY");
+
+        BokjiroDetailClient detailClient = mock(BokjiroDetailClient.class);
+        BokjiroDetailClient.DetailPayload detailPayload = BokjiroDetailClient.DetailPayload.builder()
+                .targetDetail("경제적으로 어려움을 겪고 있는 인천 청년(35세～39세이하), 국가사업 수혜 연령(19세~34세) 제외")
+                .selectionCriteria("연령 및 거주 요건 확인")
+                .supportDetail("월세 지원")
+                .build();
+        given(detailClient.fetchLocalWithStatus(sourceId))
+                .willReturn(BokjiroDetailClient.FetchResult.success(detailPayload));
+
+        BokjiroDetailReadRepository detailReadRepository =
+                new BokjiroDetailReadRepositoryImpl(welfareServiceRepository, welfareServiceDetailRepository);
+        BokjiroDetailCollectService detailCollectService = new BokjiroDetailCollectService(
+                detailReadRepository,
+                detailClient,
+                rawApiPayloadService,
+                welfareServiceMapper,
+                new CollectPolicyAggregateApplyService(
+                        new BokjiroDetailCommandRepositoryImpl(welfareServiceDetailRepository),
+                        new PolicyLookupReadRepositoryImpl(welfareServiceRepository),
+                        searchYouthRelevanceService,
+                        normalizedPolicySidecarWriter,
+                        policyEmbeddingRefreshRequestService
+                ),
+                welfareServiceRepository
+        );
+        ReflectionTestUtils.setField(detailCollectService, "requestIntervalMs", 0L);
+        ReflectionTestUtils.setField(detailCollectService, "retryMaxAttempts", 1);
+        ReflectionTestUtils.setField(detailCollectService, "retryBaseBackoffMs", 0L);
+        ReflectionTestUtils.setField(detailCollectService, "maxConsecutiveRateLimitHits", 5);
+
+        CollectResult result = new TransactionTemplate(transactionManager)
+                .execute(status -> detailCollectService.collectBokjiroDetailsRefreshForSourceId(sourceId));
+
+        assertThat(result).isNotNull();
+        assertThat(result.requestedCount()).isEqualTo(1);
+        assertThat(result.savedCount()).isEqualTo(1);
+        assertThat(result.failedCount()).isZero();
+
+        WelfareService refreshed = welfareServiceRepository
+                .findBySourceTypeAndSourceId(WelfareService.SourceType.BOKJIRO_LOCAL, sourceId)
+                .orElseThrow();
+
+        assertThat(refreshed.getMinAge()).isEqualTo(35);
+        assertThat(refreshed.getMaxAge()).isEqualTo(39);
+
+        assertThat(welfareServiceDetailRepository.findByServiceId(refreshed.getId()))
+                .get()
+                .extracting(detail -> detail.getTargetDetail())
+                .isEqualTo("경제적으로 어려움을 겪고 있는 인천 청년(35세～39세이하), 국가사업 수혜 연령(19세~34세) 제외");
+
+        Map<String, Object> ageFact = jdbcTemplate.queryForMap("""
+                SELECT range_min_int, range_max_int
+                FROM service_facts
+                WHERE service_id = ?
+                  AND fact_merge_key = ?
+                """, refreshed.getId(), "BK_AGE_ELIGIBILITY");
+
+        assertThat(((Number) ageFact.get("range_min_int")).intValue()).isEqualTo(35);
+        assertThat(((Number) ageFact.get("range_max_int")).intValue()).isEqualTo(39);
     }
 
     private BokjiroLocalDto.Item bokjiroLocalItem(String sourceId,
