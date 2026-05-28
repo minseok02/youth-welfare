@@ -7,7 +7,7 @@ source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
 APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:8082}"
 APP_HEALTH_URL="${APP_HEALTH_URL:-${APP_BASE_URL}/actuator/health}"
 TARGET_USER_KEY="${TARGET_USER_KEY:-}"
-TARGET_SERVICE_IDS_CSV="${TARGET_SERVICE_IDS_CSV:-2736,3257,3281,3575,3714}"
+TARGET_SERVICE_IDS_CSV="${TARGET_SERVICE_IDS_CSV:-}"
 BASE_FETCH_SIZE="${BASE_FETCH_SIZE:-150}"
 BASE_WINDOW_LIMIT="${BASE_WINDOW_LIMIT:-50}"
 KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
@@ -89,6 +89,9 @@ FOCUS_USER_KEY="$(resolve_target_user_key)"
 if [[ -z "${FOCUS_USER_KEY}" ]]; then
   echo "missing target user_key and no recommendation batch exists" >&2
   exit 1
+fi
+if [[ -z "${TARGET_SERVICE_IDS_CSV}" ]]; then
+  TARGET_SERVICE_IDS_CSV="$(smoke_resolve_recommendation_local_target_family_ids_csv "${FOCUS_USER_KEY}")"
 fi
 
 read -r -d '' SQL <<SQL || true
