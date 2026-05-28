@@ -35,12 +35,13 @@ bash deploy/smoke/run-local-recommendation-signal-gap-audit.sh
 
 기본값:
 
-- `TARGET_SERVICE_IDS_CSV=2736,3257,3281,3575,3714`
+- `TARGET_SERVICE_IDS_CSV` 를 비우면 current latest batch user context에서
+  region-matched `BOKJIRO_LOCAL` 청년/생활지원 family를 자동 선택
 - `TOP_COMPETITOR_LIMIT=3`
 
 즉 기본 실행만 해도
 
-- `2736` 계열 target family
+- current local context에 맞는 target family
 - 같은 user latest batch 상위 경쟁 후보
 
 를 같이 읽습니다.
@@ -62,7 +63,7 @@ bash deploy/smoke/run-local-recommendation-signal-gap-audit.sh
 
 ```bash
 TARGET_USER_KEY='<user-key>' \
-TARGET_SERVICE_IDS_CSV='2736,3257,3281,3575,3714' \
+TARGET_SERVICE_IDS_CSV='<service-id csv>' \
 TOP_COMPETITOR_LIMIT=3 \
 KEEP_ARTIFACTS=true \
 bash deploy/smoke/run-local-recommendation-signal-gap-audit.sh

@@ -71,6 +71,7 @@
 - `BOKJIRO_DETAIL_REFRESH`
   - lane type: `MAINTENANCE`
   - 이유: 기존 detail 을 다시 읽는 rerun lane
+  - 현재는 `?sourceId=<복지로 서비스ID>` 단건 refresh도 지원하며, stale row self-heal 확인은 `WLF00004717(인천형 청년월세 지원사업)` 처럼 특정 정책만 다시 태우는 쪽이 기본 운영 경계다
 
 ### 왜 이렇게 나눴나
 
