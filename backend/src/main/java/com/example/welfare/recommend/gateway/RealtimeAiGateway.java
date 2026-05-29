@@ -255,7 +255,7 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
         return Long.parseLong(replaySeedValue.trim());
     }
 
-    private String buildUserPrompt(List<ScoredCandidate> topCandidates, RecommendationUserSnapshot user) {
+    String buildUserPrompt(List<ScoredCandidate> topCandidates, RecommendationUserSnapshot user) {
         // NFR-02-12: 개인식별정보 전송 금지 — 범주값만 전송
         StringBuilder policyList = new StringBuilder();
         topCandidates.forEach(c -> {
@@ -279,6 +279,10 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
                 ageGroup(user), regionLabel(user), incomeRangeLabel(user), employmentLabel(user),
                 topCandidates.size(), policyList,
                 topCandidates.size());
+    }
+
+    static String systemPrompt() {
+        return SYSTEM_PROMPT;
     }
 
     static String buildPromptPolicyLine(ScoredCandidate candidate, String shortDesc) {

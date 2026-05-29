@@ -34,7 +34,8 @@ import java.util.stream.Collectors;
 public class ChatAiGateway {
     private static final String SYSTEM_PROMPT =
             "당신은 한국 청년 복지 정책 상담 보조입니다. " +
-            "반드시 제공된 정책 후보 안에서만 답변하고, 자격 또는 지급 확정 표현을 하지 마세요. " +
+            "반드시 제공된 정책 후보 안에서만 답변하고, 모르면 모른다고 답하세요. " +
+            "자격 또는 지급 확정 표현을 하지 말고, 불확실한 조건은 확인이 필요하다고 설명하세요. " +
             "정책 후보 밖의 service_id를 만들지 말고 반드시 JSON만 응답하세요.";
 
     private final WebClient webClient;
@@ -150,7 +151,7 @@ public class ChatAiGateway {
         }
     }
 
-    private String buildUserPrompt(
+    String buildUserPrompt(
             User user,
             String ageBand,
             String question,
@@ -199,6 +200,9 @@ public class ChatAiGateway {
                 [응답 규칙]
                 - 반드시 아래 JSON 객체 하나만 반환
                 - references의 service_id는 정책 후보에 있는 값만 사용
+                - answer는 제공된 정책 후보와 evidence 안에서만 근거를 말할 것
+                - 자격 충족 여부나 실제 지급 확정처럼 단정하지 말 것
+                - 조건이 불명확하면 추측하지 말고 확인이 필요한 항목을 짚을 것
                 - 질문이 모호하면 needs_clarification=true 와 보충질문을 answer에 작성
                 - 정책 후보를 추천할 때는 이유를 1문장으로 작성
 
@@ -222,6 +226,10 @@ public class ChatAiGateway {
                 redactSensitiveText(question.trim()),
                 candidateBlock
         );
+    }
+
+    static String systemPrompt() {
+        return SYSTEM_PROMPT;
     }
 
     String redactSensitiveText(String value) {
