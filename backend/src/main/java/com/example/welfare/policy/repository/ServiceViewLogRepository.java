@@ -1,6 +1,7 @@
 package com.example.welfare.policy.repository;
 
 import com.example.welfare.policy.entity.ServiceViewLog;
+import com.example.welfare.policy.entity.WelfareService;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -49,10 +50,13 @@ public interface ServiceViewLogRepository extends JpaRepository<ServiceViewLog, 
                         ELSE CONCAT('F:', svl.clientFingerprint)
                    END) as uniqueViewCount
             FROM ServiceViewLog svl
+            JOIN svl.service ws
             WHERE svl.viewedAt >= :cutoff
+              AND ws.status IN :statuses
             GROUP BY svl.service.id
             """)
-    List<ServiceUniqueViewCount> findUniqueViewCountsSince(@Param("cutoff") LocalDateTime cutoff);
+    List<ServiceUniqueViewCount> findUniqueViewCountsSinceForStatuses(@Param("statuses") Collection<WelfareService.ServiceStatus> statuses,
+                                                                      @Param("cutoff") LocalDateTime cutoff);
 
     @Query("""
             SELECT svl

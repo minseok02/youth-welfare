@@ -30,15 +30,21 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
                 || ' ' || coalesce(ws.keyword, '')
             )
             """;
+    private static final String SEARCH_DOCUMENT_TRGM_SQL = """
+            similarity(%s, :normalizedKeyword)
+            """.formatted(SEARCH_DOCUMENT_SQL);
     private static final String SEARCH_VECTOR_SQL = "to_tsvector('simple', " + SEARCH_DOCUMENT_SQL + ")";
     private static final String SEARCH_QUERY_SQL = "to_tsquery('simple', :tsQuery)";
     private static final String SEARCH_MATCH_SQL = """
             (
                 %s @@ %s
                 OR similarity(lower(coalesce(ws.title, '')), :normalizedKeyword) >= :trigramThreshold
+                OR similarity(lower(coalesce(ws.description, '')), :normalizedKeyword) >= :trigramThreshold
+                OR similarity(lower(coalesce(ws.support_content, '')), :normalizedKeyword) >= :trigramThreshold
                 OR similarity(lower(coalesce(ws.keyword, '')), :normalizedKeyword) >= :trigramThreshold
+                OR %s >= :trigramThreshold
             )
-            """.formatted(SEARCH_VECTOR_SQL, SEARCH_QUERY_SQL);
+            """.formatted(SEARCH_VECTOR_SQL, SEARCH_QUERY_SQL, SEARCH_DOCUMENT_TRGM_SQL);
     private static final String SEARCH_RANK_SQL = """
             (
                 CASE
@@ -47,10 +53,13 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
                 END
                 + greatest(
                     similarity(lower(coalesce(ws.title, '')), :normalizedKeyword),
+                    similarity(lower(coalesce(ws.description, '')), :normalizedKeyword),
+                    similarity(lower(coalesce(ws.support_content, '')), :normalizedKeyword),
+                    %s,
                     similarity(lower(coalesce(ws.keyword, '')), :normalizedKeyword)
                 )
             )
-            """.formatted(SEARCH_VECTOR_SQL, SEARCH_QUERY_SQL, SEARCH_VECTOR_SQL, SEARCH_QUERY_SQL);
+            """.formatted(SEARCH_VECTOR_SQL, SEARCH_QUERY_SQL, SEARCH_VECTOR_SQL, SEARCH_QUERY_SQL, SEARCH_DOCUMENT_TRGM_SQL);
     private static final String ACTIVE_UPCOMING_STATUS_SQL = "ws.status IN ('ACTIVE', 'UPCOMING')";
     private static final String STATUS_FILTER_SQL = """
             (

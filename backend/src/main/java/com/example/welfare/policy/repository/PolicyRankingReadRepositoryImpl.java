@@ -28,8 +28,8 @@ public class PolicyRankingReadRepositoryImpl implements PolicyRankingReadReposit
     }
 
     @Override
-    public List<ServiceUniqueViewCount> findUniqueViewCountsSince(java.time.LocalDateTime cutoff) {
-        return serviceViewLogRepository.findUniqueViewCountsSince(cutoff).stream()
+    public List<ServiceUniqueViewCount> findUniqueViewCountsSinceForStatuses(List<WelfareService.ServiceStatus> statuses, java.time.LocalDateTime cutoff) {
+        return serviceViewLogRepository.findUniqueViewCountsSinceForStatuses(statuses, cutoff).stream()
                 .<ServiceUniqueViewCount>map(row -> new RankingUniqueViewCount(row.getServiceId(), row.getUniqueViewCount()))
                 .toList();
     }

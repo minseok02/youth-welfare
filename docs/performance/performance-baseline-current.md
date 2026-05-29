@@ -205,3 +205,45 @@ Operational note from the same run:
 - the first `RUN_WRAPPER_BASELINE=true` execution failed because nested smoke wrappers inherited the parent `ARTIFACT_DIR` and cleanup removed `wrapper-durations.tsv`
 - rerun with `KEEP_ARTIFACTS=true` succeeded
 - this wrapper artifact isolation bug is the first optimization item in [performance-optimization-log.md](./performance-optimization-log.md)
+
+## 2026-05-30 Accepted Optimization Rerun
+
+The next accepted server rerun was captured on `HEAD=487bf64b75d9a20e606ebd89f10bcb0dc9b23db1`.
+
+- app redeploy completed
+- `health=UP`
+- `performance_baseline_suite=passed`
+- `performance_extended_suite=passed`
+- `stateful_flow_duration_baseline=passed`
+- recent log `ERROR/Exception/Caused by 없음` after the collect-lock window
+
+Important run context:
+
+- the first wrapper-inclusive run no longer hit artifact cleanup failure
+- it did fail once because the `17:00 UTC` collect schedule held the collect-global lock and `current_priority` hit `409/COL002`
+- after the lock cleared, the same wrapper-inclusive baseline passed without `KEEP_ARTIFACTS=true`
+
+Accepted rerun values:
+
+| Area | Scenario | Value | Notes |
+|---|---|---:|---|
+| API | policy ranking p95 | 999.4ms | still hotspot |
+| API | policy ranking p99 | 1008.5ms | still hotspot |
+| API | policy ranking max | 1010.8ms | still hotspot |
+| API | policy search keyword p95 | 338.6ms | improved |
+| API | policy search keyword p99 | 347.7ms | improved |
+| API | policy search keyword max | 349.9ms | improved |
+| DB | policy_search_keyword_ilike explain | 133.042ms | still seq scan |
+| Wrapper | recommendation observation | 7.502s | slower than previous baseline |
+| Wrapper | current priority | 105.535s | improved |
+| API Load | policy ranking p95 | 2244.0ms | still hotspot |
+| API Load | policy ranking max | 2251.8ms | still hotspot |
+| API Load | policy search keyword p95 | 924.8ms | improved versus prior load probe |
+| API Load | policy search keyword max | 943.8ms | improved versus prior load probe |
+
+Interpretation:
+
+- `policy_search_keyword` API latency improved enough to accept the read-path reduction
+- `current_priority` runtime also improved materially
+- `policy_ranking` remains the main unresolved optimization target
+- representative fallback `ILIKE` explain is still seq-scan-based, so DB-side follow-up is justified

@@ -223,9 +223,23 @@ CREATE INDEX IF NOT EXISTS idx_ws_search_document_fts
 CREATE INDEX IF NOT EXISTS idx_ws_title_trgm
     ON welfare_services
     USING GIN (lower(title) gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_ws_description_trgm
+    ON welfare_services
+    USING GIN (lower(description) gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_ws_support_content_trgm
+    ON welfare_services
+    USING GIN (lower(support_content) gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_ws_keyword_trgm
     ON welfare_services
     USING GIN (lower(keyword) gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_ws_search_document_trgm
+    ON welfare_services
+    USING GIN (lower(
+        coalesce(title, '')
+        || ' ' || coalesce(description, '')
+        || ' ' || coalesce(support_content, '')
+        || ' ' || coalesce(keyword, '')
+    ) gin_trgm_ops);
 
 CREATE TABLE IF NOT EXISTS raw_api_payloads (
     id           BIGSERIAL PRIMARY KEY,
@@ -545,6 +559,7 @@ CREATE TABLE IF NOT EXISTS service_view_logs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_svl_service_viewed ON service_view_logs (service_id, viewed_at);
+CREATE INDEX IF NOT EXISTS idx_svl_viewed_service ON service_view_logs (viewed_at, service_id);
 CREATE INDEX IF NOT EXISTS idx_svl_user_key_service_viewed ON service_view_logs (user_key, service_id, viewed_at);
 CREATE INDEX IF NOT EXISTS idx_svl_fp_service_viewed ON service_view_logs (client_fingerprint, service_id, viewed_at);
 

@@ -47,7 +47,7 @@ class PolicyRankingServiceTest {
                 .build();
 
         given(policyRankingReadRepository.findRankableSnapshots()).willReturn(List.of(snapshot(service)));
-        given(policyRankingReadRepository.findUniqueViewCountsSince(any()))
+        given(policyRankingReadRepository.findUniqueViewCountsSinceForStatuses(any(), any()))
                 .willReturn(List.of(uniqueCount(1L, 7L)));
         given(policyRankingReadRepository.findServicesByIds(List.of(1L))).willReturn(List.of(service));
         given(policyPresentationReadService.findProjections(List.of(service)))
@@ -117,7 +117,7 @@ class PolicyRankingServiceTest {
 
         List<WelfareService> services = List.of(oldHighScore, oldLowScore, recentNew);
         given(policyRankingReadRepository.findRankableSnapshots()).willReturn(services.stream().map(this::snapshot).toList());
-        given(policyRankingReadRepository.findUniqueViewCountsSince(any()))
+        given(policyRankingReadRepository.findUniqueViewCountsSinceForStatuses(any(), any()))
                 .willReturn(List.of(
                         uniqueCount(1L, 50L),
                         uniqueCount(2L, 1L),
@@ -155,7 +155,7 @@ class PolicyRankingServiceTest {
                 .toList();
 
         given(policyRankingReadRepository.findRankableSnapshots()).willReturn(services.stream().map(this::snapshot).toList());
-        given(policyRankingReadRepository.findUniqueViewCountsSince(any()))
+        given(policyRankingReadRepository.findUniqueViewCountsSinceForStatuses(any(), any()))
                 .willReturn(List.of());
         given(policyRankingReadRepository.findServicesByIds(anyCollection())).willAnswer(invocation -> {
             java.util.Collection<Long> ids = invocation.getArgument(0);

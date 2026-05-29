@@ -40,7 +40,13 @@ public class PolicyRankingService {
         if (snapshots.isEmpty()) return List.of();
 
         LocalDateTime uniqueCutoff = LocalDateTime.now().minusDays(UNIQUE_VIEW_WINDOW_DAYS);
-        Map<Long, Long> uniqueViewsByServiceId = policyRankingReadRepository.findUniqueViewCountsSince(uniqueCutoff)
+        Map<Long, Long> uniqueViewsByServiceId = policyRankingReadRepository.findUniqueViewCountsSinceForStatuses(
+                        List.of(
+                                WelfareService.ServiceStatus.ACTIVE,
+                                WelfareService.ServiceStatus.UPCOMING
+                        ),
+                        uniqueCutoff
+                )
                 .stream()
                 .collect(Collectors.toMap(
                         PolicyRankingReadRepository.ServiceUniqueViewCount::getServiceId,
