@@ -88,10 +88,9 @@ values["artifact_dir"] = artifact_dir
 json_out.write_text(json.dumps(values, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 PY
 
-smoke_update_links \
-  "${ARTIFACT_DIR}" "${LATEST_ARTIFACT_LINK}" \
-  "${SUMMARY_OUT}" "${LATEST_SUMMARY_LINK}" \
-  "${JSON_OUT}" "${LATEST_JSON_LINK}"
+smoke_publish_dir_snapshot "${ARTIFACT_DIR}" "${LATEST_ARTIFACT_LINK}"
+smoke_publish_file "${SUMMARY_OUT}" "${LATEST_SUMMARY_LINK}"
+smoke_publish_file "${JSON_OUT}" "${LATEST_JSON_LINK}"
 
 echo "latest_artifact_link=${LATEST_ARTIFACT_LINK}"
 echo "latest_summary_link=${LATEST_SUMMARY_LINK}"

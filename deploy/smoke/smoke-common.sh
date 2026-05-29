@@ -235,6 +235,31 @@ smoke_update_links() {
   done
 }
 
+smoke_publish_file() {
+  local source_file="$1"
+  local dest_file="$2"
+  local dest_dir
+
+  dest_dir="$(dirname "${dest_file}")"
+  mkdir -p "${dest_dir}"
+  cp "${source_file}" "${dest_file}"
+}
+
+smoke_publish_dir_snapshot() {
+  local source_dir="$1"
+  local dest_dir="$2"
+  local dest_parent tmp_dir
+
+  dest_parent="$(dirname "${dest_dir}")"
+  mkdir -p "${dest_parent}"
+  tmp_dir="${dest_dir}.tmp.$$"
+  rm -rf "${tmp_dir}"
+  mkdir -p "${tmp_dir}"
+  cp -a "${source_dir}/." "${tmp_dir}/"
+  rm -rf "${dest_dir}"
+  mv "${tmp_dir}" "${dest_dir}"
+}
+
 smoke_http_status() {
   local method="$1"
   local url="$2"
