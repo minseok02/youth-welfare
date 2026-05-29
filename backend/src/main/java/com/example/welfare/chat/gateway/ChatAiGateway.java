@@ -232,20 +232,24 @@ public class ChatAiGateway {
         return SYSTEM_PROMPT;
     }
 
-    String redactSensitiveText(String value) {
-        return SensitiveTextRedactor.redactDirectIdentifiers(value);
-    }
-
-    private String callOpenAi(String userPrompt) {
-        Map<String, Object> requestBody = Map.of(
+    static Map<String, Object> buildRequestBody(String model, String systemPrompt, String userPrompt) {
+        return Map.of(
                 "model", model,
                 "messages", List.of(
-                        Map.of("role", "system", "content", SYSTEM_PROMPT),
+                        Map.of("role", "system", "content", systemPrompt),
                         Map.of("role", "user", "content", userPrompt)
                 ),
                 "temperature", 0.2,
                 "response_format", Map.of("type", "json_object")
         );
+    }
+
+    String redactSensitiveText(String value) {
+        return SensitiveTextRedactor.redactDirectIdentifiers(value);
+    }
+
+    private String callOpenAi(String userPrompt) {
+        Map<String, Object> requestBody = buildRequestBody(model, SYSTEM_PROMPT, userPrompt);
 
         return webClient.post()
                 .uri("https://api.openai.com/v1/chat/completions")

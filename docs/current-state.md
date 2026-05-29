@@ -33,6 +33,7 @@
 - 보안/운영 hardening 현재 상태: [security-hardening-current-state.md](core/security-hardening-current-state.md)
 - 운영 baseline wrapper: [ops-baseline-runbook.md](core/ops-baseline-runbook.md)
 - 시스템 문서군 진입점: [system-docs-index.md](core/system-docs-index.md)
+- OpenAI runtime 계약: [openai-runtime-contract.md](core/openai-runtime-contract.md)
 - 히스토리 문서군 진입점: [history-docs-index.md](./history-docs-index.md)
 
 ## 작업 전 기본 검증 기준

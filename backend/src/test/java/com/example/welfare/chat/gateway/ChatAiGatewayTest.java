@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -142,6 +143,25 @@ class ChatAiGatewayTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    @DisplayName("챗봇 OpenAI 요청 body는 JSON object 응답 형식을 고정한다")
+    void buildRequestBodyPinsJsonOnlyContract() {
+        Map<String, Object> request = ChatAiGateway.buildRequestBody("gpt-4o-mini", ChatAiGateway.systemPrompt(), "prompt");
+
+        assertThat(request)
+                .containsEntry("model", "gpt-4o-mini")
+                .containsEntry("temperature", 0.2)
+                .containsEntry("response_format", Map.of("type", "json_object"));
+
+        List<Map<String, String>> messages = (List<Map<String, String>>) request.get("messages");
+        assertThat(messages).hasSize(2);
+        assertThat(messages.get(0)).containsEntry("role", "system");
+        assertThat(messages.get(0)).containsEntry("content", ChatAiGateway.systemPrompt());
+        assertThat(messages.get(1)).containsEntry("role", "user");
+        assertThat(messages.get(1)).containsEntry("content", "prompt");
+    }
+
+    @Test
     @DisplayName("챗봇 사용자 프롬프트는 민감정보를 줄이고 확인 필요 원칙을 포함한다")
     void buildUserPromptRedactsIdentifiersAndPinsAnswerRules() {
         User user = User.builder()
@@ -173,7 +193,7 @@ class ChatAiGatewayTest {
         String prompt = chatAiGateway.buildUserPrompt(
                 user,
                 "25_29",
-                "제 이름 김민수이고 주소 인천광역시 중구 은하수로 10인데 바로 받을 수 있나요?",
+                "제 이름 김민수이고 집 주소는 인천광역시 중구 은하수로 10인데 학교 서울대학교 기준으로 바로 받을 수 있나요?",
                 recentMessages,
                 candidates,
                 java.util.Map.of(1829L, "월세 부담을 낮추는 지원을 제공합니다.")

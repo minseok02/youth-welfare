@@ -19,9 +19,9 @@ public final class SensitiveTextRedactor {
     private static final Pattern NAME_LABEL_PATTERN =
             Pattern.compile("(?i)\\b(이름|성함|본명|name)(?:은|는|이|가)?\\s*(?:[:=]\\s*|\\s+)([가-힣A-Za-z]{2,20})\\b");
     private static final Pattern ADDRESS_LABEL_PATTERN =
-            Pattern.compile("(?i)\\b(주소|거주지|사는\\s?곳|address)(?:는|은|이|가)?\\s*(?:[:=]\\s*|\\s+)([^,\\n]{4,80})");
+            Pattern.compile("(?i)\\b(주소|집\\s?주소|거주지|사는\\s?곳|address)(?:는|은|이|가)?\\s*(?:[:=]\\s*|\\s+)(.{4,80}?)(?=\\s*(?:,|\\n|$|학교명|학교|회사명|회사|직장|근무지|소속|school|company|organization))");
     private static final Pattern ORGANIZATION_LABEL_PATTERN =
-            Pattern.compile("(?i)\\b(학교명|회사명|근무지|소속|school|company|organization)(?:은|는|이|가)?\\s*(?:[:=]\\s*|\\s+)([^,\\n]{2,60})");
+            Pattern.compile("(?i)\\b(학교명|학교|회사명|회사|직장|근무지|소속|school|company|organization)(?:은|는|이|가)?\\s*(?:[:=]\\s*|\\s+)(.{2,60}?)(?=\\s*(?:,|\\n|$|학교명|학교|회사명|회사|직장|근무지|소속|school|company|organization))");
 
     private SensitiveTextRedactor() {
     }

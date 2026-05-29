@@ -1,5 +1,15 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 1021) OpenAI 경계 문서가 흩어져 있으면 prompt/privacy/fallback 판단이 recommendation과 chat 사이에서 다시 섞인다
+- 문제: OpenAI 관련 판단이 recommendation current-state, chatbot-plan, phase-plan, troubleshooting에 흩어져 있으면, 다음 작업에서 “recommendation prompt를 지금 바꿔도 되나”, “chat fallback은 null인가 local 대체인가”, “embedding rebuild도 local fallback을 저장해도 되나”를 한 번에 읽기 어렵다.
+- 해결: [openai-runtime-contract.md](/home/minseok/youth-welfare/docs/core/openai-runtime-contract.md:1) 를 추가해 recommendation/chat/semantic retrieval/embedding rebuild 경로를 같은 형식으로 정리하고, [system-docs-index.md](/home/minseok/youth-welfare/docs/core/system-docs-index.md:1), [current-state.md](/home/minseok/youth-welfare/docs/current-state.md:1), [chatbot-plan.md](/home/minseok/youth-welfare/docs/core/chatbot-plan.md:1) 에 연결했다.
+- 이유: OpenAI integration은 cross-cutting 경계라서 기능별 문서에만 흩어 두면 다음 변경 때 fallback/privacy/product-deferred 판단이 다시 엇갈린다. active current contract를 한 장으로 모아 두는 편이 재사용성과 일관성에 맞다.
+
+## 1020) label-based PII redaction은 alias corpus를 따로 고정하지 않으면 다음 보정 때 학교/회사/집 주소 같은 변형이 다시 빠질 수 있다
+- 문제: 기존 redactor는 `학교명`, `회사명`, `주소` 같은 대표 라벨만 겨우 막고 있었고, 실제 사용자 자유서술에서 자주 나오는 `학교`, `회사`, `직장`, `집 주소` 같은 변형은 테스트가 없어서 다음 regex 수정 때 다시 빠질 위험이 컸다.
+- 해결: [SensitiveTextRedactor.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/global/util/SensitiveTextRedactor.java:1) 의 alias 범위를 넓히고, 전용 [SensitiveTextRedactorTest.java](/home/minseok/youth-welfare/backend/src/test/java/com/example/welfare/global/util/SensitiveTextRedactorTest.java:1) 를 추가해 한글/영문 라벨형 corpus를 직접 고정했다. 같은 라운드에서 `ChatAiGatewayTest` 와 `RealtimeAiGatewayTest` 에 request-body / prompt guard도 더해 redactor와 prompt 계약을 따로 읽지 않게 맞췄다.
+- 이유: chat prompt, semantic query, 이후 다른 OpenAI 경계까지 같은 helper를 재사용하므로, 공통 redactor는 alias corpus를 독립 테스트로 들고 있어야 drift가 적다.
+
 ## 1017) OpenAI timeout/fallback 계약을 섞어 두면 추천은 hang 되고, 임베딩은 장애 시 fake vector를 진짜처럼 저장하게 된다
 - 문제: 추천용 [RealtimeAiGateway](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/gateway/RealtimeAiGateway.java:1) 는 `chat/completions` 호출을 `block()` timeout 없이 기다리고 있었고, chat/embedding은 `block(Duration)` 을 쓰는 등 경계가 제각각이었다. 또 [OpenAiChatEmbeddingGateway](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/chat/gateway/OpenAiChatEmbeddingGateway.java:1) 는 OpenAI 실패 시 local fallback vector를 돌려주는데, [PolicyChunkEmbeddingService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/chat/service/PolicyChunkEmbeddingService.java:1) 가 그 값을 그대로 DB에 저장하면 운영 vector index가 “실제 OpenAI 임베딩”처럼 오염된다. 여기에 `application.yml` 의 `openai.api-key` 는 필수처럼 잡혀 있고 gateway는 blank-key fallback을 기대하고 있어 설정 계약도 어긋나 있었다.
 - 해결: recommendation/chat/embedding의 계약을 다시 맞췄다. `RealtimeAiGateway` 는 `openai.timeout` 을 실제 `block(Duration)` 에 사용하고, `openai.api-key` / `@Value` 둘 다 blank default를 허용해 rule-only fallback 계약과 설정 계약을 일치시켰다. `ChatEmbeddingGateway` 에 `embedDocumentsStrict(...)` 경로를 추가하고, `PolicyChunkEmbeddingService` 는 strict mode만 써서 OpenAI unavailable 시 즉시 실패하고 fake local embedding은 저장하지 않게 바꿨다. 동시에 `SensitiveTextRedactor` 는 주민등록번호/계좌번호 마스킹까지 넓혀 chat 질문/history와 semantic query가 더 넓은 direct identifier를 외부로 보내지 않게 맞췄다.
