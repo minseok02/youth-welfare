@@ -1,8 +1,8 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
-## 1016) 새 wrapper도 `mktemp` stdout-only로 두면 baseline/observation handoff가 약해지므로 기존 smoke와 같은 latest artifact 링크를 남겨야 한다
-- 문제: `run-local-recommendation-observation-suite.sh`, `run-local-current-priority-suite.sh` 를 추가한 뒤에도 처음 구현은 `mktemp` 아래 summary만 남겼다. 실행 자체는 되지만, 운영자가 직전 결과를 다시 볼 때 artifact dir를 매번 stdout에서 복사해야 했고, 다른 smoke들이 이미 쓰는 `tmp/<suite>/latest-*` 패턴과 어긋나 재사용성과 일관성이 떨어졌다.
-- 해결: observation/current-priority wrapper도 각각 `tmp/recommendation-observation/<ts>`, `tmp/current-priority-suite/<ts>` 구조를 기본값으로 쓰게 바꿨다. 실행 후에는 `latest`, `latest-...-summary.txt`, `latest-...-summary.json` symlink를 같이 갱신해 다른 smoke들과 같은 패턴으로 읽게 맞췄다. 이제 daily 관찰과 배포 후 baseline 확인은 stdout 없이도 stable latest artifact 링크만 열면 된다.
+## 1016) 새 wrapper latest artifact는 `KEEP_ARTIFACTS=false` 기본 cleanup와도 양립해야 하므로 symlink만 남기지 말고 stable snapshot을 따로 publish해야 한다
+- 문제: `run-local-recommendation-observation-suite.sh`, `run-local-current-priority-suite.sh` 를 `tmp/<suite>/<ts>` 구조와 `latest-*` 링크로 맞춘 뒤에도, 기본값 `KEEP_ARTIFACTS=false` 에서는 종료 시 timestamped run dir를 지운다. 이 상태에서 `latest`/`latest-summary`/`latest-json` 을 run dir 내부 파일에 symlink로만 걸어 두면 suite 자체는 통과해도 직후 링크가 dangling 되어 “stable artifact” 계약이 깨진다.
+- 해결: [smoke-common.sh](/home/minseok/youth-welfare/deploy/smoke/smoke-common.sh:1) 에 `smoke_publish_file()`, `smoke_publish_dir_snapshot()` 공통 helper를 추가하고, observation/current-priority wrapper는 cleanup 전에 `tmp/<suite>/latest/` snapshot과 `latest-...-summary.txt`, `latest-...-summary.json` 실파일을 별도로 publish하게 바꿨다. 이제 `KEEP_ARTIFACTS=false` 기본 실행에서도 latest 경로가 살아 있고, `KEEP_ARTIFACTS=true` 는 timestamped full artifact까지 남겨 더 깊게 파고들 때만 쓰면 된다.
 
 ## 1015) `ENV_FILE=.env.production` 상대경로는 frontend cwd helper에서 깨질 수 있으므로 repo-root 기준 절대경로로 먼저 정규화해야 한다
 - 문제: 서버에서 `run-local-current-priority-suite.sh` 를 `ENV_FILE=.env.production` 으로 실행하면, 내부 Playwright reset-password 흐름이 `frontend/scripts/resolve-password-reset-token.sh` 를 `frontend/` cwd에서 실행한다. 이 helper는 `smoke-common.sh` 의 DB/env loader를 그대로 타는데, 기존 구현은 `ENV_FILE` 값을 현재 shell cwd 기준으로만 읽었다. 그래서 repo root에는 `.env.production` 이 있어도 `frontend/.env.production` 을 찾다가 DB URL discovery가 비어 reset-password 2개가 실패할 수 있었다.

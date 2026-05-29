@@ -46,10 +46,10 @@
 
 - 운영 current truth만 compact하게 다시 보려면 `bash deploy/smoke/run-local-recommendation-observation-suite.sh`
 - 운영 서버/RDS에서는 `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-recommendation-observation-suite.sh`
-- observation artifact latest 링크는 `tmp/recommendation-observation/latest-recommendation-observation-summary.txt`, `latest-recommendation-observation.json` 을 먼저 봅니다.
+- observation artifact latest 경로는 `tmp/recommendation-observation/latest-recommendation-observation-summary.txt`, `latest-recommendation-observation.json` 을 먼저 봅니다. `KEEP_ARTIFACTS=false` 기본값에서도 이 stable snapshot은 남습니다.
 - baseline 유지와 recommendation 관찰을 한 번에 다시 보려면 `bash deploy/smoke/run-local-current-priority-suite.sh`
 - 운영 서버/RDS에서는 `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-local-current-priority-suite.sh`
-- current priority artifact latest 링크는 `tmp/current-priority-suite/latest-current-priority-summary.txt`, `latest-current-priority-summary.json` 을 먼저 봅니다.
+- current priority artifact latest 경로는 `tmp/current-priority-suite/latest-current-priority-summary.txt`, `latest-current-priority-summary.json` 을 먼저 봅니다. `KEEP_ARTIFACTS=false` 기본값에서도 이 stable snapshot은 남습니다.
 - daily one-shot으로 recommendation 상태를 다시 보려면 `bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh`
 - `REAL_USER` readiness까지 같이 보려면 `APP_BASE_URL='http://127.0.0.1:8082' ADMIN_EMAIL='<local admin email>' ADMIN_PASSWORD='<local admin password>' INCLUDE_REAL_USER_READINESS=true bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh`
 - overview artifact는 `tmp/recommendation-ai-exclusion-latest-overview/latest-overview-summary.txt`, `latest-overview-note.md`, `latest-overview.json` 을 먼저 봅니다.
@@ -74,7 +74,7 @@
 - 재사용 가능한 `REAL_USER` cohort library(`housing / education / job / finance`)를 다시 시드하려면 `APP_BASE_URL='http://127.0.0.1:8082' ADMIN_EMAIL='<local admin email>' ADMIN_PASSWORD='<local admin password>' bash deploy/smoke/run-local-real-user-cohort-library-seed.sh`
 - `REAL_USER` traffic/cohort가 실제로 생긴 뒤에는 [recommendation-real-user-recheck-checklist.md](./recommendation/recommendation-real-user-recheck-checklist.md) 순서대로 다시 확인합니다.
 - strict gate(`FAIL_ON_LATEST_OBSERVATION_CHANGE=true`)가 fail 하더라도 `latest_drift_class=VOLATILE_ONLY_DRIFT` 와 `stable_baseline_changed=false` 면 stable baseline 회귀가 아니라 fresh window 흔들림으로 읽습니다.
-- artifact 경로와 `generated_at` 은 UTC(`...Z`) 기준이라 KST 자정 이후 실행도 전날처럼 보일 수 있습니다. 최신 실행 여부는 `tmp/.../latest` symlink 이동으로 확인합니다.
+- artifact 경로와 `generated_at` 은 UTC(`...Z`) 기준이라 KST 자정 이후 실행도 전날처럼 보일 수 있습니다. 최신 실행 여부는 `tmp/.../latest*` stable snapshot 갱신 시각으로 확인합니다.
 
 ## 필요할 때 보는 파일
 
