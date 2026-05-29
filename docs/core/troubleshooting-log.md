@@ -1,5 +1,9 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 1016) 새 wrapper도 `mktemp` stdout-only로 두면 baseline/observation handoff가 약해지므로 기존 smoke와 같은 latest artifact 링크를 남겨야 한다
+- 문제: `run-local-recommendation-observation-suite.sh`, `run-local-current-priority-suite.sh` 를 추가한 뒤에도 처음 구현은 `mktemp` 아래 summary만 남겼다. 실행 자체는 되지만, 운영자가 직전 결과를 다시 볼 때 artifact dir를 매번 stdout에서 복사해야 했고, 다른 smoke들이 이미 쓰는 `tmp/<suite>/latest-*` 패턴과 어긋나 재사용성과 일관성이 떨어졌다.
+- 해결: observation/current-priority wrapper도 각각 `tmp/recommendation-observation/<ts>`, `tmp/current-priority-suite/<ts>` 구조를 기본값으로 쓰게 바꿨다. 실행 후에는 `latest`, `latest-...-summary.txt`, `latest-...-summary.json` symlink를 같이 갱신해 다른 smoke들과 같은 패턴으로 읽게 맞췄다. 이제 daily 관찰과 배포 후 baseline 확인은 stdout 없이도 stable latest artifact 링크만 열면 된다.
+
 ## 1015) `ENV_FILE=.env.production` 상대경로는 frontend cwd helper에서 깨질 수 있으므로 repo-root 기준 절대경로로 먼저 정규화해야 한다
 - 문제: 서버에서 `run-local-current-priority-suite.sh` 를 `ENV_FILE=.env.production` 으로 실행하면, 내부 Playwright reset-password 흐름이 `frontend/scripts/resolve-password-reset-token.sh` 를 `frontend/` cwd에서 실행한다. 이 helper는 `smoke-common.sh` 의 DB/env loader를 그대로 타는데, 기존 구현은 `ENV_FILE` 값을 현재 shell cwd 기준으로만 읽었다. 그래서 repo root에는 `.env.production` 이 있어도 `frontend/.env.production` 을 찾다가 DB URL discovery가 비어 reset-password 2개가 실패할 수 있었다.
 - 해결: [smoke-common.sh](/home/minseok/youth-welfare/deploy/smoke/smoke-common.sh:97) 에 `smoke_resolve_env_file()` 를 추가해 `ENV_FILE` 이 상대경로면 먼저 현재 경로를 보고, 없으면 repo root 기준으로 절대경로로 승격하도록 맞췄다. 이후 `smoke_resolve_admin_credentials()`, `smoke_resolve_db_connection_url()`, `smoke_db_query()`, `smoke_db_apply_file()` 가 모두 같은 정규화 경로를 쓰게 해서 `frontend`, `deploy/smoke`, 서버 shell 어느 cwd에서 실행해도 같은 env file을 읽는다. 관련 진입 문서 [start.md](/home/minseok/youth-welfare/docs/start.md:1), [current-state.md](/home/minseok/youth-welfare/docs/current-state.md:1) 에도 current priority / observation wrapper 실행 예시를 같은 기준으로 맞췄다.

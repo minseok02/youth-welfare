@@ -5,11 +5,16 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
 
 APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:8082}"
+OBSERVATION_ROOT="${OBSERVATION_ROOT:-${ROOT_DIR}/tmp/recommendation-observation}"
 KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
-ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
+RUN_TS_UTC="$(smoke_now_ts_utc)"
+ARTIFACT_DIR="${ARTIFACT_DIR:-${OBSERVATION_ROOT}/${RUN_TS_UTC}}"
 PRECHECK_OUTPUT="${ARTIFACT_DIR}/recommendation-reopen-precheck.out"
 SUMMARY_OUT="${ARTIFACT_DIR}/recommendation-observation-summary.txt"
 JSON_OUT="${ARTIFACT_DIR}/recommendation-observation.json"
+LATEST_ARTIFACT_LINK="${OBSERVATION_ROOT}/latest"
+LATEST_SUMMARY_LINK="${OBSERVATION_ROOT}/latest-recommendation-observation-summary.txt"
+LATEST_JSON_LINK="${OBSERVATION_ROOT}/latest-recommendation-observation.json"
 
 cleanup() {
   if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
@@ -105,4 +110,12 @@ json_out.write_text(json.dumps({
 }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 PY
 
+smoke_update_links \
+  "${ARTIFACT_DIR}" "${LATEST_ARTIFACT_LINK}" \
+  "${SUMMARY_OUT}" "${LATEST_SUMMARY_LINK}" \
+  "${JSON_OUT}" "${LATEST_JSON_LINK}"
+
 cat "${SUMMARY_OUT}"
+echo "latest_artifact_link=${LATEST_ARTIFACT_LINK}"
+echo "latest_summary_link=${LATEST_SUMMARY_LINK}"
+echo "latest_json_link=${LATEST_JSON_LINK}"
