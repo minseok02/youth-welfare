@@ -27,6 +27,7 @@ cross-cutting 문서가 흩어져 있어도
 ### 후속 확장 메모
 
 - [chatbot-plan.md](./chatbot-plan.md)
+- [openai-runtime-contract.md](./openai-runtime-contract.md)
 - [notification-channel-expansion-plan.md](./notification-channel-expansion-plan.md)
 - [notification-channel-expansion-checklist.md](./notification-channel-expansion-checklist.md)
 
@@ -73,8 +74,9 @@ cross-cutting 문서가 흩어져 있어도
 ### 6. 챗봇 후속 설계
 
 - [chatbot-plan.md](./chatbot-plan.md)
+- [openai-runtime-contract.md](./openai-runtime-contract.md)
 
-이 문서는 아직 active 구현은 아니지만, 챗봇 2차 기능을 어떤 구조로 붙일지 정리한 설계 메모입니다.
+이 문서들은 챗봇 구조와 OpenAI runtime/fallback/privacy 계약을 같이 정리합니다.
 
 ### 7. 알림 채널 확장 설계
 
@@ -104,14 +106,15 @@ cross-cutting 문서가 흩어져 있어도
 ### 후속 확장 메모를 볼 때
 
 1. [chatbot-plan.md](./chatbot-plan.md)
-2. [notification-channel-expansion-plan.md](./notification-channel-expansion-plan.md)
-3. [notification-channel-expansion-checklist.md](./notification-channel-expansion-checklist.md)
-4. 필요하면 [phase-plan.md](../phase-plan.md)
+2. [openai-runtime-contract.md](./openai-runtime-contract.md)
+3. [notification-channel-expansion-plan.md](./notification-channel-expansion-plan.md)
+4. [notification-channel-expansion-checklist.md](./notification-channel-expansion-checklist.md)
+5. 필요하면 [phase-plan.md](../phase-plan.md)
 
 ## 요약
 
 1. 구조와 contract는 [project-spec.md](../project-spec.md), [architecture.md](../architecture.md), [api-mapping.md](./api-mapping.md) 부터 봅니다.
 2. DB/schema 판단은 [db-migration.md](./db-migration.md) 과 [user-data-separation-design.md](./user-data-separation-design.md) 를 봅니다.
-3. 챗봇은 아직 active 구현이 아니라 [chatbot-plan.md](./chatbot-plan.md) 설계 메모로 봅니다.
+3. 챗봇과 OpenAI 경계는 [chatbot-plan.md](./chatbot-plan.md), [openai-runtime-contract.md](./openai-runtime-contract.md) 를 같이 봅니다.
 4. 알림 채널 확장은 [notification-channel-expansion-plan.md](./notification-channel-expansion-plan.md) 부터 봅니다.
 5. 실제 작업 범위는 [notification-channel-expansion-checklist.md](./notification-channel-expansion-checklist.md) 로 고정합니다.

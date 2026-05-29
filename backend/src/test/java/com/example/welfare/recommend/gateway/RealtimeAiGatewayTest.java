@@ -110,6 +110,39 @@ class RealtimeAiGatewayTest {
     }
 
     @Test
+    void buildUserPromptPinsJsonResultShapeAndAllCandidateCoverage() {
+        RealtimeAiGateway gateway = new RealtimeAiGateway(null, new ObjectMapper());
+        List<ScoredCandidate> candidates = List.of(
+                scoredCandidate(403L, 30.0),
+                scoredCandidate(371L, 25.0)
+        );
+        RecommendationUserSnapshot user = new RecommendationUserSnapshot(
+                1L,
+                "user-key-1",
+                27,
+                "25_29",
+                "인천광역시",
+                "중구",
+                "2811000000",
+                (byte) 5,
+                "1인 가구",
+                "미취업",
+                10,
+                0.5,
+                List.of(),
+                List.of(),
+                List.of()
+        );
+
+        String prompt = gateway.buildUserPrompt(candidates, user);
+
+        assertThat(prompt)
+                .contains("[평가할 정책 목록 — 아래 2개를 반드시 모두 평가]")
+                .contains("[응답 형식] 누락 없이 전체 2개 평가")
+                .contains("\"results\": [{\"service_id\": 숫자, \"score\": 0~100정수, \"reason\": \"사용자 특성 기준 1문장 이유\"}]");
+    }
+
+    @Test
     void shouldBypassOpenAiForBlankOrRuleOnlySentinelKey() {
         assertThat(RealtimeAiGateway.shouldBypassOpenAi(null, false)).isTrue();
         assertThat(RealtimeAiGateway.shouldBypassOpenAi("   ", false)).isTrue();

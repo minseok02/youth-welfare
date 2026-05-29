@@ -3,6 +3,7 @@
 전체 cross-cutting 구조/확장 설계 문서 진입점은 [system-docs-index.md](./system-docs-index.md)를 먼저 봅니다.
 이 문서는 현재 코드베이스를 기준으로 2차 기능인 챗봇을 어떻게 붙일지 정리한 설계 메모입니다.
 기준 문서는 [architecture.md](../architecture.md), [srs-v2.10.md](./srs-v2.10.md), [phase-plan.md](../phase-plan.md)입니다.
+현재 OpenAI runtime/fallback/privacy 계약은 [openai-runtime-contract.md](./openai-runtime-contract.md) 를 source of truth로 같이 봅니다.
 
 ## 현재 상태
 
