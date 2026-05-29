@@ -34,6 +34,9 @@
 - [core/security-hardening-current-state.md](./core/security-hardening-current-state.md)
   최근 보안 점검 follow-up과 운영 반영 상태를 볼 때 먼저 봅니다. dependency hardening, logout/session revoke, nginx edge 경계, admin forced logout smoke 입력값을 한 장으로 정리합니다.
 
+- [performance/performance-docs-index.md](./performance/performance-docs-index.md)
+  성능 baseline이나 최적화 전후 비교를 열 때 먼저 봅니다. current baseline, measurement plan, wrapper 진입점을 한 장으로 정리합니다.
+
 ## 지금 기준 한 줄 요약
 
 - 최근 보안/운영 후속은 [core/security-hardening-current-state.md](./core/security-hardening-current-state.md) 를 먼저 봅니다.

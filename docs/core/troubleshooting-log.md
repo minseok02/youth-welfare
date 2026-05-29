@@ -1,5 +1,15 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 1023) 새 성능 문서군은 script만 추가하면 active 문서 진입점에서 사라져 다시 찾기 어려워진다
+- 문제: `deploy/performance/*` 와 `docs/performance/*` 가 들어왔지만, `start.md`, `current-state.md`, `local-validation-docs-index.md`, `documentation-map.md` 어디에도 performance 진입점이 없어서 다음 작업에서 이 트랙을 다시 찾기 어려웠다. 저장소 문서 체계는 도메인별 index를 먼저 열게 설계되어 있는데, performance만 그 흐름을 벗어나 있었다.
+- 해결: [performance-docs-index.md](/home/minseok/youth-welfare/docs/performance/performance-docs-index.md:1) 와 [docs/performance/README.md](/home/minseok/youth-welfare/docs/performance/README.md:1) 를 추가하고, active 문서 진입점 네 곳에 모두 연결했다.
+- 이유: 문서 수가 늘수록 “좋은 내용”보다 “찾을 수 있는 진입점”이 더 중요하다. 새 트랙은 항상 current-state/start/index 체인에 먼저 걸어야 재사용성과 일관성이 유지된다.
+
+## 1022) heavy performance script는 바로 실측하기 전에 모든 step을 끈 minimal wrapper mode로 artifact 계약부터 확인해야 한다
+- 문제: 성능 wrapper는 API/DB/Redis/Edge/Web Vitals/상태변경 smoke까지 넓게 호출하므로, 로컬 환경이 아직 안 올라온 상태에서 바로 실측을 시도하면 실패 원인이 성능 문제인지 환경 문제인지 구분하기 어렵다.
+- 해결: 각 main wrapper에 대해 모든 heavy step을 끈 minimal 실행을 먼저 태워 `summary/json`, `latest` snapshot, empty-row handling, exit code contract부터 검증했다. `full-suite`, `extended-suite`, `stateful-flow-duration` 모두 이 모드에서 `passed` 와 stable latest artifact publish를 확인했다.
+- 이유: 새 성능 wrapper의 첫 검증은 “수치가 맞는가”보다 “환경 없이도 wrapper 계약이 일관적인가”가 우선이다. 그래야 이후 실측 실패를 환경 문제와 구조 문제로 분리할 수 있다.
+
 ## 1021) OpenAI 경계 문서가 흩어져 있으면 prompt/privacy/fallback 판단이 recommendation과 chat 사이에서 다시 섞인다
 - 문제: OpenAI 관련 판단이 recommendation current-state, chatbot-plan, phase-plan, troubleshooting에 흩어져 있으면, 다음 작업에서 “recommendation prompt를 지금 바꿔도 되나”, “chat fallback은 null인가 local 대체인가”, “embedding rebuild도 local fallback을 저장해도 되나”를 한 번에 읽기 어렵다.
 - 해결: [openai-runtime-contract.md](/home/minseok/youth-welfare/docs/core/openai-runtime-contract.md:1) 를 추가해 recommendation/chat/semantic retrieval/embedding rebuild 경로를 같은 형식으로 정리하고, [system-docs-index.md](/home/minseok/youth-welfare/docs/core/system-docs-index.md:1), [current-state.md](/home/minseok/youth-welfare/docs/current-state.md:1), [chatbot-plan.md](/home/minseok/youth-welfare/docs/core/chatbot-plan.md:1) 에 연결했다.
