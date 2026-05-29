@@ -98,14 +98,51 @@ smoke_default_root_dir() {
   cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd
 }
 
+smoke_resolve_env_file() {
+  local raw_env_file="${1:-${ENV_FILE:-$(smoke_default_root_dir)/.env}}"
+  local root_dir="${2:-$(smoke_default_root_dir)}"
+  local candidate=""
+  local dir_part=""
+  local base_part=""
+
+  if [[ -z "${raw_env_file}" ]]; then
+    printf '%s' ""
+    return 0
+  fi
+
+  case "${raw_env_file}" in
+    /*)
+      printf '%s' "${raw_env_file}"
+      return 0
+      ;;
+  esac
+
+  if [[ -f "${raw_env_file}" ]]; then
+    dir_part="$(cd "$(dirname "${raw_env_file}")" && pwd)"
+    base_part="$(basename "${raw_env_file}")"
+    printf '%s/%s' "${dir_part}" "${base_part}"
+    return 0
+  fi
+
+  candidate="${root_dir}/${raw_env_file}"
+  if [[ -f "${candidate}" ]]; then
+    printf '%s' "${candidate}"
+    return 0
+  fi
+
+  printf '%s' "${raw_env_file}"
+}
+
 smoke_resolve_admin_credentials() {
   local root_dir="$1"
-  local env_file="${ENV_FILE:-${root_dir}/.env}"
+  local env_file
   local admin_email_file="${ADMIN_EMAIL_FILE:-/tmp/youth-welfare-admin-smoke-email}"
   local admin_password_file="${ADMIN_PASSWORD_FILE:-/tmp/youth-welfare-admin-smoke-password}"
   local env_admin_email
   local env_admin_password
   local env_security_admin_emails
+
+  env_file="$(smoke_resolve_env_file "${ENV_FILE:-${root_dir}/.env}" "${root_dir}")"
 
   env_admin_email="$(smoke_load_env_value "${env_file}" ADMIN_EMAIL)"
   env_admin_password="$(smoke_load_env_value "${env_file}" ADMIN_PASSWORD)"
@@ -358,9 +395,11 @@ PY
 }
 
 smoke_resolve_db_connection_url() {
-  local env_file="${ENV_FILE:-$(smoke_default_root_dir)/.env}"
+  local env_file
   local db_direct_url="${DB_DIRECT_URL:-}"
   local db_url="${DB_URL:-}"
+
+  env_file="$(smoke_resolve_env_file "${ENV_FILE:-$(smoke_default_root_dir)/.env}")"
 
   if [[ -z "${db_direct_url}" ]]; then
     db_direct_url="$(smoke_load_env_value "${env_file}" DB_DIRECT_URL)"
@@ -404,10 +443,12 @@ smoke_db_query() {
   local db_mode
   local db_container_name="${DB_CONTAINER_NAME:-${POSTGRES_CONTAINER_NAME:-youth-welfare-db}}"
   local db_name="${DB_NAME:-youth_welfare}"
-  local env_file="${ENV_FILE:-$(smoke_default_root_dir)/.env}"
+  local env_file
   local db_query_username="${DB_QUERY_USERNAME:-}"
   local db_query_password="${DB_QUERY_PASSWORD:-}"
   local db_connection_url=""
+
+  env_file="$(smoke_resolve_env_file "${ENV_FILE:-$(smoke_default_root_dir)/.env}")"
 
   if [[ -z "${db_query_username}" ]]; then
     db_query_username="$(smoke_load_env_value "${env_file}" DB_QUERY_USERNAME)"
@@ -449,10 +490,12 @@ smoke_db_apply_file() {
   local db_mode
   local db_container_name="${DB_CONTAINER_NAME:-${POSTGRES_CONTAINER_NAME:-youth-welfare-db}}"
   local db_name="${DB_NAME:-youth_welfare}"
-  local env_file="${ENV_FILE:-$(smoke_default_root_dir)/.env}"
+  local env_file
   local db_query_username="${DB_QUERY_USERNAME:-}"
   local db_query_password="${DB_QUERY_PASSWORD:-}"
   local db_connection_url=""
+
+  env_file="$(smoke_resolve_env_file "${ENV_FILE:-$(smoke_default_root_dir)/.env}")"
 
   if [[ -z "${db_query_username}" ]]; then
     db_query_username="$(smoke_load_env_value "${env_file}" DB_QUERY_USERNAME)"
