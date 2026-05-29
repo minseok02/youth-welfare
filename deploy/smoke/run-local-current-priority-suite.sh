@@ -5,12 +5,18 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
 
 APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:8082}"
+CURRENT_PRIORITY_ROOT="${CURRENT_PRIORITY_ROOT:-${ROOT_DIR}/tmp/current-priority-suite}"
 KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
 RUN_ACTIVE_BASELINE="${RUN_ACTIVE_BASELINE:-true}"
 RUN_RECOMMENDATION_OBSERVATION="${RUN_RECOMMENDATION_OBSERVATION:-true}"
 
-ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
+RUN_TS_UTC="$(smoke_now_ts_utc)"
+ARTIFACT_DIR="${ARTIFACT_DIR:-${CURRENT_PRIORITY_ROOT}/${RUN_TS_UTC}}"
 SUMMARY_OUT="${ARTIFACT_DIR}/current-priority-summary.txt"
+JSON_OUT="${ARTIFACT_DIR}/current-priority-summary.json"
+LATEST_ARTIFACT_LINK="${CURRENT_PRIORITY_ROOT}/latest"
+LATEST_SUMMARY_LINK="${CURRENT_PRIORITY_ROOT}/latest-current-priority-summary.txt"
+LATEST_JSON_LINK="${CURRENT_PRIORITY_ROOT}/latest-current-priority-summary.json"
 
 cleanup() {
   if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
@@ -61,3 +67,32 @@ fi
     echo "recommendation_observation_stdout=${ARTIFACT_DIR}/recommendation-observation.out"
   fi
 } | tee "${SUMMARY_OUT}"
+
+python3 - "${SUMMARY_OUT}" "${JSON_OUT}" "${ARTIFACT_DIR}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+summary_out = Path(sys.argv[1])
+json_out = Path(sys.argv[2])
+artifact_dir = sys.argv[3]
+
+values = {}
+for raw_line in summary_out.read_text(encoding="utf-8").splitlines():
+    if "=" not in raw_line:
+        continue
+    key, value = raw_line.split("=", 1)
+    values[key.strip()] = value.strip()
+
+values["artifact_dir"] = artifact_dir
+json_out.write_text(json.dumps(values, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+
+smoke_update_links \
+  "${ARTIFACT_DIR}" "${LATEST_ARTIFACT_LINK}" \
+  "${SUMMARY_OUT}" "${LATEST_SUMMARY_LINK}" \
+  "${JSON_OUT}" "${LATEST_JSON_LINK}"
+
+echo "latest_artifact_link=${LATEST_ARTIFACT_LINK}"
+echo "latest_summary_link=${LATEST_SUMMARY_LINK}"
+echo "latest_json_link=${LATEST_JSON_LINK}"
