@@ -38,6 +38,8 @@
 ## 작업 전 기본 검증 기준
 
 - one-shot local active baseline: `bash deploy/smoke/run-local-active-baseline-suite.sh`
+- one-shot server active baseline: `APP_BASE_URL='http://127.0.0.1:8082' FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-local-active-baseline-suite.sh`
+  - 참고: `deployed-origin` 모드는 배포 번들에서 성립하지 않는 `@dev-only` admin forced-failure Playwright 2개를 자동 제외합니다.
 - backend only: `cd backend && ./gradlew test --no-daemon`
 - frontend only: `cd frontend && npm run lint && npm run build && npm run test:e2e`
 - runtime read-only baseline only: `bash deploy/smoke/run-local-ops-baseline-suite.sh`
@@ -46,6 +48,7 @@
 추천을 다시 열지 말지 빠르게 다시 보고 싶으면 아래 wrapper를 먼저 씁니다.
 
 - recommendation reopen precheck: `APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-recommendation-reopen-precheck.sh`
+- server/RDS recommendation reopen precheck: `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-recommendation-reopen-precheck.sh`
 
 ## 작업 전/후 읽는 법
 
