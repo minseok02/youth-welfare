@@ -1,5 +1,15 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 1027) `service_view_logs(service_id, viewed_at)` 만 있으면 recent-window 집계는 service predicate가 없는 ranking path에서 덜 유리하다
+- 문제: `policy_ranking` 1차 최적화 뒤에도 서버 rerun에서 `p95 999.4ms` 로 오히려 느려졌고, 원인은 최근 7일 unique view 집계가 `viewed_at >= cutoff` 조건으로 먼저 범위를 자르는 경로인데 기존 인덱스는 `(service_id, viewed_at)` 순서라 recent-window scan에 딱 맞지 않는다는 점이었다.
+- 해결: `service_view_logs(viewed_at, service_id)` 인덱스를 추가하고, ranking unique view query도 `ACTIVE/UPCOMING` status join을 직접 걸어 inactive 서비스까지 같이 세지 않게 바꿨다.
+- 이유: ranking은 전체 active 후보를 매번 다시 계산하므로 recent-window 집계가 서비스 목록 자체보다 더 민감한 비용원이 된다. 시간축 우선 인덱스와 rankable status join을 같이 잡아야 1차 최적화의 역효과를 줄일 수 있다.
+
+## 1028) representative `policy_search_keyword_ilike` explain이 계속 seq scan이면 actual API 개선과 별개로 fallback text path는 아직 planner 선택지가 부족하다는 뜻이다
+- 문제: `policy_search_keyword` API latency는 1차 최적화 후 `646.5ms -> 338.6ms` 로 좋아졌지만, representative DB explain은 `133.042ms seq scan` 으로 남았다. 현재 schema에는 `title`, `keyword`, FTS 인덱스는 있지만, 대표 fallback query가 같이 보는 `description`, `support_content`, 그리고 결합 문서 표현식에 대한 trigram 선택지는 없었다.
+- 해결: `description`, `support_content`, 그리고 결합 검색 문서(`title + description + support_content + keyword`) 에 대한 trigram GIN 인덱스를 추가하고, 검색 repository도 description/support_content/combined document similarity를 랭킹 신호에 포함시켰다.
+- 이유: 실제 API는 FTS + trigram 혼합이라 한쪽만 빨라져도 representative fallback query가 계속 느릴 수 있다. 다음 비교에서는 “API latency는 유지되면서 fallback explain도 planner 선택지가 늘어났는지”를 같이 봐야 한다.
+
 ## 1026) ranking endpoint는 결과 20개를 주더라도 전체 ACTIVE/UPCOMING 엔티티를 먼저 다 읽으면 service 수가 늘수록 CPU와 hydration 비용이 바로 커진다
 - 문제: 서버 baseline에서 `/api/policies/ranking` 은 `p95 870.6ms`, load probe 기준 `p95 2034.4ms` 까지 올라갔다. 구현을 보면 `PolicyRankingService` 가 먼저 `findByStatusIn(ACTIVE, UPCOMING)` 으로 rankable `WelfareService` 전체 엔티티를 다 읽고, 그 전체 id 목록으로 최근 7일 unique view 집계를 한 번 더 날린 뒤, 마지막 20개만 응답으로 보냈다.
 - 해결: rank 계산에 실제 필요한 필드만 담은 `RankableServiceSnapshot` projection을 새로 도입하고, 최근 unique view도 `WHERE viewed_at >= cutoff GROUP BY service_id` 형태로 읽어 대형 `IN (...)` 목록 생성을 없앴다. full `WelfareService` fetch는 score 계산이 끝난 뒤 최종 선택된 id slice에만 수행한다.
