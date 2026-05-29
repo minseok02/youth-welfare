@@ -22,7 +22,7 @@
 
 ## 결론
 
-현재 `2026-05-18` 기준으로는 recommendation/collect 쪽은 기준선 유지가 맞고,
+현재 `2026-05-29` 기준으로는 recommendation/collect 쪽은 기준선 유지가 맞고,
 정책 트랙에서는 **`Gov24 canonical promotion` 설계 lane** 을 다시 여는 것이 우선이었습니다.
 
 즉
@@ -33,12 +33,14 @@
 - 따라서 당시 다음 active track은 `Gov24 canonical deferred` 를 막연한 backlog가 아니라
   **label-first canonical promotion 설계** 범위로 다시 여는 쪽이 맞았습니다.
 
-추가로 `2026-05-29` 코드/테스트 재확인 기준,
+추가로 `2026-05-29` 코드/테스트/운영 smoke 재확인 기준,
 이 문서가 열었던 local lane은 이미 closeout truth로 닫힌 상태입니다.
 현재 [phase-plan.md](../phase-plan.md) 과 코드 기준 practical next action은
 `Gov24 canonical promotion` 을 새로 구현하는 것이 아니라,
 이미 닫힌 label-first canonical 경계를 유지하면서
 stable code/import-backfill 또는 public/scoring 확장 같은 **reopen 조건이 생길 때만 다시 여는 것**입니다.
+
+즉 current live action은 policy 구현 reopen이 아니라 recommendation 관찰 유지입니다. policy/Gov24는 새 승인 목표가 생기기 전까지 close/deferred 상태를 유지하는 편이 맞습니다.
 
 추가로 `2026-05-19` 공식 문서 재확인 기준,
 `서비스분야 / 사용자구분 / 지원유형` 은 공공데이터포털 공식 Swagger에서도 enum/codebook 이 아니라 `string` 필드로만 공개됩니다.

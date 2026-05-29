@@ -57,6 +57,7 @@ bash deploy/smoke/run-local-recommendation-reopen-precheck.sh
 
 - 새 rank/cache/diagnostics mismatch 같은 재현 가능한 버그가 먼저 보일 때
 - `REAL_USER` gate 가 아직 닫혀 있을 때
+- server/RDS current truth가 `KEEP_OBSERVING / WAIT_FOR_REAL_USER_TRAFFIC` 일 때
 
 이 경우는 decision runbook 보다 bugfix 또는 readiness runbook 을 먼저 봅니다.
 

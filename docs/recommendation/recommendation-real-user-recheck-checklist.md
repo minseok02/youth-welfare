@@ -42,6 +42,32 @@ bash deploy/smoke/run-local-recommendation-reopen-precheck.sh
 
 중 무엇인지 바로 요약합니다.
 
+운영 서버/RDS에서는 아래 경로를 기본값으로 씁니다.
+
+```bash
+ENV_FILE=.env.production \
+SMOKE_DB_MODE=postgres \
+APP_BASE_URL='http://127.0.0.1:8082' \
+bash deploy/smoke/run-local-recommendation-reopen-precheck.sh
+```
+
+그리고 지금처럼 `KEEP_OBSERVING` 상태가 current truth일 때는 아래 compact wrapper를 먼저 쓰는 편이 맞습니다.
+
+```bash
+ENV_FILE=.env.production \
+SMOKE_DB_MODE=postgres \
+APP_BASE_URL='http://127.0.0.1:8082' \
+bash deploy/smoke/run-local-recommendation-observation-suite.sh
+```
+
+먼저 볼 값:
+
+- `precheck_status`
+- `precheck_reason`
+- `observation_blocker`
+- `recommended_cadence`
+- `next_action`
+
 ### 1. daily one-shot 재실행
 
 ```bash
