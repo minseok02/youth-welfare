@@ -133,6 +133,28 @@ class RealtimeAiGatewayTest {
     }
 
     @Test
+    void isValidAiResultRejectsNullServiceIdAndOutOfRangeScores() throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        String responseBody = """
+                {
+                  "choices": [
+                    {
+                      "message": {
+                        "content": "{\\"results\\":[{\\"service_id\\":403,\\"score\\":101,\\"reason\\":\\"too high\\"},{\\"service_id\\":null,\\"score\\":55,\\"reason\\":\\"missing id\\"},{\\"service_id\\":371,\\"score\\":0,\\"reason\\":\\"ok\\"}]}"
+                      }
+                    }
+                  ]
+                }
+                """;
+
+        RealtimeAiGateway.AiCallResult result = RealtimeAiGateway.parseAiCallResult(objectMapper, responseBody);
+
+        assertThat(RealtimeAiGateway.isValidAiResult(result.aiResponse().getResults().get(0))).isFalse();
+        assertThat(RealtimeAiGateway.isValidAiResult(result.aiResponse().getResults().get(1))).isFalse();
+        assertThat(RealtimeAiGateway.isValidAiResult(result.aiResponse().getResults().get(2))).isTrue();
+    }
+
+    @Test
     void resolveUnifiedCategoryUsesProjectionCompatBeforeEntityField() {
         ScoredCandidate candidate = ScoredCandidate.builder()
                 .service(WelfareService.builder()

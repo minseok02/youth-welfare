@@ -63,7 +63,7 @@ public class PolicyChunkEmbeddingService {
             return new EmbeddingRefreshResult(serviceIds.size(), targets.size(), 0);
         }
 
-        List<float[]> embeddings = chatEmbeddingGateway.embedDocuments(
+        List<float[]> embeddings = chatEmbeddingGateway.embedDocumentsStrict(
                 staleTargets.stream().map(PolicyChunkVectorRepository.PolicyChunkEmbeddingTarget::chunkText).toList()
         );
         LocalDateTime now = LocalDateTime.now();

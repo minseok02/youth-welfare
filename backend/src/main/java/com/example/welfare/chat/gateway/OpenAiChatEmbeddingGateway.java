@@ -46,6 +46,15 @@ public class OpenAiChatEmbeddingGateway implements ChatEmbeddingGateway {
 
     @Override
     public List<float[]> embedDocuments(List<String> texts) {
+        return embedDocumentsWithFallbackMode(texts, true);
+    }
+
+    @Override
+    public List<float[]> embedDocumentsStrict(List<String> texts) {
+        return embedDocumentsWithFallbackMode(texts, false);
+    }
+
+    private List<float[]> embedDocumentsWithFallbackMode(List<String> texts, boolean allowLocalFallback) {
         if (texts == null || texts.isEmpty()) {
             return List.of();
         }
@@ -54,6 +63,9 @@ public class OpenAiChatEmbeddingGateway implements ChatEmbeddingGateway {
                 .toList();
 
         if (shouldUseLocalFallback()) {
+            if (!allowLocalFallback) {
+                throw new IllegalStateException("OpenAI embeddings are unavailable for strict embedding refresh");
+            }
             return normalizedTexts.stream()
                     .map(this::createLocalEmbedding)
                     .toList();
@@ -62,6 +74,9 @@ public class OpenAiChatEmbeddingGateway implements ChatEmbeddingGateway {
         try {
             return requestEmbeddings(normalizedTexts);
         } catch (Exception e) {
+            if (!allowLocalFallback) {
+                throw new IllegalStateException("OpenAI embedding request failed during strict embedding refresh", e);
+            }
             log.warn("[OpenAiChatEmbeddingGateway] 임베딩 호출 실패, local fallback 사용: {}", e.getMessage());
             return normalizedTexts.stream()
                     .map(this::createLocalEmbedding)
