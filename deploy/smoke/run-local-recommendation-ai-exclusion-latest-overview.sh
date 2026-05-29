@@ -134,6 +134,8 @@ fi
   APP_BASE_URL="${APP_BASE_URL}" \
   ADMIN_EMAIL="${ADMIN_EMAIL}" \
   ADMIN_PASSWORD="${ADMIN_PASSWORD}" \
+  KEEP_ARTIFACTS=true \
+  ARTIFACT_DIR="${ARTIFACT_DIR}/real-user-readiness-artifact" \
     bash "${REAL_USER_READINESS_SCRIPT}" | tee "${READINESS_RAW_OUT}"
   {
     echo "real_user_readiness_included=true"

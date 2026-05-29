@@ -37,9 +37,15 @@
 
 ## 작업 전 기본 검증 기준
 
-- backend: `cd backend && ./gradlew test --no-daemon`
-- frontend: `cd frontend && npm run lint && npm run build && npm run test:e2e`
-- runtime read-only baseline: `bash deploy/smoke/run-local-ops-baseline-suite.sh`
+- one-shot local active baseline: `bash deploy/smoke/run-local-active-baseline-suite.sh`
+- backend only: `cd backend && ./gradlew test --no-daemon`
+- frontend only: `cd frontend && npm run lint && npm run build && npm run test:e2e`
+- runtime read-only baseline only: `bash deploy/smoke/run-local-ops-baseline-suite.sh`
+- collect legacy repair only: `bash deploy/smoke/run-local-collect-legacy-repair-suite.sh`
+
+추천을 다시 열지 말지 빠르게 다시 보고 싶으면 아래 wrapper를 먼저 씁니다.
+
+- recommendation reopen precheck: `APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-recommendation-reopen-precheck.sh`
 
 ## 작업 전/후 읽는 법
 

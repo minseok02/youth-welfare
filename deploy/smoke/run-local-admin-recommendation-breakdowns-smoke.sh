@@ -20,11 +20,18 @@ ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
 HEALTH_RESPONSE="${ARTIFACT_DIR}/health.json"
 LOGIN_RESPONSE="${ARTIFACT_DIR}/admin-login.json"
 BREAKDOWN_RESPONSE="${ARTIFACT_DIR}/recommendation-breakdowns.json"
+KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
 
 cleanup() {
+  if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
+    return 0
+  fi
   rm -rf "${ARTIFACT_DIR}"
 }
 trap cleanup EXIT
+
+KEEP_ARTIFACTS="$(smoke_normalize_bool "${KEEP_ARTIFACTS}")"
+mkdir -p "${ARTIFACT_DIR}"
 
 extract_access_token() {
   local response_file="$1"

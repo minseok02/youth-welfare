@@ -15,9 +15,12 @@
 
 프론트 browser smoke는 이 문서의 범위가 아닙니다. 로컬 전체 baseline은 아래 순서를 기준으로 읽습니다.
 
-1. `cd backend && ./gradlew test --no-daemon`
-2. `cd frontend && npm run lint && npm run build && npm run test:e2e`
-3. `bash deploy/smoke/run-local-ops-baseline-suite.sh`
+1. `bash deploy/smoke/run-local-active-baseline-suite.sh`
+2. 필요하면 하위 step만 개별 실행
+   - `cd backend && ./gradlew test --no-daemon`
+   - `cd frontend && npm run lint && npm run build && npm run test:e2e`
+   - `bash deploy/smoke/run-local-ops-baseline-suite.sh`
+   - `bash deploy/smoke/run-local-collect-legacy-repair-suite.sh`
 
 운영 cutover 확인은 별도 wrapper를 사용합니다.
 

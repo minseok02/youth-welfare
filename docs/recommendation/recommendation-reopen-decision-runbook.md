@@ -17,11 +17,11 @@
 
 같이 보면 좋은 문서:
 
+- [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
 - [recommendation-pr-review-brief.md](./recommendation-pr-review-brief.md)
 - [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
 - [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
 - [recommendation-real-user-baseline-runbook.md](./recommendation-real-user-baseline-runbook.md)
-- [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
 
 현재 기본 해석은 아래와 같습니다.
 
@@ -40,6 +40,18 @@
 1. 운영 `REAL_USER` gate 가 열렸고 recommendation 을 다시 손볼지 고민할 때
 2. `2736` 류 local 청년 정책 노출이 약하다는 제품 요구가 생겼을 때
 3. admin facet / concentration / readiness 결과를 보고 다음 recommendation 과제를 고를 때
+
+실무에서는 이 문서로 바로 들어오기보다 먼저 아래 precheck를 태우는 편이 맞습니다.
+
+```bash
+APP_BASE_URL='http://127.0.0.1:8082' \
+ADMIN_EMAIL='<local admin email>' \
+ADMIN_PASSWORD='<local admin password>' \
+bash deploy/smoke/run-local-recommendation-reopen-precheck.sh
+```
+
+이 wrapper가 `READY_FOR_REOPEN_DECISION` 이나 `SUPPLEMENTAL_REVIEW_ONLY` 를 반환할 때만
+이 decision runbook 으로 들어오는 편이 맞습니다.
 
 반대로 아래면 아직 이 문서를 쓸 단계가 아닙니다.
 
