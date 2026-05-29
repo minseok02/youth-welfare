@@ -129,18 +129,20 @@ public class WelfareService extends BaseTimeEntity {
                                      LocalDate applyEndDate,
                                      Boolean isOnlineApply,
                                      String detailUrl) {
+        Integer normalizedMinAge = normalizePositiveAge(minAge);
+        Integer normalizedMaxAge = normalizePositiveAge(maxAge);
         if ((this.supportContent == null || this.supportContent.isBlank()) && supportContent != null && !supportContent.isBlank()) {
             this.supportContent = supportContent;
         }
         if ((this.applyMethodName == null || this.applyMethodName.isBlank()) && applyMethodName != null && !applyMethodName.isBlank()) {
             this.applyMethodName = applyMethodName;
         }
-        repairInvalidAgeRange(minAge, maxAge);
-        if (this.minAge == null && minAge != null) {
-            this.minAge = minAge;
+        repairInvalidAgeRange(normalizedMinAge, normalizedMaxAge);
+        if (this.minAge == null && normalizedMinAge != null) {
+            this.minAge = normalizedMinAge;
         }
-        if (this.maxAge == null && maxAge != null) {
-            this.maxAge = maxAge;
+        if (this.maxAge == null && normalizedMaxAge != null) {
+            this.maxAge = normalizedMaxAge;
         }
         if (this.applyEndDate == null && applyEndDate != null) {
             this.applyEndDate = applyEndDate;
@@ -162,6 +164,11 @@ public class WelfareService extends BaseTimeEntity {
             this.maxAge = fallbackMaxAge;
             return;
         }
+        if (fallbackMinAge != null && fallbackMaxAge == null) {
+            this.minAge = fallbackMinAge;
+            this.maxAge = null;
+            return;
+        }
         if (fallbackMinAge != null && isValidAgeRange(fallbackMinAge, this.maxAge)) {
             this.minAge = fallbackMinAge;
         }
@@ -176,6 +183,10 @@ public class WelfareService extends BaseTimeEntity {
 
     private boolean isValidAgeRange(Integer minAge, Integer maxAge) {
         return minAge == null || maxAge == null || minAge <= maxAge;
+    }
+
+    private Integer normalizePositiveAge(Integer age) {
+        return age != null && age > 0 ? age : null;
     }
 
     public enum SourceType {
