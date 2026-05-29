@@ -38,7 +38,7 @@
 ## 작업 전 기본 검증 기준
 
 - backend: `cd backend && ./gradlew test --no-daemon`
-- frontend: `cd frontend && npm run lint && npm run build`
+- frontend: `cd frontend && npm run lint && npm run build && npm run test:e2e`
 - runtime read-only baseline: `bash deploy/smoke/run-local-ops-baseline-suite.sh`
 
 ## 작업 전/후 읽는 법

@@ -34,6 +34,7 @@ const SUCCESS_TEXT = "#166534";
 const INFO_BG = "#eff6ff";
 const INFO_BORDER = "#93c5fd";
 const INFO_TEXT = "#1d4ed8";
+const E2E_FAILURE_STORAGE_KEY = "__ADMIN_DASHBOARD_E2E_FAIL__";
 
 const SOURCE_TYPE_LABELS = {
   YOUTH: "온통청년",
@@ -190,7 +191,25 @@ const formatRelativeDateTime = (value) => {
   return `${diffDays}일 전 갱신`;
 };
 
+const readE2EFailureMode = () => {
+  if (!import.meta.env.DEV || typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(E2E_FAILURE_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+};
+
+const maybeThrowE2EFailure = (section) => {
+  if (readE2EFailureMode() !== section) return;
+  const message = `${section} forced failure`;
+  const error = new Error(message);
+  error.response = { data: { message } };
+  throw error;
+};
+
 const fetchSummary = async (windowDays) => {
+  maybeThrowE2EFailure("summary");
   const { data } = await api.get("/api/admin/dashboard/summary", {
     params: { summaryWindowDays: windowDays, trendWindowDays: [1, 7, 30] },
   });
@@ -198,6 +217,7 @@ const fetchSummary = async (windowDays) => {
 };
 
 const fetchBreakdowns = async (windowDays) => {
+  maybeThrowE2EFailure("breakdown");
   const { data } = await api.get("/api/admin/dashboard/recommendation-breakdowns", {
     params: { summaryWindowDays: windowDays, limit: 3 },
   });
@@ -473,29 +493,33 @@ function SectionErrorCard({ title, description, message, onRetry }) {
 
 export default function AdminDashboardPage() {
   const [windowDays, setWindowDays] = useState(14);
+  const queryBaseOptions = {
+    staleTime: 30_000,
+    retry: false,
+  };
 
   const summaryQuery = useQuery({
     queryKey: ["admin-dashboard-summary", windowDays],
     queryFn: () => fetchSummary(windowDays),
-    staleTime: 30_000,
+    ...queryBaseOptions,
   });
 
   const breakdownQuery = useQuery({
     queryKey: ["admin-dashboard-breakdowns", windowDays],
     queryFn: () => fetchBreakdowns(windowDays),
-    staleTime: 30_000,
+    ...queryBaseOptions,
   });
 
   const collectFailuresQuery = useQuery({
     queryKey: ["admin-dashboard-collect-failures", windowDays],
     queryFn: () => fetchCollectFailures(windowDays),
-    staleTime: 30_000,
+    ...queryBaseOptions,
   });
 
   const searchFailuresQuery = useQuery({
     queryKey: ["admin-dashboard-search-failures", windowDays],
     queryFn: () => fetchSearchFailures(windowDays),
-    staleTime: 30_000,
+    ...queryBaseOptions,
   });
 
   const summaryData = summaryQuery.data;

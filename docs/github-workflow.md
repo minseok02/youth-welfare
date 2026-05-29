@@ -8,13 +8,21 @@
 
 | 영역 | 경로 | 기본 검증 |
 |------|------|----------|
-| 프론트 | `frontend/` | `cd frontend && npm run lint && npm run build` |
+| 프론트 | `frontend/` | `cd frontend && npm run lint && npm run build && npm run test:e2e` |
 | 백엔드 | `backend/` | `cd backend && ./gradlew test` |
 | 배포 | `deploy/`, Docker 관련 파일 | 관련 배포 문서 확인 |
 | 문서 | `docs/` | 링크, 작업 추적, 검증 결과 확인 |
 
 프론트 작업은 프론트 파일과 관련 문서만, 백엔드 작업은 백엔드 파일과 관련 문서만 수정하는 것을 기본으로 한다.
 양쪽 수정이 필요하면 API 계약 변경과 화면 연결을 가능한 한 다른 커밋/PR로 나눈다.
+
+현재 PR/browser 기준선은 [.github/workflows/ci.yml](../.github/workflows/ci.yml) 에서 아래로 묶는다.
+
+- `backend test`
+- `frontend npm audit`
+- `runtime logout smoke`
+- `admin forced logout smoke`
+- `frontend lint/build/e2e`
 
 ## 브랜치
 
@@ -150,9 +158,14 @@ PR 범위가 커졌다면 왜 커졌는지 본문에 적는다.
 
 변경 영역에 맞는 검증을 실행한다.
 
-- 프론트: `cd frontend && npm run lint && npm run build`
+- 프론트: `cd frontend && npm run lint && npm run build && npm run test:e2e`
+- 프론트 보안 기준선: `cd frontend && npm audit`
 - 백엔드: `cd backend && ./gradlew test`
 - DB/Redis 흐름: `docker compose up -d db redis` 후 `cd backend && ./gradlew integrationTest`
+- runtime auth/session 기준선: `APP_BASE_URL=http://127.0.0.1:8082 APP_HEALTH_URL=http://127.0.0.1:8082/actuator/health REQUIRE_RECOMMENDATIONS=false bash deploy/smoke/run-local-runtime-api-smoke.sh`
+- auth/session 보안 경계: `bash deploy/smoke/run-local-admin-forced-logout-smoke.sh`
+
+프론트에서 라우팅, 인증 복귀, admin dashboard를 건드렸다면 browser smoke까지 통과해야 작업 단위가 닫힌 것으로 본다.
 
 실행하지 못한 검증은 이유를 남긴다.
 

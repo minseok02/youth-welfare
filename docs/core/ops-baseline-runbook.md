@@ -13,6 +13,16 @@
 
 를 한 번에 다시 확인하는 read-only baseline 경로를 고정합니다.
 
+프론트 browser smoke는 이 문서의 범위가 아닙니다. 로컬 전체 baseline은 아래 순서를 기준으로 읽습니다.
+
+1. `cd backend && ./gradlew test --no-daemon`
+2. `cd frontend && npm run lint && npm run build && npm run test:e2e`
+3. `bash deploy/smoke/run-local-ops-baseline-suite.sh`
+
+운영 cutover 확인은 별도 wrapper를 사용합니다.
+
+- `ENV_FILE=.env.production PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-prod-cutover-verification.sh`
+
 ## 기본 wrapper
 
 ```bash
@@ -33,6 +43,8 @@ bash deploy/smoke/run-local-ops-baseline-suite.sh
 2. collect/runtime governance 변경 후 회귀 확인
 3. recommendation admin-only read surface 회귀 확인
 4. “앱은 떠 있는데 운영 화면 contract가 깨지지 않았는지”를 빠르게 확인할 때
+
+브라우저 복귀/query/session/admin 접근 회귀는 먼저 Playwright smoke로 보고, 이 wrapper는 그 다음 read-only runtime contract 확인에 사용합니다.
 
 ## 주요 입력
 

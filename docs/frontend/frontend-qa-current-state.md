@@ -8,8 +8,8 @@
 
 ## 현재 결론
 
-- 현재 프론트엔드에는 `Playwright`, `Cypress`, `Puppeteer` 같은 브라우저 자동화 테스트 도구가 없습니다.
-- 따라서 프론트 QA는 현재 단계에서 `정적 검증(build/lint) + 수동 브라우저 시나리오 검증` 기준으로 봅니다.
+- 현재 프론트엔드에는 repo-native `Playwright` browser smoke가 있습니다.
+- 따라서 프론트 QA는 현재 단계에서 `정적 검증(build/lint) + Playwright smoke + 수동 브라우저 시나리오 검증` 기준으로 봅니다.
 - 핵심 검증 축은 아래 네 가지입니다.
   - 라우팅/뒤로가기/재진입
   - 로그인 필요 경로와 로그인 후 복귀
@@ -83,10 +83,29 @@
 
 ## 현재 QA 기준선
 
-2026-05-15 기준 프론트엔드 정적 기준선은 아래와 같습니다.
+2026-05-29 기준 프론트엔드 QA 기준선은 아래와 같습니다.
 
 - `cd frontend && npm run build` 통과
 - `cd frontend && npm run lint` 통과
+- `cd frontend && npm run test:e2e` 통과
+
+현재 Playwright smoke 범위:
+
+- `/chat` 비로그인 접근 -> `/login` -> 로그인 후 원 경로 복귀
+- 로그인된 `/chat` 에서 `authExpired` callback 실행 -> `/login` -> 재로그인 후 `/chat` 복귀
+- `/chat` 에서 보호 API `401` + `/api/auth/refresh 401` -> `/login` -> 재로그인 후 `/chat` 복귀
+- `/policies?search=...` -> 상세 -> 브라우저 back / 상세 뒤로가기에서 query 유지
+- `/mypage?tab=2` 로그인 후 bookmark 목록 -> 상세 -> 뒤로가기에서 `?tab=2` 유지
+- `/mypage?tab=5` 비밀번호 변경 성공 -> 강제 로그아웃 -> `/login` -> 재로그인 후 account tab 복귀
+- 비로그인 정책 상세 bookmark 클릭 -> `/login` -> 로그인 후 bookmark `POST` 정확히 1회 + 최종 bookmarked 상태 반영
+- `/reset-password?token=...` query token 진입 -> hash 정규화 -> 새 비밀번호 설정 -> 새 비밀번호 로그인 성공
+- `/reset-password#token=...` hash 딥링크 진입 -> 새 비밀번호 설정 -> 새 비밀번호 로그인 성공
+- `/reset-password#token=...` invalid token 제출 -> `A008` 만료 안내 노출 + reset-password 화면 유지
+- 일반 사용자 `/admin/dashboard` 접근 차단
+- 관리자 `/admin/dashboard` recommendation overview + triage 섹션 렌더
+- admin dashboard quick jump -> recommendation breakdown 섹션 이동
+- admin dashboard `summary` 강제 실패 -> `수집 실패 상세`, `검색 실패 상세` 유지
+- admin dashboard `recommendation-breakdowns` 강제 실패 -> 상단 recommendation hero 유지 + 해당 섹션만 error card 전환
 
 같은 날짜의 production build/preview Chromium 수동 검증 기준선:
 
@@ -115,10 +134,11 @@
 
 ## 현재 리스크
 
-### 1. 브라우저 자동화 부재
+### 1. 브라우저 smoke 범위의 한계
 
-- 실제 뒤로가기, 새로고침, 탭 복귀, 세션 만료 타이밍은 자동 회귀로 잡히지 않습니다.
-- 따라서 지금은 수동 QA 체크리스트와 QA template의 URL/query/state 증거 기록을 기준으로 확인해야 합니다.
+- 핵심 라우팅/query/tab 복귀, 실제 `401 -> refresh 실패 -> /login` 세션 만료 경로, 비밀번호 변경 후 재로그인 복귀, bookmark post-login 1회 실행, admin 부분 실패 분리는 Playwright smoke로 회귀 감시가 가능해졌습니다.
+- 다만 아직 실제 메일 앱에서 링크를 클릭해 브라우저를 여는 외부 메일 클라이언트 환경 자체는 자동화하지 않았습니다.
+- 따라서 지금도 QA 체크리스트와 QA template의 URL/query/state 증거 기록은 유지해야 합니다.
 
 ### 2. 목록 필터 상태의 URL 비영속성
 

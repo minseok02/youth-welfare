@@ -48,6 +48,8 @@ load_env_value() {
 ADMIN_RO_USERNAME="${DB_ADMIN_RO_USERNAME:-$(load_env_value DB_ADMIN_RO_USERNAME admin_dashboard_ro)}"
 DB_PASSWORD_VALUE="$(load_env_value DB_PASSWORD '')"
 ADMIN_RO_PASSWORD="${DB_ADMIN_RO_PASSWORD:-$(load_env_value DB_ADMIN_RO_PASSWORD "${DB_PASSWORD_VALUE}")}"
+CHAT_SESSION_CLEANUP_USERNAME="${DB_CHAT_SESSION_CLEANUP_USERNAME:-$(load_env_value DB_CHAT_SESSION_CLEANUP_USERNAME chat_session_cleanup_rw)}"
+CHAT_SESSION_CLEANUP_PASSWORD="${DB_CHAT_SESSION_CLEANUP_PASSWORD:-$(load_env_value DB_CHAT_SESSION_CLEANUP_PASSWORD "${DB_PASSWORD_VALUE}")}"
 CLUSTER_AI_CLEANUP_USERNAME="${DB_CLUSTER_AI_CLEANUP_USERNAME:-$(load_env_value DB_CLUSTER_AI_CLEANUP_USERNAME cluster_ai_cleanup_rw)}"
 CLUSTER_AI_CLEANUP_PASSWORD="${DB_CLUSTER_AI_CLEANUP_PASSWORD:-$(load_env_value DB_CLUSTER_AI_CLEANUP_PASSWORD "${DB_PASSWORD_VALUE}")}"
 RECOMMENDATION_RETENTION_CLEANUP_USERNAME="${DB_RECOMMENDATION_RETENTION_CLEANUP_USERNAME:-$(load_env_value DB_RECOMMENDATION_RETENTION_CLEANUP_USERNAME recommendation_retention_cleanup_rw)}"
@@ -73,6 +75,8 @@ for patch in "${patches[@]}"; do
     -v ON_ERROR_STOP=1 \
     -v "admin_ro_username=${ADMIN_RO_USERNAME}" \
     -v "admin_ro_password=${ADMIN_RO_PASSWORD}" \
+    -v "chat_session_cleanup_username=${CHAT_SESSION_CLEANUP_USERNAME}" \
+    -v "chat_session_cleanup_password=${CHAT_SESSION_CLEANUP_PASSWORD}" \
     -v "cluster_ai_cleanup_username=${CLUSTER_AI_CLEANUP_USERNAME}" \
     -v "cluster_ai_cleanup_password=${CLUSTER_AI_CLEANUP_PASSWORD}" \
     -v "recommendation_retention_cleanup_username=${RECOMMENDATION_RETENTION_CLEANUP_USERNAME}" \

@@ -4,6 +4,7 @@ import com.example.welfare.chat.entity.ChatMessage;
 import com.example.welfare.chat.entity.ChatMessageRole;
 import com.example.welfare.chat.entity.ChatSession;
 import com.example.welfare.chat.repository.ChatMessageRepository;
+import com.example.welfare.chat.repository.ChatSessionCleanupCommandRepository;
 import com.example.welfare.chat.repository.ChatSessionRepository;
 import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.user.entity.User;
@@ -52,6 +53,9 @@ class UserWithdrawChatCleanupIntegrationTest {
     private ChatMessageRepository chatMessageRepository;
 
     @Autowired
+    private ChatSessionCleanupCommandRepository chatSessionCleanupCommandRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @BeforeEach
@@ -69,7 +73,7 @@ class UserWithdrawChatCleanupIntegrationTest {
                 .forEach(user -> {
                     String userKey = userRepository.findUserKeyById(user.getId()).orElse(null);
                     if (userKey != null) {
-                        chatSessionRepository.deleteAll(chatSessionRepository.findAllByUserKey(userKey));
+                        chatSessionCleanupCommandRepository.deleteByUserKey(userKey);
                     }
                     userRepository.delete(user);
                 });

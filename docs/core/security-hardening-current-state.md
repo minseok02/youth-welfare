@@ -42,6 +42,13 @@
   - `bash deploy/smoke/run-local-admin-forced-logout-smoke.sh`
   - `ADMIN_PASSWORD` 또는 `/tmp/youth-welfare-admin-smoke-password` 필요
 
+현재 CI 기준선([.github/workflows/ci.yml](../../.github/workflows/ci.yml))도 아래를 자동으로 다시 확인합니다.
+
+- `frontend npm audit`
+- `runtime logout smoke`
+- `admin forced logout smoke`
+- `frontend lint/build/e2e`
+
 ## 현재 구현 상태 요약
 
 ### 1. dependency hardening
@@ -116,6 +123,7 @@ edge case:
 4. `SECURITY_ADMIN_EMAILS` 의 첫 이메일
 
 값이 없으면 이제 더 직접적인 fail-fast 메시지를 출력합니다.
+로그 증거는 기본적으로 `docker logs ${APP_CONTAINER_NAME}` 를 읽고, CI/bootRun 경로에서는 `APP_LOG_FILE` 이 주어지면 그 파일을 우선 읽습니다.
 
 ### 5. input validation / manual dispatch hardening
 
@@ -130,16 +138,24 @@ edge case:
 - `docker-compose.prod.yml` 은 `read_only`, `tmpfs`, `no-new-privileges`, `pids_limit`, `mem_limit` 를 적용합니다.
 - prod compose logging은 `json-file` rotation cap을 둡니다.
 
-### 7. query/input cost guard
+### 7. DB 최소권한 2차 progress
+
+- `app_core_rw` 는 더 이상 `chat_sessions`, `cluster_ai_results`, `collect_execution_locks`, `web_push_subscriptions` 에서 `DELETE` 를 직접 갖지 않습니다.
+- 해당 delete는 각각 `chat_session_cleanup_rw`, `cluster_ai_cleanup_rw`, `collect_execution_lock_cleanup_rw`, `web_push_subscription_cleanup_rw` 전용 경계가 맡습니다.
+- fresh init은 [z90-create-runtime-db-users.sh](../../deploy/postgres/init/z90-create-runtime-db-users.sh), 기존 volume drift 복구는 [V2026_05_29_01__tighten_app_core_cleanup_delete_grants.sql](../../deploy/postgres/patches/V2026_05_29_01__tighten_app_core_cleanup_delete_grants.sql) 기준으로 맞춥니다.
+- local 재검증 기준 `ChatSessionApi/AuthRedis/ChatMessage/ChatRepository/UserWithdraw` integration 세트와 `run-local-runtime-api-smoke.sh`, `run-local-admin-forced-logout-smoke.sh` 가 다시 통과했습니다.
+
+### 8. query/input cost guard
 
 - `GET /api/recommendations?size=` 는 `1..100` 만 허용합니다.
 - `PolicyRankingService` 도 랭킹 size를 내부에서 `MAX_SIZE=100` 으로 clamp 합니다.
 - collect/policy admin 수동 경로는 `maxCallsPerRun <= 5000`, `limitPerSource <= 1000`, `rounds <= 10`, `maxCallsPerRound <= 1000` 상한을 둡니다.
 
-### 8. RDS bootstrap hardening
+### 9. RDS bootstrap hardening
 
 - runtime DB role bootstrap은 PostgreSQL 식별자를 quoting해서 하이픈/대소문자/특수문자 섞인 role 이름도 안전하게 처리합니다.
 - migration role 권한 보존 로직도 같이 정리돼, bootstrap 과정에서 runtime role만 다시 만들다가 migration 경계를 깨지 않게 맞춥니다.
+- 운영 bootstrap 현재 기준선에는 `chat_session_cleanup_rw` 도 포함되고, bootstrap 뒤에는 [verify-rds-runtime-privileges.sh](../../deploy/postgres/verify-rds-runtime-privileges.sh) 로 실제 login/grant를 다시 확인합니다.
 
 ## 운영 반영 시 체크할 것
 
@@ -157,12 +173,18 @@ edge case:
 
 - `nginx -t`
 - `sudo systemctl reload nginx`
-- `curl -sS -D - -o /dev/null https://youthmoa.kr/actuator/health`
+- `PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/nginx/verify-edge-baseline.sh`
 
 기대값:
 
 - 외부 `/actuator/health` 는 `403` 또는 내부망 only
 - `Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options` 는 각각 1개만 존재
+
+### 운영 cutover 묶음 확인
+
+- `ENV_FILE=.env.production PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-prod-cutover-verification.sh`
+
+이 wrapper는 env preflight, RDS privilege verify, nginx edge verify를 순서대로 태웁니다.
 
 ## 지금 남은 리스크
 

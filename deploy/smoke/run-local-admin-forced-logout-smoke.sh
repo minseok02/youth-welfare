@@ -7,6 +7,7 @@ source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
 APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:8082}"
 APP_HEALTH_URL="${APP_HEALTH_URL:-${APP_BASE_URL}/actuator/health}"
 APP_CONTAINER_NAME="${APP_CONTAINER_NAME:-youth-welfare-app}"
+APP_LOG_FILE="${APP_LOG_FILE:-}"
 DB_CONTAINER_NAME="${DB_CONTAINER_NAME:-youth-welfare-db}"
 DB_NAME="${DB_NAME:-youth_welfare}"
 
@@ -89,6 +90,17 @@ lookup_user_key_by_email() {
 smoke_require_command curl
 smoke_require_command python3
 smoke_require_command docker
+
+write_forced_logout_log_evidence() {
+  local user_key="$1"
+
+  if [[ -n "${APP_LOG_FILE}" ]]; then
+    grep -F "forced logout 트리거 userKey=${user_key}" "${APP_LOG_FILE}" | tail -n 1 > "${ADMIN_LOG_MATCH_FILE}" || true
+    return
+  fi
+
+  docker logs "${APP_CONTAINER_NAME}" 2>&1 | grep -F "forced logout 트리거 userKey=${user_key}" | tail -n 1 > "${ADMIN_LOG_MATCH_FILE}" || true
+}
 
 SMOKE_EMAIL="$(smoke_build_email "${SMOKE_EMAIL_PREFIX}")"
 
@@ -217,9 +229,14 @@ RELOGIN_BOOKMARKS_STATUS="$(
 smoke_assert_status 200 "${RELOGIN_BOOKMARKS_STATUS}" "relogin protected api" "${RELOGIN_BOOKMARKS_RESPONSE}"
 
 smoke_print_step "forced logout log evidence"
-docker logs "${APP_CONTAINER_NAME}" 2>&1 | grep -F "forced logout 트리거 userKey=${USER_KEY}" | tail -n 1 > "${ADMIN_LOG_MATCH_FILE}" || true
+write_forced_logout_log_evidence "${USER_KEY}"
 if [[ ! -s "${ADMIN_LOG_MATCH_FILE}" ]]; then
   echo "forced logout log line not found for userKey=${USER_KEY}" >&2
+  if [[ -n "${APP_LOG_FILE}" ]]; then
+    echo "checked APP_LOG_FILE=${APP_LOG_FILE}" >&2
+  else
+    echo "checked APP_CONTAINER_NAME=${APP_CONTAINER_NAME}" >&2
+  fi
   exit 1
 fi
 

@@ -3,6 +3,7 @@ package com.example.welfare.chat.service;
 import com.example.welfare.chat.dto.request.CreateChatSessionRequest;
 import com.example.welfare.chat.dto.response.ChatSessionResponse;
 import com.example.welfare.chat.entity.ChatSession;
+import com.example.welfare.chat.repository.ChatSessionCleanupCommandRepository;
 import com.example.welfare.chat.repository.ChatSessionCommandRepository;
 import com.example.welfare.chat.repository.ChatSessionReadRepository;
 import com.example.welfare.global.exception.CustomException;
@@ -19,6 +20,7 @@ public class ChatSessionCommandService {
 
     private final ChatSessionReadRepository chatSessionReadRepository;
     private final ChatSessionCommandRepository chatSessionCommandRepository;
+    private final ChatSessionCleanupCommandRepository chatSessionCleanupCommandRepository;
     private final ActiveUserReadService activeUserReadService;
 
     @Transactional
@@ -34,9 +36,9 @@ public class ChatSessionCommandService {
     @Transactional
     public void deleteSession(Long userId, Long sessionId) {
         ActiveUserReadService.ActiveUserContext activeUserContext = activeUserReadService.getActiveUserContext(userId);
-        ChatSession session = chatSessionReadRepository.findOwnedSession(sessionId, activeUserContext.userKey())
+        chatSessionReadRepository.findOwnedSession(sessionId, activeUserContext.userKey())
                 .orElseThrow(() -> new CustomException(ErrorCode.CHAT_SESSION_NOT_FOUND));
-        chatSessionCommandRepository.delete(session);
+        chatSessionCleanupCommandRepository.deleteByIdAndUserKey(sessionId, activeUserContext.userKey());
     }
 
     private String normalizeTitle(String title) {
