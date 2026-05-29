@@ -3,6 +3,10 @@ package com.example.welfare.collect.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import com.example.welfare.collect.dto.InvertedAgeBackfillResponse;
+import com.example.welfare.policy.entity.WelfareService;
+
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Service
@@ -12,6 +16,7 @@ public class CollectAdminService {
     private final CollectExecutionGuard collectExecutionGuard;
     private final CollectSourceExecutionService collectSourceExecutionService;
     private final YouthDetailCollectService youthDetailCollectService;
+    private final InvertedAgeBackfillService invertedAgeBackfillService;
 
     public void collect(CollectSource source) {
         collectExecutionGuard.runExclusive(source.lockName(), () -> {
@@ -56,6 +61,14 @@ public class CollectAdminService {
         AtomicReference<CollectResult> resultRef = new AtomicReference<>();
         collectExecutionGuard.runExclusive(CollectRuntimeLaneCatalog.YOUTH_DETAILS_LOCK_NAME, () ->
                 resultRef.set(youthDetailCollectService.collectYouthDetails()));
+        return resultRef.get();
+    }
+
+    public InvertedAgeBackfillResponse backfillInvertedAgeRanges(List<WelfareService.SourceType> sourceTypes,
+                                                                 int limitPerSource) {
+        AtomicReference<InvertedAgeBackfillResponse> resultRef = new AtomicReference<>();
+        collectExecutionGuard.runExclusive(CollectRuntimeLaneCatalog.INVERTED_AGE_BACKFILL_LOCK_NAME, () ->
+                resultRef.set(invertedAgeBackfillService.backfill(sourceTypes, limitPerSource)));
         return resultRef.get();
     }
 }

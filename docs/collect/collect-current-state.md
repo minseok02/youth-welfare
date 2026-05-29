@@ -23,6 +23,7 @@
 - `POST /api/admin/collect/all`
 - `POST /api/admin/collect/{sourceKey}`
 - `POST /api/admin/collect/bokjiro-details-gap-fill`
+- `POST /api/admin/collect/inverted-age-backfill`
 - `POST /api/admin/collect/bokjiro-sidecars-backfill`
 
 정기 진입:
@@ -74,6 +75,11 @@
   - lane type: `MAINTENANCE`
   - 이유: 기존 detail 을 다시 읽는 rerun lane
   - 현재는 `?sourceId=<복지로 서비스ID>` 단건 refresh도 지원하며, stale row self-heal 확인은 `WLF00004717(인천형 청년월세 지원사업)` 처럼 특정 정책만 다시 태우는 쪽이 기본 운영 경계다
+- `INVERTED_AGE_BACKFILL`
+  - lane type: `MAINTENANCE`
+  - 이유: 이미 저장된 `DETAIL raw_api_payloads` 를 replay해 legacy `min_age > max_age` row를 한 번에 복구하는 backfill lane
+  - 현재는 `?sourceType=YOUTH|BOKJIRO_CENTRAL|BOKJIRO_LOCAL|GOV24` 필터와 `?limitPerSource=` cap을 지원하고, `missingRawPayload / unrepaired / failed` 를 따로 집계한다
+  - 외부 API를 다시 호출하지 않는 raw replay lane이라 collect inventory의 “실제 외부 API 호출 lane” 에는 포함하지 않는다
 
 ### 왜 이렇게 나눴나
 

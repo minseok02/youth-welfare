@@ -90,11 +90,17 @@ public final class YouthNormalizationSupport {
 
     public static List<NormalizedPolicyAggregate.Fact> facts(WelfareService service, YouthApiDto.Item item) {
         List<NormalizedPolicyAggregate.Fact> facts = new ArrayList<>();
+        Integer resolvedMinAge = item != null && item.getSprtTrgtMinAge() != null
+                ? item.getSprtTrgtMinAge()
+                : service.getMinAge();
+        Integer resolvedMaxAge = item != null && item.getSprtTrgtMaxAge() != null
+                ? item.getSprtTrgtMaxAge()
+                : service.getMaxAge();
         addRangeFact(facts,
                 NormalizationKeySupport.FACT_GROUP_AGE,
                 NormalizationKeySupport.FACT_CODE_YOUTH_AGE,
                 NormalizationKeySupport.FACT_MERGE_KEY_YOUTH_AGE,
-                "지원 연령", service.getMinAge(), service.getMaxAge(), "세",
+                "지원 연령", resolvedMinAge, resolvedMaxAge, "세",
                 NormalizationKeySupport.SOURCE_FIELD_YOUTH_AGE, NormalizedPolicyAggregate.Authority.OFFICIAL, BigDecimal.ONE, null);
         addBoundaryFact(facts,
                 NormalizationKeySupport.FACT_GROUP_INCOME,

@@ -1,5 +1,7 @@
 package com.example.welfare.collect.service;
 
+import com.example.welfare.collect.dto.InvertedAgeBackfillResponse;
+import com.example.welfare.policy.entity.WelfareService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,6 +26,8 @@ class CollectAdminServiceTest {
     private CollectSourceExecutionService collectSourceExecutionService;
     @Mock
     private YouthDetailCollectService youthDetailCollectService;
+    @Mock
+    private InvertedAgeBackfillService invertedAgeBackfillService;
 
     @InjectMocks
     private CollectAdminService collectAdminService;
@@ -138,5 +142,36 @@ class CollectAdminServiceTest {
         assertThat(actual).isEqualTo(expected);
         verify(collectExecutionGuard).runExclusive(eq("collect-youth-details"), any(Runnable.class));
         verify(youthDetailCollectService).collectYouthDetails();
+    }
+
+    @Test
+    @DisplayName("inverted age backfill은 전용 lock 아래에서 backfill service를 실행한다")
+    void backfillInvertedAgeRangesUsesExclusiveLock() {
+        InvertedAgeBackfillResponse expected = new InvertedAgeBackfillResponse(
+                "selected-source-types",
+                java.util.List.of(WelfareService.SourceType.YOUTH),
+                25,
+                2,
+                1,
+                0,
+                1,
+                0
+        );
+
+        doAnswer(invocation -> {
+            Runnable task = invocation.getArgument(1);
+            task.run();
+            return null;
+        }).when(collectExecutionGuard).runExclusive(eq("collect-inverted-age-backfill"), any(Runnable.class));
+        when(invertedAgeBackfillService.backfill(java.util.List.of(WelfareService.SourceType.YOUTH), 25)).thenReturn(expected);
+
+        InvertedAgeBackfillResponse actual = collectAdminService.backfillInvertedAgeRanges(
+                java.util.List.of(WelfareService.SourceType.YOUTH),
+                25
+        );
+
+        assertThat(actual).isEqualTo(expected);
+        verify(collectExecutionGuard).runExclusive(eq("collect-inverted-age-backfill"), any(Runnable.class));
+        verify(invertedAgeBackfillService).backfill(java.util.List.of(WelfareService.SourceType.YOUTH), 25);
     }
 }

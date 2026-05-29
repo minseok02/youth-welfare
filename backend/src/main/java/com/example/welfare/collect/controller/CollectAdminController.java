@@ -6,9 +6,11 @@ import com.example.welfare.collect.service.CollectBatchService;
 import com.example.welfare.collect.service.CollectBatchRunResult;
 import com.example.welfare.collect.service.CollectResult;
 import com.example.welfare.collect.service.CollectSource;
+import com.example.welfare.collect.dto.InvertedAgeBackfillResponse;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.response.ApiResponse;
+import com.example.welfare.policy.entity.WelfareService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -93,6 +96,26 @@ public class CollectAdminController {
                 "온통청년 DETAIL 수집 완료 requested=%d saved=%d skipped=%d failed=%d"
                         .formatted(result.requestedCount(), result.savedCount(), result.skippedCount(), result.failedCount())
         ));
+    }
+
+    @PostMapping("/inverted-age-backfill")
+    public ResponseEntity<ApiResponse<InvertedAgeBackfillResponse>> backfillInvertedAges(
+            @RequestParam(required = false) List<WelfareService.SourceType> sourceType,
+            @RequestParam(defaultValue = "0") int limitPerSource
+    ) {
+        int effectiveLimitPerSource = normalizeLimitPerSource(limitPerSource);
+        InvertedAgeBackfillResponse response =
+                collectAdminService.backfillInvertedAgeRanges(sourceType, effectiveLimitPerSource);
+        log.info("[Admin] inverted age backfill 수동 트리거 scope={} sourceTypes={} limitPerSource={} scanned={} repaired={} missingRawPayload={} unrepaired={} failed={}",
+                response.scope(),
+                response.sourceTypes(),
+                effectiveLimitPerSource,
+                response.scannedCount(),
+                response.repairedCount(),
+                response.missingRawPayloadCount(),
+                response.unrepairedCount(),
+                response.failedCount());
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PostMapping("/bokjiro-sidecars-backfill")
