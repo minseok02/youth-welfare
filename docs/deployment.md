@@ -45,9 +45,12 @@ RDS PostgreSQL 16
 - 운영 compose: [docker-compose.prod.yml](/home/minseok/youth-welfare/docker-compose.prod.yml:1)
 - 운영 env 예시: [env.production.example](/home/minseok/youth-welfare/env.production.example:1)
 - RDS bootstrap script: [bootstrap-rds-runtime.sh](/home/minseok/youth-welfare/deploy/postgres/bootstrap-rds-runtime.sh:1)
+- RDS privilege verify: [verify-rds-runtime-privileges.sh](/home/minseok/youth-welfare/deploy/postgres/verify-rds-runtime-privileges.sh:1)
+- cutover verify wrapper: [run-prod-cutover-verification.sh](/home/minseok/youth-welfare/deploy/smoke/run-prod-cutover-verification.sh:1)
 - nginx 예시:
   - bootstrap HTTP only: [youth-welfare.bootstrap.conf](/home/minseok/youth-welfare/deploy/nginx/youth-welfare.bootstrap.conf:1)
   - HTTPS: [youth-welfare.conf](/home/minseok/youth-welfare/deploy/nginx/youth-welfare.conf:1)
+  - edge verify: [verify-edge-baseline.sh](/home/minseok/youth-welfare/deploy/nginx/verify-edge-baseline.sh:1)
 
 ## 3. 운영 `.env.production`
 
@@ -113,6 +116,10 @@ ENV_FILE=.env.production bash deploy/postgres/bootstrap-rds-runtime.sh
 3. schema/table/sequence grant 적용
 4. `deploy/postgres/patches/*.sql` 순차 적용
 
+현재 기준으로 이 bootstrap에는 `chat_session_cleanup_rw`, `cluster_ai_cleanup_rw`,
+`recommendation_retention_cleanup_rw`, `collect_execution_lock_cleanup_rw`,
+`web_push_subscription_cleanup_rw` 전용 role까지 포함됩니다.
+
 전제:
 
 - `RDS_MASTER_USERNAME`
@@ -138,6 +145,24 @@ bash deploy/smoke/preflight-runtime-cutover-env.sh
 - `DB_URL` 이 `youth_welfare` 를 가리키는지
 - `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 이 `currentSchema=youth_welfare_pii` 인지
 - split-account username 이 기대값과 맞는지
+
+## 6-1. 운영 DB privilege verify
+
+RDS bootstrap 직후에는 실제 login/grant 상태도 바로 다시 확인합니다.
+
+```bash
+ENV_FILE=.env.production \
+bash deploy/postgres/verify-rds-runtime-privileges.sh
+```
+
+이 스크립트는:
+
+- primary/admin-ro/chat-session-cleanup/cluster-ai-cleanup/recommendation-retention-cleanup/collect-execution-lock-cleanup/web-push-subscription-cleanup/pii-rw/notification-pii-ro/migration role login
+- `app_core_rw` 의 `chat_sessions`, `cluster_ai_results`, `collect_execution_locks`, `web_push_subscriptions` `DELETE` revoke
+- 각 cleanup role의 대응 `DELETE` 및 column `SELECT`
+- `app_core_rw` 의 `youth_welfare_pii.user_pii` 직접 접근 차단
+
+를 한 번에 검증합니다.
 
 ## 7. 운영 app/redis 기동
 
@@ -175,6 +200,25 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up -d redis
 - `server_tokens off;` 로 edge nginx 버전 문자열을 응답에서 숨긴다.
 - `/api/`, `/swagger-ui/`, `/v3/api-docs/`, `/actuator/` 프록시 경로에서는 upstream Spring이 내려준 같은 헤더를 `proxy_hide_header` 로 숨긴다.
 - `/actuator/` 는 외부 인터넷에 공개하지 않고 `127.0.0.1` / `::1` 및 명시적으로 허용한 내부 모니터링 IP만 통과시킨다.
+
+nginx reload 뒤에는 아래를 바로 다시 봅니다.
+
+```bash
+PUBLIC_BASE_URL='https://youthmoa.kr' \
+bash deploy/nginx/verify-edge-baseline.sh
+```
+
+이 스크립트는:
+
+- `/` 응답 status
+- `Strict-Transport-Security`
+- `X-Frame-Options`
+- `X-Content-Type-Options`
+- `Content-Security-Policy`
+- `Server` 헤더의 nginx 버전 노출 여부
+- 외부 `/actuator/health` status
+
+를 같이 확인합니다.
 
 ## 9. 운영 smoke 최소 순서
 
@@ -216,6 +260,7 @@ bash deploy/smoke/run-local-admin-forced-logout-smoke.sh
 
 - `bash deploy/smoke/run-local-runtime-api-smoke.sh`
 - `bash deploy/smoke/run-local-ops-baseline-suite.sh`
+- `ENV_FILE=.env.production PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-prod-cutover-verification.sh`
 
 까지 다시 확인한다.
 

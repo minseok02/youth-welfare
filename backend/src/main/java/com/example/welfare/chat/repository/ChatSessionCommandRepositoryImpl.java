@@ -14,14 +14,4 @@ public class ChatSessionCommandRepositoryImpl implements ChatSessionCommandRepos
     public ChatSession save(ChatSession session) {
         return chatSessionRepository.save(session);
     }
-
-    @Override
-    public void delete(ChatSession session) {
-        chatSessionRepository.delete(session);
-    }
-
-    @Override
-    public void deleteByUserKey(String userKey) {
-        chatSessionRepository.deleteByUserKey(userKey);
-    }
 }

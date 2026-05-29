@@ -2,6 +2,7 @@ package com.example.welfare.chat.service;
 
 import com.example.welfare.chat.dto.request.CreateChatSessionRequest;
 import com.example.welfare.chat.entity.ChatSession;
+import com.example.welfare.chat.repository.ChatSessionCleanupCommandRepository;
 import com.example.welfare.chat.repository.ChatSessionCommandRepository;
 import com.example.welfare.chat.repository.ChatSessionReadRepository;
 import com.example.welfare.global.exception.CustomException;
@@ -22,6 +23,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -33,6 +35,8 @@ class ChatSessionCommandServiceTest {
     @Mock
     private ChatSessionCommandRepository chatSessionCommandRepository;
     @Mock
+    private ChatSessionCleanupCommandRepository chatSessionCleanupCommandRepository;
+    @Mock
     private ActiveUserReadService activeUserReadService;
 
     private ChatSessionCommandService chatSessionCommandService;
@@ -42,6 +46,7 @@ class ChatSessionCommandServiceTest {
         chatSessionCommandService = new ChatSessionCommandService(
                 chatSessionReadRepository,
                 chatSessionCommandRepository,
+                chatSessionCleanupCommandRepository,
                 activeUserReadService
         );
     }
@@ -83,5 +88,21 @@ class ChatSessionCommandServiceTest {
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.CHAT_SESSION_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("소유 세션 삭제는 cleanup command repository로 위임한다")
+    void deleteSessionDelegatesToCleanupRepository() {
+        User user = User.builder().id(1L).userKey("user-key-1").email("chat@example.com").passwordHash("hash").build();
+        ChatSession session = ChatSession.builder().id(10L).userKey("user-key-1").build();
+
+        when(activeUserReadService.getActiveUserContext(1L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
+        when(chatSessionReadRepository.findOwnedSession(10L, "user-key-1")).thenReturn(Optional.of(session));
+
+        chatSessionCommandService.deleteSession(1L, 10L);
+
+        verify(chatSessionCleanupCommandRepository).deleteByIdAndUserKey(10L, "user-key-1");
+        verify(chatSessionCommandRepository, never()).save(any(ChatSession.class));
     }
 }

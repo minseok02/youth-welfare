@@ -9,6 +9,7 @@ import com.example.welfare.chat.entity.ChatMessage;
 import com.example.welfare.chat.entity.ChatMessageRole;
 import com.example.welfare.chat.entity.ChatSession;
 import com.example.welfare.chat.repository.ChatMessageRepository;
+import com.example.welfare.chat.repository.ChatSessionCleanupCommandRepository;
 import com.example.welfare.chat.repository.ChatSessionRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.welfare.global.util.JwtUtil;
@@ -68,6 +69,9 @@ class ChatMessageApiIntegrationTest {
     private ChatMessageRepository chatMessageRepository;
 
     @Autowired
+    private ChatSessionCleanupCommandRepository chatSessionCleanupCommandRepository;
+
+    @Autowired
     private JdbcTemplate jdbcTemplate;
 
     @Autowired
@@ -94,7 +98,7 @@ class ChatMessageApiIntegrationTest {
                 .forEach(user -> {
                     String userKey = userRepository.findUserKeyById(user.getId()).orElse(null);
                     if (userKey != null) {
-                        chatSessionRepository.deleteAll(chatSessionRepository.findAllByUserKey(userKey));
+                        chatSessionCleanupCommandRepository.deleteByUserKey(userKey);
                     }
                     userRepository.delete(user);
                 });

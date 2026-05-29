@@ -27,6 +27,10 @@ public final class IntegrationRuntimePreflightMain {
         String adminRoUsername = env("INTEGRATION_ADMIN_RO_DB_USERNAME", "admin_dashboard_ro");
         String adminRoPassword = env("INTEGRATION_ADMIN_RO_DB_PASSWORD", primaryPassword);
 
+        String chatSessionCleanupUrl = env("INTEGRATION_CHAT_SESSION_CLEANUP_DB_URL", "jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable");
+        String chatSessionCleanupUsername = env("INTEGRATION_CHAT_SESSION_CLEANUP_DB_USERNAME", "chat_session_cleanup_rw");
+        String chatSessionCleanupPassword = env("INTEGRATION_CHAT_SESSION_CLEANUP_DB_PASSWORD", primaryPassword);
+
         String clusterAiCleanupUrl = env("INTEGRATION_CLUSTER_AI_CLEANUP_DB_URL", "jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable");
         String clusterAiCleanupUsername = env("INTEGRATION_CLUSTER_AI_CLEANUP_DB_USERNAME", "cluster_ai_cleanup_rw");
         String clusterAiCleanupPassword = env("INTEGRATION_CLUSTER_AI_CLEANUP_DB_PASSWORD", primaryPassword);
@@ -53,6 +57,7 @@ public final class IntegrationRuntimePreflightMain {
         checkJdbc("primary", primaryUrl, primaryUsername, primaryPassword, failures);
         checkJdbc("pii-rw", piiUrl, piiUsername, piiPassword, failures);
         checkJdbc("admin-ro", adminRoUrl, adminRoUsername, adminRoPassword, failures);
+        checkJdbc("chat-session-cleanup", chatSessionCleanupUrl, chatSessionCleanupUsername, chatSessionCleanupPassword, failures);
         checkJdbc("cluster-ai-cleanup", clusterAiCleanupUrl, clusterAiCleanupUsername, clusterAiCleanupPassword, failures);
         checkJdbc("recommendation-retention-cleanup", recommendationRetentionCleanupUrl, recommendationRetentionCleanupUsername, recommendationRetentionCleanupPassword, failures);
         checkJdbc("collect-execution-lock-cleanup", collectExecutionLockCleanupUrl, collectExecutionLockCleanupUsername, collectExecutionLockCleanupPassword, failures);

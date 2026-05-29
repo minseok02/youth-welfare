@@ -1,6 +1,6 @@
 package com.example.welfare.chat.service;
 
-import com.example.welfare.chat.repository.ChatSessionCommandRepository;
+import com.example.welfare.chat.repository.ChatSessionCleanupCommandRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,7 +15,7 @@ import static org.mockito.Mockito.never;
 class ChatSessionCleanupServiceTest {
 
     @Mock
-    private ChatSessionCommandRepository chatSessionCommandRepository;
+    private ChatSessionCleanupCommandRepository chatSessionCleanupCommandRepository;
 
     @InjectMocks
     private ChatSessionCleanupService chatSessionCleanupService;
@@ -25,7 +25,7 @@ class ChatSessionCleanupServiceTest {
     void deleteAllByUserKeySkipsBlank() {
         chatSessionCleanupService.deleteAllByUserKey("  ");
 
-        then(chatSessionCommandRepository).should(never()).deleteByUserKey("  ");
+        then(chatSessionCleanupCommandRepository).should(never()).deleteByUserKey("  ");
     }
 
     @Test
@@ -33,6 +33,6 @@ class ChatSessionCleanupServiceTest {
     void deleteAllByUserKeyDelegates() {
         chatSessionCleanupService.deleteAllByUserKey("user-key-1");
 
-        then(chatSessionCommandRepository).should().deleteByUserKey("user-key-1");
+        then(chatSessionCleanupCommandRepository).should().deleteByUserKey("user-key-1");
     }
 }

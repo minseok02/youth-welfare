@@ -29,21 +29,4 @@ class ChatSessionCommandRepositoryImplTest {
         then(chatSessionRepository).should().save(session);
     }
 
-    @Test
-    @DisplayName("chat session command repository는 세션 삭제를 위임한다")
-    void deleteDelegates() {
-        ChatSession session = ChatSession.builder().id(10L).userKey("user-key-1").build();
-
-        chatSessionCommandRepository.delete(session);
-
-        then(chatSessionRepository).should().delete(session);
-    }
-
-    @Test
-    @DisplayName("chat session command repository는 userKey 기준 전체 삭제를 위임한다")
-    void deleteByUserKeyDelegates() {
-        chatSessionCommandRepository.deleteByUserKey("user-key-1");
-
-        then(chatSessionRepository).should().deleteByUserKey("user-key-1");
-    }
 }

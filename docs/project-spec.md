@@ -15,7 +15,7 @@
 ### Backend
 
 - Java 17
-- Spring Boot 3.2.5
+- Spring Boot 3.5.14
 - Gradle 8.7
 - JPA / Spring Security / Redis / WebClient
 

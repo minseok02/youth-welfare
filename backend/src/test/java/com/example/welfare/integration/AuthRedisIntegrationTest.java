@@ -4,6 +4,7 @@ import com.example.welfare.chat.entity.ChatMessage;
 import com.example.welfare.chat.entity.ChatMessageRole;
 import com.example.welfare.chat.entity.ChatSession;
 import com.example.welfare.chat.repository.ChatMessageRepository;
+import com.example.welfare.chat.repository.ChatSessionCleanupCommandRepository;
 import com.example.welfare.chat.repository.ChatSessionRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.welfare.global.util.AesEncryptUtil;
@@ -78,6 +79,9 @@ class AuthRedisIntegrationTest {
     @Autowired
     private ChatMessageRepository chatMessageRepository;
 
+    @Autowired
+    private ChatSessionCleanupCommandRepository chatSessionCleanupCommandRepository;
+
     @MockBean
     private EmailClient emailClient;
 
@@ -93,7 +97,7 @@ class AuthRedisIntegrationTest {
                 user -> user.getEmail() != null && user.getEmail().startsWith(TEST_EMAIL_PREFIX),
                 userKey -> {
                     redisTemplate.delete("refresh:" + userKey);
-                    chatSessionRepository.deleteAll(chatSessionRepository.findAllByUserKey(userKey));
+                    chatSessionCleanupCommandRepository.deleteByUserKey(userKey);
                     userPiiSyncQueueRepository.deleteByUserKey(userKey);
                 },
                 userId -> redisTemplate.delete("refresh:" + userId)
@@ -101,6 +105,10 @@ class AuthRedisIntegrationTest {
         var keys = redisTemplate.keys("password-reset:*");
         if (keys != null && !keys.isEmpty()) {
             redisTemplate.delete(keys);
+        }
+        var authRateLimitKeys = redisTemplate.keys("auth:rate-limit:*");
+        if (authRateLimitKeys != null && !authRateLimitKeys.isEmpty()) {
+            redisTemplate.delete(authRateLimitKeys);
         }
     }
 

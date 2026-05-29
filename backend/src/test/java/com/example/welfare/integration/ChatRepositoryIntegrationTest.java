@@ -4,6 +4,7 @@ import com.example.welfare.chat.entity.ChatMessage;
 import com.example.welfare.chat.entity.ChatMessageRole;
 import com.example.welfare.chat.entity.ChatSession;
 import com.example.welfare.chat.repository.ChatMessageRepository;
+import com.example.welfare.chat.repository.ChatSessionCleanupCommandRepository;
 import com.example.welfare.chat.repository.ChatSessionRepository;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.repository.UserRepository;
@@ -41,6 +42,9 @@ class ChatRepositoryIntegrationTest {
     private ChatMessageRepository chatMessageRepository;
 
     @Autowired
+    private ChatSessionCleanupCommandRepository chatSessionCleanupCommandRepository;
+
+    @Autowired
     private JdbcTemplate jdbcTemplate;
 
     @BeforeEach
@@ -55,7 +59,7 @@ class ChatRepositoryIntegrationTest {
                 .forEach(user -> {
                     String userKey = userRepository.findUserKeyById(user.getId()).orElse(null);
                     if (userKey != null) {
-                        chatSessionRepository.deleteAll(chatSessionRepository.findAllByUserKey(userKey));
+                        chatSessionCleanupCommandRepository.deleteByUserKey(userKey);
                     }
                     userRepository.delete(user);
                 });
@@ -156,7 +160,7 @@ class ChatRepositoryIntegrationTest {
 
         long sessionId = session.getId();
 
-        chatSessionRepository.deleteAll(chatSessionRepository.findAllByUserKey(userKey));
+        chatSessionCleanupCommandRepository.deleteByUserKey(userKey);
         userRepository.delete(user);
         userRepository.flush();
 

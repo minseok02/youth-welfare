@@ -114,6 +114,8 @@ require_non_empty DB_NOTIFICATION_PII_RO_USERNAME "${DB_NOTIFICATION_PII_RO_USER
 require_non_empty DB_NOTIFICATION_PII_RO_PASSWORD "${DB_NOTIFICATION_PII_RO_PASSWORD:-}"
 require_non_empty DB_ADMIN_RO_USERNAME "${DB_ADMIN_RO_USERNAME:-}"
 require_non_empty DB_ADMIN_RO_PASSWORD "${DB_ADMIN_RO_PASSWORD:-}"
+require_non_empty DB_CHAT_SESSION_CLEANUP_USERNAME "${DB_CHAT_SESSION_CLEANUP_USERNAME:-}"
+require_non_empty DB_CHAT_SESSION_CLEANUP_PASSWORD "${DB_CHAT_SESSION_CLEANUP_PASSWORD:-}"
 require_non_empty DB_CLUSTER_AI_CLEANUP_USERNAME "${DB_CLUSTER_AI_CLEANUP_USERNAME:-}"
 require_non_empty DB_CLUSTER_AI_CLEANUP_PASSWORD "${DB_CLUSTER_AI_CLEANUP_PASSWORD:-}"
 require_non_empty DB_RECOMMENDATION_RETENTION_CLEANUP_USERNAME "${DB_RECOMMENDATION_RETENTION_CLEANUP_USERNAME:-}"
@@ -172,6 +174,8 @@ echo "creating runtime roles and grants"
   -v "db_notification_pii_ro_password=${DB_NOTIFICATION_PII_RO_PASSWORD}" \
   -v "db_admin_ro_username=${DB_ADMIN_RO_USERNAME}" \
   -v "db_admin_ro_password=${DB_ADMIN_RO_PASSWORD}" \
+  -v "db_chat_session_cleanup_username=${DB_CHAT_SESSION_CLEANUP_USERNAME}" \
+  -v "db_chat_session_cleanup_password=${DB_CHAT_SESSION_CLEANUP_PASSWORD}" \
   -v "db_cluster_ai_cleanup_username=${DB_CLUSTER_AI_CLEANUP_USERNAME}" \
   -v "db_cluster_ai_cleanup_password=${DB_CLUSTER_AI_CLEANUP_PASSWORD}" \
   -v "db_recommendation_retention_cleanup_username=${DB_RECOMMENDATION_RETENTION_CLEANUP_USERNAME}" \
@@ -203,6 +207,11 @@ WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_admin_ro_username'
 SELECT format('ALTER ROLE %I LOGIN PASSWORD %L', :'db_admin_ro_username', :'db_admin_ro_password')
 WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_admin_ro_username') \gexec
 
+SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'db_chat_session_cleanup_username', :'db_chat_session_cleanup_password')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_chat_session_cleanup_username') \gexec
+SELECT format('ALTER ROLE %I LOGIN PASSWORD %L', :'db_chat_session_cleanup_username', :'db_chat_session_cleanup_password')
+WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_chat_session_cleanup_username') \gexec
+
 SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'db_cluster_ai_cleanup_username', :'db_cluster_ai_cleanup_password')
 WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_cluster_ai_cleanup_username') \gexec
 SELECT format('ALTER ROLE %I LOGIN PASSWORD %L', :'db_cluster_ai_cleanup_username', :'db_cluster_ai_cleanup_password')
@@ -228,13 +237,20 @@ WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_migration_username
 SELECT format('ALTER ROLE %I LOGIN PASSWORD %L', :'db_migration_username', :'db_migration_password')
 WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_migration_username') \gexec
 
-GRANT CONNECT ON DATABASE :"db_name" TO :"db_username", :"db_app_pii_username", :"db_notification_pii_ro_username", :"db_admin_ro_username", :"db_cluster_ai_cleanup_username", :"db_recommendation_retention_cleanup_username", :"db_collect_execution_lock_cleanup_username", :"db_web_push_subscription_cleanup_username", :"db_migration_username";
+GRANT CONNECT ON DATABASE :"db_name" TO :"db_username", :"db_app_pii_username", :"db_notification_pii_ro_username", :"db_admin_ro_username", :"db_chat_session_cleanup_username", :"db_cluster_ai_cleanup_username", :"db_recommendation_retention_cleanup_username", :"db_collect_execution_lock_cleanup_username", :"db_web_push_subscription_cleanup_username", :"db_migration_username";
 
-GRANT USAGE ON SCHEMA public TO :"db_username", :"db_admin_ro_username", :"db_cluster_ai_cleanup_username", :"db_recommendation_retention_cleanup_username", :"db_collect_execution_lock_cleanup_username", :"db_web_push_subscription_cleanup_username", :"db_migration_username";
+GRANT USAGE ON SCHEMA public TO :"db_username", :"db_admin_ro_username", :"db_chat_session_cleanup_username", :"db_cluster_ai_cleanup_username", :"db_recommendation_retention_cleanup_username", :"db_collect_execution_lock_cleanup_username", :"db_web_push_subscription_cleanup_username", :"db_migration_username";
 GRANT CREATE ON SCHEMA public TO :"db_migration_username";
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO :"db_username";
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO :"db_admin_ro_username";
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO :"db_username";
+
+SELECT format('REVOKE DELETE ON TABLE public.chat_sessions FROM %I', :'db_username')
+WHERE to_regclass('public.chat_sessions') IS NOT NULL \gexec
+SELECT format('GRANT DELETE ON TABLE public.chat_sessions TO %I', :'db_chat_session_cleanup_username')
+WHERE to_regclass('public.chat_sessions') IS NOT NULL \gexec
+SELECT format('GRANT SELECT (id, user_key) ON TABLE public.chat_sessions TO %I', :'db_chat_session_cleanup_username')
+WHERE to_regclass('public.chat_sessions') IS NOT NULL \gexec
 
 SELECT format('GRANT DELETE ON TABLE public.cluster_ai_results TO %I', :'db_cluster_ai_cleanup_username')
 WHERE to_regclass('public.cluster_ai_results') IS NOT NULL \gexec
@@ -291,6 +307,8 @@ for patch in "${patches[@]}"; do
   "${psql_base[@]}" \
     -v "admin_ro_username=${DB_ADMIN_RO_USERNAME}" \
     -v "admin_ro_password=${DB_ADMIN_RO_PASSWORD}" \
+    -v "chat_session_cleanup_username=${DB_CHAT_SESSION_CLEANUP_USERNAME}" \
+    -v "chat_session_cleanup_password=${DB_CHAT_SESSION_CLEANUP_PASSWORD}" \
     -v "cluster_ai_cleanup_username=${DB_CLUSTER_AI_CLEANUP_USERNAME}" \
     -v "cluster_ai_cleanup_password=${DB_CLUSTER_AI_CLEANUP_PASSWORD}" \
     -v "recommendation_retention_cleanup_username=${DB_RECOMMENDATION_RETENTION_CLEANUP_USERNAME}" \
