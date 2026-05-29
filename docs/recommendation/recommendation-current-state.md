@@ -27,7 +27,15 @@
 
 ## 현재 판단
 
-`2026-05-18` 기준 recommendation 트랙의 현재 상태는 **bug closeout + 제품 판단 deferred** 입니다.
+`2026-05-29` 서버 기준 recommendation 트랙의 현재 상태는 **bug closeout + 관찰 유지 + 제품 판단 deferred** 입니다.
+
+현재 운영 source of truth는 `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-recommendation-reopen-precheck.sh` 기준
+
+- `reopen_precheck_status=KEEP_OBSERVING`
+- `reopen_precheck_reason=WAIT_FOR_REAL_USER_TRAFFIC`
+- `next_action=bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh`
+
+입니다. 즉 지금 단계의 다음 액션은 recommendation 코드를 다시 여는 것이 아니라, `REAL_USER` traffic/leader signal이 더 쌓일 때까지 baseline 유지와 latest overview 관찰을 계속하는 것입니다.
 
 즉 지금까지 닫힌 것은 아래입니다.
 
@@ -204,7 +212,7 @@
 
 수동 정합보다 편한 경로가 필요하면 `AUTO_REFRESH_STATUS_JSON_IF_STALE=true` 로 `latest-status`, `latest-gate` 를 실행할 수 있습니다. 이 경우 stale JSON이면 `latest-status-export` 를 먼저 다시 태운 뒤 fresh latest JSON 기준으로 값을 읽습니다.
 
-daily operator entrypoint로는 `run-local-recommendation-ai-exclusion-latest-overview.sh` 를 쓰는 편이 맞습니다. 이 wrapper는 latest export를 먼저 갱신한 뒤 `latest-status`, 기본 `latest-gate`, strict `latest-gate` 를 순서대로 보여 주므로, 지금 상태와 다음 행동을 한 번에 다시 읽을 수 있습니다.
+daily operator entrypoint로는 `run-local-recommendation-observation-suite.sh` 를 먼저 쓰고, 세부 해석이 필요할 때 `run-local-recommendation-ai-exclusion-latest-overview.sh` 를 여는 편이 맞습니다. observation suite는 reopen precheck를 감싸 `KEEP_OBSERVING / WAIT_FOR_REAL_USER_TRAFFIC` 같은 current action을 compact summary로 고정합니다. latest overview는 latest export를 먼저 갱신한 뒤 `latest-status`, 기본 `latest-gate`, strict `latest-gate` 를 순서대로 보여 주므로, 더 깊은 상태와 다음 행동을 한 번에 다시 읽을 수 있습니다.
 
 이 overview wrapper는 이제 `tmp/recommendation-ai-exclusion-latest-overview/<ts>/latest-overview-summary.txt`, `latest-overview-note.md`, `latest-overview.json` 과 `latest` symlink도 같이 남깁니다. 즉 daily 확인 뒤에는 stdout만 보지 않고 compact summary, 사람용 note, machine-readable JSON 중 필요한 artifact를 바로 handoff 기준으로 써도 됩니다. 같은 artifact에는 `review_gate_context` 도 포함돼, full latest batch primary gate(`MIXED_BATCH_NON_REAL_DOMINANCE_WITH_NO_REAL_USER_PATH`)와 recent-window supplemental reading(`RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`), 그리고 `historical_example_dominance_detected=true` 까지 한 번에 같이 읽을 수 있습니다.
 
