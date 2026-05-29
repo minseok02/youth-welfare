@@ -15,6 +15,7 @@
 ### 현재 baseline과 실행 순서
 
 - [performance-baseline-current.md](./performance-baseline-current.md)
+- [performance-optimization-log.md](./performance-optimization-log.md)
 - [performance-measurement-plan.md](./performance-measurement-plan.md)
 
 ### 같이 보면 좋은 문서
@@ -31,6 +32,7 @@
 ### 1. 현재 baseline
 
 - [performance-baseline-current.md](./performance-baseline-current.md)
+- [performance-optimization-log.md](./performance-optimization-log.md)
 
 이 문서는
 
@@ -40,6 +42,18 @@
 - known gap
 
 을 빠르게 확인하는 current-state 문서입니다.
+
+### 1-1. 최적화 로그
+
+- [performance-optimization-log.md](./performance-optimization-log.md)
+
+이 문서는
+
+- 어떤 병목 수치가 작업을 열게 했는지
+- 무엇을 어떻게 바꿨는지
+- before/after delta가 서버에서 어떻게 닫혔는지
+
+를 기록하는 change log 입니다.
 
 ### 2. 측정 계획
 
@@ -52,6 +66,7 @@
 - 어떤 스크립트를 어떤 목적에 쓰는지
 
 를 정리한 measurement plan 입니다.
+
 
 ## 스크립트 진입점
 
@@ -79,15 +94,17 @@
 ### 성능 작업을 새로 열 때
 
 1. [performance-baseline-current.md](./performance-baseline-current.md)
-2. [performance-measurement-plan.md](./performance-measurement-plan.md)
-3. 필요한 wrapper script
-4. [phase-plan.md](../phase-plan.md)
+2. [performance-optimization-log.md](./performance-optimization-log.md)
+3. [performance-measurement-plan.md](./performance-measurement-plan.md)
+4. 필요한 wrapper script
+5. [phase-plan.md](../phase-plan.md)
 
 ### 최적화 전후 비교를 할 때
 
 1. `performance-baseline-current.md` 의 현재 accepted 값 확인
-2. 같은 wrapper와 같은 입력으로 재실행
-3. delta를 문서와 artifact에 같이 남김
+2. `performance-optimization-log.md` 에 이번 변경 배경과 before 값을 먼저 기록
+3. 같은 wrapper와 같은 입력으로 재실행
+4. delta를 문서와 artifact에 같이 남김
 
 ## 한 줄 요약
 

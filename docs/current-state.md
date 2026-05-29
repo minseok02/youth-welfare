@@ -29,6 +29,7 @@
 - 프론트 QA 문서군 진입점: [frontend-qa-docs-index.md](frontend/frontend-qa-docs-index.md)
 - 정책 문서군 진입점: [policy-docs-index.md](policy/policy-docs-index.md)
 - 성능 문서군 진입점: [performance-docs-index.md](performance/performance-docs-index.md)
+- 성능 최적화 변경 로그: [performance-optimization-log.md](performance/performance-optimization-log.md)
 - 공통 로컬 검증 문서군 진입점: [local-validation-docs-index.md](core/local-validation-docs-index.md)
 - 서버 런타임 drift 체크리스트: [server-runtime-drift-checklist.md](core/server-runtime-drift-checklist.md)
 - 보안/운영 hardening 현재 상태: [security-hardening-current-state.md](core/security-hardening-current-state.md)

@@ -40,6 +40,7 @@ if [[ "${RUN_OBSERVATION}" == "true" ]]; then
     "recommendation_observation" \
     "${ARTIFACT_DIR}/recommendation-observation.out" \
     env ENV_FILE="${ENV_FILE:-.env.production}" SMOKE_DB_MODE="${SMOKE_DB_MODE:-postgres}" APP_BASE_URL="${APP_BASE_URL}" \
+      ARTIFACT_DIR="${ARTIFACT_DIR}/recommendation-observation-artifact" \
       bash "${ROOT_DIR}/deploy/smoke/run-local-recommendation-observation-suite.sh"
 fi
 
@@ -48,6 +49,7 @@ if [[ "${RUN_CURRENT_PRIORITY}" == "true" ]]; then
     "current_priority" \
     "${ARTIFACT_DIR}/current-priority.out" \
     env ENV_FILE="${ENV_FILE:-.env.production}" SMOKE_DB_MODE="${SMOKE_DB_MODE:-postgres}" APP_BASE_URL="${APP_BASE_URL}" \
+      ARTIFACT_DIR="${ARTIFACT_DIR}/current-priority-artifact" \
       FRONTEND_E2E_MODE="${FRONTEND_E2E_MODE}" FRONTEND_PUBLIC_BASE_URL="${FRONTEND_PUBLIC_BASE_URL}" \
       E2E_ADMIN_EMAIL="${E2E_ADMIN_EMAIL:-$(cat /tmp/youth-welfare-admin-smoke-email 2>/dev/null || true)}" \
       E2E_ADMIN_PASSWORD="${E2E_ADMIN_PASSWORD:-$(cat /tmp/youth-welfare-admin-smoke-password 2>/dev/null || true)}" \

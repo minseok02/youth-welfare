@@ -43,6 +43,18 @@ public interface ServiceViewLogRepository extends JpaRepository<ServiceViewLog, 
     );
 
     @Query("""
+            SELECT svl.service.id as serviceId,
+                   COUNT(DISTINCT CASE
+                        WHEN svl.userKey IS NOT NULL THEN CONCAT('K:', svl.userKey)
+                        ELSE CONCAT('F:', svl.clientFingerprint)
+                   END) as uniqueViewCount
+            FROM ServiceViewLog svl
+            WHERE svl.viewedAt >= :cutoff
+            GROUP BY svl.service.id
+            """)
+    List<ServiceUniqueViewCount> findUniqueViewCountsSince(@Param("cutoff") LocalDateTime cutoff);
+
+    @Query("""
             SELECT svl
             FROM ServiceViewLog svl
             JOIN FETCH svl.service

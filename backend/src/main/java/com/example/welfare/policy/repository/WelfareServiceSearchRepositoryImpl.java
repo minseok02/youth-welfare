@@ -88,18 +88,23 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
 
         MapSqlParameterSource params = policyParams(condition, keyword);
         SearchSqlParts sqlParts = buildPolicySearchSql(condition);
-        Long total = namedParameterJdbcTemplate.queryForObject(sqlParts.countSql(), params, Long.class);
-        if (total == null || total == 0L) {
-            return Page.empty(pageable);
-        }
-
         params.addValue("limit", pageable.getPageSize(), Types.INTEGER);
         params.addValue("offset", pageable.getOffset(), Types.BIGINT);
-        List<Long> ids = namedParameterJdbcTemplate.query(
+        List<SearchPageRow> rows = namedParameterJdbcTemplate.query(
                 sqlParts.selectSql(),
                 params,
-                (rs, rowNum) -> rs.getLong("id")
+                (rs, rowNum) -> new SearchPageRow(
+                        rs.getLong("id"),
+                        rs.getLong("total_count")
+                )
         );
+        if (rows.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        List<Long> ids = rows.stream()
+                .map(SearchPageRow::id)
+                .toList();
+        long total = rows.get(0).totalCount();
         return new PageImpl<>(loadOrderedServices(ids), pageable, total);
     }
 
@@ -174,19 +179,15 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
         }
 
         String orderBySql = buildPolicyOrderBySql(condition, hasSido, hasSgg);
-        String countSql = """
-                SELECT COUNT(*)
-                FROM welfare_services ws
-                WHERE %s
-                """.formatted(whereSql);
         String selectSql = """
-                SELECT ws.id
+                SELECT ws.id,
+                       COUNT(*) OVER() AS total_count
                 FROM welfare_services ws
                 WHERE %s
                 ORDER BY %s
                 LIMIT :limit OFFSET :offset
                 """.formatted(whereSql, orderBySql);
-        return new SearchSqlParts(selectSql, countSql);
+        return new SearchSqlParts(selectSql);
     }
 
     private String buildPolicyOrderBySql(PolicySearchReadCondition condition, boolean hasSido, boolean hasSgg) {
@@ -292,7 +293,10 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
                 .toList();
     }
 
-    private record SearchSqlParts(String selectSql, String countSql) {
+    private record SearchSqlParts(String selectSql) {
+    }
+
+    private record SearchPageRow(Long id, Long totalCount) {
     }
 
     private record SearchKeyword(String normalizedText, String tsQuery) {
