@@ -1,5 +1,20 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 1026) ranking endpoint는 결과 20개를 주더라도 전체 ACTIVE/UPCOMING 엔티티를 먼저 다 읽으면 service 수가 늘수록 CPU와 hydration 비용이 바로 커진다
+- 문제: 서버 baseline에서 `/api/policies/ranking` 은 `p95 870.6ms`, load probe 기준 `p95 2034.4ms` 까지 올라갔다. 구현을 보면 `PolicyRankingService` 가 먼저 `findByStatusIn(ACTIVE, UPCOMING)` 으로 rankable `WelfareService` 전체 엔티티를 다 읽고, 그 전체 id 목록으로 최근 7일 unique view 집계를 한 번 더 날린 뒤, 마지막 20개만 응답으로 보냈다.
+- 해결: rank 계산에 실제 필요한 필드만 담은 `RankableServiceSnapshot` projection을 새로 도입하고, 최근 unique view도 `WHERE viewed_at >= cutoff GROUP BY service_id` 형태로 읽어 대형 `IN (...)` 목록 생성을 없앴다. full `WelfareService` fetch는 score 계산이 끝난 뒤 최종 선택된 id slice에만 수행한다.
+- 이유: ranking score 자체는 모든 후보를 봐야 해도, 모든 후보의 전체 entity hydration까지 필요하지는 않다. scoring input과 presentation input을 분리해야 service 수 증가에 덜 민감한 read path가 된다.
+
+## 1025) keyword search는 같은 heavy match를 `count(*)` 와 paged `select` 에서 두 번 평가하면 latency가 누적된다
+- 문제: `/api/policies/search?keyword=청년` baseline이 `p95 646.5ms` 였고, 구현은 `WelfareServiceSearchRepositoryImpl.search()` 에서 먼저 total count를 구하고, 이어서 같은 WHERE 조건을 다시 평가해 id page를 읽고 있었다. `fts + trigram + region/status/youth filters` 가 섞인 쿼리라 duplicate evaluation cost가 무시하기 어려웠다.
+- 해결: paged select를 `COUNT(*) OVER()` 기반 single-pass query로 바꿔 heavy keyword match를 한 번만 평가하도록 맞췄다. total count는 첫 row의 window count에서 읽고, empty page면 그대로 `Page.empty()` 를 반환한다.
+- 이유: total count 계약은 유지하면서 read path를 줄이는 가장 bounded한 방법이다. count 정확도를 포기하지 않고도 동일 조건의 중복 실행을 줄일 수 있다.
+
+## 1024) performance wrapper는 nested smoke가 부모 `ARTIFACT_DIR` 를 상속하면 첫 실행 summary 파일이 cleanup에 같이 지워질 수 있다
+- 문제: 서버에서 `RUN_WRAPPER_BASELINE=true bash deploy/performance/run-local-performance-baseline-suite.sh` 첫 실행이 실패했고, root cause는 nested smoke wrapper가 부모에서 export된 `ARTIFACT_DIR` 를 그대로 상속받아 cleanup 하면서 `wrapper-durations.tsv` 경로를 지운 것이었다. `KEEP_ARTIFACTS=true` 재실행으로는 우회 가능했지만 기본 계약과 맞지 않았다.
+- 해결: [run-local-wrapper-duration-baseline.sh](/home/minseok/youth-welfare/deploy/performance/run-local-wrapper-duration-baseline.sh:1) 가 `recommendation_observation` 과 `current_priority` 자식 실행에 각각 전용 `ARTIFACT_DIR` 를 강제로 넘기도록 바꿨다. 이제 nested smoke cleanup은 자기 하위 디렉터리만 지우고, 부모 wrapper summary/json/tsv 는 그대로 남는다.
+- 이유: performance wrapper는 smoke wrapper를 재사용하되 artifact lifecycle은 섞지 않아야 한다. 부모/자식 latest 계약을 분리해야 `KEEP_ARTIFACTS=false` 기본값에서도 첫 실행이 안정적이다.
+
 ## 1023) 새 성능 문서군은 script만 추가하면 active 문서 진입점에서 사라져 다시 찾기 어려워진다
 - 문제: `deploy/performance/*` 와 `docs/performance/*` 가 들어왔지만, `start.md`, `current-state.md`, `local-validation-docs-index.md`, `documentation-map.md` 어디에도 performance 진입점이 없어서 다음 작업에서 이 트랙을 다시 찾기 어려웠다. 저장소 문서 체계는 도메인별 index를 먼저 열게 설계되어 있는데, performance만 그 흐름을 벗어나 있었다.
 - 해결: [performance-docs-index.md](/home/minseok/youth-welfare/docs/performance/performance-docs-index.md:1) 와 [docs/performance/README.md](/home/minseok/youth-welfare/docs/performance/README.md:1) 를 추가하고, active 문서 진입점 네 곳에 모두 연결했다.

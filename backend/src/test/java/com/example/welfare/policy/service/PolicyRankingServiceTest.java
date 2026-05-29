@@ -46,9 +46,10 @@ class PolicyRankingServiceTest {
                 .registeredAt(LocalDateTime.now().minusDays(2))
                 .build();
 
-        given(policyRankingReadRepository.findRankableServices()).willReturn(List.of(service));
-        given(policyRankingReadRepository.findUniqueViewCountsSince(anyCollection(), any()))
+        given(policyRankingReadRepository.findRankableSnapshots()).willReturn(List.of(snapshot(service)));
+        given(policyRankingReadRepository.findUniqueViewCountsSince(any()))
                 .willReturn(List.of(uniqueCount(1L, 7L)));
+        given(policyRankingReadRepository.findServicesByIds(List.of(1L))).willReturn(List.of(service));
         given(policyPresentationReadService.findProjections(List.of(service)))
                 .willReturn(java.util.Map.of(
                         1L,
@@ -115,13 +116,17 @@ class PolicyRankingServiceTest {
                 .build();
 
         List<WelfareService> services = List.of(oldHighScore, oldLowScore, recentNew);
-        given(policyRankingReadRepository.findRankableServices()).willReturn(services);
-        given(policyRankingReadRepository.findUniqueViewCountsSince(anyCollection(), any()))
+        given(policyRankingReadRepository.findRankableSnapshots()).willReturn(services.stream().map(this::snapshot).toList());
+        given(policyRankingReadRepository.findUniqueViewCountsSince(any()))
                 .willReturn(List.of(
                         uniqueCount(1L, 50L),
                         uniqueCount(2L, 1L),
                         uniqueCount(3L, 0L)
                 ));
+        given(policyRankingReadRepository.findServicesByIds(anyCollection())).willAnswer(invocation -> {
+            java.util.Collection<Long> ids = invocation.getArgument(0);
+            return services.stream().filter(service -> ids.contains(service.getId())).toList();
+        });
         given(policyPresentationReadService.findProjections(services))
                 .willReturn(java.util.Map.of());
 
@@ -149,9 +154,13 @@ class PolicyRankingServiceTest {
                         .build())
                 .toList();
 
-        given(policyRankingReadRepository.findRankableServices()).willReturn(services);
-        given(policyRankingReadRepository.findUniqueViewCountsSince(anyCollection(), any()))
+        given(policyRankingReadRepository.findRankableSnapshots()).willReturn(services.stream().map(this::snapshot).toList());
+        given(policyRankingReadRepository.findUniqueViewCountsSince(any()))
                 .willReturn(List.of());
+        given(policyRankingReadRepository.findServicesByIds(anyCollection())).willAnswer(invocation -> {
+            java.util.Collection<Long> ids = invocation.getArgument(0);
+            return services.stream().filter(service -> ids.contains(service.getId())).toList();
+        });
         given(policyPresentationReadService.findProjections(any()))
                 .willReturn(java.util.Map.of());
 
@@ -161,6 +170,45 @@ class PolicyRankingServiceTest {
         verify(policyPresentationReadService).findProjections(projectionServices.capture());
         assertEquals(100, ranking.size());
         assertEquals(100, projectionServices.getValue().size());
+    }
+
+    private PolicyRankingReadRepository.RankableServiceSnapshot snapshot(WelfareService service) {
+        return new PolicyRankingReadRepository.RankableServiceSnapshot() {
+            @Override
+            public Long getId() {
+                return service.getId();
+            }
+
+            @Override
+            public WelfareService.SourceType getSourceType() {
+                return service.getSourceType();
+            }
+
+            @Override
+            public Integer getViewCount() {
+                return service.getViewCount();
+            }
+
+            @Override
+            public Long getApiViewCount() {
+                return service.getApiViewCount();
+            }
+
+            @Override
+            public LocalDateTime getCreatedAt() {
+                return service.getCreatedAt();
+            }
+
+            @Override
+            public LocalDateTime getRegisteredAt() {
+                return service.getRegisteredAt();
+            }
+
+            @Override
+            public LocalDateTime getLastModifiedAt() {
+                return service.getLastModifiedAt();
+            }
+        };
     }
 
     private PolicyRankingReadRepository.ServiceUniqueViewCount uniqueCount(Long serviceId, Long uniqueCount) {

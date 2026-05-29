@@ -643,6 +643,20 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
     // 상태별 전체 조회 (StatusUpdateService 용)
     List<WelfareService> findByStatus(WelfareService.ServiceStatus status);
     List<WelfareService> findByStatusIn(List<WelfareService.ServiceStatus> statuses);
+    @Query("""
+            SELECT ws.id as id,
+                   ws.sourceType as sourceType,
+                   ws.viewCount as viewCount,
+                   ws.apiViewCount as apiViewCount,
+                   ws.createdAt as createdAt,
+                   ws.registeredAt as registeredAt,
+                   ws.lastModifiedAt as lastModifiedAt
+            FROM WelfareService ws
+            WHERE ws.status IN :statuses
+            """)
+    List<PolicyRankingReadRepository.RankableServiceSnapshot> findRankableSnapshotsByStatusIn(
+            @Param("statuses") List<WelfareService.ServiceStatus> statuses
+    );
 
     List<WelfareService> findBySourceType(WelfareService.SourceType sourceType);
 }

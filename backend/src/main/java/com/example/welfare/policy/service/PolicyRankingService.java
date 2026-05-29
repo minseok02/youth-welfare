@@ -13,6 +13,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -35,25 +36,22 @@ public class PolicyRankingService {
     @Transactional(readOnly = true)
     public List<PolicyRankingResponse> getRanking(int size) {
         int limit = normalizeSize(size);
-        List<WelfareService> services = policyRankingReadRepository.findRankableServices();
-        if (services.isEmpty()) return List.of();
+        List<PolicyRankingReadRepository.RankableServiceSnapshot> snapshots = policyRankingReadRepository.findRankableSnapshots();
+        if (snapshots.isEmpty()) return List.of();
 
-        List<Long> serviceIds = services.stream()
-                .map(WelfareService::getId)
-                .toList();
         LocalDateTime uniqueCutoff = LocalDateTime.now().minusDays(UNIQUE_VIEW_WINDOW_DAYS);
-        Map<Long, Long> uniqueViewsByServiceId = policyRankingReadRepository.findUniqueViewCountsSince(serviceIds, uniqueCutoff)
+        Map<Long, Long> uniqueViewsByServiceId = policyRankingReadRepository.findUniqueViewCountsSince(uniqueCutoff)
                 .stream()
                 .collect(Collectors.toMap(
                         PolicyRankingReadRepository.ServiceUniqueViewCount::getServiceId,
                         row -> safeLong(row.getUniqueViewCount())
                 ));
-        double maxUniqueRaw = services.stream()
+        double maxUniqueRaw = snapshots.stream()
                 .mapToDouble(s -> log1p(uniqueViewsByServiceId.getOrDefault(s.getId(), 0L)))
                 .max()
                 .orElse(0.0);
 
-        double maxViewRaw = services.stream()
+        double maxViewRaw = snapshots.stream()
                 .mapToDouble(s -> log1p(s.getViewCount()))
                 .max()
                 .orElse(0.0);
@@ -61,7 +59,7 @@ public class PolicyRankingService {
         // source_type별 외부 조회수 최대값(정규화용)
         Map<WelfareService.SourceType, Double> maxExternalBySource = new EnumMap<>(WelfareService.SourceType.class);
         for (WelfareService.SourceType sourceType : WelfareService.SourceType.values()) {
-            double max = services.stream()
+            double max = snapshots.stream()
                     .filter(s -> s.getSourceType() == sourceType)
                     .mapToDouble(s -> log1p(s.getApiViewCount()))
                     .max()
@@ -75,7 +73,7 @@ public class PolicyRankingService {
 
         WeightSet baseWeights = weightSetForTraffic(totalUniqueViews);
 
-        List<ScoredService> sortedByScore = services.stream()
+        List<ScoredSnapshot> sortedByScore = snapshots.stream()
                 .map(service -> {
                     long uniqueViews = uniqueViewsByServiceId.getOrDefault(service.getId(), 0L);
                     double uniqueNorm = normalize(log1p(uniqueViews), maxUniqueRaw);
@@ -100,34 +98,51 @@ public class PolicyRankingService {
                             + externalNorm * applied.externalWeight()
                             + freshnessNorm * applied.freshnessWeight();
 
-                    return ScoredService.builder()
-                            .service(service)
+                    return ScoredSnapshot.builder()
+                            .snapshot(service)
                             .score(score)
                             .build();
                 })
-                .sorted(Comparator.comparingDouble(ScoredService::score).reversed())
+                .sorted(Comparator.comparingDouble(ScoredSnapshot::score).reversed())
                 .toList();
 
-        Map<Long, ScoredService> scoredByServiceId = sortedByScore.stream()
+        Map<Long, ScoredSnapshot> scoredByServiceId = sortedByScore.stream()
                 .collect(Collectors.toMap(
-                        scored -> scored.service().getId(),
+                        scored -> scored.snapshot().getId(),
                         Function.identity(),
                         (a, b) -> a
                 ));
 
-        List<ScoredService> selected = applyExplorationSlots(sortedByScore, services, scoredByServiceId, limit);
-        Map<Long, RecommendationCandidateProjection> projections =
-                policyPresentationReadService.findProjections(selected.stream()
-                        .map(ScoredService::service)
-                        .toList());
+        List<ScoredSnapshot> selected = applyExplorationSlots(sortedByScore, snapshots, scoredByServiceId, limit);
+        List<Long> selectedIds = selected.stream()
+                .map(scored -> scored.snapshot().getId())
+                .toList();
+        Map<Long, WelfareService> selectedServicesById = new LinkedHashMap<>();
+        for (WelfareService service : policyRankingReadRepository.findServicesByIds(selectedIds)) {
+            selectedServicesById.put(service.getId(), service);
+        }
+
+        List<WelfareService> selectedServices = selectedIds.stream()
+                .map(selectedServicesById::get)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+
+        Map<Long, RecommendationCandidateProjection> projections = policyPresentationReadService.findProjections(selectedServices);
 
         return selected.stream()
-                .map(scored -> PolicyRankingResponse.of(
-                        scored.service(),
-                        uniqueViewsByServiceId.getOrDefault(scored.service().getId(), 0L),
+                .map(scored -> {
+                    WelfareService service = selectedServicesById.get(scored.snapshot().getId());
+                    if (service == null) {
+                        return null;
+                    }
+                    return PolicyRankingResponse.of(
+                        service,
+                        uniqueViewsByServiceId.getOrDefault(scored.snapshot().getId(), 0L),
                         round4(scored.score()),
-                        projections.get(scored.service().getId())
-                ))
+                        projections.get(scored.snapshot().getId())
+                    );
+                })
+                .filter(java.util.Objects::nonNull)
                 .toList();
     }
 
@@ -136,10 +151,8 @@ public class PolicyRankingService {
         return Math.min(size, MAX_SIZE);
     }
 
-    private double freshnessScore(WelfareService service) {
-        LocalDateTime base = service.getCreatedAt() != null
-                ? service.getCreatedAt()
-                : (service.getRegisteredAt() != null ? service.getRegisteredAt() : null);
+    private double freshnessScore(PolicyRankingReadRepository.RankableServiceSnapshot service) {
+        LocalDateTime base = policyBaseTime(service);
         if (base == null) return 0.0;
         long days = Math.max(0, ChronoUnit.DAYS.between(base, LocalDateTime.now()));
         return Math.exp(-days / 30.0); // 30일 반감
@@ -170,18 +183,18 @@ public class PolicyRankingService {
         return Math.round(v * 10000.0) / 10000.0;
     }
 
-    private List<ScoredService> applyExplorationSlots(List<ScoredService> sortedByScore,
-                                                      List<WelfareService> services,
-                                                      Map<Long, ScoredService> scoredByServiceId,
+    private List<ScoredSnapshot> applyExplorationSlots(List<ScoredSnapshot> sortedByScore,
+                                                      List<PolicyRankingReadRepository.RankableServiceSnapshot> services,
+                                                      Map<Long, ScoredSnapshot> scoredByServiceId,
                                                       int limit) {
-        List<ScoredService> top = new ArrayList<>(sortedByScore.stream().limit(limit).toList());
+        List<ScoredSnapshot> top = new ArrayList<>(sortedByScore.stream().limit(limit).toList());
         if (limit < 10 || top.isEmpty()) return top;
 
         int slots = Math.min(EXPLORE_SLOT_COUNT, limit);
-        Set<Long> existingIds = top.stream().map(s -> s.service().getId()).collect(Collectors.toSet());
+        Set<Long> existingIds = top.stream().map(s -> s.snapshot().getId()).collect(Collectors.toSet());
         LocalDateTime exploreCutoff = LocalDateTime.now().minusDays(EXPLORE_WINDOW_DAYS);
 
-        List<ScoredService> exploreCandidates = services.stream()
+        List<ScoredSnapshot> exploreCandidates = services.stream()
                 .filter(this::isRecentPolicy)
                 .filter(s -> policyBaseTime(s) != null && !policyBaseTime(s).isBefore(exploreCutoff))
                 .filter(s -> !existingIds.contains(s.getId()))
@@ -191,7 +204,7 @@ public class PolicyRankingService {
                 .limit(slots)
                 .toList();
 
-        for (ScoredService candidate : exploreCandidates) {
+        for (ScoredSnapshot candidate : exploreCandidates) {
             if (top.size() >= limit && !top.isEmpty()) {
                 top.remove(top.size() - 1);
             }
@@ -200,12 +213,12 @@ public class PolicyRankingService {
         return top;
     }
 
-    private boolean isRecentPolicy(WelfareService service) {
+    private boolean isRecentPolicy(PolicyRankingReadRepository.RankableServiceSnapshot service) {
         LocalDateTime base = policyBaseTime(service);
         return base != null;
     }
 
-    private LocalDateTime policyBaseTime(WelfareService service) {
+    private LocalDateTime policyBaseTime(PolicyRankingReadRepository.RankableServiceSnapshot service) {
         if (service.getCreatedAt() != null) return service.getCreatedAt();
         return service.getRegisteredAt();
     }
@@ -219,6 +232,6 @@ public class PolicyRankingService {
     }
 
     @lombok.Builder
-    private record ScoredService(WelfareService service, double score) {
+    private record ScoredSnapshot(PolicyRankingReadRepository.RankableServiceSnapshot snapshot, double score) {
     }
 }

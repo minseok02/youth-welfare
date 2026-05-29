@@ -1,6 +1,6 @@
 # Current Performance Baseline
 
-Last updated: 2026-05-29
+Last updated: 2026-05-30
 
 This document records the current performance baseline. Raw artifacts are generated under `tmp/performance`.
 
@@ -167,3 +167,41 @@ When an optimization is applied, add a row here with:
 | Date | Before HEAD | After HEAD | Area | Change | Before | After | Delta | Decision |
 |---|---|---|---|---|---:|---:|---:|---|
 | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
+
+## 2026-05-30 Server Refresh Highlights
+
+The next accepted server refresh was captured on `HEAD=a57dcf7510b47537c95d90a76b15131ebfca0520`.
+
+- `performance_baseline_suite=passed`
+- `performance_extended_suite=passed`
+- `stateful_flow_duration_baseline=passed`
+- `health=UP`
+- recent app log `ERROR/Exception/Caused by 없음`
+
+Notable measured values from that server run:
+
+| Area | Scenario | Value | Notes |
+|---|---|---:|---|
+| API | policy ranking p95 | 870.6ms | hotspot candidate |
+| API | policy ranking p99 | 886.7ms | hotspot candidate |
+| API | policy ranking max | 890.8ms | hotspot candidate |
+| API | policy search keyword p95 | 646.5ms | hotspot candidate |
+| API | policy search keyword p99 | 710.9ms | hotspot candidate |
+| API | policy search keyword max | 727.0ms | hotspot candidate |
+| DB | policy_search_keyword_ilike explain | 125.734ms | seq scan |
+| Wrapper | recommendation observation | 5.956s | server wrapper duration |
+| Wrapper | current priority | 154.715s | server wrapper duration |
+| API Load | total throughput | 3.951 rps | 10s, concurrency 3 |
+| API Load | policy ranking p95 | 2034.4ms | load hotspot |
+| API Load | policy ranking p99 | 2064.9ms | load hotspot |
+| API Load | policy ranking max | 2072.5ms | load hotspot |
+| Edge | `/api/policies/search` total | 505.675ms | external curl total |
+| Web | `/` LCP | 620ms | deployed origin |
+| Web | `/policies` LCP | 636ms | deployed origin |
+| Web | `/login` LCP | 480ms | deployed origin |
+
+Operational note from the same run:
+
+- the first `RUN_WRAPPER_BASELINE=true` execution failed because nested smoke wrappers inherited the parent `ARTIFACT_DIR` and cleanup removed `wrapper-durations.tsv`
+- rerun with `KEEP_ARTIFACTS=true` succeeded
+- this wrapper artifact isolation bug is the first optimization item in [performance-optimization-log.md](./performance-optimization-log.md)
