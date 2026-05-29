@@ -8,6 +8,9 @@ APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:8082}"
 KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
 RUN_BACKEND_TESTS="${RUN_BACKEND_TESTS:-true}"
 RUN_FRONTEND_BASELINE="${RUN_FRONTEND_BASELINE:-true}"
+RUN_FRONTEND_E2E="${RUN_FRONTEND_E2E:-true}"
+FRONTEND_E2E_MODE="${FRONTEND_E2E_MODE:-local-dev}"
+FRONTEND_PUBLIC_BASE_URL="${FRONTEND_PUBLIC_BASE_URL:-${PUBLIC_BASE_URL:-}}"
 RUN_OPS_BASELINE="${RUN_OPS_BASELINE:-true}"
 RUN_COLLECT_LEGACY_REPAIR="${RUN_COLLECT_LEGACY_REPAIR:-true}"
 
@@ -43,11 +46,21 @@ run_script_step() {
 KEEP_ARTIFACTS="$(smoke_normalize_bool "${KEEP_ARTIFACTS}")"
 RUN_BACKEND_TESTS="$(smoke_normalize_bool "${RUN_BACKEND_TESTS}")"
 RUN_FRONTEND_BASELINE="$(smoke_normalize_bool "${RUN_FRONTEND_BASELINE}")"
+RUN_FRONTEND_E2E="$(smoke_normalize_bool "${RUN_FRONTEND_E2E}")"
 RUN_OPS_BASELINE="$(smoke_normalize_bool "${RUN_OPS_BASELINE}")"
 RUN_COLLECT_LEGACY_REPAIR="$(smoke_normalize_bool "${RUN_COLLECT_LEGACY_REPAIR}")"
 
 smoke_require_command bash
 smoke_require_command tee
+
+case "${FRONTEND_E2E_MODE}" in
+  local-dev|deployed-origin|skip)
+    ;;
+  *)
+    echo "FRONTEND_E2E_MODE must be one of: local-dev, deployed-origin, skip" >&2
+    exit 1
+    ;;
+esac
 
 mkdir -p "${ARTIFACT_DIR}"
 
@@ -59,10 +72,29 @@ if [[ "${RUN_BACKEND_TESTS}" == "true" ]]; then
 fi
 
 if [[ "${RUN_FRONTEND_BASELINE}" == "true" ]]; then
-  run_command_step \
-    "frontend lint/build/e2e" \
-    "${ARTIFACT_DIR}/frontend-baseline.txt" \
-    bash -lc "cd '${ROOT_DIR}/frontend' && npm run lint && npm run build && npm run test:e2e"
+  smoke_print_step "frontend lint/build/e2e"
+  {
+    bash -lc "cd '${ROOT_DIR}/frontend' && npm run lint && npm run build"
+    if [[ "${RUN_FRONTEND_E2E}" == "true" ]]; then
+      case "${FRONTEND_E2E_MODE}" in
+        local-dev)
+          bash -lc "cd '${ROOT_DIR}/frontend' && npm run test:e2e"
+          ;;
+        deployed-origin)
+          if [[ -z "${FRONTEND_PUBLIC_BASE_URL}" ]]; then
+            echo "FRONTEND_PUBLIC_BASE_URL or PUBLIC_BASE_URL is required for FRONTEND_E2E_MODE=deployed-origin" >&2
+            exit 1
+          fi
+          bash -lc "cd '${ROOT_DIR}/frontend' && PLAYWRIGHT_SKIP_WEBSERVER=true PLAYWRIGHT_BASE_URL='${FRONTEND_PUBLIC_BASE_URL}' PLAYWRIGHT_GREP_INVERT='@dev-only' npm run test:e2e"
+          ;;
+        skip)
+          echo "frontend_e2e=skipped"
+          ;;
+      esac
+    else
+      echo "frontend_e2e=disabled"
+    fi
+  } | tee "${ARTIFACT_DIR}/frontend-baseline.txt"
 fi
 
 if [[ "${RUN_OPS_BASELINE}" == "true" ]]; then
@@ -91,6 +123,9 @@ fi
   echo "artifact_dir=${ARTIFACT_DIR}"
   echo "run_backend_tests=${RUN_BACKEND_TESTS}"
   echo "run_frontend_baseline=${RUN_FRONTEND_BASELINE}"
+  echo "run_frontend_e2e=${RUN_FRONTEND_E2E}"
+  echo "frontend_e2e_mode=${FRONTEND_E2E_MODE}"
+  echo "frontend_public_base_url=${FRONTEND_PUBLIC_BASE_URL}"
   echo "run_ops_baseline=${RUN_OPS_BASELINE}"
   echo "run_collect_legacy_repair=${RUN_COLLECT_LEGACY_REPAIR}"
   if [[ "${RUN_BACKEND_TESTS}" == "true" ]]; then

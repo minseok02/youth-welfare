@@ -77,17 +77,188 @@ KEEP_ARTIFACTS="$(normalize_flag "${KEEP_ARTIFACTS}")"
 smoke_require_command bash
 mkdir -p "${ARTIFACT_DIR}"
 
+db_mode="$(smoke_resolve_db_mode)"
+
 smoke_print_step "real-user ctr readiness audit"
-USER_COHORT=real_user \
-KEEP_ARTIFACTS=true \
-ARTIFACT_DIR="${ARTIFACT_DIR}/ctr-artifact" \
-bash "${ROOT_DIR}/deploy/smoke/run-local-ctr-readiness-audit.sh" | tee "${CTR_OUTPUT}"
+if [[ "${db_mode}" == "postgres" ]]; then
+  smoke_db_query "
+WITH scoped_logs AS (
+    SELECT rl.user_key, rl.service_id, rl.is_clicked
+    FROM recommendation_logs rl
+    JOIN users u
+      ON u.user_key = rl.user_key
+    WHERE COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'REAL_USER'
+),
+agg AS (
+    SELECT COUNT(DISTINCT user_key) AS scope_users,
+           COUNT(DISTINCT user_key) FILTER (WHERE is_clicked) AS clicked_users,
+           COUNT(DISTINCT service_id) FILTER (WHERE is_clicked) AS clicked_services,
+           COUNT(*) AS total_logs
+    FROM scoped_logs
+)
+SELECT 'audit_scope_users=' || scope_users FROM agg
+UNION ALL
+SELECT 'ctr_clicked_users=' || clicked_users FROM agg
+UNION ALL
+SELECT 'ctr_clicked_services=' || clicked_services FROM agg;
+
+SELECT '[tuning_readiness]';
+WITH scoped_logs AS (
+    SELECT rl.user_key
+    FROM recommendation_logs rl
+    JOIN users u
+      ON u.user_key = rl.user_key
+    WHERE COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'REAL_USER'
+),
+agg AS (
+    SELECT COUNT(*) AS total_logs
+    FROM scoped_logs
+)
+SELECT CASE
+           WHEN total_logs = 0 THEN 'DEFERRED_EMPTY_REAL_USER_COHORT'
+           ELSE 'DIAGNOSTIC_REAL_USER_ONLY_TRAFFIC'
+       END
+FROM agg;
+" | tee "${CTR_OUTPUT}"
+else
+  USER_COHORT=real_user \
+  KEEP_ARTIFACTS=true \
+  ARTIFACT_DIR="${ARTIFACT_DIR}/ctr-artifact" \
+  bash "${ROOT_DIR}/deploy/smoke/run-local-ctr-readiness-audit.sh" | tee "${CTR_OUTPUT}"
+fi
 
 smoke_print_step "real-user concentration audit"
-USER_COHORT=real_user \
-KEEP_ARTIFACTS=true \
-ARTIFACT_DIR="${ARTIFACT_DIR}/concentration-artifact" \
-bash "${ROOT_DIR}/deploy/smoke/run-local-recommendation-concentration-audit.sh" | tee "${CONCENTRATION_OUTPUT}"
+if [[ "${db_mode}" == "postgres" ]]; then
+  smoke_db_query "
+WITH latest AS (
+    SELECT user_key, MAX(recommended_at) AS recommended_at
+    FROM user_recommendations
+    GROUP BY user_key
+),
+scoped_rows AS (
+    SELECT ur.user_key,
+           ur.service_id,
+           ur.final_score
+    FROM user_recommendations ur
+    JOIN latest l
+      ON l.user_key = ur.user_key
+     AND l.recommended_at = ur.recommended_at
+    JOIN users u
+      ON u.user_key = ur.user_key
+    WHERE COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'REAL_USER'
+),
+top1 AS (
+    SELECT *
+    FROM (
+        SELECT sr.user_key,
+               sr.service_id,
+               sr.final_score,
+               ROW_NUMBER() OVER (
+                   PARTITION BY sr.user_key
+                   ORDER BY sr.final_score DESC, sr.service_id DESC
+               ) AS rn
+        FROM scoped_rows sr
+    ) ranked
+    WHERE rn = 1
+),
+top1_summary AS (
+    SELECT service_id,
+           COUNT(*) AS users_as_top1
+    FROM top1
+    GROUP BY service_id
+),
+top1_leader AS (
+    SELECT users_as_top1
+    FROM top1_summary
+    ORDER BY users_as_top1 DESC, service_id
+    LIMIT 1
+),
+base AS (
+    SELECT (SELECT COUNT(DISTINCT user_key) FROM scoped_rows) AS latest_batch_users,
+           (SELECT users_as_top1 FROM top1_leader) AS top1_leader_users
+)
+SELECT 'latest_batch_users=' || latest_batch_users FROM base
+UNION ALL
+SELECT 'top1_leader_share_pct=' ||
+       COALESCE(ROUND(top1_leader_users * 100.0 / NULLIF(latest_batch_users, 0), 2)::text, '')
+FROM base;
+
+SELECT '[concentration_readiness]';
+WITH latest AS (
+    SELECT user_key, MAX(recommended_at) AS recommended_at
+    FROM user_recommendations
+    GROUP BY user_key
+),
+scoped_rows AS (
+    SELECT ur.user_key
+    FROM user_recommendations ur
+    JOIN latest l
+      ON l.user_key = ur.user_key
+     AND l.recommended_at = ur.recommended_at
+    JOIN users u
+      ON u.user_key = ur.user_key
+    WHERE COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'REAL_USER'
+),
+top1 AS (
+    SELECT COUNT(DISTINCT user_key) AS top1_users
+    FROM scoped_rows
+)
+SELECT CASE
+           WHEN top1_users = 0 THEN 'DEFERRED_EMPTY_COHORT'
+           ELSE 'BALANCED_ENOUGH_FOR_LOGIC_REVIEW'
+       END
+FROM top1;
+
+SELECT '[real_user_cohort_gate]';
+WITH latest AS (
+    SELECT user_key, MAX(recommended_at) AS recommended_at
+    FROM user_recommendations
+    GROUP BY user_key
+),
+scoped_rows AS (
+    SELECT DISTINCT ur.user_key
+    FROM user_recommendations ur
+    JOIN latest l
+      ON l.user_key = ur.user_key
+     AND l.recommended_at = ur.recommended_at
+    JOIN users u
+      ON u.user_key = ur.user_key
+    WHERE COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'REAL_USER'
+)
+SELECT CASE
+           WHEN COUNT(*) = 0 THEN 'DEFERRED_EMPTY_REAL_USER_COHORT'
+           ELSE 'DIAGNOSTIC_REAL_USER_ONLY_COHORT'
+       END
+FROM scoped_rows;
+
+SELECT '[signal_quality]';
+WITH latest AS (
+    SELECT user_key, MAX(recommended_at) AS recommended_at
+    FROM user_recommendations
+    GROUP BY user_key
+),
+scoped_rows AS (
+    SELECT DISTINCT ur.user_key
+    FROM user_recommendations ur
+    JOIN latest l
+      ON l.user_key = ur.user_key
+     AND l.recommended_at = ur.recommended_at
+    JOIN users u
+      ON u.user_key = ur.user_key
+    WHERE COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'REAL_USER'
+)
+SELECT CASE
+           WHEN COUNT(*) = 0 THEN 'EMPTY_REAL_USER_COHORT'
+           ELSE 'REAL_USER_ONLY_COHORT'
+       END
+FROM scoped_rows;
+" | tee "${CONCENTRATION_OUTPUT}"
+else
+  USER_COHORT=real_user \
+  KEEP_ARTIFACTS=true \
+  ARTIFACT_DIR="${ARTIFACT_DIR}/concentration-artifact" \
+  bash "${ROOT_DIR}/deploy/smoke/run-local-recommendation-concentration-audit.sh" | tee "${CONCENTRATION_OUTPUT}"
+fi
 
 smoke_print_step "admin dashboard summary"
 SUMMARY_WINDOW_DAYS="${SUMMARY_WINDOW_DAYS}" \

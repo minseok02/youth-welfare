@@ -16,6 +16,8 @@
 프론트 browser smoke는 이 문서의 범위가 아닙니다. 로컬 전체 baseline은 아래 순서를 기준으로 읽습니다.
 
 1. `bash deploy/smoke/run-local-active-baseline-suite.sh`
+   - 서버에서는 `APP_BASE_URL='http://127.0.0.1:8082' FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-local-active-baseline-suite.sh`
+   - 이 모드는 배포 번들에서 불가능한 `@dev-only` admin forced-failure Playwright 2개를 자동 제외합니다.
 2. 필요하면 하위 step만 개별 실행
    - `cd backend && ./gradlew test --no-daemon`
    - `cd frontend && npm run lint && npm run build && npm run test:e2e`

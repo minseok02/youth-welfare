@@ -376,7 +376,7 @@ test("admin dashboard quick jump는 recommendation breakdown 섹션으로 이동
   await expect(page.getByText("1순위 분포 선두 서비스")).toBeVisible();
 });
 
-test("admin dashboard summary 실패 시 collect/search triage는 유지된다", async ({ page }) => {
+test("admin dashboard summary 실패 시 collect/search triage는 유지된다 @dev-only", async ({ page }) => {
   await mockAdminDashboardApis(page);
   await primeAdminDashboardFailureMode(page, "summary");
   await loginFromProtectedRoute(page, "/admin/dashboard", adminCredentials);
@@ -389,7 +389,7 @@ test("admin dashboard summary 실패 시 collect/search triage는 유지된다",
   await expect(page.getByText("검색 실패 상세")).toBeVisible();
 });
 
-test("admin dashboard breakdown 실패 시 recommendation hero는 유지되고 해당 섹션만 실패한다", async ({ page }) => {
+test("admin dashboard breakdown 실패 시 recommendation hero는 유지되고 해당 섹션만 실패한다 @dev-only", async ({ page }) => {
   await mockAdminDashboardApis(page);
   await primeAdminDashboardFailureMode(page, "breakdown");
   await loginFromProtectedRoute(page, "/admin/dashboard", adminCredentials);
