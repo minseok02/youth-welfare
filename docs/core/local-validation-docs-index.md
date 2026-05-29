@@ -27,6 +27,7 @@
 - [policy-gov24-runtime-audit-runbook.md](../policy/policy-gov24-runtime-audit-runbook.md)
 - [policy-admin-runtime-runbook.md](../policy/policy-admin-runtime-runbook.md)
 - [recommendation-ctr-readiness-runbook.md](../recommendation/recommendation-ctr-readiness-runbook.md)
+- [performance-docs-index.md](../performance/performance-docs-index.md)
 - [collect-docs-index.md](../collect/collect-docs-index.md)
 - [recommendation-docs-index.md](../recommendation/recommendation-docs-index.md)
 - [frontend-qa-docs-index.md](../frontend/frontend-qa-docs-index.md)
@@ -101,6 +102,7 @@
 - [policy-gov24-runtime-audit-runbook.md](../policy/policy-gov24-runtime-audit-runbook.md)
 - [policy-admin-runtime-runbook.md](../policy/policy-admin-runtime-runbook.md)
 - [recommendation-ctr-readiness-runbook.md](../recommendation/recommendation-ctr-readiness-runbook.md)
+- [performance-docs-index.md](../performance/performance-docs-index.md)
 
 이 문서군은
 
@@ -108,6 +110,7 @@
 - Gov24 runtime closeout / deferred inventory audit
 - bounded admin runtime 응답 baseline
 - CTR readiness baseline
+- performance baseline / load / observability 진입점
 
 을 one-shot smoke/runbook 기준으로 다시 확인할 때 먼저 봅니다.
 
@@ -135,10 +138,11 @@
 2. [policy-gov24-runtime-audit-runbook.md](../policy/policy-gov24-runtime-audit-runbook.md)
 3. [policy-admin-runtime-runbook.md](../policy/policy-admin-runtime-runbook.md)
 4. [recommendation-ctr-readiness-runbook.md](../recommendation/recommendation-ctr-readiness-runbook.md)
+5. [performance-docs-index.md](../performance/performance-docs-index.md)
 
 ## 요약
 
 1. 단위/통합 테스트 실행 기준은 [testing.md](./testing.md) 부터 봅니다.
 2. curl 기반 API smoke는 [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md) 를 보고, 전체 baseline은 가능하면 `run-local-validation-from-env.sh` wrapper부터 사용합니다.
 3. 데모/검수 순서는 [demo-scenario.md](./demo-scenario.md) 를 기준으로 잡습니다.
-4. bounded runtime quality/audit baseline은 policy/recommendation runbook 4종을 먼저 봅니다.
+4. bounded runtime quality/audit baseline은 policy/recommendation runbook과 [performance-docs-index.md](../performance/performance-docs-index.md) 를 먼저 봅니다.
