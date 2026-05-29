@@ -90,12 +90,12 @@ public final class YouthNormalizationSupport {
 
     public static List<NormalizedPolicyAggregate.Fact> facts(WelfareService service, YouthApiDto.Item item) {
         List<NormalizedPolicyAggregate.Fact> facts = new ArrayList<>();
-        Integer resolvedMinAge = item != null && item.getSprtTrgtMinAge() != null
+        Integer resolvedMinAge = normalizePositiveAge(item != null && item.getSprtTrgtMinAge() != null
                 ? item.getSprtTrgtMinAge()
-                : service.getMinAge();
-        Integer resolvedMaxAge = item != null && item.getSprtTrgtMaxAge() != null
+                : service.getMinAge());
+        Integer resolvedMaxAge = normalizePositiveAge(item != null && item.getSprtTrgtMaxAge() != null
                 ? item.getSprtTrgtMaxAge()
-                : service.getMaxAge();
+                : service.getMaxAge());
         addRangeFact(facts,
                 NormalizationKeySupport.FACT_GROUP_AGE,
                 NormalizationKeySupport.FACT_CODE_YOUTH_AGE,
@@ -128,6 +128,10 @@ public final class YouthNormalizationSupport {
         addSpecialRequirementFact(facts, item);
         addIncomeConditionTypeFact(facts, item);
         return facts;
+    }
+
+    private static Integer normalizePositiveAge(Integer age) {
+        return age != null && age > 0 ? age : null;
     }
 
     private static void addMaritalStatusFact(List<NormalizedPolicyAggregate.Fact> facts, YouthApiDto.Item item) {

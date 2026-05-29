@@ -115,6 +115,67 @@ class InvertedAgeBackfillIntegrationTest {
         assertThat(((Number) ageFact.get("range_max_int")).intValue()).isEqualTo(39);
     }
 
+    @Test
+    @DisplayName("YOUTH detail max age가 0이면 backfill은 open upper bound로 정규화한다")
+    void backfillNormalizesYouthZeroMaxAgeToNull() throws Exception {
+        String sourceId = TEST_SOURCE_PREFIX + UUID.randomUUID().toString().substring(0, 8);
+        WelfareService service = welfareServiceRepository.saveAndFlush(WelfareService.builder()
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId(sourceId)
+                .title("청년 자립 지원")
+                .description("청년 자립 지원 설명")
+                .supportContent("청년 자립 지원")
+                .applyMethodName("온라인 신청")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .minAge(19)
+                .maxAge(0)
+                .searchYouthRelevant(true)
+                .apiViewCount(0L)
+                .viewCount(0)
+                .build());
+
+        YouthApiDto.Item detail = new YouthApiDto.Item();
+        ReflectionTestUtils.setField(detail, "plcyNo", sourceId);
+        ReflectionTestUtils.setField(detail, "plcyNm", "청년 자립 지원");
+        ReflectionTestUtils.setField(detail, "plcyAplyMthdCn", "온라인 신청");
+        ReflectionTestUtils.setField(detail, "plcySprtCn", "자립 지원금");
+        ReflectionTestUtils.setField(detail, "sprtTrgtMinAge", 19);
+        ReflectionTestUtils.setField(detail, "sprtTrgtMaxAge", 0);
+
+        jdbcTemplate.update("""
+                INSERT INTO raw_api_payloads (source_type, source_id, api_category, payload_json, payload_hash, fetched_at, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
+                """,
+                WelfareService.SourceType.YOUTH.name(),
+                sourceId,
+                RawApiPayload.ApiCategory.DETAIL.name(),
+                objectMapper.writeValueAsString(detail),
+                "hash-zero-" + sourceId,
+                LocalDateTime.now()
+        );
+
+        InvertedAgeBackfillResponse response = invertedAgeBackfillService.backfill(
+                List.of(WelfareService.SourceType.YOUTH),
+                5000
+        );
+
+        WelfareService repaired = welfareServiceRepository.findById(service.getId()).orElseThrow();
+        assertThat(response.repairedCount()).isGreaterThanOrEqualTo(1);
+        assertThat(repaired.getMinAge()).isEqualTo(19);
+        assertThat(repaired.getMaxAge()).isNull();
+
+        var ageFact = jdbcTemplate.queryForMap("""
+                SELECT range_min_int, range_max_int
+                FROM service_facts
+                WHERE service_id = ?
+                  AND fact_group = ?
+                ORDER BY id
+                LIMIT 1
+                """, repaired.getId(), "AGE");
+        assertThat(((Number) ageFact.get("range_min_int")).intValue()).isEqualTo(19);
+        assertThat(ageFact.get("range_max_int")).isNull();
+    }
+
     private void cleanup() {
         List<WelfareService> services = welfareServiceRepository.findBySourceType(WelfareService.SourceType.YOUTH).stream()
                 .filter(service -> service.getSourceId() != null && service.getSourceId().startsWith(TEST_SOURCE_PREFIX))

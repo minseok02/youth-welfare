@@ -142,6 +142,73 @@ class InvertedAgeBackfillServiceTest {
     }
 
     @Test
+    @DisplayName("청년 detail raw payload의 max age가 0이면 open upper bound로 정규화한다")
+    void backfillNormalizesYouthZeroMaxAgeToNull() throws Exception {
+        WelfareService invalid = WelfareService.builder()
+                .id(12L)
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("Y-12")
+                .title("청년 정책")
+                .description("청년 정책 설명")
+                .supportContent("청년 지원")
+                .applyMethodName("온라인 신청")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .minAge(19)
+                .maxAge(0)
+                .build();
+        WelfareService repaired = WelfareService.builder()
+                .id(12L)
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("Y-12")
+                .title("청년 정책")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .minAge(19)
+                .maxAge(null)
+                .build();
+        YouthApiDto.Item detail = new YouthApiDto.Item();
+        ReflectionTestUtils.setField(detail, "plcyNo", "Y-12");
+        ReflectionTestUtils.setField(detail, "plcyAplyMthdCn", "온라인 신청");
+        ReflectionTestUtils.setField(detail, "sprtTrgtMinAge", 19);
+        ReflectionTestUtils.setField(detail, "sprtTrgtMaxAge", 0);
+        RawApiPayload rawPayload = RawApiPayload.builder()
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("Y-12")
+                .apiCategory(RawApiPayload.ApiCategory.DETAIL)
+                .payloadJson(objectMapper.writeValueAsString(detail))
+                .payloadHash("hash-y12")
+                .fetchedAt(LocalDateTime.now())
+                .build();
+
+        given(welfareServiceRepository.findInvalidAgeRangeTargetsBySourceType(
+                eq(WelfareService.SourceType.YOUTH),
+                any(Pageable.class)
+        )).willReturn(List.of(invalid));
+        given(rawApiPayloadReadRepository.findBySourceTypeAndSourceIdAndApiCategory(
+                WelfareService.SourceType.YOUTH,
+                "Y-12",
+                RawApiPayload.ApiCategory.DETAIL
+        )).willReturn(Optional.of(rawPayload));
+        given(welfareServiceDetailRepository.findByServiceId(12L)).willReturn(Optional.empty());
+        given(welfareServiceRepository.findById(12L)).willReturn(Optional.of(repaired));
+
+        InvertedAgeBackfillResponse response = invertedAgeBackfillService.backfill(
+                List.of(WelfareService.SourceType.YOUTH),
+                1000
+        );
+
+        ArgumentCaptor<com.example.welfare.collect.normalization.NormalizedPolicyAggregate> aggregateCaptor =
+                ArgumentCaptor.forClass(com.example.welfare.collect.normalization.NormalizedPolicyAggregate.class);
+        verify(collectPolicyAggregateApplyService).applyCollectedDetail(eq(invalid), eq(null), aggregateCaptor.capture());
+        assertThat(aggregateCaptor.getValue().facts()).anySatisfy(fact -> {
+            assertThat(fact.factGroup()).isEqualTo("AGE");
+            assertThat(fact.rangeMinInt()).isEqualTo(19);
+            assertThat(fact.rangeMaxInt()).isNull();
+        });
+        assertThat(response.repairedCount()).isEqualTo(1);
+        assertThat(response.unrepairedCount()).isZero();
+    }
+
+    @Test
     @DisplayName("Gov24 detail raw payload를 replay하고 raw가 없으면 missingRawPayload로 집계한다")
     void backfillUsesGov24RawAndCountsMissingPayload() throws Exception {
         WelfareService gov24Invalid = WelfareService.builder()

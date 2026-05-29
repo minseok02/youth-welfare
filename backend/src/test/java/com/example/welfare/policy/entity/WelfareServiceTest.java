@@ -24,4 +24,22 @@ class WelfareServiceTest {
         assertThat(service.getMinAge()).isEqualTo(35);
         assertThat(service.getMaxAge()).isEqualTo(39);
     }
+
+    @Test
+    @DisplayName("detail fallback은 non-positive max age를 open upper bound로 정규화한다")
+    void applyDetailFallbacksNormalizesNonPositiveMaxAgeToNull() {
+        WelfareService service = WelfareService.builder()
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("YOUTH-OPEN-BOUND")
+                .title("청년 정책")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .minAge(19)
+                .maxAge(0)
+                .build();
+
+        service.applyDetailFallbacks(null, null, 19, 0, null, null, null);
+
+        assertThat(service.getMinAge()).isEqualTo(19);
+        assertThat(service.getMaxAge()).isNull();
+    }
 }
