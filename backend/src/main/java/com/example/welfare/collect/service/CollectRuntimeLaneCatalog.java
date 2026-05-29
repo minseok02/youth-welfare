@@ -7,6 +7,8 @@ public final class CollectRuntimeLaneCatalog {
     public static final String YOUTH_DETAILS_LANE_KEY = "YOUTH_DETAILS";
     public static final String YOUTH_DETAILS_LOCK_NAME = "collect-youth-details";
     public static final String YOUTH_DETAILS_TRIGGER_PATH = "/api/admin/collect/youth-details";
+    public static final String INVERTED_AGE_BACKFILL_LOCK_NAME = "collect-inverted-age-backfill";
+    public static final String INVERTED_AGE_BACKFILL_TRIGGER_PATH = "/api/admin/collect/inverted-age-backfill";
 
     private CollectRuntimeLaneCatalog() {
     }

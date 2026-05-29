@@ -74,10 +74,16 @@ ORDER BY id;
 ```
 
   - `2026-05-29` local sweep 기준 이 inverted row는 `3700` 한 건이 아니라 `YOUTH`, `BOKJIRO_LOCAL(2726, 3197)`, `GOV24` 전반에 더 남아 있었다. 즉 sourceId self-heal은 특정 row 복구용이고, 전체 backfill은 별도 작업으로 읽는 편이 맞다.
+  - 현재 whole-batch repair lane은 `POST /api/admin/collect/inverted-age-backfill?sourceType=<선택>&limitPerSource=0` 이다. 이 경로는 외부 API를 다시 치지 않고 저장돼 있던 `DETAIL raw_api_payloads` 를 replay해 `welfare_services` 와 `service_facts` 의 age range를 다시 맞춘다.
+  - 응답 해석:
+    - `repairedCount`: replay 뒤 정상 range로 복구된 row 수
+    - `missingRawPayloadCount`: detail raw가 없어 replay 자체를 못 한 row 수
+    - `unrepairedCount`: replay는 했지만 row가 여전히 `min_age > max_age` 인 row 수
+    - `failedCount`: raw parse 또는 apply 중 예외가 난 row 수
   - current source별 bounded repair 전략:
     - `BOKJIRO_LOCAL/BOKJIRO_CENTRAL`: `POST /api/admin/collect/bokjiro-details-refresh?sourceId=<복지로 서비스ID>`
     - `GOV24`: `POST /api/admin/collect/gov24-details?sourceId=<Gov24 서비스ID>`
-    - `YOUTH`: current code 기준 `sourceId` 단건 detail repair lane 없음. `POST /api/admin/collect/youth-details` 또는 broader rerun으로 해석한다.
+    - `YOUTH`: current code 기준 `sourceId` 단건 detail repair lane은 여전히 없지만, broad raw replay backfill(`inverted-age-backfill`) 은 now supported 한다. 외부 API를 다시 부를 필요가 없으면 이 경로를 먼저 쓴다.
   - stored detail payload coverage 가 낮아 sidecar density가 detail raw 개수에 묶여 있을 때만 gap fill 경로를 써서 여러 라운드 backlog 를 메운다.
   - 기존 raw payload 로 sidecar를 다시 채우거나 density를 재측정할 때만 backfill 경로를 쓴다.
   - 특히 Gov24 상세에서 `gov24ServiceFieldLabel/userType/benefitType` 같은 summary label이 비는 소수 row drift는 `gov24-sidecars-backfill` 로 먼저 메운다.

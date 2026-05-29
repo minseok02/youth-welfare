@@ -29,6 +29,17 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             """)
     List<Long> findIdsBySearchYouthRelevantTrueAndStatusIn(@Param("statuses") List<WelfareService.ServiceStatus> statuses);
 
+    @Query("""
+            SELECT ws FROM WelfareService ws
+            WHERE ws.sourceType = :sourceType
+              AND ws.minAge IS NOT NULL
+              AND ws.maxAge IS NOT NULL
+              AND ws.minAge > ws.maxAge
+            ORDER BY ws.id ASC
+            """)
+    List<WelfareService> findInvalidAgeRangeTargetsBySourceType(@Param("sourceType") WelfareService.SourceType sourceType,
+                                                                Pageable pageable);
+
     // 추천 후보 조회: 나이·소득 필터 + ACTIVE/UPCOMING 상태
     @Query("""
             SELECT ws FROM WelfareService ws

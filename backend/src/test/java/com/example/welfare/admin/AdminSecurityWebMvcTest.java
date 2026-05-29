@@ -8,6 +8,7 @@ import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGateProm
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
+import com.example.welfare.collect.dto.InvertedAgeBackfillResponse;
 import com.example.welfare.admin.dashboard.service.AdminDashboardCollectService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardRecommendationDiagnosticService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardRecommendationService;
@@ -35,6 +36,7 @@ import com.example.welfare.policy.dto.PolicyReferenceUrlBackfillResponse;
 import com.example.welfare.policy.dto.PolicyRetrievalEvaluationCompareResponse;
 import com.example.welfare.policy.dto.PolicyRetrievalEvaluationResponse;
 import com.example.welfare.policy.dto.PolicyRetrievalQualityGateResponse;
+import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.service.PolicyCategoryAuditService;
 import com.example.welfare.policy.service.PolicyEmbeddingAdminService;
 import com.example.welfare.policy.service.PolicyReferenceUrlAdminService;
@@ -190,6 +192,41 @@ class AdminSecurityWebMvcTest {
     }
 
     @Test
+    @DisplayName("관리자 토큰으로 inverted age backfill API를 호출하면 backfill service를 실행한다")
+    void adminEndpointAllowsInvertedAgeBackfill() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(collectAdminService.backfillInvertedAgeRanges(
+                List.of(WelfareService.SourceType.YOUTH),
+                25
+        )).willReturn(new InvertedAgeBackfillResponse(
+                "selected-source-types",
+                List.of(WelfareService.SourceType.YOUTH),
+                25,
+                2,
+                1,
+                0,
+                1,
+                0
+        ));
+
+        mockMvc.perform(post("/api/admin/collect/inverted-age-backfill")
+                        .param("sourceType", "YOUTH")
+                        .param("limitPerSource", "25")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.repairedCount").value(1));
+
+        then(collectAdminService).should().backfillInvertedAgeRanges(
+                List.of(WelfareService.SourceType.YOUTH),
+                25
+        );
+    }
+
+    @Test
     @DisplayName("관리자 수집 API는 maxCallsPerRun 상한을 넘기면 400을 반환한다")
     void adminEndpointRejectsTooLargeMaxCallsPerRun() throws Exception {
         mockAuthenticatedToken("admin-token", List.of(
@@ -199,6 +236,22 @@ class AdminSecurityWebMvcTest {
 
         mockMvc.perform(post("/api/admin/collect/youth")
                         .param("maxCallsPerRun", "5001")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+    }
+
+    @Test
+    @DisplayName("관리자 inverted age backfill API는 limitPerSource 상한을 넘기면 400을 반환한다")
+    void adminEndpointRejectsTooLargeInvertedAgeBackfillLimit() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+
+        mockMvc.perform(post("/api/admin/collect/inverted-age-backfill")
+                        .param("limitPerSource", "1001")
                         .header("Authorization", "Bearer admin-token"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
