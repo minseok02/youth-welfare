@@ -16,6 +16,7 @@
 - [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md)
 - [policy-normalization-recommendation-read-model.md](./policy-normalization-recommendation-read-model.md)
 - [policy-normalization-recommendation-migration-order.md](./policy-normalization-recommendation-migration-order.md)
+- [policy-gov24-reopen-checklist.md](./policy-gov24-reopen-checklist.md)
 - [policy-normalization-compat-storage-policy.md](../history/policy/policy-normalization-compat-storage-policy.md)
 - [policy-post-local-closeout-track-split.md](./policy-post-local-closeout-track-split.md)
 
@@ -49,6 +50,10 @@ legacy `service_taxonomies` raw summary는 canonical term이 없는 row에서만
 `service_taxonomy_terms.code_set_key` 도 현재 `null` 로 유지한다.
 즉 `Gov24` 3축은 지금 단계에서 `normalization_code_sets` FK에 기대는 stable-code taxonomy가 아니라,
 **raw exact label / allowlist token을 보존하는 label-first taxonomy term** 으로 읽는 편이 맞다.
+따라서 다음 `Gov24` 작업은 자동 reopen 이 아니라,
+[policy-gov24-reopen-checklist.md](./policy-gov24-reopen-checklist.md) 기준으로
+`stable import/backfill`, `public filter/scoring`, `supportConditions full-scope` 중
+하나가 명시 승인될 때만 다시 여는 편이 맞다.
 
 ## 1. canonical sidecar 저장
 

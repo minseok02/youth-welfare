@@ -6,6 +6,7 @@
 
 - [phase-plan.md](../phase-plan.md)
 - [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)
+- [policy-gov24-reopen-checklist.md](./policy-gov24-reopen-checklist.md)
 - [policy-normalization-blocked-sql-reopen-priority.md](../history/policy/policy-normalization-blocked-sql-reopen-priority.md)
 - [policy-normalization-gov24-request-package-checklist.md](../history/policy/policy-normalization-gov24-request-package-checklist.md)
 
@@ -51,6 +52,7 @@ stable code/import-backfill 또는 public/scoring 확장 같은 **reopen 조건�
 1. 지금 닫힌 기준선을 유지한다
 2. 새 재현 버그가 생기면 그 축만 다시 연다
 3. 코드 작업을 더 하려면 deferred/product lane 중 하나를 명시적으로 선택한다
+4. `Gov24 canonical` 은 [policy-gov24-reopen-checklist.md](./policy-gov24-reopen-checklist.md) 에서 목표를 하나만 고른 뒤 연다
 
 현재 다시 열 후보를 고른다면 아래 순서를 권장했습니다.
 

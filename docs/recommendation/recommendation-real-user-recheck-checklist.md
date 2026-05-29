@@ -14,6 +14,34 @@
 
 ## 실행 순서
 
+### 0. one-shot reopen precheck
+
+```bash
+APP_BASE_URL='http://127.0.0.1:8082' \
+ADMIN_EMAIL='<local admin email>' \
+ADMIN_PASSWORD='<local admin password>' \
+bash deploy/smoke/run-local-recommendation-reopen-precheck.sh
+```
+
+먼저 볼 값:
+
+- `reopen_precheck_status`
+- `reopen_precheck_reason`
+- `next_action`
+- `effective_operator_next_step`
+- `review_gate_policy_promotion_status`
+
+이 wrapper는 `latest overview + real-user readiness` 를 묶어
+현재 결론이
+
+- `KEEP_OBSERVING`
+- `WAIT_FOR_REAL_USER_LEADER_SIGNAL`
+- `SUPPLEMENTAL_REVIEW_ONLY`
+- `READY_FOR_REOPEN_DECISION`
+- `INVESTIGATE_BASELINE_DRIFT`
+
+중 무엇인지 바로 요약합니다.
+
 ### 1. daily one-shot 재실행
 
 ```bash
@@ -150,4 +178,4 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status-export.sh
 
 ## 한 줄 요약
 
-`REAL_USER` 표본이 생기면 **latest-overview -> readiness -> baseline-refresh-drift-check -> latest-status-export** 순서로 다시 태우고, stable baseline이 바뀐 경우에만 reopen 판단으로 넘어갑니다.
+`REAL_USER` 표본이 생기면 **reopen-precheck -> latest-overview -> readiness -> baseline-refresh-drift-check -> latest-status-export** 순서로 다시 태우고, stable baseline이 바뀌거나 precheck가 `READY_FOR_REOPEN_DECISION` 일 때만 reopen 판단으로 넘어갑니다.

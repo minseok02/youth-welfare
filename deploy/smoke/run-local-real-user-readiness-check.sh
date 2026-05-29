@@ -14,8 +14,12 @@ CTR_OUTPUT="${ARTIFACT_DIR}/ctr-real-user.out"
 CONCENTRATION_OUTPUT="${ARTIFACT_DIR}/concentration-real-user.out"
 DASHBOARD_OUTPUT="${ARTIFACT_DIR}/admin-dashboard.out"
 BREAKDOWN_OUTPUT="${ARTIFACT_DIR}/admin-breakdowns.out"
+KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
 
 cleanup() {
+  if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
+    return 0
+  fi
   rm -rf "${ARTIFACT_DIR}"
 }
 trap cleanup EXIT
@@ -68,23 +72,35 @@ PY
 }
 
 REQUIRE_READY="$(normalize_flag "${REQUIRE_READY}")"
+KEEP_ARTIFACTS="$(normalize_flag "${KEEP_ARTIFACTS}")"
 
 smoke_require_command bash
+mkdir -p "${ARTIFACT_DIR}"
 
 smoke_print_step "real-user ctr readiness audit"
-USER_COHORT=real_user bash "${ROOT_DIR}/deploy/smoke/run-local-ctr-readiness-audit.sh" | tee "${CTR_OUTPUT}"
+USER_COHORT=real_user \
+KEEP_ARTIFACTS=true \
+ARTIFACT_DIR="${ARTIFACT_DIR}/ctr-artifact" \
+bash "${ROOT_DIR}/deploy/smoke/run-local-ctr-readiness-audit.sh" | tee "${CTR_OUTPUT}"
 
 smoke_print_step "real-user concentration audit"
-USER_COHORT=real_user bash "${ROOT_DIR}/deploy/smoke/run-local-recommendation-concentration-audit.sh" | tee "${CONCENTRATION_OUTPUT}"
+USER_COHORT=real_user \
+KEEP_ARTIFACTS=true \
+ARTIFACT_DIR="${ARTIFACT_DIR}/concentration-artifact" \
+bash "${ROOT_DIR}/deploy/smoke/run-local-recommendation-concentration-audit.sh" | tee "${CONCENTRATION_OUTPUT}"
 
 smoke_print_step "admin dashboard summary"
 SUMMARY_WINDOW_DAYS="${SUMMARY_WINDOW_DAYS}" \
 TREND_WINDOW_DAYS_CSV="${TREND_WINDOW_DAYS_CSV}" \
+KEEP_ARTIFACTS=true \
+ARTIFACT_DIR="${ARTIFACT_DIR}/admin-dashboard-artifact" \
 bash "${ROOT_DIR}/deploy/smoke/run-local-admin-dashboard-smoke.sh" | tee "${DASHBOARD_OUTPUT}"
 
 smoke_print_step "admin recommendation breakdowns"
 SUMMARY_WINDOW_DAYS="${SUMMARY_WINDOW_DAYS}" \
 BREAKDOWN_LIMIT="${BREAKDOWN_LIMIT}" \
+KEEP_ARTIFACTS=true \
+ARTIFACT_DIR="${ARTIFACT_DIR}/admin-breakdowns-artifact" \
 bash "${ROOT_DIR}/deploy/smoke/run-local-admin-recommendation-breakdowns-smoke.sh" | tee "${BREAKDOWN_OUTPUT}"
 
 CTR_SCOPE_USERS="$(extract_key_value "${CTR_OUTPUT}" "audit_scope_users")"
