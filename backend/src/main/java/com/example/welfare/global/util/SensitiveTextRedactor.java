@@ -16,6 +16,12 @@ public final class SensitiveTextRedactor {
             Pattern.compile("\\b\\d{6}[- ]?[1-4]\\d{6}\\b");
     private static final Pattern ACCOUNT_PATTERN =
             Pattern.compile("(?i)(?:계좌(?:번호)?(?:[은는이가]|번호는)?|account)\\s*[:=]?\\s*[0-9-]{8,}");
+    private static final Pattern NAME_LABEL_PATTERN =
+            Pattern.compile("(?i)\\b(이름|성함|본명|name)(?:은|는|이|가)?\\s*(?:[:=]\\s*|\\s+)([가-힣A-Za-z]{2,20})\\b");
+    private static final Pattern ADDRESS_LABEL_PATTERN =
+            Pattern.compile("(?i)\\b(주소|거주지|사는\\s?곳|address)(?:는|은|이|가)?\\s*(?:[:=]\\s*|\\s+)([^,\\n]{4,80})");
+    private static final Pattern ORGANIZATION_LABEL_PATTERN =
+            Pattern.compile("(?i)\\b(학교명|회사명|근무지|소속|school|company|organization)(?:은|는|이|가)?\\s*(?:[:=]\\s*|\\s+)([^,\\n]{2,60})");
 
     private SensitiveTextRedactor() {
     }
@@ -29,6 +35,13 @@ public final class SensitiveTextRedactor {
         redacted = BIRTH_DATE_PATTERN.matcher(redacted).replaceAll("[REDACTED_BIRTH_DATE]");
         redacted = RESIDENT_REGISTRATION_PATTERN.matcher(redacted).replaceAll("[REDACTED_RRN]");
         redacted = ACCOUNT_PATTERN.matcher(redacted).replaceAll("[REDACTED_ACCOUNT]");
+        redacted = redactLabeledValue(redacted, NAME_LABEL_PATTERN, "[REDACTED_NAME]");
+        redacted = redactLabeledValue(redacted, ADDRESS_LABEL_PATTERN, "[REDACTED_ADDRESS]");
+        redacted = redactLabeledValue(redacted, ORGANIZATION_LABEL_PATTERN, "[REDACTED_ORG]");
         return redacted;
+    }
+
+    private static String redactLabeledValue(String value, Pattern pattern, String replacementToken) {
+        return pattern.matcher(value).replaceAll("$1 " + replacementToken);
     }
 }

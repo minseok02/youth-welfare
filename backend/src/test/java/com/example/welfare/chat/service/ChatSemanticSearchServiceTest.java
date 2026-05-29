@@ -40,7 +40,7 @@ class ChatSemanticSearchServiceTest {
     @DisplayName("semantic query는 embedding 전송 전에 직접 식별자를 마스킹한다")
     void semanticQueryRedactsDirectIdentifiersBeforeEmbedding() {
         chatSemanticSearchService.findCandidates(
-                "제 메일은 test.user@example.com 이고 전화는 010-1234-5678, 생일은 2001-04-30, 주민번호는 900101-1234567, 계좌번호는 123-456-789012 입니다",
+                "제 메일은 test.user@example.com 이고 전화는 010-1234-5678, 생일은 2001-04-30, 주민번호는 900101-1234567, 계좌번호는 123-456-789012 입니다. 이름 김민수, 주소 인천광역시 중구 은하수로 10, 회사명 청년컴퍼니",
                 null,
                 List.of("청년", "주거"),
                 3
@@ -51,12 +51,18 @@ class ChatSemanticSearchServiceTest {
         assertThat(embeddingGateway.lastQuery).contains("[REDACTED_BIRTH_DATE]");
         assertThat(embeddingGateway.lastQuery).contains("[REDACTED_RRN]");
         assertThat(embeddingGateway.lastQuery).contains("[REDACTED_ACCOUNT]");
+        assertThat(embeddingGateway.lastQuery).contains("[REDACTED_NAME]");
+        assertThat(embeddingGateway.lastQuery).contains("[REDACTED_ADDRESS]");
+        assertThat(embeddingGateway.lastQuery).contains("[REDACTED_ORG]");
         assertThat(embeddingGateway.lastQuery).contains("청년 주거");
         assertThat(embeddingGateway.lastQuery).doesNotContain("test.user@example.com");
         assertThat(embeddingGateway.lastQuery).doesNotContain("010-1234-5678");
         assertThat(embeddingGateway.lastQuery).doesNotContain("2001-04-30");
         assertThat(embeddingGateway.lastQuery).doesNotContain("900101-1234567");
         assertThat(embeddingGateway.lastQuery).doesNotContain("123-456-789012");
+        assertThat(embeddingGateway.lastQuery).doesNotContain("김민수");
+        assertThat(embeddingGateway.lastQuery).doesNotContain("인천광역시 중구 은하수로 10");
+        assertThat(embeddingGateway.lastQuery).doesNotContain("청년컴퍼니");
     }
 
     private static final class CapturingEmbeddingGateway implements ChatEmbeddingGateway {

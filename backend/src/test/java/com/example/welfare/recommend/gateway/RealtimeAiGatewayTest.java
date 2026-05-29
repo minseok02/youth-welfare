@@ -2,6 +2,7 @@ package com.example.welfare.recommend.gateway;
 
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
+import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.dto.ScoredCandidate;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -68,10 +69,44 @@ class RealtimeAiGatewayTest {
         List<Map<String, String>> messages = (List<Map<String, String>>) request.get("messages");
         assertThat(messages).isNotEmpty();
         assertThat(messages.get(0).get("role")).isEqualTo("system");
+        assertThat(messages.get(0).get("content")).isEqualTo(RealtimeAiGateway.systemPrompt());
         assertThat(messages.get(0).get("content"))
                 .contains("한국 청년 복지 정책 추천 전문가")
                 .contains("0~100점으로 평가")
                 .contains("반드시 JSON만 응답");
+    }
+
+    @Test
+    void buildUserPromptUsesOnlyCategoricalProfileSignals() {
+        RealtimeAiGateway gateway = new RealtimeAiGateway(null, new ObjectMapper());
+        List<ScoredCandidate> candidates = List.of(scoredCandidate(403L, 30.0));
+        RecommendationUserSnapshot user = new RecommendationUserSnapshot(
+                1L,
+                "user-key-1",
+                27,
+                "25_29",
+                "인천광역시",
+                "중구",
+                "2811000000",
+                (byte) 5,
+                "1인 가구",
+                "미취업",
+                10,
+                0.5,
+                List.of(),
+                List.of(),
+                List.of()
+        );
+
+        String prompt = gateway.buildUserPrompt(candidates, user);
+
+        assertThat(prompt)
+                .contains("나이대: 25-29세")
+                .contains("거주지역: 인천광역시")
+                .contains("소득: 5분위")
+                .contains("취업상태: 미취업")
+                .doesNotContain("user-key-1")
+                .doesNotContain("2811000000");
     }
 
     @Test
