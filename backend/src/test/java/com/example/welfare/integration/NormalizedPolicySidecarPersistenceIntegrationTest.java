@@ -350,6 +350,140 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
         assertThat(((Number) ageFact.get("range_max_int")).intValue()).isEqualTo(39);
     }
 
+    @Test
+    @DisplayName("gov24 sourceId detail collect는 max-only age bound만 있어도 upper-bound-only로 self heal 한다")
+    void gov24DetailForSourceIdRepairsInvalidAgeRangeWithMaxOnlyBound() {
+        sourceId = TEST_SOURCE_PREFIX + UUID.randomUUID();
+
+        Gov24ServiceListDto.Item item = gov24Item(
+                sourceId,
+                "보육·교육",
+                "개인",
+                "서비스"
+        );
+        ReflectionTestUtils.setField(item, "serviceName", "아동 교육 지원");
+        ReflectionTestUtils.setField(item, "servicePurposeSummary", "저연령 아동을 지원합니다.");
+
+        NormalizedPolicyAggregate aggregate = welfareServiceMapper.toNormalizedGov24(item);
+        collectItemSaver.save(CollectSourceRegistry.GOV24.listBinding(welfareServiceMapper), item, aggregate);
+
+        WelfareService saved = welfareServiceRepository
+                .findBySourceTypeAndSourceId(WelfareService.SourceType.GOV24, sourceId)
+                .orElseThrow();
+
+        jdbcTemplate.update("""
+                UPDATE welfare_services
+                SET min_age = ?, max_age = ?
+                WHERE id = ?
+                """, 75, 69, saved.getId());
+
+        Gov24Client gov24Client = Mockito.mock(Gov24Client.class);
+        Gov24ServiceDetailDto.Item detailItem = gov24DetailItem(
+                sourceId,
+                "만 13세 이하 아동",
+                "연령 기준 충족",
+                "교육 활동 지원"
+        );
+        given(gov24Client.fetchDetail(sourceId)).willReturn(detailItem);
+
+        Gov24DetailCollectService detailCollectService = new Gov24DetailCollectService(
+                gov24Client,
+                welfareServiceMapper,
+                rawApiPayloadService,
+                collectPolicyAggregateApplyService,
+                new BokjiroDetailReadRepositoryImpl(welfareServiceRepository, welfareServiceDetailRepository),
+                welfareServiceRepository
+        );
+        ReflectionTestUtils.setField(detailCollectService, "requestIntervalMs", 0L);
+        ReflectionTestUtils.setField(detailCollectService, "retryMaxAttempts", 1);
+        ReflectionTestUtils.setField(detailCollectService, "retryBaseBackoffMs", 0L);
+
+        CollectResult result = new TransactionTemplate(transactionManager)
+                .execute(status -> detailCollectService.collectGov24DetailsForSourceId(sourceId));
+
+        assertThat(result).isNotNull();
+        assertThat(result.savedCount()).isEqualTo(1);
+        assertThat(result.failedCount()).isZero();
+
+        WelfareService refreshed = welfareServiceRepository
+                .findBySourceTypeAndSourceId(WelfareService.SourceType.GOV24, sourceId)
+                .orElseThrow();
+
+        assertThat(refreshed.getMinAge()).isNull();
+        assertThat(refreshed.getMaxAge()).isEqualTo(13);
+
+        Map<String, Object> ageFact = jdbcTemplate.queryForMap("""
+                SELECT range_min_int, range_max_int
+                FROM service_facts
+                WHERE service_id = ?
+                  AND fact_group = ?
+                ORDER BY id
+                LIMIT 1
+                """, refreshed.getId(), "AGE");
+
+        assertThat(ageFact.get("range_min_int")).isNull();
+        assertThat(((Number) ageFact.get("range_max_int")).intValue()).isEqualTo(13);
+    }
+
+    @Test
+    @DisplayName("gov24 sourceId detail collect는 overly long raw fact text가 있어도 service_facts 저장에 실패하지 않는다")
+    void gov24DetailForSourceIdTruncatesOverlongRawFactText() {
+        sourceId = TEST_SOURCE_PREFIX + UUID.randomUUID();
+
+        Gov24ServiceListDto.Item item = gov24Item(
+                sourceId,
+                "교육",
+                "개인",
+                "서비스"
+        );
+        ReflectionTestUtils.setField(item, "serviceName", "장문 자격 조건 정책");
+        ReflectionTestUtils.setField(item, "servicePurposeSummary", "장문 조건 저장 검증");
+
+        NormalizedPolicyAggregate aggregate = welfareServiceMapper.toNormalizedGov24(item);
+        collectItemSaver.save(CollectSourceRegistry.GOV24.listBinding(welfareServiceMapper), item, aggregate);
+
+        Gov24Client gov24Client = Mockito.mock(Gov24Client.class);
+        Gov24ServiceDetailDto.Item detailItem = gov24DetailItem(
+                sourceId,
+                "만 19세 이상 청년 " + "추가 자격 안내 ".repeat(40),
+                "연령 및 소득 기준 충족",
+                "쿠폰 지원"
+        );
+        given(gov24Client.fetchDetail(sourceId)).willReturn(detailItem);
+
+        Gov24DetailCollectService detailCollectService = new Gov24DetailCollectService(
+                gov24Client,
+                welfareServiceMapper,
+                rawApiPayloadService,
+                collectPolicyAggregateApplyService,
+                new BokjiroDetailReadRepositoryImpl(welfareServiceRepository, welfareServiceDetailRepository),
+                welfareServiceRepository
+        );
+        ReflectionTestUtils.setField(detailCollectService, "requestIntervalMs", 0L);
+        ReflectionTestUtils.setField(detailCollectService, "retryMaxAttempts", 1);
+        ReflectionTestUtils.setField(detailCollectService, "retryBaseBackoffMs", 0L);
+
+        CollectResult result = new TransactionTemplate(transactionManager)
+                .execute(status -> detailCollectService.collectGov24DetailsForSourceId(sourceId));
+
+        assertThat(result).isNotNull();
+        assertThat(result.savedCount()).isEqualTo(1);
+        assertThat(result.failedCount()).isZero();
+
+        WelfareService refreshed = welfareServiceRepository
+                .findBySourceTypeAndSourceId(WelfareService.SourceType.GOV24, sourceId)
+                .orElseThrow();
+
+        Integer maxRawValueLength = jdbcTemplate.queryForObject("""
+                SELECT COALESCE(MAX(length(raw_value)), 0)
+                FROM service_facts
+                WHERE service_id = ?
+                """, Integer.class, refreshed.getId());
+
+        assertThat(maxRawValueLength).isNotNull();
+        assertThat(maxRawValueLength).isLessThanOrEqualTo(255);
+    }
+
     private void cleanupSourceType(WelfareService.SourceType sourceType) {
         welfareServiceRepository.findBySourceType(sourceType).stream()
                 .filter(service -> service.getSourceId() != null && service.getSourceId().startsWith(TEST_SOURCE_PREFIX))

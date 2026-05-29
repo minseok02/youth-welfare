@@ -338,4 +338,32 @@ class DeferredNormalizedPolicySidecarCommandRepositoryImplTest {
         assertThat(paramsCaptor.getValue().getValue("factGroup")).isEqualTo("AGE");
         assertThat(paramsCaptor.getValue().getValue("sourceField")).isEqualTo("eligibility");
     }
+
+    @Test
+    @DisplayName("sidecar command repository는 fact raw value가 너무 길면 DB column 길이에 맞게 자른다")
+    void upsertMergedFactsTruncatesOverlongRawValue() {
+        String overlongRawValue = "x".repeat(300);
+        NormalizedPolicyAggregate.Fact fact = NormalizedPolicyAggregate.Fact.builder()
+                .factGroup("AGE")
+                .factCodeSetKey("AGE")
+                .factCode("GOV24_AGE")
+                .factMergeKey("GOV24_AGE_RANGE")
+                .factLabel("지원 연령")
+                .operator(NormalizedPolicyAggregate.Operator.RANGE)
+                .valueType(NormalizedPolicyAggregate.ValueType.INTEGER)
+                .rangeMinInt(19)
+                .rangeMaxInt(34)
+                .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
+                .confidence(BigDecimal.ONE)
+                .rawValue(overlongRawValue)
+                .build();
+
+        deferredNormalizedPolicySidecarCommandRepository.upsertMergedFacts(41L, List.of(fact));
+
+        ArgumentCaptor<SqlParameterSource> paramsCaptor = ArgumentCaptor.forClass(SqlParameterSource.class);
+        verify(namedParameterJdbcTemplate).update(org.mockito.ArgumentMatchers.contains("INSERT INTO service_facts"), paramsCaptor.capture());
+        assertThat((String) paramsCaptor.getValue().getValue("rawValue"))
+                .hasSize(255)
+                .isEqualTo(overlongRawValue.substring(0, 255));
+    }
 }

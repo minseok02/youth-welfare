@@ -303,7 +303,7 @@ public class DeferredNormalizedPolicySidecarCommandRepositoryImpl
                             .addValue("sourceField", normalizeBlankString(fact.sourceField()))
                             .addValue("authority", fact.authority().name())
                             .addValue("confidence", fact.confidence())
-                            .addValue("rawValue", fact.rawValue())
+                            .addValue("rawValue", normalizeBoundedString(fact.rawValue(), 255))
                             .addValue("evidenceText", fact.evidenceText()));
         }
     }
@@ -345,5 +345,15 @@ public class DeferredNormalizedPolicySidecarCommandRepositoryImpl
 
     private String normalizeBlankString(String value) {
         return value == null ? "" : value;
+    }
+
+    private String normalizeBoundedString(String value, int maxLength) {
+        if (value == null) {
+            return null;
+        }
+        if (value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength);
     }
 }

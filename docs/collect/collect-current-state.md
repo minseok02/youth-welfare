@@ -80,6 +80,8 @@
   - 이유: 이미 저장된 `DETAIL raw_api_payloads` 를 replay해 legacy `min_age > max_age` row를 한 번에 복구하는 backfill lane
   - 현재는 `?sourceType=YOUTH|BOKJIRO_CENTRAL|BOKJIRO_LOCAL|GOV24` 필터와 `?limitPerSource=` cap을 지원하고, `missingRawPayload / unrepaired / failed` 를 따로 집계한다
   - 외부 API를 다시 호출하지 않는 raw replay lane이라 collect inventory의 “실제 외부 API 호출 lane” 에는 포함하지 않는다
+  - 운영 one-shot wrapper는 `bash deploy/smoke/run-local-collect-legacy-repair-suite.sh` 이다. 이 wrapper는 `source별 inverted-age backfill -> 남은 GOV24/BOKJIRO sourceId self-heal -> 복지로 detail coverage audit` 순서를 한 번에 묶고, `RUN_GAP_FILL=true` 일 때만 bounded `bokjiro-details-gap-fill` 을 추가 실행한다.
+  - `2026-05-29` local rerun 기준 결과는 `YOUTH=0`, `BOKJIRO_CENTRAL=0`, `BOKJIRO_LOCAL=0`, `GOV24 before=117 -> repaired=117 -> after=0` 이었고, wrapper summary도 `remaining_inverted_rows=(none)` 으로 닫혔다.
 
 ### 왜 이렇게 나눴나
 

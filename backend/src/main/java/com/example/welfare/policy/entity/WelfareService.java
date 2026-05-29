@@ -164,16 +164,25 @@ public class WelfareService extends BaseTimeEntity {
             this.maxAge = fallbackMaxAge;
             return;
         }
-        if (fallbackMinAge != null && fallbackMaxAge == null) {
-            this.minAge = fallbackMinAge;
-            this.maxAge = null;
-            return;
-        }
         if (fallbackMinAge != null && isValidAgeRange(fallbackMinAge, this.maxAge)) {
             this.minAge = fallbackMinAge;
         }
         if (fallbackMaxAge != null && isValidAgeRange(this.minAge, fallbackMaxAge)) {
             this.maxAge = fallbackMaxAge;
+        }
+        if (hasInvalidAgeRange() && fallbackMinAge == null && fallbackMaxAge != null) {
+            this.minAge = null;
+            this.maxAge = fallbackMaxAge;
+            return;
+        }
+        if (hasInvalidAgeRange() && fallbackMinAge != null && fallbackMaxAge == null) {
+            this.minAge = fallbackMinAge;
+            this.maxAge = null;
+            return;
+        }
+        if (hasInvalidAgeRange() && fallbackMinAge == null && fallbackMaxAge == null) {
+            this.minAge = null;
+            this.maxAge = null;
         }
     }
 
