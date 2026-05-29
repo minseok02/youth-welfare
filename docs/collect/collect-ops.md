@@ -74,6 +74,10 @@ ORDER BY id;
 ```
 
   - `2026-05-29` local sweep 기준 이 inverted row는 `3700` 한 건이 아니라 `YOUTH`, `BOKJIRO_LOCAL(2726, 3197)`, `GOV24` 전반에 더 남아 있었다. 즉 sourceId self-heal은 특정 row 복구용이고, 전체 backfill은 별도 작업으로 읽는 편이 맞다.
+  - current source별 bounded repair 전략:
+    - `BOKJIRO_LOCAL/BOKJIRO_CENTRAL`: `POST /api/admin/collect/bokjiro-details-refresh?sourceId=<복지로 서비스ID>`
+    - `GOV24`: `POST /api/admin/collect/gov24-details?sourceId=<Gov24 서비스ID>`
+    - `YOUTH`: current code 기준 `sourceId` 단건 detail repair lane 없음. `POST /api/admin/collect/youth-details` 또는 broader rerun으로 해석한다.
   - stored detail payload coverage 가 낮아 sidecar density가 detail raw 개수에 묶여 있을 때만 gap fill 경로를 써서 여러 라운드 backlog 를 메운다.
   - 기존 raw payload 로 sidecar를 다시 채우거나 density를 재측정할 때만 backfill 경로를 쓴다.
   - 특히 Gov24 상세에서 `gov24ServiceFieldLabel/userType/benefitType` 같은 summary label이 비는 소수 row drift는 `gov24-sidecars-backfill` 로 먼저 메운다.
@@ -94,6 +98,7 @@ ORDER BY id;
   로 분리해서 본다.
   - 다만 manual `gov24` 는 새 list 유입 뒤 `detail/support` count가 바로 벌어지는 것을 줄이기 위해 follow-up 1라운드를 같이 돈다.
   - 상세나 지원조건의 transient upstream 실패를 재확인할 때만 `sourceId` 단건 경로를 쓴다.
+  - `gov24-details?sourceId=` 는 current local 기준 age self-heal lane으로도 동작한다. `supportTarget/selectionCriteria` 에서 `만 39세 이하 청년` 같은 max-only youth 문구가 오면 `18~39` range fact를 다시 만들고, 뒤집힌 `min_age/max_age` row를 복구한다.
 
 ### 5-2. 현재 복지로는 4개 독립 quota 기준으로 coverage 확장을 다시 기본 작업으로 본다
 

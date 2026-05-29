@@ -247,6 +247,29 @@ class WelfareServiceMapperTest {
     }
 
     @Test
+    void toGov24DetailAggregate_derivesYouthAgeRangeFromSupportTarget() throws Exception {
+        var service = WelfareService.builder()
+                .sourceType(WelfareService.SourceType.GOV24)
+                .sourceId("G001")
+                .title("청년 취업준비 쿠폰 지원")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+        var detail = new com.example.welfare.collect.dto.Gov24ServiceDetailDto.Item();
+        setField(detail, "serviceId", "G001");
+        setField(detail, "supportTarget", "만 39세 이하 청년");
+        setField(detail, "selectionCriteria", "연령 및 소득 기준 충족");
+        setField(detail, "supportContent", "취업준비 쿠폰 지원");
+
+        var aggregate = mapper.toGov24DetailAggregate(service, detail);
+
+        assertThat(aggregate.facts()).anySatisfy(fact -> {
+            assertThat(fact.factGroup()).isEqualTo("AGE");
+            assertThat(fact.rangeMinInt()).isEqualTo(18);
+            assertThat(fact.rangeMaxInt()).isEqualTo(39);
+        });
+    }
+
+    @Test
     void fromBokjiroLocal_setsSupportContentAndApplyEndDateFallback() throws Exception {
         BokjiroLocalDto.Item item = new BokjiroLocalDto.Item();
         setField(item, "servId", "L002");

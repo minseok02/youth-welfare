@@ -58,6 +58,7 @@
 - `GOV24_DETAIL`
   - lane type: `DETAIL`
   - 이유: `maxCallsPerRun`, `sourceId` override 를 두는 budgeted manual lane
+  - 현재는 `?sourceId=<Gov24 서비스ID>` 단건 detail collect도 stale row self-heal lane으로 읽는다. local 기준 `만 39세 이하 청년` 같은 detail 문구만 있어도 뒤집힌 `min_age/max_age` row를 `18/39` 로 다시 맞춘다.
 - `GOV24_SUPPORT_CONDITIONS`
   - lane type: `DETAIL`
   - 이유: list snapshot 과 분리된 지원조건 확장 lane
@@ -65,6 +66,7 @@
   - lane type: `ENRICHMENT`
   - 이유: `refUrlAddr1/2` 보강용 detail lane. `500ms` pacing 으로 느리게 돌리며 snapshot 과 분리
   - 현재는 `api_sync_logs.job_name='YOUTH_DETAILS'` 로 마지막 실행 기록도 남김
+  - 현재는 `sourceId` 단건 override는 없다. 즉 YOUTH stale row repair는 `POST /api/admin/collect/youth-details` 또는 broader rerun으로 읽고, 복지로/Gov24 같은 bounded single-source repair lane은 아직 없다.
 - `BOKJIRO_DETAIL_GAP_FILL`
   - lane type: `MAINTENANCE`
   - 이유: backlog gap 을 메우는 one-off maintenance lane
