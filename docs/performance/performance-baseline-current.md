@@ -1,0 +1,169 @@
+# Current Performance Baseline
+
+Last updated: 2026-05-29
+
+This document records the current performance baseline. Raw artifacts are generated under `tmp/performance`.
+
+## Current Baseline Commands
+
+API, DB, Redis:
+
+```bash
+ENV_FILE=.env.production SMOKE_DB_MODE=postgres \
+APP_BASE_URL='http://127.0.0.1:8082' RUNS=7 \
+  bash deploy/performance/run-local-performance-baseline-suite.sh
+```
+
+Wrapper duration, including current priority:
+
+```bash
+ENV_FILE=.env.production SMOKE_DB_MODE=postgres \
+APP_BASE_URL='http://127.0.0.1:8082' RUN_WRAPPER_BASELINE=true \
+FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' \
+  bash deploy/performance/run-local-performance-baseline-suite.sh
+```
+
+Extended baseline:
+
+```bash
+APP_BASE_URL='http://127.0.0.1:8082' \
+EXTERNAL_BASE_URL='https://youthmoa.kr' \
+FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' \
+DURATION_SECONDS=10 CONCURRENCY=3 \
+  bash deploy/performance/run-local-performance-extended-suite.sh
+```
+
+Stateful flow duration:
+
+```bash
+ENV_FILE=.env.production APP_BASE_URL='http://127.0.0.1:8082' \
+RUN_RUNTIME_API=true RUN_AUTH_SESSION=false \
+RUN_BOOKMARK_CONSISTENCY=false RUN_ADMIN_FORCED_LOGOUT=false \
+  bash deploy/performance/run-local-stateful-flow-duration-baseline.sh
+```
+
+Deep observation, excluding long load tests:
+
+```bash
+ENV_FILE=.env.production SMOKE_DB_MODE=postgres \
+APP_BASE_URL='http://127.0.0.1:8082' \
+FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' \
+  bash deploy/performance/run-local-performance-deep-observation-suite.sh
+```
+
+## Artifact Index
+
+- API latency latest: `tmp/performance/api-latency/latest`
+- DB query latest: `tmp/performance/db-query/latest`
+- Redis latest: `tmp/performance/redis/latest`
+- Wrapper duration latest: `tmp/performance/wrapper-duration/latest`
+- Full suite latest: `tmp/performance/full-suite/latest`
+- API load latest: `tmp/performance/api-load/latest`
+- Web vitals latest: `tmp/performance/web-vitals/latest`
+- JVM runtime latest: `tmp/performance/jvm-runtime/latest`
+- Edge latest: `tmp/performance/edge/latest`
+- Stateful flow duration latest: `tmp/performance/stateful-flow-duration/latest`
+- Extended suite latest: `tmp/performance/extended-suite/latest`
+- DB observability latest: `tmp/performance/db-observability/latest`
+- Redis observability latest: `tmp/performance/redis-observability/latest`
+- Web interaction latest: `tmp/performance/web-interaction/latest`
+- nginx log observability latest: `tmp/performance/nginx-log-observability/latest`
+- Deep observation suite latest: `tmp/performance/deep-observation-suite/latest`
+
+## Baseline Summary
+
+Initial accepted server baseline:
+
+- generated_at_utc: `2026-05-29T15:21:23Z`
+- git_head: `c91ec8b0851830245ea4370d7e51b533b1e916df`
+- app_base_url: `http://127.0.0.1:8082`
+- full_suite_artifact: `tmp/performance/full-suite/20260529T152123Z`
+- wrapper_duration_artifact: `tmp/performance/wrapper-duration/20260529T152344Z`
+- extended_suite_artifact: `tmp/performance/extended-suite/20260529T153645Z`
+- stateful_flow_duration_artifact: `tmp/performance/stateful-flow-duration/20260529T153838Z`
+- deep_observation_suite_artifact: `tmp/performance/deep-observation-suite/20260529T155025Z`
+- sample profile: API `RUNS=7`, `WARMUP_RUNS=1`; DB `EXPLAIN (ANALYZE, BUFFERS)`; Redis `INFO` and `SLOWLOG GET 20`
+
+| Area | Scenario | p50 | p95 | p99 | Max | Error Rate | Notes |
+|---|---|---:|---:|---:|---:|---:|---|
+| API | health | 16.3ms | 18.1ms | 18.7ms | 18.9ms | 0/7 | internal |
+| API | policy list default | 54.8ms | 56.8ms | 57.3ms | 57.4ms | 0/7 | internal |
+| API | policy search keyword | 458.1ms | 631.2ms | 677.7ms | 689.4ms | 0/7 | internal |
+| API | policy search filtered | 465.0ms | 534.3ms | 536.9ms | 537.5ms | 0/7 | filters and deadline sort |
+| API | policy suggestions | 277.6ms | 287.4ms | 290.7ms | 291.5ms | 0/7 | autocomplete |
+| API | policy ranking | 389.2ms | 566.2ms | 573.0ms | 574.7ms | 0/7 | ranking endpoint |
+| API | policy detail | 22.2ms | 27.0ms | 28.5ms | 28.9ms | 0/7 | first policy id `14916` |
+| API | admin dashboard summary | 72.3ms | 74.6ms | 74.8ms | 74.8ms | 0/7 | admin token |
+| API | admin collect failures | 19.5ms | 31.8ms | 33.9ms | 34.4ms | 0/7 | admin token |
+| API | admin recommendation breakdowns | 71.6ms | 74.5ms | 75.0ms | 75.1ms | 0/7 | admin token |
+| DB | policy list explain | N/A | N/A | N/A | 15.328ms | N/A | seq scan, execution time |
+| DB | policy search keyword explain | N/A | N/A | N/A | 133.776ms | N/A | seq scan, execution time |
+| DB | policy detail explain | N/A | N/A | N/A | 0.104ms | N/A | index scan, execution time |
+| DB | recommendation logs recent window | N/A | N/A | N/A | 0.846ms | N/A | seq scan, execution time |
+| DB | admin collect failures recent | N/A | N/A | N/A | 0.299ms | N/A | seq scan, execution time |
+| Redis | keyspace hit rate | N/A | N/A | N/A | 49.631% | N/A | INFO stats |
+| Redis | memory | N/A | N/A | N/A | 1.35M | N/A | used_memory_human |
+| Redis | fragmentation ratio | N/A | N/A | N/A | 5.90 | N/A | INFO stats |
+| Wrapper | recommendation observation | N/A | N/A | N/A | 5.882s | 0/1 | opt-in duration |
+| Wrapper | current priority | N/A | N/A | N/A | 103.248s | 0/1 | opt-in duration |
+| API Load | total | N/A | N/A | N/A | 3.881 rps | 0/39 | 10s, concurrency 3 |
+| API Load | policy ranking | 1653.6ms | 1887.6ms | 1922.9ms | 1931.7ms | 0/6 | short load probe |
+| API Load | policy search keyword | 1343.1ms | 1419.4ms | 1421.8ms | 1422.4ms | 0/6 | short load probe |
+| API Load | policy search filtered | 1258.6ms | 1427.6ms | 1445.3ms | 1449.7ms | 0/6 | short load probe |
+| Web | `/` | N/A | N/A | N/A | 632ms LCP | 0/1 | FCP 168ms, CLS 0.000107 |
+| Web | `/policies` | N/A | N/A | N/A | 652ms LCP | 0/1 | FCP 192ms, CLS 0.001233 |
+| Web | `/policies?keyword=청년` | N/A | N/A | N/A | 856ms LCP | 0/1 | FCP 340ms, CLS 0.000983 |
+| Web | `/login` | N/A | N/A | N/A | 472ms LCP | 0/1 | FCP 140ms, CLS 0 |
+| JVM | app container | N/A | N/A | N/A | 601.3MiB / 1GiB | N/A | CPU 0.31%, PIDs 46 |
+| JVM | actuator metrics | N/A | N/A | N/A | 401 | N/A | metrics not exposed |
+| Edge | `/` | N/A | N/A | N/A | 43.564ms | 0/1 | external curl total |
+| Edge | `/api/policies` | N/A | N/A | N/A | 98.700ms | 0/1 | external curl total |
+| Edge | `/api/policies/search` | N/A | N/A | N/A | 514.180ms | 0/1 | external curl total |
+| Edge | nginx headers | N/A | N/A | N/A | passed | N/A | HSTS, frame, nosniff, CSP, server tokens |
+| Stateful | runtime API smoke | N/A | N/A | N/A | 23.576s | 0/1 | auth-session disabled by default |
+| DB Obs | database cache hit | N/A | N/A | N/A | 99.9997% | N/A | `pg_stat_database` |
+| DB Obs | blocked locks | N/A | N/A | N/A | 0 | N/A | `pg_locks` |
+| DB Obs | long transactions | N/A | N/A | N/A | 0 | N/A | >1s xact age |
+| DB Obs | pg_stat_statements | N/A | N/A | N/A | unavailable | N/A | extension not available |
+| DB Obs | temp files | N/A | N/A | N/A | 12 | N/A | 93,904,896 bytes |
+| Redis Obs | dbsize | N/A | N/A | N/A | 65 keys | N/A | sampled all keys |
+| Redis Obs | slowlog length | N/A | N/A | N/A | 1 | N/A | `SLOWLOG LEN` |
+| Redis Obs | latency events | N/A | N/A | N/A | 0 lines | N/A | `LATENCY LATEST` |
+| Redis Obs | top command | N/A | N/A | N/A | `ping` 34823 calls | N/A | commandstats |
+| Web Interaction | policies search input | N/A | N/A | N/A | 652ms action | 0/1 | max event duration 64ms |
+| Web Interaction | login form fill | N/A | N/A | N/A | 305ms action | 0/1 | max event duration 0ms |
+| nginx Log | sampled lines | N/A | N/A | N/A | 4691 | N/A | current access.log tail |
+| nginx Log | request_time fields | N/A | N/A | N/A | unavailable | N/A | log format has no request_time/upstream_response_time |
+| nginx Log | 4xx sample | N/A | N/A | N/A | 690 | N/A | includes expected auth refresh 401s |
+
+Data profile at this baseline:
+
+- `welfare_services`: 14920 rows
+- `raw_api_payloads`: 44398 rows
+- `recommendation_logs`: 1017 rows
+- `search_logs`: 127 rows
+- `recent_policy_views`: 3 rows
+- `chat_messages`: 0 rows
+
+Known measurement gaps:
+
+- `/actuator/metrics` returned `401`, so JVM/Hikari/GC metrics are not yet part of the accepted baseline.
+- `interactionToNextPaint_ms` is still approximated through browser event timing in `web-interaction`; full INP needs the production Web Vitals library or Chrome trace processing.
+- `RUN_AUTH_SESSION=true` was not accepted for the stateful baseline because the nested withdraw smoke needs valid elevated DB credentials in production.
+- `pg_stat_statements` is not available, so DB top-query attribution is currently limited to representative `EXPLAIN` and catalog snapshots.
+- nginx access logs do not include `$request_time` or `$upstream_response_time`, so log p95/p99 cannot be computed from logs yet.
+
+## Comparison Notes
+
+When an optimization is applied, add a row here with:
+
+- before HEAD
+- after HEAD
+- expected effect
+- observed delta
+- rollback threshold
+- follow-up action
+
+| Date | Before HEAD | After HEAD | Area | Change | Before | After | Delta | Decision |
+|---|---|---|---|---|---:|---:|---:|---|
+| TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
