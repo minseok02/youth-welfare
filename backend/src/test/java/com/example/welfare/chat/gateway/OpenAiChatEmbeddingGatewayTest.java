@@ -9,6 +9,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class OpenAiChatEmbeddingGatewayTest {
 
@@ -36,5 +37,13 @@ class OpenAiChatEmbeddingGatewayTest {
         float[] embedding = gateway.embedQuery("주거비 부담 완화");
 
         assertThat(embedding).hasSize(16);
+    }
+
+    @Test
+    @DisplayName("strict embedding refresh 경로는 local fallback 강제 상태에서 예외를 던진다")
+    void embedDocumentsStrictFailsWhenOnlyLocalFallbackIsAvailable() {
+        assertThatThrownBy(() -> gateway.embedDocumentsStrict(List.of("청년 주거 정책")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("strict embedding refresh");
     }
 }

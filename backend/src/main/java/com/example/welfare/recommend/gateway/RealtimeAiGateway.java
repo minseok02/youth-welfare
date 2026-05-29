@@ -17,6 +17,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -39,11 +40,14 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
 
-    @Value("${openai.api-key}")
+    @Value("${openai.api-key:}")
     private String apiKey;
 
     @Value("${openai.model:gpt-4o-mini}")
     private String model;
+
+    @Value("${openai.timeout:30000}")
+    private long timeoutMillis;
 
     @Value("${recommend.ai.replay-trace.enabled:false}")
     private boolean replayTraceEnabled;
@@ -83,6 +87,7 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
 
             if (response != null && response.getResults() != null) {
                 Map<Long, AiResponse.Result> resultMap = response.getResults().stream()
+                        .filter(RealtimeAiGateway::isValidAiResult)
                         .collect(Collectors.toMap(AiResponse.Result::getServiceId, r -> r));
                 Set<Long> requestedIds = topCandidates.stream()
                         .map(candidate -> candidate.getService().getId())
@@ -196,6 +201,13 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
                 .filter(result -> result.getReason() == null || result.getReason().isBlank())
                 .map(result -> String.valueOf(result.getServiceId()))
                 .collect(Collectors.joining(","));
+    }
+
+    static boolean isValidAiResult(AiResponse.Result result) {
+        return result != null
+                && result.getServiceId() != null
+                && result.getScore() >= 0
+                && result.getScore() <= 100;
     }
 
     static String sha256Hex(String input) {
@@ -357,12 +369,12 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
                     .bodyValue(requestBody)
                     .retrieve()
                     .bodyToMono(String.class)
-                    .block();
+                    .block(Duration.ofMillis(timeoutMillis));
 
             return parseAiCallResult(objectMapper, responseBody);
 
         } catch (Exception e) {
-            log.warn("[RealtimeAiGateway] OpenAI 파싱 실패: {}", e.getMessage());
+            log.warn("[RealtimeAiGateway] OpenAI 요청/파싱 실패: {}", e.getMessage());
             return AiCallResult.empty();
         }
     }

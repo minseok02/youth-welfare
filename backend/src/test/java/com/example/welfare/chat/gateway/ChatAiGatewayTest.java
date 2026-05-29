@@ -105,15 +105,19 @@ class ChatAiGatewayTest {
     @Test
     @DisplayName("AI 프롬프트 전송 전 이메일, 전화번호, 생년월일을 마스킹한다")
     void redactSensitiveTextMasksDirectIdentifiers() {
-        String source = "메일 test.user@example.com, 전화 010-1234-5678, 생년월일 2001-04-30";
+        String source = "메일 test.user@example.com, 전화 010-1234-5678, 생년월일 2001-04-30, 주민번호 900101-1234567, 계좌번호 123-456-789012";
 
         String redacted = chatAiGateway.redactSensitiveText(source);
 
         assertThat(redacted).contains("[REDACTED_EMAIL]");
         assertThat(redacted).contains("[REDACTED_PHONE]");
         assertThat(redacted).contains("[REDACTED_BIRTH_DATE]");
+        assertThat(redacted).contains("[REDACTED_RRN]");
+        assertThat(redacted).contains("[REDACTED_ACCOUNT]");
         assertThat(redacted).doesNotContain("test.user@example.com");
         assertThat(redacted).doesNotContain("010-1234-5678");
         assertThat(redacted).doesNotContain("2001-04-30");
+        assertThat(redacted).doesNotContain("900101-1234567");
+        assertThat(redacted).doesNotContain("123-456-789012");
     }
 }

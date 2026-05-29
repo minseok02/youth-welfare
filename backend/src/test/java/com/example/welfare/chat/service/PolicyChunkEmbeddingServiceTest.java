@@ -16,6 +16,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
@@ -84,7 +85,7 @@ class PolicyChunkEmbeddingServiceTest {
                         HashSupport.sha256Hex(chunkText)
                 )
         ));
-        given(chatEmbeddingGateway.embedDocuments(List.of(chunkText))).willReturn(List.of(new float[]{0.1f, 0.2f}));
+        given(chatEmbeddingGateway.embedDocumentsStrict(List.of(chunkText))).willReturn(List.of(new float[]{0.1f, 0.2f}));
 
         PolicyChunkEmbeddingService.EmbeddingRefreshResult result = service.refreshEmbeddingsForServiceIds(List.of(22L));
 
@@ -92,5 +93,28 @@ class PolicyChunkEmbeddingServiceTest {
         assertThat(result.scannedChunkCount()).isEqualTo(1);
         assertThat(result.refreshedChunkCount()).isEqualTo(1);
         verify(policyChunkVectorRepository).updateEmbedding(any(), any(), anyString(), anyString(), any());
+    }
+
+    @Test
+    @DisplayName("strict embedding refresh 가 실패하면 fallback embedding 을 저장하지 않는다")
+    void doesNotPersistFallbackEmbeddingWhenStrictRefreshFails() {
+        String chunkText = "청년 취업 역량 강화";
+        given(policyChunkVectorRepository.findEmbeddingTargets(List.of(22L))).willReturn(List.of(
+                new PolicyChunkVectorRepository.PolicyChunkEmbeddingTarget(
+                        2L,
+                        22L,
+                        chunkText,
+                        "legacy-model",
+                        HashSupport.sha256Hex(chunkText)
+                )
+        ));
+        given(chatEmbeddingGateway.embedDocumentsStrict(List.of(chunkText)))
+                .willThrow(new IllegalStateException("OpenAI unavailable"));
+
+        assertThatThrownBy(() -> service.refreshEmbeddingsForServiceIds(List.of(22L)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("OpenAI unavailable");
+
+        verify(policyChunkVectorRepository, never()).updateEmbedding(any(), any(), anyString(), anyString(), any());
     }
 }
