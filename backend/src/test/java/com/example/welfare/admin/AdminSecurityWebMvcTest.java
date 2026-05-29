@@ -1990,6 +1990,26 @@ class AdminSecurityWebMvcTest {
     }
 
     @Test
+    @DisplayName("관리자 토큰으로 Gov24 detail sourceId override를 호출하면 단건 detail 수집을 실행한다")
+    void adminEndpointAllowsGov24DetailForSourceId() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(collectAdminService.collect(CollectSource.GOV24_DETAIL, "305000000168"))
+                .willReturn(CollectResult.of(1, 1, 0, 0, 0));
+
+        mockMvc.perform(post("/api/admin/collect/gov24-details")
+                        .header("Authorization", "Bearer admin-token")
+                        .param("sourceId", "305000000168"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data").value("Gov24 상세 수집 완료 requested=1 saved=1 skipped=0 failed=0"));
+
+        then(collectAdminService).should().collect(CollectSource.GOV24_DETAIL, "305000000168");
+    }
+
+    @Test
     @DisplayName("관리자 토큰으로 detail refresh 관리자 API를 호출하면 refresh 수집 서비스를 실행한다")
     void adminEndpointAllowsDetailRefresh() throws Exception {
         mockAuthenticatedToken("admin-token", List.of(

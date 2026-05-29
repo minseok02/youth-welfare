@@ -62,6 +62,26 @@ class CollectAdminServiceTest {
     }
 
     @Test
+    @DisplayName("Gov24 detail sourceId override는 전용 실행 엔진으로 위임한다")
+    void collectGov24DetailBySourceIdDelegates() {
+        CollectResult expected = CollectResult.of(1, 1, 0, 0, 0);
+
+        doAnswer(invocation -> {
+            Runnable task = invocation.getArgument(1);
+            task.run();
+            return null;
+        }).when(collectExecutionGuard).runExclusive(eq("collect-gov24-details"), any(Runnable.class));
+        when(collectSourceExecutionService.collectGov24DetailsForSourceId("305000000168"))
+                .thenReturn(expected);
+
+        CollectResult actual = collectAdminService.collect(CollectSource.GOV24_DETAIL, "305000000168");
+
+        assertThat(actual).isEqualTo(expected);
+        verify(collectExecutionGuard).runExclusive(eq("collect-gov24-details"), any(Runnable.class));
+        verify(collectSourceExecutionService).collectGov24DetailsForSourceId("305000000168");
+    }
+
+    @Test
     @DisplayName("복지로 detail refresh sourceId override는 전용 실행 엔진으로 위임한다")
     void collectBokjiroDetailRefreshBySourceIdDelegates() {
         CollectResult expected = CollectResult.of(1, 1, 0, 0, 0);

@@ -1,14 +1,23 @@
 package com.example.welfare.integration;
 
-import com.example.welfare.collect.dto.YouthApiDto;
 import com.example.welfare.collect.dto.Gov24ServiceListDto;
+import com.example.welfare.collect.dto.Gov24ServiceDetailDto;
+import com.example.welfare.collect.dto.YouthApiDto;
+import com.example.welfare.collect.gateway.Gov24Client;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
+import com.example.welfare.collect.repository.BokjiroDetailReadRepositoryImpl;
+import com.example.welfare.collect.service.CollectPolicyAggregateApplyService;
 import com.example.welfare.collect.service.CollectItemSaver;
+import com.example.welfare.collect.service.CollectResult;
+import com.example.welfare.collect.service.Gov24DetailCollectService;
+import com.example.welfare.collect.service.RawApiPayloadService;
 import com.example.welfare.collect.support.CollectSourceRegistry;
 import com.example.welfare.collect.support.ListCollectSourceBindings;
 import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.policy.repository.WelfareServiceDetailRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
+import org.mockito.Mockito;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -18,6 +27,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -26,6 +37,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
 
 @SpringBootTest
 @ActiveProfiles("integration")
@@ -41,6 +53,18 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
 
     @Autowired
     private WelfareServiceRepository welfareServiceRepository;
+
+    @Autowired
+    private WelfareServiceDetailRepository welfareServiceDetailRepository;
+
+    @Autowired
+    private RawApiPayloadService rawApiPayloadService;
+
+    @Autowired
+    private CollectPolicyAggregateApplyService collectPolicyAggregateApplyService;
+
+    @Autowired
+    private PlatformTransactionManager transactionManager;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -250,6 +274,82 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
         assertThat(termsByGroup.get("GOV24_BENEFIT_TYPE_TOKEN")).containsExactly("현금(융자)", "서비스(의료)");
     }
 
+    @Test
+    @DisplayName("gov24 sourceId detail collect는 뒤집힌 age range row를 self heal 한다")
+    void gov24DetailForSourceIdRepairsInvalidAgeRangeRow() {
+        sourceId = TEST_SOURCE_PREFIX + UUID.randomUUID();
+
+        Gov24ServiceListDto.Item item = gov24Item(
+                sourceId,
+                "교육",
+                "개인",
+                "서비스"
+        );
+        ReflectionTestUtils.setField(item, "serviceName", "강원특별자치도 청년 취업준비 쿠폰 지원");
+        ReflectionTestUtils.setField(item, "servicePurposeSummary", "청년 취업 준비를 지원합니다.");
+
+        NormalizedPolicyAggregate aggregate = welfareServiceMapper.toNormalizedGov24(item);
+        collectItemSaver.save(CollectSourceRegistry.GOV24.listBinding(welfareServiceMapper), item, aggregate);
+
+        WelfareService saved = welfareServiceRepository
+                .findBySourceTypeAndSourceId(WelfareService.SourceType.GOV24, sourceId)
+                .orElseThrow();
+
+        jdbcTemplate.update("""
+                UPDATE welfare_services
+                SET min_age = ?, max_age = ?
+                WHERE id = ?
+                """, 40, 39, saved.getId());
+
+        Gov24Client gov24Client = Mockito.mock(Gov24Client.class);
+        Gov24ServiceDetailDto.Item detailItem = gov24DetailItem(
+                sourceId,
+                "만 39세 이하 청년",
+                "연령 및 소득 기준 충족",
+                "취업준비 쿠폰 지원"
+        );
+        given(gov24Client.fetchDetail(sourceId)).willReturn(detailItem);
+
+        Gov24DetailCollectService detailCollectService = new Gov24DetailCollectService(
+                gov24Client,
+                welfareServiceMapper,
+                rawApiPayloadService,
+                collectPolicyAggregateApplyService,
+                new BokjiroDetailReadRepositoryImpl(welfareServiceRepository, welfareServiceDetailRepository),
+                welfareServiceRepository
+        );
+        ReflectionTestUtils.setField(detailCollectService, "requestIntervalMs", 0L);
+        ReflectionTestUtils.setField(detailCollectService, "retryMaxAttempts", 1);
+        ReflectionTestUtils.setField(detailCollectService, "retryBaseBackoffMs", 0L);
+
+        CollectResult result = new TransactionTemplate(transactionManager)
+                .execute(status -> detailCollectService.collectGov24DetailsForSourceId(sourceId));
+
+        assertThat(result).isNotNull();
+        assertThat(result.requestedCount()).isEqualTo(1);
+        assertThat(result.savedCount()).isEqualTo(1);
+        assertThat(result.failedCount()).isZero();
+
+        WelfareService refreshed = welfareServiceRepository
+                .findBySourceTypeAndSourceId(WelfareService.SourceType.GOV24, sourceId)
+                .orElseThrow();
+
+        assertThat(refreshed.getMinAge()).isEqualTo(18);
+        assertThat(refreshed.getMaxAge()).isEqualTo(39);
+
+        Map<String, Object> ageFact = jdbcTemplate.queryForMap("""
+                SELECT range_min_int, range_max_int
+                FROM service_facts
+                WHERE service_id = ?
+                  AND fact_group = ?
+                ORDER BY id
+                LIMIT 1
+                """, refreshed.getId(), "AGE");
+
+        assertThat(((Number) ageFact.get("range_min_int")).intValue()).isEqualTo(18);
+        assertThat(((Number) ageFact.get("range_max_int")).intValue()).isEqualTo(39);
+    }
+
     private void cleanupSourceType(WelfareService.SourceType sourceType) {
         welfareServiceRepository.findBySourceType(sourceType).stream()
                 .filter(service -> service.getSourceId() != null && service.getSourceId().startsWith(TEST_SOURCE_PREFIX))
@@ -258,8 +358,14 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
                     jdbcTemplate.update("DELETE FROM service_facts WHERE service_id = ?", serviceId);
                     jdbcTemplate.update("DELETE FROM service_taxonomy_terms WHERE service_id = ?", serviceId);
                     jdbcTemplate.update("DELETE FROM service_taxonomies WHERE service_id = ?", serviceId);
+                    jdbcTemplate.update("DELETE FROM welfare_service_details WHERE service_id = ?", serviceId);
                     jdbcTemplate.update("DELETE FROM service_tags WHERE service_id = ?", serviceId);
                     jdbcTemplate.update("DELETE FROM service_regions WHERE service_id = ?", serviceId);
+                    jdbcTemplate.update("""
+                            DELETE FROM raw_api_payloads
+                            WHERE source_type = ?
+                              AND source_id = ?
+                            """, sourceType.name(), service.getSourceId());
                     jdbcTemplate.update("DELETE FROM welfare_services WHERE id = ?", serviceId);
                 });
     }
@@ -329,6 +435,26 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
         ReflectionTestUtils.setField(item, "viewCount", 10L);
         ReflectionTestUtils.setField(item, "registeredAt", "2026-05-01 09:00:00");
         ReflectionTestUtils.setField(item, "modifiedAt", "2026-05-02 09:00:00");
+        return item;
+    }
+
+    private Gov24ServiceDetailDto.Item gov24DetailItem(String sourceId,
+                                                       String supportTarget,
+                                                       String selectionCriteria,
+                                                       String supportContent) {
+        Gov24ServiceDetailDto.Item item = new Gov24ServiceDetailDto.Item();
+        ReflectionTestUtils.setField(item, "serviceId", sourceId);
+        ReflectionTestUtils.setField(item, "supportType", "서비스");
+        ReflectionTestUtils.setField(item, "serviceName", "강원특별자치도 청년 취업준비 쿠폰 지원");
+        ReflectionTestUtils.setField(item, "servicePurpose", "청년 취업 준비를 지원합니다.");
+        ReflectionTestUtils.setField(item, "supportTarget", supportTarget);
+        ReflectionTestUtils.setField(item, "selectionCriteria", selectionCriteria);
+        ReflectionTestUtils.setField(item, "supportContent", supportContent);
+        ReflectionTestUtils.setField(item, "applyMethod", "온라인 신청");
+        ReflectionTestUtils.setField(item, "onlineApplySiteUrl", "https://example.com/gov24/apply/" + sourceId);
+        ReflectionTestUtils.setField(item, "modifiedAt", "2026-05-03 09:00:00");
+        ReflectionTestUtils.setField(item, "managingOrganizationName", "강원특별자치도");
+        ReflectionTestUtils.setField(item, "receptionOrganizationName", "청년정책과");
         return item;
     }
 }

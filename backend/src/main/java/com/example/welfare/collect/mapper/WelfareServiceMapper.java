@@ -458,6 +458,11 @@ public class WelfareServiceMapper {
         String onlineApplyUrl = normalizeUrl(detail.getOnlineApplySiteUrl());
         String detailUrl = firstNonBlank(service.getDetailUrl(), onlineApplyUrl);
         boolean onlineApply = onlineApplyUrl != null || inferOnlineApply(detailUrl, detail.getApplyMethod());
+        TextConstraintExtractor.ConstraintSummary constraints = TextConstraintExtractor.summarize(
+                detail.getSupportTarget(),
+                detail.getSelectionCriteria(),
+                detail.getSupportContent()
+        );
         return NormalizedPolicyAggregate.builder()
                 .core(NormalizedPolicyAggregate.Core.builder()
                         .sourceType(NormalizedPolicyAggregate.SourceType.valueOf(service.getSourceType().name()))
@@ -543,6 +548,7 @@ public class WelfareServiceMapper {
                         .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
                         .confidence(BigDecimal.ONE)
                         .build())
+                .facts(gov24DetailFacts(service, detail, constraints))
                 .build();
     }
 
@@ -1053,6 +1059,54 @@ public class WelfareServiceMapper {
         gov24FlagFact(facts, conditions, "JA0330", "SPECIAL_GROUP", "질병/질환자", "GOV24_SPECIAL:JA0330");
 
         return facts;
+    }
+
+    private List<NormalizedPolicyAggregate.Fact> gov24DetailFacts(WelfareService service,
+                                                                  Gov24ServiceDetailDto.Item detail,
+                                                                  TextConstraintExtractor.ConstraintSummary constraints) {
+        List<NormalizedPolicyAggregate.Fact> facts = new ArrayList<>();
+        Integer minAge = constraints.minAge();
+        Integer maxAge = constraints.maxAge();
+
+        if (minAge == null
+                && maxAge != null
+                && maxAge <= 39
+                && containsYouthSignal(service, detail)) {
+            minAge = 18;
+        }
+
+        if (minAge != null || maxAge != null) {
+            facts.add(NormalizedPolicyAggregate.Fact.builder()
+                    .factGroup(NormalizationKeySupport.FACT_GROUP_AGE)
+                    .factCodeSetKey("GOV24_SUPPORT_CONDITION")
+                    .factCode("GOV24_SUPPORT_CONDITION_AGE")
+                    .factMergeKey("GOV24_AGE_ELIGIBILITY")
+                    .factLabel("지원 연령")
+                    .operator(NormalizedPolicyAggregate.Operator.RANGE)
+                    .valueType(NormalizedPolicyAggregate.ValueType.INTEGER)
+                    .rangeMinInt(minAge)
+                    .rangeMaxInt(maxAge)
+                    .sourceField(NormalizationKeySupport.SOURCE_FIELD_TARGET_DETAIL_SELECTION_CRITERIA)
+                    .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
+                    .confidence(BigDecimal.ONE)
+                    .rawValue(joinRawValues(detail.getSupportTarget(), detail.getSelectionCriteria()))
+                    .evidenceText(firstNonBlank(detail.getSupportTarget(), detail.getSelectionCriteria(), detail.getSupportContent()))
+                    .build());
+        }
+
+        return facts;
+    }
+
+    private boolean containsYouthSignal(WelfareService service, Gov24ServiceDetailDto.Item detail) {
+        return containsYouthToken(service.getTitle())
+                || containsYouthToken(detail.getSupportTarget())
+                || containsYouthToken(detail.getSelectionCriteria())
+                || containsYouthToken(detail.getSupportContent());
+    }
+
+    private boolean containsYouthToken(String value) {
+        String normalized = RawFieldValidator.normalize(value);
+        return normalized != null && normalized.contains("청년");
     }
 
     private void gov24FlagFact(List<NormalizedPolicyAggregate.Fact> facts,
