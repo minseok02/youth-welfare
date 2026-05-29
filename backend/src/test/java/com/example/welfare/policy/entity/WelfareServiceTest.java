@@ -42,4 +42,40 @@ class WelfareServiceTest {
         assertThat(service.getMinAge()).isEqualTo(19);
         assertThat(service.getMaxAge()).isNull();
     }
+
+    @Test
+    @DisplayName("detail fallback은 max-only bound만 있어도 invalid age range를 upper-bound-only로 복구한다")
+    void applyDetailFallbacksRepairsInvalidAgeRangeWithMaxOnlyBound() {
+        WelfareService service = WelfareService.builder()
+                .sourceType(WelfareService.SourceType.GOV24)
+                .sourceId("GOV24-MAX-ONLY")
+                .title("복합 연령 정책")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .minAge(75)
+                .maxAge(69)
+                .build();
+
+        service.applyDetailFallbacks(null, null, null, 13, null, null, null);
+
+        assertThat(service.getMinAge()).isNull();
+        assertThat(service.getMaxAge()).isEqualTo(13);
+    }
+
+    @Test
+    @DisplayName("detail fallback에 sane한 age bound가 전혀 없으면 invalid age range를 unknown으로 비운다")
+    void applyDetailFallbacksClearsInvalidAgeRangeWhenNoSaneFallbackExists() {
+        WelfareService service = WelfareService.builder()
+                .sourceType(WelfareService.SourceType.GOV24)
+                .sourceId("GOV24-UNKNOWN-AGE")
+                .title("모호한 연령 정책")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .minAge(65)
+                .maxAge(55)
+                .build();
+
+        service.applyDetailFallbacks(null, null, null, null, null, null, null);
+
+        assertThat(service.getMinAge()).isNull();
+        assertThat(service.getMaxAge()).isNull();
+    }
 }

@@ -7,6 +7,7 @@ import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.entity.WelfareServiceDetail;
 import com.example.welfare.policy.repository.PolicyLookupReadRepository;
+import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.policy.service.PolicyEmbeddingRefreshRequestService;
 import com.example.welfare.policy.service.SearchYouthRelevanceService;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ public class CollectPolicyAggregateApplyService {
 
     private final BokjiroDetailCommandRepository bokjiroDetailCommandRepository;
     private final PolicyLookupReadRepository policyLookupReadRepository;
+    private final WelfareServiceRepository welfareServiceRepository;
     private final SearchYouthRelevanceService searchYouthRelevanceService;
     private final NormalizedPolicySidecarWriter normalizedPolicySidecarWriter;
     private final PolicyEmbeddingRefreshRequestService policyEmbeddingRefreshRequestService;
@@ -45,6 +47,7 @@ public class CollectPolicyAggregateApplyService {
                 .orElseThrow(() -> new IllegalArgumentException("정책을 찾을 수 없습니다. serviceId=" + service.getId()));
         bokjiroDetailCommandRepository.save(detailPersistenceSupport.mergeDetail(managedService, existing, aggregate));
         detailPersistenceSupport.applyFallbacksToService(managedService, aggregate);
+        welfareServiceRepository.save(managedService);
         normalizedPolicySidecarWriter.upsert(managedService, aggregate);
         searchYouthRelevanceService.refreshForService(managedService);
         policyEmbeddingRefreshRequestService.request(managedService.getId());

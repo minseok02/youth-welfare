@@ -7,6 +7,7 @@ import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.entity.WelfareServiceDetail;
 import com.example.welfare.policy.repository.PolicyLookupReadRepository;
+import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.policy.service.PolicyEmbeddingRefreshRequestService;
 import com.example.welfare.policy.service.SearchYouthRelevanceService;
 import org.junit.jupiter.api.DisplayName;
@@ -32,6 +33,8 @@ class CollectPolicyAggregateApplyServiceTest {
     @Mock
     private PolicyLookupReadRepository policyLookupReadRepository;
     @Mock
+    private WelfareServiceRepository welfareServiceRepository;
+    @Mock
     private SearchYouthRelevanceService searchYouthRelevanceService;
     @Mock
     private NormalizedPolicySidecarWriter normalizedPolicySidecarWriter;
@@ -44,6 +47,7 @@ class CollectPolicyAggregateApplyServiceTest {
         CollectPolicyAggregateApplyService service = new CollectPolicyAggregateApplyService(
                 bokjiroDetailCommandRepository,
                 policyLookupReadRepository,
+                welfareServiceRepository,
                 searchYouthRelevanceService,
                 normalizedPolicySidecarWriter,
                 policyEmbeddingRefreshRequestService
@@ -74,6 +78,7 @@ class CollectPolicyAggregateApplyServiceTest {
         CollectPolicyAggregateApplyService service = new CollectPolicyAggregateApplyService(
                 bokjiroDetailCommandRepository,
                 policyLookupReadRepository,
+                welfareServiceRepository,
                 searchYouthRelevanceService,
                 normalizedPolicySidecarWriter,
                 policyEmbeddingRefreshRequestService
@@ -98,6 +103,7 @@ class CollectPolicyAggregateApplyServiceTest {
         CollectPolicyAggregateApplyService service = new CollectPolicyAggregateApplyService(
                 bokjiroDetailCommandRepository,
                 policyLookupReadRepository,
+                welfareServiceRepository,
                 searchYouthRelevanceService,
                 normalizedPolicySidecarWriter,
                 policyEmbeddingRefreshRequestService
@@ -127,6 +133,7 @@ class CollectPolicyAggregateApplyServiceTest {
         assertThat(welfareService.getMaxAge()).isEqualTo(39);
         assertThat(welfareService.getApplyEndDate()).isEqualTo(java.time.LocalDate.of(2026, 12, 31));
         assertThat(welfareService.getIsOnlineApply()).isTrue();
+        verify(welfareServiceRepository).save(welfareService);
         verify(normalizedPolicySidecarWriter).upsert(welfareService, aggregate);
         verify(searchYouthRelevanceService).refreshForService(welfareService);
         verify(policyEmbeddingRefreshRequestService).request(13L);
@@ -138,6 +145,7 @@ class CollectPolicyAggregateApplyServiceTest {
         CollectPolicyAggregateApplyService service = new CollectPolicyAggregateApplyService(
                 bokjiroDetailCommandRepository,
                 policyLookupReadRepository,
+                welfareServiceRepository,
                 searchYouthRelevanceService,
                 normalizedPolicySidecarWriter,
                 policyEmbeddingRefreshRequestService

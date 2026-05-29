@@ -75,6 +75,8 @@ ORDER BY id;
 
   - `2026-05-29` local sweep 기준 이 inverted row는 `3700` 한 건이 아니라 `YOUTH`, `BOKJIRO_LOCAL(2726, 3197)`, `GOV24` 전반에 더 남아 있었다. 즉 sourceId self-heal은 특정 row 복구용이고, 전체 backfill은 별도 작업으로 읽는 편이 맞다.
   - 현재 whole-batch repair lane은 `POST /api/admin/collect/inverted-age-backfill?sourceType=<선택>&limitPerSource=0` 이다. 이 경로는 외부 API를 다시 치지 않고 저장돼 있던 `DETAIL raw_api_payloads` 를 replay해 `welfare_services` 와 `service_facts` 의 age range를 다시 맞춘다.
+  - source별 backfill, 남은 `GOV24/BOKJIRO_*` row의 `sourceId` 단건 self-heal, 복지로 detail coverage audit를 한 번에 보고 싶으면 `bash deploy/smoke/run-local-collect-legacy-repair-suite.sh` 를 쓴다. 기본값은 `source별 backfill -> 남은 row targeted repair -> 복지로 detail coverage summary` 까지이고, `RUN_GAP_FILL=true` 를 줄 때만 `2 rounds x 20 calls` 기본 gap-fill을 추가로 태운다.
+  - `2026-05-29` local rerun에서는 이 wrapper가 `GOV24 before=117, repaired=117, after=0` 으로 끝났고 `remaining_inverted_rows=(none)` 을 반환했다. 즉 current local truth 기준 legacy inverted-age backlog는 whole-suite 한 번으로 closeout 상태다.
   - 응답 해석:
     - `repairedCount`: replay 뒤 정상 range로 복구된 row 수
     - `missingRawPayloadCount`: detail raw가 없어 replay 자체를 못 한 row 수

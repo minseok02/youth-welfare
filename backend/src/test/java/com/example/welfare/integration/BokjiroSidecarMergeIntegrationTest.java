@@ -177,6 +177,7 @@ class BokjiroSidecarMergeIntegrationTest {
                     new CollectPolicyAggregateApplyService(
                             isolatedCommandRepository,
                             new PolicyLookupReadRepositoryImpl(welfareServiceRepository),
+                            welfareServiceRepository,
                             searchYouthRelevanceService,
                             normalizedPolicySidecarWriter,
                             policyEmbeddingRefreshRequestService
@@ -394,6 +395,7 @@ class BokjiroSidecarMergeIntegrationTest {
                 new CollectPolicyAggregateApplyService(
                         new BokjiroDetailCommandRepositoryImpl(welfareServiceDetailRepository),
                         new PolicyLookupReadRepositoryImpl(welfareServiceRepository),
+                        welfareServiceRepository,
                         searchYouthRelevanceService,
                         normalizedPolicySidecarWriter,
                         policyEmbeddingRefreshRequestService
