@@ -13,6 +13,14 @@ email="$1"
 user_key="$(smoke_db_query "SELECT user_key FROM users WHERE email = $(smoke_sql_quote "${email}") LIMIT 1;")"
 
 if [[ -z "${user_key}" ]]; then
+  email_hash="$(smoke_sha256_hex "${email}")"
+  user_key="$(
+    smoke_db_query \
+      "SELECT user_key FROM auth_users WHERE email_lookup_hash = $(smoke_sql_quote "${email_hash}") LIMIT 1;"
+  )"
+fi
+
+if [[ -z "${user_key}" ]]; then
   echo "user not found for ${email}" >&2
   exit 1
 fi
