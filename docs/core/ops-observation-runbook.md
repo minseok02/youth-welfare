@@ -14,6 +14,12 @@ entrypoint는 아래 wrapper입니다.
 
 이 wrapper는 기존 `run-local-ops-baseline-suite.sh` child artifact를 재사용합니다.
 
+운영 서버/RDS 경로에서는 admin password file이 없어도 됩니다.
+
+- `ADMIN_ACCESS_TOKEN` 이 있으면 그대로 재사용합니다.
+- 없으면 `ENV_FILE` 의 `JWT_SECRET` 과 DB query credential로 short-lived admin access token을 bounded mint 합니다.
+- 즉 기본 서버 명령은 운영 비밀번호 파일 없이도 닫히는 계약입니다.
+
 ## latest artifact
 
 - `tmp/ops-observation/latest-ops-observation-summary.txt`
