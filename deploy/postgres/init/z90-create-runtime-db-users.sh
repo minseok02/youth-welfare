@@ -140,6 +140,8 @@ SELECT format('REVOKE DELETE ON TABLE public.user_recommendations FROM %I', :'ap
 WHERE to_regclass('public.user_recommendations') IS NOT NULL \gexec
 SELECT format('GRANT INSERT, DELETE ON TABLE public.user_recommendations TO %I', :'recommendation_persistence_command_username')
 WHERE to_regclass('public.user_recommendations') IS NOT NULL \gexec
+SELECT format('GRANT SELECT (user_key) ON TABLE public.user_recommendations TO %I', :'recommendation_persistence_command_username')
+WHERE to_regclass('public.user_recommendations') IS NOT NULL \gexec
 SELECT format('GRANT USAGE, SELECT ON SEQUENCE public.user_recommendations_id_seq TO %I', :'recommendation_persistence_command_username')
 WHERE to_regclass('public.user_recommendations_id_seq') IS NOT NULL \gexec
 
