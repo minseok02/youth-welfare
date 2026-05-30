@@ -326,6 +326,7 @@ raw exact label summary(`gov24ServiceFieldLabel/gov24UserTypeLabel/gov24BenefitT
   - `benefitType` 는 `현금(장학금)/기타(교육)`, `현금/현금(감면)/현금(보험)/현금(융자)`, `서비스(일자리)/기술지원`, `문화/여가지원`, `서비스(돌봄)` 같은 일부 managed token만 small bonus로 읽는다.
   - `userType` 는 `개인`, `가구` 만 end-user soft audience signal로 읽고, `법인/시설/단체`, `소상공인` 은 hard exclusion으로 쓰지 않는다.
   - 즉 현재 Gov24 scoring 연결은 discovery filter와 같은 canonical token truth를 재사용하지만, hard eligibility나 hard matcher로는 승격하지 않는다.
+  - [DefaultPriorityMatcherTest.java](/home/minseok/youth-welfare/backend/src/test/java/com/example/welfare/recommend/service/DefaultPriorityMatcherTest.java:1) 도 `gov24ServiceFieldLabel/gov24UserTypeTokens/gov24BenefitTypeTokens` 만으로는 matcher가 열리지 않는다는 회귀를 고정한다.
 
 ## 2. `YOUTH_MID_RAW_ALIAS` 현재 상태
 
