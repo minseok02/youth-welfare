@@ -26,6 +26,29 @@ const HTML_ENTITIES = {
   "&mdash;": "—", "&laquo;": "«", "&raquo;": "»", "&times;": "×",
 };
 const EXTERNAL_URL_PROTOCOLS = new Set(["http:", "https:"]);
+const GOV24_USER_TYPE_TOKENS = ["개인", "가구", "법인/시설/단체", "소상공인"];
+const GOV24_BENEFIT_TYPE_TOKENS = [
+  "현금",
+  "현물",
+  "기타",
+  "현금(감면)",
+  "이용권",
+  "서비스(의료)",
+  "시설이용",
+  "기타(교육)",
+  "현금(보험)",
+  "현금(장학금)",
+  "현금(융자)",
+  "기타(상담)",
+  "서비스(돌봄)",
+  "서비스(일자리)",
+  "의료지원",
+  "상담/법률지원",
+  "기술지원",
+  "문화/여가지원",
+  "민원",
+  "봉사/기부",
+];
 
 const decodeHtml = (text) => {
   if (!text) return text;
@@ -92,6 +115,21 @@ const joinMetaParts = (parts, separator = " · ") => {
       return true;
     })
     .join(separator);
+};
+
+const resolveGov24FallbackLabel = (primaryLabel, candidates, allowedTokens) => {
+  const normalizedPrimary = typeof primaryLabel === "string" ? primaryLabel.trim() : "";
+  if (normalizedPrimary) return normalizedPrimary;
+
+  const allowed = new Set(allowedTokens);
+  for (const candidate of candidates) {
+    const normalizedCandidate = typeof candidate === "string" ? candidate.trim() : "";
+    if (allowed.has(normalizedCandidate)) {
+      return normalizedCandidate;
+    }
+  }
+
+  return null;
 };
 
 const formatSource = (sourceType) => {
@@ -392,18 +430,36 @@ export default function PolicyDetailPage() {
       });
   }, [policy?.tags]);
 
+  const gov24UserTypeDisplayLabel = useMemo(() => {
+    if (policy?.sourceType !== "GOV24") return null;
+    return resolveGov24FallbackLabel(
+      policy?.gov24UserTypeLabel,
+      visibleTags,
+      GOV24_USER_TYPE_TOKENS
+    );
+  }, [policy?.gov24UserTypeLabel, policy?.sourceType, visibleTags]);
+
+  const gov24BenefitTypeDisplayLabel = useMemo(() => {
+    if (policy?.sourceType !== "GOV24") return null;
+    return resolveGov24FallbackLabel(
+      policy?.gov24BenefitTypeLabel,
+      [policy?.provisionType, ...visibleTags],
+      GOV24_BENEFIT_TYPE_TOKENS
+    );
+  }, [policy?.gov24BenefitTypeLabel, policy?.provisionType, policy?.sourceType, visibleTags]);
+
   const gov24MetaTags = useMemo(() => {
     if (policy?.sourceType !== "GOV24") return [];
     return [
       policy?.gov24ServiceFieldLabel && `분야 ${policy.gov24ServiceFieldLabel}`,
-      policy?.gov24UserTypeLabel && `대상 ${policy.gov24UserTypeLabel}`,
-      policy?.gov24BenefitTypeLabel && `유형 ${policy.gov24BenefitTypeLabel}`,
+      gov24UserTypeDisplayLabel && `대상 ${gov24UserTypeDisplayLabel}`,
+      gov24BenefitTypeDisplayLabel && `유형 ${gov24BenefitTypeDisplayLabel}`,
     ].filter(Boolean);
   }, [
+    gov24BenefitTypeDisplayLabel,
+    gov24UserTypeDisplayLabel,
     policy?.sourceType,
-    policy?.gov24BenefitTypeLabel,
     policy?.gov24ServiceFieldLabel,
-    policy?.gov24UserTypeLabel,
   ]);
   const youthOfficialFactRows = useMemo(() => {
     if (policy?.sourceType !== "YOUTH") return [];
@@ -484,7 +540,7 @@ export default function PolicyDetailPage() {
       ageRange,
       incomeRange,
       policy.lifeStage,
-      policy.gov24UserTypeLabel,
+      gov24UserTypeDisplayLabel,
     ]) || NO_DATA;
     const categorySummary = joinMetaParts([
       policy.youthMajorLabel,
@@ -495,7 +551,7 @@ export default function PolicyDetailPage() {
     const supportSummary = joinMetaParts([
       policy.provisionType,
       policy.supportCycle,
-      policy.gov24BenefitTypeLabel,
+      gov24BenefitTypeDisplayLabel,
     ]) || NO_DATA;
     const applyPathSummary = joinMetaParts([
       policy.applyMethodName,
@@ -518,7 +574,7 @@ export default function PolicyDetailPage() {
       { ico: "📅", label: "신청기간", value: period },
       { ico: "🎯", label: "키워드", value: visibleTags.slice(0, 4).join(" · ") || NO_DATA },
     ];
-  }, [policy, regionText, visibleTags]);
+  }, [gov24BenefitTypeDisplayLabel, gov24UserTypeDisplayLabel, policy, regionText, visibleTags]);
 
   const quickHighlights = useMemo(() => {
     if (!policy) return [];
@@ -625,12 +681,12 @@ export default function PolicyDetailPage() {
 
   const gov24DiscoveryTargets = useMemo(() => ({
     serviceField: createGov24DiscoveryTarget("gov24ServiceField", policy?.gov24ServiceFieldLabel),
-    userType: createGov24DiscoveryTarget("gov24UserType", policy?.gov24UserTypeLabel),
-    benefitType: createGov24DiscoveryTarget("gov24BenefitType", policy?.gov24BenefitTypeLabel),
+    userType: createGov24DiscoveryTarget("gov24UserType", gov24UserTypeDisplayLabel),
+    benefitType: createGov24DiscoveryTarget("gov24BenefitType", gov24BenefitTypeDisplayLabel),
   }), [
-    policy?.gov24BenefitTypeLabel,
     policy?.gov24ServiceFieldLabel,
-    policy?.gov24UserTypeLabel,
+    gov24BenefitTypeDisplayLabel,
+    gov24UserTypeDisplayLabel,
   ]);
 
   const navigateToGov24Discovery = (target) => {
@@ -800,7 +856,7 @@ export default function PolicyDetailPage() {
                         분야 {policy.gov24ServiceFieldLabel}
                       </Tag>
                     )}
-                    {policy.gov24UserTypeLabel && (
+                    {gov24UserTypeDisplayLabel && (
                       <Tag
                         bg="#eef7f1"
                         color="#166534"
@@ -808,10 +864,10 @@ export default function PolicyDetailPage() {
                         onClick={() => navigateToGov24Discovery(gov24DiscoveryTargets.userType)}
                         title="같은 Gov24 사용자구분 정책 보기"
                       >
-                        대상 {policy.gov24UserTypeLabel}
+                        대상 {gov24UserTypeDisplayLabel}
                       </Tag>
                     )}
-                    {policy.gov24BenefitTypeLabel && (
+                    {gov24BenefitTypeDisplayLabel && (
                       <Tag
                         bg="#eef7f1"
                         color="#166534"
@@ -819,7 +875,7 @@ export default function PolicyDetailPage() {
                         onClick={() => navigateToGov24Discovery(gov24DiscoveryTargets.benefitType)}
                         title="같은 Gov24 지원유형 정책 보기"
                       >
-                        유형 {policy.gov24BenefitTypeLabel}
+                        유형 {gov24BenefitTypeDisplayLabel}
                       </Tag>
                     )}
                   </div>
@@ -892,14 +948,14 @@ export default function PolicyDetailPage() {
                     <Tag bg={WHITE} border={LINE}>소득 {formatIncomeRange(policy.minIncome, policy.maxIncome).replace("소득 ", "")}</Tag>
                   )}
                   {policy.lifeStage && <Tag bg={WHITE} border={LINE}>{policy.lifeStage}</Tag>}
-                  {policy.gov24UserTypeLabel && (
+                  {gov24UserTypeDisplayLabel && (
                     <Tag
                       bg={WHITE}
                       border={LINE}
                       onClick={() => navigateToGov24Discovery(gov24DiscoveryTargets.userType)}
                       title="같은 Gov24 사용자구분 정책 보기"
                     >
-                      {policy.gov24UserTypeLabel}
+                      {gov24UserTypeDisplayLabel}
                     </Tag>
                   )}
                   {regionText && <Tag bg={WHITE} border={LINE}>{regionText}</Tag>}
