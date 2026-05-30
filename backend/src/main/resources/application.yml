@@ -75,6 +75,14 @@ app:
       hikari:
         maximum-pool-size: ${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_POOL_MAX_SIZE:1}
         minimum-idle: ${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_POOL_MIN_IDLE:0}
+    recommendation-persistence-command:
+      url: ${RECOMMENDATION_PERSISTENCE_COMMAND_DB_URL:${DB_URL:jdbc:postgresql://localhost:5432/youth_welfare?sslmode=disable}}
+      username: ${DB_RECOMMENDATION_PERSISTENCE_COMMAND_USERNAME:recommendation_persistence_command_rw}
+      password: ${DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD:${DB_PASSWORD:}}
+      driver-class-name: org.postgresql.Driver
+      hikari:
+        maximum-pool-size: ${DB_RECOMMENDATION_PERSISTENCE_COMMAND_POOL_MAX_SIZE:1}
+        minimum-idle: ${DB_RECOMMENDATION_PERSISTENCE_COMMAND_POOL_MIN_IDLE:0}
     chat-session-cleanup:
       url: ${CHAT_SESSION_CLEANUP_DB_URL:${DB_URL:jdbc:postgresql://localhost:5432/youth_welfare?sslmode=disable}}
       username: ${DB_CHAT_SESSION_CLEANUP_USERNAME:chat_session_cleanup_rw}

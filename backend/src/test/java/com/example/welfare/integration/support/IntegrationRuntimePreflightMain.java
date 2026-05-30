@@ -31,6 +31,10 @@ public final class IntegrationRuntimePreflightMain {
         String recommendationReviewGateCommandUsername = env("INTEGRATION_RECOMMENDATION_REVIEW_GATE_COMMAND_DB_USERNAME", "recommendation_review_gate_command_rw");
         String recommendationReviewGateCommandPassword = env("INTEGRATION_RECOMMENDATION_REVIEW_GATE_COMMAND_DB_PASSWORD", primaryPassword);
 
+        String recommendationPersistenceCommandUrl = env("INTEGRATION_RECOMMENDATION_PERSISTENCE_COMMAND_DB_URL", "jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable");
+        String recommendationPersistenceCommandUsername = env("INTEGRATION_RECOMMENDATION_PERSISTENCE_COMMAND_DB_USERNAME", "recommendation_persistence_command_rw");
+        String recommendationPersistenceCommandPassword = env("INTEGRATION_RECOMMENDATION_PERSISTENCE_COMMAND_DB_PASSWORD", primaryPassword);
+
         String chatSessionCleanupUrl = env("INTEGRATION_CHAT_SESSION_CLEANUP_DB_URL", "jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable");
         String chatSessionCleanupUsername = env("INTEGRATION_CHAT_SESSION_CLEANUP_DB_USERNAME", "chat_session_cleanup_rw");
         String chatSessionCleanupPassword = env("INTEGRATION_CHAT_SESSION_CLEANUP_DB_PASSWORD", primaryPassword);
@@ -62,6 +66,7 @@ public final class IntegrationRuntimePreflightMain {
         checkJdbc("pii-rw", piiUrl, piiUsername, piiPassword, failures);
         checkJdbc("admin-ro", adminRoUrl, adminRoUsername, adminRoPassword, failures);
         checkJdbc("recommendation-review-gate-command", recommendationReviewGateCommandUrl, recommendationReviewGateCommandUsername, recommendationReviewGateCommandPassword, failures);
+        checkJdbc("recommendation-persistence-command", recommendationPersistenceCommandUrl, recommendationPersistenceCommandUsername, recommendationPersistenceCommandPassword, failures);
         checkJdbc("chat-session-cleanup", chatSessionCleanupUrl, chatSessionCleanupUsername, chatSessionCleanupPassword, failures);
         checkJdbc("cluster-ai-cleanup", clusterAiCleanupUrl, clusterAiCleanupUsername, clusterAiCleanupPassword, failures);
         checkJdbc("recommendation-retention-cleanup", recommendationRetentionCleanupUrl, recommendationRetentionCleanupUsername, recommendationRetentionCleanupPassword, failures);

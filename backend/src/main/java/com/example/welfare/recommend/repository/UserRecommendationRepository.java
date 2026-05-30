@@ -3,7 +3,6 @@ package com.example.welfare.recommend.repository;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -126,11 +125,4 @@ public interface UserRecommendationRepository extends JpaRepository<UserRecommen
     List<Long> findRecentlyRecommendedServiceIds(@Param("userKey") String userKey,
                                                  @Param("since") LocalDateTime since);
 
-    // refresh 시 기존 추천 전체 삭제 — 북마크 상태는 호출 전 Map으로 보존 후 새 행에 이전
-    @Modifying
-    @Query("""
-            DELETE FROM UserRecommendation ur
-            WHERE ur.userKey = :userKey
-            """)
-    void deleteAllByUserKey(@Param("userKey") String userKey);
 }

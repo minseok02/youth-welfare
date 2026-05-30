@@ -12,6 +12,8 @@ admin_ro_username="${DB_ADMIN_RO_USERNAME:-admin_dashboard_ro}"
 admin_ro_password="${DB_ADMIN_RO_PASSWORD:-$app_password}"
 recommendation_review_gate_command_username="${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME:-recommendation_review_gate_command_rw}"
 recommendation_review_gate_command_password="${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD:-$app_password}"
+recommendation_persistence_command_username="${DB_RECOMMENDATION_PERSISTENCE_COMMAND_USERNAME:-recommendation_persistence_command_rw}"
+recommendation_persistence_command_password="${DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD:-$app_password}"
 chat_session_cleanup_username="${DB_CHAT_SESSION_CLEANUP_USERNAME:-chat_session_cleanup_rw}"
 chat_session_cleanup_password="${DB_CHAT_SESSION_CLEANUP_PASSWORD:-$app_password}"
 cluster_ai_cleanup_username="${DB_CLUSTER_AI_CLEANUP_USERNAME:-cluster_ai_cleanup_rw}"
@@ -37,6 +39,8 @@ psql -v ON_ERROR_STOP=1 \
   -v "admin_ro_password=${admin_ro_password}" \
   -v "recommendation_review_gate_command_username=${recommendation_review_gate_command_username}" \
   -v "recommendation_review_gate_command_password=${recommendation_review_gate_command_password}" \
+  -v "recommendation_persistence_command_username=${recommendation_persistence_command_username}" \
+  -v "recommendation_persistence_command_password=${recommendation_persistence_command_password}" \
   -v "chat_session_cleanup_username=${chat_session_cleanup_username}" \
   -v "chat_session_cleanup_password=${chat_session_cleanup_password}" \
   -v "cluster_ai_cleanup_username=${cluster_ai_cleanup_username}" \
@@ -75,6 +79,11 @@ WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'recommendation_review
 SELECT format('ALTER ROLE %I LOGIN PASSWORD %L', :'recommendation_review_gate_command_username', :'recommendation_review_gate_command_password')
 WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'recommendation_review_gate_command_username') \gexec
 
+SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'recommendation_persistence_command_username', :'recommendation_persistence_command_password')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'recommendation_persistence_command_username') \gexec
+SELECT format('ALTER ROLE %I LOGIN PASSWORD %L', :'recommendation_persistence_command_username', :'recommendation_persistence_command_password')
+WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'recommendation_persistence_command_username') \gexec
+
 SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'chat_session_cleanup_username', :'chat_session_cleanup_password')
 WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'chat_session_cleanup_username') \gexec
 SELECT format('ALTER ROLE %I LOGIN PASSWORD %L', :'chat_session_cleanup_username', :'chat_session_cleanup_password')
@@ -105,9 +114,9 @@ WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'migration_username') 
 SELECT format('ALTER ROLE %I LOGIN PASSWORD %L', :'migration_username', :'migration_password')
 WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'migration_username') \gexec
 
-GRANT CONNECT ON DATABASE :"db_name" TO :"app_username", :"app_pii_username", :"notification_ro_username", :"admin_ro_username", :"recommendation_review_gate_command_username", :"chat_session_cleanup_username", :"cluster_ai_cleanup_username", :"recommendation_retention_cleanup_username", :"collect_execution_lock_cleanup_username", :"web_push_subscription_cleanup_username", :"migration_username";
+GRANT CONNECT ON DATABASE :"db_name" TO :"app_username", :"app_pii_username", :"notification_ro_username", :"admin_ro_username", :"recommendation_review_gate_command_username", :"recommendation_persistence_command_username", :"chat_session_cleanup_username", :"cluster_ai_cleanup_username", :"recommendation_retention_cleanup_username", :"collect_execution_lock_cleanup_username", :"web_push_subscription_cleanup_username", :"migration_username";
 
-GRANT USAGE ON SCHEMA public TO :"app_username", :"admin_ro_username", :"recommendation_review_gate_command_username", :"chat_session_cleanup_username", :"cluster_ai_cleanup_username", :"recommendation_retention_cleanup_username", :"collect_execution_lock_cleanup_username", :"web_push_subscription_cleanup_username", :"migration_username";
+GRANT USAGE ON SCHEMA public TO :"app_username", :"admin_ro_username", :"recommendation_review_gate_command_username", :"recommendation_persistence_command_username", :"chat_session_cleanup_username", :"cluster_ai_cleanup_username", :"recommendation_retention_cleanup_username", :"collect_execution_lock_cleanup_username", :"web_push_subscription_cleanup_username", :"migration_username";
 GRANT CREATE ON SCHEMA public TO :"migration_username";
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO :"app_username";
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO :"admin_ro_username";
@@ -127,6 +136,12 @@ SELECT format('REVOKE ALL PRIVILEGES ON TABLE public.recommendation_review_gate_
 WHERE to_regclass('public.recommendation_review_gate_promotion_approvals') IS NOT NULL \gexec
 SELECT format('GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.recommendation_review_gate_promotion_approvals TO %I', :'recommendation_review_gate_command_username')
 WHERE to_regclass('public.recommendation_review_gate_promotion_approvals') IS NOT NULL \gexec
+SELECT format('REVOKE DELETE ON TABLE public.user_recommendations FROM %I', :'app_username')
+WHERE to_regclass('public.user_recommendations') IS NOT NULL \gexec
+SELECT format('GRANT INSERT, DELETE ON TABLE public.user_recommendations TO %I', :'recommendation_persistence_command_username')
+WHERE to_regclass('public.user_recommendations') IS NOT NULL \gexec
+SELECT format('GRANT USAGE, SELECT ON SEQUENCE public.user_recommendations_id_seq TO %I', :'recommendation_persistence_command_username')
+WHERE to_regclass('public.user_recommendations_id_seq') IS NOT NULL \gexec
 
 SELECT format('GRANT DELETE ON TABLE public.chat_sessions TO %I', :'chat_session_cleanup_username')
 WHERE to_regclass('public.chat_sessions') IS NOT NULL \gexec
