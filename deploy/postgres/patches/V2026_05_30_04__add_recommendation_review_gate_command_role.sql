@@ -1,22 +1,10 @@
 DO $$
 BEGIN
-    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'recommendation_review_gate_command_username') THEN
-        EXECUTE format(
-                'ALTER ROLE %I LOGIN PASSWORD %L',
-                :'recommendation_review_gate_command_username',
-                :'recommendation_review_gate_command_password'
-        );
-    ELSE
-        EXECUTE format(
-                'CREATE ROLE %I LOGIN PASSWORD %L',
-                :'recommendation_review_gate_command_username',
-                :'recommendation_review_gate_command_password'
-        );
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'recommendation_review_gate_command_rw') THEN
+        GRANT USAGE ON SCHEMA public TO recommendation_review_gate_command_rw;
     END IF;
 END
 $$;
-
-GRANT USAGE ON SCHEMA public TO :"recommendation_review_gate_command_username";
 
 DO $$
 BEGIN
@@ -24,20 +12,16 @@ BEGIN
         IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'app_core_rw') THEN
             REVOKE ALL PRIVILEGES ON TABLE public.recommendation_review_gate_promotion_approvals FROM app_core_rw;
         END IF;
-        EXECUTE format(
-                'GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.recommendation_review_gate_promotion_approvals TO %I',
-                :'recommendation_review_gate_command_username'
-        );
-    END IF;
-END
-$$;
-
-DO $$
-BEGIN
-    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'migration_username') THEN
-        GRANT ALL PRIVILEGES
-            ON recommendation_review_gate_promotion_approvals
-            TO :"migration_username";
+        IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'recommendation_review_gate_command_rw') THEN
+            GRANT SELECT, INSERT, UPDATE, DELETE
+                ON TABLE public.recommendation_review_gate_promotion_approvals
+                TO recommendation_review_gate_command_rw;
+        END IF;
+        IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'migration_admin') THEN
+            GRANT ALL PRIVILEGES
+                ON recommendation_review_gate_promotion_approvals
+                TO migration_admin;
+        END IF;
     END IF;
 END
 $$;
