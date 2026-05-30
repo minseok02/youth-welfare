@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 1037) `current_priority` 는 same-config recent `active_baseline` reuse가 실제 서버에서도 통과해야 비로소 bounded optimization으로 읽을 수 있다
+- 문제: `current_priority` recent baseline reuse를 로컬에서만 확인한 상태로 두면, `latest` snapshot publish 계약이나 TTL 비교 로직이 실제 서버 shell/cwd/runtime artifact 조건에서도 그대로 성립하는지 확신할 수 없다. 이 경우 wrapper rerun-cost 최적화가 문서상으로만 닫히고 운영 기준에서는 다시 full rerun으로 되돌아갈 수 있다.
+- 해결: 서버에서 `RUN_BACKEND_TESTS=false RUN_FRONTEND_BASELINE=false RUN_OPS_BASELINE=false RUN_COLLECT_LEGACY_REPAIR=false bash deploy/smoke/run-local-active-baseline-suite.sh` 로 standalone latest snapshot 계약을 먼저 검증하고, 곧바로 `RUN_RECOMMENDATION_OBSERVATION=false ... bash deploy/smoke/run-local-current-priority-suite.sh` 를 같은 설정으로 다시 태워 `active_baseline_reused=true`, `reuse_age_seconds=17`, `reuse_ttl_seconds=900` 를 실제 artifact summary/json 에서 확인했다.
+- 이유: wrapper 최적화는 “속도가 빨라졌다”보다 “같은 조건의 recent passed baseline을 운영에서도 안전하게 재사용한다”가 핵심 계약이다. accepted server rerun 없이 close하면 local-only optimization drift가 다시 생길 수 있다.
+
 ## 1036) `current_priority` 의 큰 시간은 endpoint보다 `active_baseline` 재실행 비용이므로, recent passed snapshot 재사용이 더 bounded하다
 - 문제: search/ranking endpoint hotspot을 닫은 뒤에도 `current_priority` 는 여전히 `150~190s` 수준으로 컸다. nested duration을 보면 대부분이 `active_baseline` 이고, 그 안에서도 `backend_tests`, `frontend_e2e`, `collect_legacy_repair` 가 큰 비중을 차지했다. 즉 남은 병목은 서비스 응답시간보다 baseline bundle 재실행 비용이었다.
 - 해결: `run-local-active-baseline-suite.sh` 가 `tmp/active-baseline-suite/latest*` stable snapshot과 `suite_duration_ms` 를 남기게 바꿨다. `run-local-current-priority-suite.sh` 는 같은 설정의 recent passed `active_baseline` latest가 TTL 안에 있으면 재사용하고, summary/json에 `active_baseline_reused=true` 를 남긴다.

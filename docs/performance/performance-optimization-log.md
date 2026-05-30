@@ -4,6 +4,13 @@ Last updated: 2026-05-30
 
 This document records what was optimized, which baseline numbers triggered the work, and which server remeasurement is still pending.
 
+## How To Read
+
+- `Closed Batch`: why the batch was opened, what changed, and which accepted server rerun closed it
+- `Observed deltas`: the concrete before/after numbers that justified keeping or replacing the change
+- `Interpretation`: whether the batch is actually closed or only partially useful
+- `Comparison Table`: one-line before/after ledger for fast review across multiple batches
+
 ## Closed Batch
 
 ### 2026-05-30: wrapper artifact isolation + search/ranking read-path reduction
@@ -320,7 +327,7 @@ Interpretation:
 - the representative DB plan stayed healthy while the API hotspot itself collapsed
 - the remaining performance work is no longer search/ranking endpoint latency, but wrapper bundle rerun cost
 
-## Current Active Batch
+## Closed Batch
 
 ### 2026-05-30: current-priority recent baseline reuse
 
@@ -341,6 +348,35 @@ Planned changes in this batch:
    - keep explicit `active_baseline_reused=true/false` in summary/json
 3. docs / troubleshooting
    - record that this optimization targets wrapper rerun cost, not application endpoint latency
+
+Accepted server remeasurement:
+
+- server HEAD: `1e62b24dde6405980d9aba8161559c29574a5a6f`
+- app redeploy was not needed for this batch
+- `RUN_BACKEND_TESTS=false RUN_FRONTEND_BASELINE=false RUN_OPS_BASELINE=false RUN_COLLECT_LEGACY_REPAIR=false bash deploy/smoke/run-local-active-baseline-suite.sh`
+  - `active_baseline_suite=passed`
+  - `tmp/active-baseline-suite/latest*` stable snapshot and summary/json published
+  - `suite_duration_ms=0` recorded for the no-op verification run
+- `RUN_RECOMMENDATION_OBSERVATION=false ... bash deploy/smoke/run-local-current-priority-suite.sh`
+  - `current_priority_suite=passed`
+  - `active_baseline_reused=true`
+  - `reuse_age_seconds=17`
+  - `reuse_ttl_seconds=900`
+
+Interpretation:
+
+- `active_baseline` standalone latest snapshot contract is accepted and closed
+- `current_priority` recent baseline reuse is accepted and closed
+- remaining wrapper cost is now bounded by whether a fresh `active_baseline` rerun is actually required, not by forced duplicate reruns every time
+
+## Maintenance Note
+
+- `search/ranking` endpoint hotspot work is closed on the accepted server baseline
+- representative search benchmark drift is closed on `policy_search_keyword_api_shape`
+- `current_priority` rerun-cost mitigation is closed with recent baseline reuse
+- remaining performance work is optional follow-up only:
+  - extended/load tuning if a new load-specific target is approved
+  - bundle-duration budgeting if operator cadence changes
 ## Comparison Table
 
 | Date | Before HEAD | After HEAD | Area | Change | Before | After | Delta | Decision |
@@ -362,3 +398,4 @@ Planned changes in this batch:
 | 2026-05-30 | `f351ee32466ce9aed73c7d755e38ab6bcac2db03` | `10e3bea61cf1bc7812d4264e3a51ed5072f79c66` | Search DB | lowered representative explain | `258.805ms seq scan` | `117.078ms seq scan` | `-141.727ms` | still unresolved |
 | 2026-05-30 | `10e3bea61cf1bc7812d4264e3a51ed5072f79c66` | `731f5f2c2e6f58a61ba5b7d89ff20ce6e36990f3` | Search DB | runtime `title/keyword` trgm index + API-shape benchmark realignment | historical lowered LIKE seq scan | `policy_search_keyword_api_shape` index scan | contract realigned | accepted |
 | 2026-05-30 | `731f5f2c2e6f58a61ba5b7d89ff20ce6e36990f3` | `7b53d637395aa6c5978a633bc25477f30fd38c9f` | Search | public policy search TTL cache | baseline `p95 481.0ms`, wrapper `p95 340.9ms` | baseline `p95 33.5ms`, wrapper `p95 20.3ms` | `-447.5ms`, `-320.6ms` | improvement accepted |
+| 2026-05-30 | `7b53d637395aa6c5978a633bc25477f30fd38c9f` | `1e62b24dde6405980d9aba8161559c29574a5a6f` | Current Priority | recent `active_baseline` reuse | recent baseline rerun required every time | `active_baseline_reused=true`, `reuse_age_seconds=17`, `reuse_ttl_seconds=900` | duplicate rerun avoided | improvement accepted |
