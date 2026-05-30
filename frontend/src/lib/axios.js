@@ -3,6 +3,7 @@ import { useAuthStore } from "../store/authStore";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim() || "";
 const REFRESH_PATH = "/api/auth/refresh";
+const AUTH_PATH_PREFIX = "/api/auth/";
 
 const api = axios.create({
   baseURL: apiBaseUrl,
@@ -36,8 +37,9 @@ api.interceptors.response.use(
     const originalRequest = error.config;
     const requestUrl = originalRequest?.url ?? "";
     const isRefreshRequest = requestUrl.includes(REFRESH_PATH);
+    const isAuthRequest = requestUrl.includes(AUTH_PATH_PREFIX);
 
-    if (error.response?.status === 401 && !originalRequest?._retry && !isRefreshRequest) {
+    if (error.response?.status === 401 && !originalRequest?._retry && !isRefreshRequest && !isAuthRequest) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });

@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 1041) 로그인 401도 공용 axios refresh interceptor를 타면 잘못된 credential 오류가 stale refresh 오류로 덮일 수 있다
+- 문제: 프런트 `api` interceptor가 모든 `401` 을 `/api/auth/refresh` 대상으로 취급하면, `/api/auth/login` 이 `A004` 로 실패한 경우에도 stale refresh cookie 때문에 `/api/auth/refresh -> A003` 을 추가로 태운다. 이 경우 사용자는 비밀번호가 맞든 틀리든 `이미 사용된 Refresh Token입니다. 재로그인이 필요합니다.` 만 보게 된다.
+- 해결: `frontend/src/lib/axios.js` 에서 `/api/auth/*` 자체는 refresh 대상에서 제외했다. 즉 refresh rotation은 보호 API의 `401` 에만 적용하고, 로그인/회원가입/비밀번호 재설정 같은 auth endpoint 자체 오류는 원래 서버 메시지를 그대로 사용자에게 보여 준다. Playwright smoke에도 “로그인 401 시 refresh 0회, A004 유지” 회귀 케이스를 추가했다.
+- 이유: credential 검증 오류와 세션 만료/refresh 재사용 오류는 사용자 액션과 복구 방법이 다르다. auth endpoint 자체를 interceptor에서 다시 감싸면 root cause가 바뀌어 보이고, stale cookie 하나가 모든 로그인 실패를 같은 문구로 오염시킨다.
+
 ## 1040) policy retrieval/category baseline도 raw metric wrapper만 있으면 daily operator가 recommendation/collect보다 다시 해석 비용을 더 부담한다
 - 문제: `run-local-policy-quality-summary.sh` 는 retrieval/gate/category baseline 수치를 잘 모아 주지만, operator가 매일 알고 싶은 건 전체 raw metric보다 “지금 quality gate가 healthy 인가, drift 시 어디를 먼저 열어야 하나” 쪽이다. recommendation/collect 는 이미 compact observation surface가 있는데 policy만 raw summary wrapper에 머물면 handoff 형식이 다시 달라진다.
 - 해결: 새 `run-local-policy-quality-observation-suite.sh` 를 추가해 기존 `run-local-policy-quality-summary.sh` child artifact를 재사용하고, `decision_class`, `operator_reading`, `next_action` 을 `summary/json/note` 로 다시 publish하게 맞췄다. 동시에 `start.md`, `current-state.md`, `policy-docs-index.md`, `policy-normalization-current-state.md`, `policy-quality-summary-runbook.md` 에 이 wrapper를 daily operator entrypoint로 연결했다.
