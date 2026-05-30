@@ -241,6 +241,54 @@ Server remeasurement status:
 - compare ranking and wrapper values against the `10e3bea61cf1bc7812d4264e3a51ed5072f79c66` server baseline
 - treat `policy_search_keyword_ilike` as historical; next accepted DB comparison key should be `policy_search_keyword_api_shape`
 
+Accepted server remeasurement:
+
+- server HEAD: `731f5f2c2e6f58a61ba5b7d89ff20ce6e36990f3`
+- runtime DB `idx_ws_title_trgm`, `idx_ws_keyword_trgm` applied with the RDS master account
+- app redeploy was not needed for this batch
+- baseline and wrapper baseline passed
+
+Observed deltas from the accepted server rerun:
+
+- `policy_search_keyword_api_shape` explain:
+  - baseline `execution 314.609ms`, `seq_scan=false`, `index_scan=true`
+  - wrapper baseline `execution 312.486ms`, `seq_scan=false`, `index_scan=true`
+- `policy_ranking` p95 remained single-digit:
+  - baseline `8.7ms`
+  - wrapper baseline `6.4ms`
+- `policy_search_keyword` p95 remained the next real hotspot:
+  - baseline `481.0ms`
+  - wrapper baseline `340.9ms`
+- `current_priority` nested durations:
+  - `active_baseline_duration_ms=146306`
+  - `recommendation_observation_duration_ms=5998`
+
+Interpretation:
+
+- constructor-fix closeout is complete
+- representative search benchmark drift is closed
+- the remaining work is no longer DB-plan correctness but actual public search API latency variance
+
+## Current Active Batch
+
+### 2026-05-30: public policy search TTL cache
+
+Current trigger values from the accepted server rerun:
+
+- `policy_search_keyword` baseline `p95 481.0ms`, `p99 513.8ms`, `max 522.0ms`
+- `policy_search_keyword` wrapper baseline `p95 340.9ms`, `p99 346.6ms`, `max 348.0ms`
+- `policy_search_keyword_api_shape` is already `index_scan=true`, so the remaining hotspot is above the representative DB plan
+
+Planned changes in this batch:
+
+1. `PolicySearchService`
+   - add a bounded TTL cache for `userId=null` public search requests
+   - keep logged-in requests uncached because bookmark state is user-specific
+2. tests
+   - prove anonymous repeated search reuses the cache
+   - prove logged-in search still executes on each call
+3. docs / troubleshooting
+   - record that API latency can remain after representative explain is closed because response assembly still contributes meaningfully
 ## Comparison Table
 
 | Date | Before HEAD | After HEAD | Area | Change | Before | After | Delta | Decision |
@@ -260,3 +308,4 @@ Server remeasurement status:
 | 2026-05-30 | `f351ee32466ce9aed73c7d755e38ab6bcac2db03` | `10e3bea61cf1bc7812d4264e3a51ed5072f79c66` | Ranking | 30s public read TTL cache | `p95 933.3ms` | `p95 5.8ms` | `-927.5ms` | improvement accepted |
 | 2026-05-30 | `f351ee32466ce9aed73c7d755e38ab6bcac2db03` | `10e3bea61cf1bc7812d4264e3a51ed5072f79c66` | Active Baseline | snake_case step durations | frontend bundled, key names unstable | `backend_tests/frontend_lint/frontend_build/frontend_e2e/...` direct keys | observability improved | accepted |
 | 2026-05-30 | `f351ee32466ce9aed73c7d755e38ab6bcac2db03` | `10e3bea61cf1bc7812d4264e3a51ed5072f79c66` | Search DB | lowered representative explain | `258.805ms seq scan` | `117.078ms seq scan` | `-141.727ms` | still unresolved |
+| 2026-05-30 | `10e3bea61cf1bc7812d4264e3a51ed5072f79c66` | `731f5f2c2e6f58a61ba5b7d89ff20ce6e36990f3` | Search DB | runtime `title/keyword` trgm index + API-shape benchmark realignment | historical lowered LIKE seq scan | `policy_search_keyword_api_shape` index scan | contract realigned | accepted |

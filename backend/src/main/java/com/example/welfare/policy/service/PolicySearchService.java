@@ -9,17 +9,19 @@ import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.PolicySearchReadCondition;
 import com.example.welfare.policy.repository.WelfareServiceReadRepository;
 import com.example.welfare.policy.support.WelfareSourceTypeSupport;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class PolicySearchService {
 
@@ -28,9 +30,27 @@ public class PolicySearchService {
     private static final int MAX_KEYWORD_LENGTH = 100;
     private static final int MAX_KEYWORD_TOKENS = 10;
     private static final long SEARCH_WARN_DURATION_MS = 500L;
+    private static final long PUBLIC_SEARCH_CACHE_TTL_MILLIS = 30_000L;
+    private static final int MAX_PUBLIC_SEARCH_CACHE_ENTRIES = 256;
 
     private final WelfareServiceReadRepository welfareServiceReadRepository;
     private final PolicyPresentationReadService policyPresentationReadService;
+    private final Clock clock;
+    private final Map<SearchCacheKey, CachedSearchResponse> publicSearchCache = new ConcurrentHashMap<>();
+
+    @Autowired
+    public PolicySearchService(WelfareServiceReadRepository welfareServiceReadRepository,
+                               PolicyPresentationReadService policyPresentationReadService) {
+        this(welfareServiceReadRepository, policyPresentationReadService, Clock.systemUTC());
+    }
+
+    PolicySearchService(WelfareServiceReadRepository welfareServiceReadRepository,
+                        PolicyPresentationReadService policyPresentationReadService,
+                        Clock clock) {
+        this.welfareServiceReadRepository = welfareServiceReadRepository;
+        this.policyPresentationReadService = policyPresentationReadService;
+        this.clock = clock;
+    }
 
     @Transactional(readOnly = true)
     public PolicySearchResponse search(Long userId, String keyword, int page) {
@@ -57,8 +77,6 @@ public class PolicySearchService {
                                        String targetGroup,
                                        int page,
                                        int size) {
-        long startedAt = System.nanoTime();
-
         String normalizedKeyword = normalizeKeyword(keyword);
         int limit = normalizeSize(size);
         int pageNumber = Math.max(0, page);
@@ -73,6 +91,40 @@ public class PolicySearchService {
 
         Integer incomeMaxWon = resolveIncomeMaxWon(incomeLevel);
         String normalizedTargetGroup = normalizeNullable(targetGroup);
+        long startedAt = System.nanoTime();
+
+        SearchCacheKey cacheKey = null;
+        if (userId == null) {
+            cacheKey = new SearchCacheKey(
+                    normalizedKeyword,
+                    normalizedStatus,
+                    normalizedStatusFilter,
+                    normalizedCategory,
+                    normalizedSourceType,
+                    onlineApplyFlag,
+                    normalizedSido,
+                    normalizedSgg,
+                    normalizedSort,
+                    incomeMaxWon,
+                    normalizedTargetGroup,
+                    pageNumber,
+                    limit
+            );
+            PolicySearchResponse cached = getCachedPublicSearch(cacheKey);
+            if (cached != null) {
+                logSearchObservation(
+                        cached,
+                        normalizedKeyword,
+                        normalizedStatus,
+                        normalizedStatusFilter,
+                        normalizedCategory,
+                        normalizedSourceType,
+                        normalizedSort,
+                        System.nanoTime() - startedAt
+                );
+                return cached;
+            }
+        }
 
         // 지역 분기 및 sido/sgg → regionCode 변환은 WelfareServiceReadRepositoryImpl에서 처리
         Page<WelfareService> resultPage = welfareServiceReadRepository.search(
@@ -115,7 +167,30 @@ public class PolicySearchService {
                 normalizedSort,
                 System.nanoTime() - startedAt
         );
+        if (cacheKey != null) {
+            cachePublicSearch(cacheKey, response);
+        }
         return response;
+    }
+
+    private PolicySearchResponse getCachedPublicSearch(SearchCacheKey cacheKey) {
+        CachedSearchResponse cached = publicSearchCache.get(cacheKey);
+        if (cached == null) {
+            return null;
+        }
+        long nowMillis = clock.millis();
+        if (nowMillis - cached.cachedAtMillis() >= PUBLIC_SEARCH_CACHE_TTL_MILLIS) {
+            publicSearchCache.remove(cacheKey, cached);
+            return null;
+        }
+        return cached.response();
+    }
+
+    private void cachePublicSearch(SearchCacheKey cacheKey, PolicySearchResponse response) {
+        if (publicSearchCache.size() >= MAX_PUBLIC_SEARCH_CACHE_ENTRIES) {
+            publicSearchCache.clear();
+        }
+        publicSearchCache.put(cacheKey, new CachedSearchResponse(clock.millis(), response));
     }
 
     private void logSearchObservation(PolicySearchResponse response,
@@ -236,5 +311,25 @@ public class PolicySearchService {
         int prevLevel = incomeLevel - 2;
         if (prevLevel <= 0) return null;
         return INCOME_THRESHOLDS[prevLevel];
+    }
+
+    private record SearchCacheKey(
+            String keyword,
+            String status,
+            String statusFilter,
+            String category,
+            String sourceType,
+            Integer onlineApply,
+            String sido,
+            String sgg,
+            String sort,
+            Integer incomeMaxWon,
+            String targetGroup,
+            int page,
+            int size
+    ) {
+    }
+
+    private record CachedSearchResponse(long cachedAtMillis, PolicySearchResponse response) {
     }
 }
