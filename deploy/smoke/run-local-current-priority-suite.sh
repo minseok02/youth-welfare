@@ -14,6 +14,7 @@ RUN_TS_UTC="$(smoke_now_ts_utc)"
 ARTIFACT_DIR="${ARTIFACT_DIR:-${CURRENT_PRIORITY_ROOT}/${RUN_TS_UTC}}"
 SUMMARY_OUT="${ARTIFACT_DIR}/current-priority-summary.txt"
 JSON_OUT="${ARTIFACT_DIR}/current-priority-summary.json"
+DURATIONS_TSV="${ARTIFACT_DIR}/current-priority-durations.tsv"
 LATEST_ARTIFACT_LINK="${CURRENT_PRIORITY_ROOT}/latest"
 LATEST_SUMMARY_LINK="${CURRENT_PRIORITY_ROOT}/latest-current-priority-summary.txt"
 LATEST_JSON_LINK="${CURRENT_PRIORITY_ROOT}/latest-current-priority-summary.json"
@@ -33,40 +34,95 @@ RUN_RECOMMENDATION_OBSERVATION="$(smoke_normalize_bool "${RUN_RECOMMENDATION_OBS
 smoke_require_command bash
 smoke_require_command tee
 mkdir -p "${ARTIFACT_DIR}"
+printf 'label\texit_code\tduration_ms\toutput_file\n' > "${DURATIONS_TSV}"
+
+run_priority_step() {
+  local label="$1"
+  local output_file="$2"
+  shift 2
+
+  set +e
+  smoke_duration_step "${label}" "${output_file}" "$@" >> "${DURATIONS_TSV}"
+  local exit_code=$?
+  set -e
+  cat "${output_file}"
+  return "${exit_code}"
+}
 
 if [[ "${RUN_ACTIVE_BASELINE}" == "true" ]]; then
   smoke_print_step "active baseline"
-  env \
+  run_priority_step \
+    "active_baseline" \
+    "${ARTIFACT_DIR}/active-baseline.out" \
+    env \
     APP_BASE_URL="${APP_BASE_URL}" \
     KEEP_ARTIFACTS=true \
     ARTIFACT_DIR="${ARTIFACT_DIR}/active-baseline-artifact" \
     FRONTEND_E2E_MODE="${FRONTEND_E2E_MODE:-local-dev}" \
     FRONTEND_PUBLIC_BASE_URL="${FRONTEND_PUBLIC_BASE_URL:-${PUBLIC_BASE_URL:-}}" \
-    bash "${ROOT_DIR}/deploy/smoke/run-local-active-baseline-suite.sh" | tee "${ARTIFACT_DIR}/active-baseline.out"
+    bash "${ROOT_DIR}/deploy/smoke/run-local-active-baseline-suite.sh"
 fi
 
 if [[ "${RUN_RECOMMENDATION_OBSERVATION}" == "true" ]]; then
   smoke_print_step "recommendation observation"
-  env \
+  run_priority_step \
+    "recommendation_observation" \
+    "${ARTIFACT_DIR}/recommendation-observation.out" \
+    env \
     APP_BASE_URL="${APP_BASE_URL}" \
     KEEP_ARTIFACTS=true \
     ARTIFACT_DIR="${ARTIFACT_DIR}/recommendation-observation-artifact" \
-    bash "${ROOT_DIR}/deploy/smoke/run-local-recommendation-observation-suite.sh" | tee "${ARTIFACT_DIR}/recommendation-observation.out"
+    bash "${ROOT_DIR}/deploy/smoke/run-local-recommendation-observation-suite.sh"
 fi
 
-{
-  echo "current_priority_suite=passed"
-  echo "artifact_dir=${ARTIFACT_DIR}"
-  echo "app_base_url=${APP_BASE_URL}"
-  echo "run_active_baseline=${RUN_ACTIVE_BASELINE}"
-  echo "run_recommendation_observation=${RUN_RECOMMENDATION_OBSERVATION}"
-  if [[ "${RUN_ACTIVE_BASELINE}" == "true" ]]; then
-    echo "active_baseline_stdout=${ARTIFACT_DIR}/active-baseline.out"
-  fi
-  if [[ "${RUN_RECOMMENDATION_OBSERVATION}" == "true" ]]; then
-    echo "recommendation_observation_stdout=${ARTIFACT_DIR}/recommendation-observation.out"
-  fi
-} | tee "${SUMMARY_OUT}"
+python3 - "${DURATIONS_TSV}" "${SUMMARY_OUT}" "${JSON_OUT}" "${ARTIFACT_DIR}" "${APP_BASE_URL}" "${RUN_ACTIVE_BASELINE}" "${RUN_RECOMMENDATION_OBSERVATION}" <<'PY'
+import csv
+import json
+import sys
+from pathlib import Path
+
+durations_path = Path(sys.argv[1])
+summary_out = Path(sys.argv[2])
+json_out = Path(sys.argv[3])
+artifact_dir = sys.argv[4]
+app_base_url = sys.argv[5]
+run_active_baseline = sys.argv[6]
+run_recommendation_observation = sys.argv[7]
+
+rows = list(csv.DictReader(durations_path.open(encoding="utf-8"), delimiter="\t"))
+failed = [row for row in rows if row["exit_code"] != "0"]
+
+lines = [
+    f"current_priority_suite={'failed' if failed else 'passed'}",
+    f"artifact_dir={artifact_dir}",
+    f"durations_tsv={artifact_dir}/current-priority-durations.tsv",
+    f"app_base_url={app_base_url}",
+    f"run_active_baseline={run_active_baseline}",
+    f"run_recommendation_observation={run_recommendation_observation}",
+]
+
+for row in rows:
+    seconds = int(row["duration_ms"]) / 1000
+    lines.append(f"{row['label']}_duration_ms={row['duration_ms']}")
+    lines.append(f"{row['label']}_duration_seconds={seconds:.3f}")
+
+if run_active_baseline == "true":
+    lines.append(f"active_baseline_stdout={artifact_dir}/active-baseline.out")
+if run_recommendation_observation == "true":
+    lines.append(f"recommendation_observation_stdout={artifact_dir}/recommendation-observation.out")
+
+summary_out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+json_out.write_text(json.dumps({
+    "artifact_dir": artifact_dir,
+    "app_base_url": app_base_url,
+    "run_active_baseline": run_active_baseline,
+    "run_recommendation_observation": run_recommendation_observation,
+    "steps": rows,
+}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+print(summary_out.read_text(encoding="utf-8"), end="")
+if failed:
+    raise SystemExit(1)
+PY
 
 python3 - "${SUMMARY_OUT}" "${JSON_OUT}" "${ARTIFACT_DIR}" <<'PY'
 import json

@@ -238,6 +238,46 @@ Accepted rerun values:
 | Wrapper | current priority | 105.535s | improved |
 | API Load | policy ranking p95 | 2244.0ms | still hotspot |
 | API Load | policy ranking max | 2251.8ms | still hotspot |
+
+## 2026-05-30 Second Optimization Rerun
+
+The next accepted server rerun was captured on `HEAD=909bb4d682f9eee5cd6f09556dc584fe3b3696d4`.
+
+- runtime DB index SQL applied with the RDS master account
+- app redeploy completed
+- `health=UP`
+- `performance_baseline_suite=passed`
+- `performance_extended_suite=passed`
+- `ERROR/Exception/COL002 없음` after redeploy at `2026-05-29T17:21:00Z`
+
+Important run context:
+
+- wrapper baseline no longer needed `KEEP_ARTIFACTS=true`
+- `DB_MIGRATION_USERNAME` could not apply the new indexes because it lacked table-owner privileges, so the runtime index SQL was applied with the RDS master account instead
+
+Accepted rerun values:
+
+| Area | Scenario | Value | Notes |
+|---|---|---:|---|
+| API | policy ranking p95 | 885.1ms | improved from first accepted rerun |
+| API | policy ranking p99 | 887.0ms | improved |
+| API | policy ranking max | 887.4ms | improved |
+| API | policy search keyword p95 | 628.7ms | regressed |
+| API | policy search keyword p99 | 650.7ms | regressed |
+| API | policy search keyword max | 656.2ms | regressed |
+| DB | policy_search_keyword_ilike explain | 127.449ms | still seq scan |
+| Wrapper | recommendation observation | 6.231s | improved |
+| Wrapper | current priority | 208.540s | regressed; step-level breakdown needed |
+| API Load | policy ranking p95 | 2410.1ms | still hotspot |
+| API Load | policy ranking max | 2421.0ms | still hotspot |
+| API Load | policy search keyword p95 | 1662.2ms | hotspot under load |
+| API Load | policy search keyword max | 1667.0ms | hotspot under load |
+
+Interpretation from this rerun:
+
+- the `policy_ranking` unique-view aggregation/index batch helped
+- the search path still needs a query-shape follow-up; the representative explain stayed on a seq scan and API latency regressed
+- `current_priority` now needs nested duration breakdown, not just a top-level wrapper total
 | API Load | policy search keyword p95 | 924.8ms | improved versus prior load probe |
 | API Load | policy search keyword max | 943.8ms | improved versus prior load probe |
 

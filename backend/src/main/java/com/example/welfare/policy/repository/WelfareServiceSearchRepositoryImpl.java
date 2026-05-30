@@ -30,36 +30,48 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
                 || ' ' || coalesce(ws.keyword, '')
             )
             """;
-    private static final String SEARCH_DOCUMENT_TRGM_SQL = """
-            similarity(%s, :normalizedKeyword)
-            """.formatted(SEARCH_DOCUMENT_SQL);
+    private static final String SEARCH_TITLE_TRGM_SQL = "similarity(lower(coalesce(ws.title, '')), :normalizedKeyword)";
+    private static final String SEARCH_KEYWORD_TRGM_SQL = "similarity(lower(coalesce(ws.keyword, '')), :normalizedKeyword)";
+    private static final String SEARCH_TITLE_LIKE_SQL = "lower(coalesce(ws.title, '')) LIKE :normalizedKeywordLike";
+    private static final String SEARCH_KEYWORD_LIKE_SQL = "lower(coalesce(ws.keyword, '')) LIKE :normalizedKeywordLike";
     private static final String SEARCH_VECTOR_SQL = "to_tsvector('simple', " + SEARCH_DOCUMENT_SQL + ")";
     private static final String SEARCH_QUERY_SQL = "to_tsquery('simple', :tsQuery)";
     private static final String SEARCH_MATCH_SQL = """
             (
                 %s @@ %s
-                OR similarity(lower(coalesce(ws.title, '')), :normalizedKeyword) >= :trigramThreshold
-                OR similarity(lower(coalesce(ws.description, '')), :normalizedKeyword) >= :trigramThreshold
-                OR similarity(lower(coalesce(ws.support_content, '')), :normalizedKeyword) >= :trigramThreshold
-                OR similarity(lower(coalesce(ws.keyword, '')), :normalizedKeyword) >= :trigramThreshold
+                OR %s
+                OR %s
+                OR %s >= :trigramThreshold
                 OR %s >= :trigramThreshold
             )
-            """.formatted(SEARCH_VECTOR_SQL, SEARCH_QUERY_SQL, SEARCH_DOCUMENT_TRGM_SQL);
+            """.formatted(
+            SEARCH_VECTOR_SQL,
+            SEARCH_QUERY_SQL,
+            SEARCH_TITLE_LIKE_SQL,
+            SEARCH_KEYWORD_LIKE_SQL,
+            SEARCH_TITLE_TRGM_SQL,
+            SEARCH_KEYWORD_TRGM_SQL
+    );
     private static final String SEARCH_RANK_SQL = """
             (
                 CASE
                     WHEN %s @@ %s THEN ts_rank_cd(%s, %s)
                     ELSE 0
                 END
-                + greatest(
-                    similarity(lower(coalesce(ws.title, '')), :normalizedKeyword),
-                    similarity(lower(coalesce(ws.description, '')), :normalizedKeyword),
-                    similarity(lower(coalesce(ws.support_content, '')), :normalizedKeyword),
-                    %s,
-                    similarity(lower(coalesce(ws.keyword, '')), :normalizedKeyword)
-                )
+                + CASE WHEN %s THEN 2.5 ELSE 0 END
+                + CASE WHEN %s THEN 1.5 ELSE 0 END
+                + greatest(%s, %s)
             )
-            """.formatted(SEARCH_VECTOR_SQL, SEARCH_QUERY_SQL, SEARCH_VECTOR_SQL, SEARCH_QUERY_SQL, SEARCH_DOCUMENT_TRGM_SQL);
+            """.formatted(
+            SEARCH_VECTOR_SQL,
+            SEARCH_QUERY_SQL,
+            SEARCH_VECTOR_SQL,
+            SEARCH_QUERY_SQL,
+            SEARCH_TITLE_LIKE_SQL,
+            SEARCH_KEYWORD_LIKE_SQL,
+            SEARCH_TITLE_TRGM_SQL,
+            SEARCH_KEYWORD_TRGM_SQL
+    );
     private static final String ACTIVE_UPCOMING_STATUS_SQL = "ws.status IN ('ACTIVE', 'UPCOMING')";
     private static final String STATUS_FILTER_SQL = """
             (
@@ -276,6 +288,7 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
     private MapSqlParameterSource baseKeywordParams(SearchKeyword keyword) {
         return new MapSqlParameterSource()
                 .addValue("normalizedKeyword", keyword.normalizedText(), Types.VARCHAR)
+                .addValue("normalizedKeywordLike", "%" + keyword.normalizedText() + "%", Types.VARCHAR)
                 .addValue("tsQuery", keyword.tsQuery(), Types.VARCHAR)
                 .addValue("trigramThreshold", TRIGRAM_THRESHOLD, Types.DOUBLE);
     }

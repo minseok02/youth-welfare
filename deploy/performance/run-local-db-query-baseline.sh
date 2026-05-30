@@ -91,7 +91,7 @@ run_explain() {
 }
 
 run_explain "policy_list_created_at" "select id, title, created_at from welfare_services order by created_at desc limit 20;"
-run_explain "policy_search_keyword_ilike" "select id, title from welfare_services where title ilike '%청년%' or description ilike '%청년%' or support_content ilike '%청년%' or keyword ilike '%청년%' order by created_at desc limit 20;"
+run_explain "policy_search_keyword_ilike" "select id, title from welfare_services where lower(title) like '%청년%' or lower(description) like '%청년%' or lower(support_content) like '%청년%' or lower(keyword) like '%청년%' order by created_at desc limit 20;"
 run_explain "policy_detail_first" "select ws.id, ws.title, wsd.target_detail, wsd.support_detail from welfare_services ws left join welfare_service_details wsd on wsd.service_id = ws.id order by ws.id limit 1;"
 run_explain "recommendation_logs_recent_window" "select user_key, count(*) from recommendation_logs where sent_at >= now() - interval '14 days' group by user_key order by count(*) desc limit 20;"
 run_explain "admin_collect_failures_recent" "select job_name, status, count(*) from api_sync_logs where started_at >= now() - interval '14 days' group by job_name, status order by count(*) desc limit 20;"
