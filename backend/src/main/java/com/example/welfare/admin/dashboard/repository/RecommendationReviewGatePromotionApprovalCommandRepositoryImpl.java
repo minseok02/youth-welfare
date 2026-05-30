@@ -1,18 +1,25 @@
 package com.example.welfare.admin.dashboard.repository;
 
-import lombok.RequiredArgsConstructor;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 
 @Repository
-@RequiredArgsConstructor
 public class RecommendationReviewGatePromotionApprovalCommandRepositoryImpl
         implements RecommendationReviewGatePromotionApprovalCommandRepository {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
+
+    public RecommendationReviewGatePromotionApprovalCommandRepositoryImpl(
+            @Qualifier("recommendationReviewGateCommandNamedParameterJdbcTemplate")
+            NamedParameterJdbcTemplate jdbcTemplate
+    ) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
 
     @Override
     public void upsertApprovalRecord(
@@ -28,7 +35,8 @@ public class RecommendationReviewGatePromotionApprovalCommandRepositoryImpl
                         insert into recommendation_review_gate_promotion_approvals
                             (approval_key, approval_status, approval_scope, approval_note,
                              approved_by_user_key, approved_at, created_at, updated_at)
-                        values (?, ?, ?, ?, ?, ?, ?, ?)
+                        values (:approvalKey, :approvalStatus, :approvalScope, :approvalNote,
+                                :approvedByUserKey, :approvedAt, :createdAt, :updatedAt)
                         on conflict (approval_key) do update
                             set approval_status = excluded.approval_status,
                                 approval_scope = excluded.approval_scope,
@@ -37,14 +45,15 @@ public class RecommendationReviewGatePromotionApprovalCommandRepositoryImpl
                                 approved_at = excluded.approved_at,
                                 updated_at = excluded.updated_at
                         """,
-                approvalKey,
-                approvalStatus,
-                approvalScope,
-                approvalNote,
-                approvedByUserKey,
-                Timestamp.valueOf(approvedAt),
-                Timestamp.valueOf(updatedAt),
-                Timestamp.valueOf(updatedAt)
+                new MapSqlParameterSource()
+                        .addValue("approvalKey", approvalKey)
+                        .addValue("approvalStatus", approvalStatus)
+                        .addValue("approvalScope", approvalScope)
+                        .addValue("approvalNote", approvalNote)
+                        .addValue("approvedByUserKey", approvedByUserKey)
+                        .addValue("approvedAt", Timestamp.valueOf(approvedAt))
+                        .addValue("createdAt", Timestamp.valueOf(updatedAt))
+                        .addValue("updatedAt", Timestamp.valueOf(updatedAt))
         );
     }
 
@@ -53,9 +62,9 @@ public class RecommendationReviewGatePromotionApprovalCommandRepositoryImpl
         jdbcTemplate.update("""
                         delete
                           from recommendation_review_gate_promotion_approvals
-                         where approval_key = ?
+                         where approval_key = :approvalKey
                         """,
-                approvalKey
+                new MapSqlParameterSource("approvalKey", approvalKey)
         );
     }
 }

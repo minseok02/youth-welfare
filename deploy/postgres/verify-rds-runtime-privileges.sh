@@ -104,6 +104,9 @@ fi
 PRINT_SUMMARY="$(normalize_bool "${PRINT_SUMMARY}")"
 load_env_file
 
+DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME="${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME:-recommendation_review_gate_command_rw}"
+DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD="${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD:-${DB_PASSWORD:-}}"
+
 require_non_empty RDS_MASTER_USERNAME "${RDS_MASTER_USERNAME:-}"
 require_non_empty RDS_MASTER_PASSWORD "${RDS_MASTER_PASSWORD:-}"
 require_non_empty DB_URL "${DB_URL:-}"
@@ -111,6 +114,8 @@ require_non_empty DB_USERNAME "${DB_USERNAME:-}"
 require_non_empty DB_PASSWORD "${DB_PASSWORD:-}"
 require_non_empty DB_ADMIN_RO_USERNAME "${DB_ADMIN_RO_USERNAME:-}"
 require_non_empty DB_ADMIN_RO_PASSWORD "${DB_ADMIN_RO_PASSWORD:-}"
+require_non_empty DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME "${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME}"
+require_non_empty DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD "${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD}"
 require_non_empty DB_CHAT_SESSION_CLEANUP_USERNAME "${DB_CHAT_SESSION_CLEANUP_USERNAME:-}"
 require_non_empty DB_CHAT_SESSION_CLEANUP_PASSWORD "${DB_CHAT_SESSION_CLEANUP_PASSWORD:-}"
 require_non_empty DB_CLUSTER_AI_CLEANUP_USERNAME "${DB_CLUSTER_AI_CLEANUP_USERNAME:-}"
@@ -187,6 +192,7 @@ fi
 
 check_login primary "${DB_USERNAME}" "${DB_PASSWORD}"
 check_login admin_ro "${DB_ADMIN_RO_USERNAME}" "${DB_ADMIN_RO_PASSWORD}"
+check_login recommendation_review_gate_command "${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME}" "${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD}"
 check_login chat_session_cleanup "${DB_CHAT_SESSION_CLEANUP_USERNAME}" "${DB_CHAT_SESSION_CLEANUP_PASSWORD}"
 check_login cluster_ai_cleanup "${DB_CLUSTER_AI_CLEANUP_USERNAME}" "${DB_CLUSTER_AI_CLEANUP_PASSWORD}"
 check_login recommendation_retention_cleanup "${DB_RECOMMENDATION_RETENTION_CLEANUP_USERNAME}" "${DB_RECOMMENDATION_RETENTION_CLEANUP_PASSWORD}"
@@ -206,6 +212,22 @@ expect_master_bool app_core_rw_web_push_subscriptions_delete f \
   "select has_table_privilege('${DB_USERNAME}', 'public.web_push_subscriptions', 'DELETE')"
 expect_master_bool app_core_rw_recent_policy_views_delete f \
   "select has_table_privilege('${DB_USERNAME}', 'public.recent_policy_views', 'DELETE')"
+expect_master_bool app_core_rw_rrgpa_select f \
+  "select has_table_privilege('${DB_USERNAME}', 'public.recommendation_review_gate_promotion_approvals', 'SELECT')"
+expect_master_bool app_core_rw_rrgpa_insert f \
+  "select has_table_privilege('${DB_USERNAME}', 'public.recommendation_review_gate_promotion_approvals', 'INSERT')"
+expect_master_bool app_core_rw_rrgpa_update f \
+  "select has_table_privilege('${DB_USERNAME}', 'public.recommendation_review_gate_promotion_approvals', 'UPDATE')"
+expect_master_bool app_core_rw_rrgpa_delete f \
+  "select has_table_privilege('${DB_USERNAME}', 'public.recommendation_review_gate_promotion_approvals', 'DELETE')"
+expect_master_bool recommendation_review_gate_command_select t \
+  "select has_table_privilege('${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME}', 'public.recommendation_review_gate_promotion_approvals', 'SELECT')"
+expect_master_bool recommendation_review_gate_command_insert t \
+  "select has_table_privilege('${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME}', 'public.recommendation_review_gate_promotion_approvals', 'INSERT')"
+expect_master_bool recommendation_review_gate_command_update t \
+  "select has_table_privilege('${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME}', 'public.recommendation_review_gate_promotion_approvals', 'UPDATE')"
+expect_master_bool recommendation_review_gate_command_delete t \
+  "select has_table_privilege('${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME}', 'public.recommendation_review_gate_promotion_approvals', 'DELETE')"
 expect_master_bool chat_session_cleanup_delete t \
   "select has_table_privilege('${DB_CHAT_SESSION_CLEANUP_USERNAME}', 'public.chat_sessions', 'DELETE')"
 expect_master_bool chat_session_cleanup_select_id t \
