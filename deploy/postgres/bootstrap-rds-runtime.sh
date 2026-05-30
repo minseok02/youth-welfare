@@ -105,6 +105,8 @@ load_env_file
 
 DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME="${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME:-recommendation_review_gate_command_rw}"
 DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD="${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD:-${DB_PASSWORD:-}}"
+DB_RECOMMENDATION_PERSISTENCE_COMMAND_USERNAME="${DB_RECOMMENDATION_PERSISTENCE_COMMAND_USERNAME:-recommendation_persistence_command_rw}"
+DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD="${DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD:-${DB_PASSWORD:-}}"
 
 require_non_empty RDS_MASTER_USERNAME "${RDS_MASTER_USERNAME:-}"
 require_non_empty RDS_MASTER_PASSWORD "${RDS_MASTER_PASSWORD:-}"
@@ -119,6 +121,8 @@ require_non_empty DB_ADMIN_RO_USERNAME "${DB_ADMIN_RO_USERNAME:-}"
 require_non_empty DB_ADMIN_RO_PASSWORD "${DB_ADMIN_RO_PASSWORD:-}"
 require_non_empty DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME "${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME}"
 require_non_empty DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD "${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD}"
+require_non_empty DB_RECOMMENDATION_PERSISTENCE_COMMAND_USERNAME "${DB_RECOMMENDATION_PERSISTENCE_COMMAND_USERNAME}"
+require_non_empty DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD "${DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD}"
 require_non_empty DB_CHAT_SESSION_CLEANUP_USERNAME "${DB_CHAT_SESSION_CLEANUP_USERNAME:-}"
 require_non_empty DB_CHAT_SESSION_CLEANUP_PASSWORD "${DB_CHAT_SESSION_CLEANUP_PASSWORD:-}"
 require_non_empty DB_CLUSTER_AI_CLEANUP_USERNAME "${DB_CLUSTER_AI_CLEANUP_USERNAME:-}"
@@ -181,6 +185,8 @@ echo "creating runtime roles and grants"
   -v "db_admin_ro_password=${DB_ADMIN_RO_PASSWORD}" \
   -v "db_recommendation_review_gate_command_username=${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME}" \
   -v "db_recommendation_review_gate_command_password=${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD}" \
+  -v "db_recommendation_persistence_command_username=${DB_RECOMMENDATION_PERSISTENCE_COMMAND_USERNAME}" \
+  -v "db_recommendation_persistence_command_password=${DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD}" \
   -v "db_chat_session_cleanup_username=${DB_CHAT_SESSION_CLEANUP_USERNAME}" \
   -v "db_chat_session_cleanup_password=${DB_CHAT_SESSION_CLEANUP_PASSWORD}" \
   -v "db_cluster_ai_cleanup_username=${DB_CLUSTER_AI_CLEANUP_USERNAME}" \
@@ -327,6 +333,8 @@ for patch in "${patches[@]}"; do
     -v "admin_ro_password=${DB_ADMIN_RO_PASSWORD}" \
     -v "recommendation_review_gate_command_username=${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME}" \
     -v "recommendation_review_gate_command_password=${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD}" \
+    -v "recommendation_persistence_command_username=${DB_RECOMMENDATION_PERSISTENCE_COMMAND_USERNAME}" \
+    -v "recommendation_persistence_command_password=${DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD}" \
     -v "chat_session_cleanup_username=${DB_CHAT_SESSION_CLEANUP_USERNAME}" \
     -v "chat_session_cleanup_password=${DB_CHAT_SESSION_CLEANUP_PASSWORD}" \
     -v "cluster_ai_cleanup_username=${DB_CLUSTER_AI_CLEANUP_USERNAME}" \
