@@ -21,6 +21,7 @@
 ### 현재 코드/로컬 검증 기준
 
 - [policy-normalization-current-state.md](./policy-normalization-current-state.md)
+- [policy-gov24-lane-closeout.md](./policy-gov24-lane-closeout.md)
 - [policy-status-filter-design.md](./policy-status-filter-design.md) ← statusFilter 설계 및 온통청년 마감 처리
 - [policy-local-closeout-pending-inventory.md](./policy-local-closeout-pending-inventory.md)
 - [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)
@@ -105,12 +106,13 @@
 ## 지금 기준으로 기억할 핵심
 
 1. 현재 구현 확인은 [policy-normalization-current-state.md](./policy-normalization-current-state.md)부터 봅니다.
-2. `Gov24` 는 runtime collect/runtime audit까지는 이미 closeout 되었고, `supportConditions` 는 partial runtime fact가 active 입니다. 현재 blocked/deferred 경계와 reopen 조건은 [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)를 먼저 봅니다.
-3. `Gov24` 를 실제로 붙일 때는 [policy-gov24-implementation-checklist.md](./policy-gov24-implementation-checklist.md) 로 이번 턴 범위를 먼저 고정합니다.
-4. `Gov24` runtime collect가 붙은 뒤 coverage/shape/null-heavy 샘플을 다시 볼 때는 [policy-gov24-runtime-audit-runbook.md](./policy-gov24-runtime-audit-runbook.md) 을 먼저 봅니다.
-5. `Gov24` support fact gap이 어떤 code 군집 때문인지 볼 때는 [policy-gov24-support-unmapped-inventory.md](./policy-gov24-support-unmapped-inventory.md) 를 봅니다.
-6. `Gov24 serviceField/userType/benefitType` 에 대해 지금 바로 확정 가능한 internal rule만 보려면 [policy-gov24-canonical-mapping-draft.md](./policy-gov24-canonical-mapping-draft.md) 를 봅니다.
-7. `Gov24` 를 다음 active track으로 다시 열 때, 무엇을 canonical term으로 올리고 무엇을 deferred 로 남길지 보려면 [policy-gov24-canonical-promotion-plan.md](./policy-gov24-canonical-promotion-plan.md) 을 먼저 봅니다.
+2. `Gov24` 의 bounded 제품 확장 closeout은 [policy-gov24-lane-closeout.md](./policy-gov24-lane-closeout.md) 를 먼저 봅니다. 여기서 public filter 3축, soft scoring, deferred 범위를 한 번에 읽습니다.
+3. `Gov24` 의 blocked/deferred 경계와 reopen 조건은 [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)를 먼저 봅니다.
+4. `Gov24` 를 실제로 붙일 때는 [policy-gov24-implementation-checklist.md](./policy-gov24-implementation-checklist.md) 로 이번 턴 범위를 먼저 고정합니다.
+5. `Gov24` runtime collect가 붙은 뒤 coverage/shape/null-heavy 샘플을 다시 볼 때는 [policy-gov24-runtime-audit-runbook.md](./policy-gov24-runtime-audit-runbook.md) 을 먼저 봅니다.
+6. `Gov24` support fact gap이 어떤 code 군집 때문인지 볼 때는 [policy-gov24-support-unmapped-inventory.md](./policy-gov24-support-unmapped-inventory.md) 를 봅니다.
+7. `Gov24 serviceField/userType/benefitType` 에 대해 지금 바로 확정 가능한 internal rule만 보려면 [policy-gov24-canonical-mapping-draft.md](./policy-gov24-canonical-mapping-draft.md) 를 봅니다.
+8. `Gov24` 를 다음 active track으로 다시 열 때, 무엇을 canonical term으로 올리고 무엇을 deferred 로 남길지 보려면 [policy-gov24-canonical-promotion-plan.md](./policy-gov24-canonical-promotion-plan.md) 을 먼저 봅니다.
 8. 정책 admin bounded runtime 경로(`reference-urls/rebuild`, `embeddings/rebuild`, `retrieval-evaluations/gate`, `category-audit`)를 한 장에서 다시 열 때는 [policy-admin-runtime-runbook.md](./policy-admin-runtime-runbook.md) 을 먼저 봅니다. 이 문서가 current one-page runtime runbook 입니다.
 9. retrieval/category 상태를 daily operator 관점으로 compact하게 다시 읽고 싶을 때는 먼저 `bash deploy/smoke/run-local-policy-quality-observation-suite.sh` 를 쓰고, stable artifact `tmp/policy-quality-observation/latest-policy-quality-observation-summary.txt`, `latest-policy-quality-observation-note.md`, `latest-policy-quality-observation.json` 을 먼저 봅니다.
 10. retrieval/category raw baseline 숫자와 category 분포까지 같이 기록하려면 [policy-quality-summary-runbook.md](./policy-quality-summary-runbook.md) 을 먼저 보고, `dataset_key / scenario_count / gate / category summary` 를 같이 남깁니다. 이 문서가 current one-shot summary smoke runbook 입니다.
