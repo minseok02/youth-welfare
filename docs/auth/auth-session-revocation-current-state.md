@@ -27,6 +27,10 @@
 이 문서는 **현재 source of truth 요약** 입니다.  
 세부 설계 배경은 개별 `auth-admin-forced-logout-*` 문서를 보되, 구현 상태 판단은 이 문서와 실제 코드를 우선합니다.
 
+현재 daily operator entrypoint는 `bash deploy/smoke/run-local-auth-observation-suite.sh` 입니다.
+이 wrapper는 auth/session smoke 묶음을 다시 읽어 `decision_class`, `enabled_smoke_steps`, `operator_reading`, `next_action` 을 compact artifact로 남깁니다.
+세부 경계를 직접 다시 확인할 때만 [auth-operation-checklist.md](./auth-operation-checklist.md) 로 내려가면 됩니다.
+
 ## 현재 구현 상태 요약
 
 현재 로컬/코드 기준으로 정리하면 아래 네 경계가 살아 있습니다.

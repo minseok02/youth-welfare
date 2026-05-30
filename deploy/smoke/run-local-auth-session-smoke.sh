@@ -48,3 +48,9 @@ if [[ "${RUN_ADMIN_FORCED_LOGOUT_SMOKE}" == "true" ]]; then
 fi
 
 printf '\nall auth/session smoke scripts passed\n'
+echo "app_base_url=${APP_BASE_URL:-}"
+echo "run_runtime_api_smoke=${RUN_RUNTIME_API_SMOKE}"
+echo "run_login_failure_tracking_smoke=${RUN_LOGIN_FAILURE_TRACKING_SMOKE}"
+echo "run_account_lockout_smoke=${RUN_ACCOUNT_LOCKOUT_SMOKE}"
+echo "run_withdraw_smoke=${RUN_WITHDRAW_SMOKE}"
+echo "run_admin_forced_logout_smoke=${RUN_ADMIN_FORCED_LOGOUT_SMOKE}"
