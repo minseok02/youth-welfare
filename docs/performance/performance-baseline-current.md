@@ -370,3 +370,9 @@ Interpretation from this rerun:
 - `current_priority` improved materially and is now directly attributable to backend tests + frontend e2e rather than opaque wrapper time
 - `policy_search_keyword` remains acceptable at the API level but the representative lowered `LIKE` explain still does not close
 - the constructor injection bug must be reflected back into the repository because the server had to hotfix it manually
+
+Current benchmark caveat after this rerun:
+
+- the `policy_search_keyword_ilike` representative explain is now treated as historical only
+- next rerun should compare against `policy_search_keyword_api_shape`, not the old multi-long-text lowered `LIKE` fallback
+- reason: the accepted server rerun proved the API path itself is acceptable, while the remaining seq scan came from a benchmark query that no longer matched the current repository contract and also missed runtime `title/keyword` trigram migration coverage

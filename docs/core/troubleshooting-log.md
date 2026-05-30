@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 1034) fresh init `schema.sql` 에만 있고 runtime migration에 빠진 search trigram index가 있으면 서버 representative explain은 계속 drift될 수 있다
+- 문제: `policy_search_keyword` API latency는 이미 꽤 내려왔는데, 서버 representative explain은 계속 `policy_search_keyword_ilike` / lowered `LIKE` 기반 `Seq Scan` 으로 남아 있었다. 원인을 다시 보면 fresh init `schema.sql` 에는 `idx_ws_title_trgm`, `idx_ws_keyword_trgm` 이 있었지만, 운영 RDS에 수동 적용한 performance migration에는 `description/support_content/search_document` 인덱스만 있고 `title/keyword` 인덱스는 빠져 있었다.
+- 해결: runtime DB에도 `idx_ws_title_trgm`, `idx_ws_keyword_trgm` 를 보장하는 별도 migration을 추가했다. 동시에 performance DB baseline의 representative search explain도 더 이상 legacy `...description/support_content...` OR-LIKE fallback이 아니라, 현재 API와 같은 `ACTIVE/UPCOMING + youth_relevant + FTS + title/keyword fallback + relevance order` shape를 보도록 바꿨다.
+- 이유: representative benchmark는 “현재 API가 실제로 타는 경로”를 대표해야 의미가 있다. fresh init schema와 runtime migration의 index 계약이 다르면 서버 before/after는 drift되고, representative explain도 실제 최적화 효과를 제대로 못 읽는다.
+
 ## 1033) Spring bean에 생성자가 둘이면 `Clock` 같은 test-only 보조 생성자도 runtime autowiring 대상으로 오해될 수 있다
 - 문제: `PolicyRankingService` 에 public 2-arg 생성자와 package-private 3-arg 생성자(`Clock` 주입용)를 같이 둔 뒤, 최신 `main` 을 서버에 배포했더니 첫 기동에서 `PolicyRankingService.<init>()` constructor injection failure로 restart loop가 났다. 서버에서는 `@Autowired` 를 2-arg 생성자에 붙이는 핫픽스로 바로 우회했다.
 - 해결: 저장소 코드도 public 2-arg 생성자에 `@Autowired` 를 명시해 runtime bean selection을 고정했다. 3-arg 생성자는 test에서만 직접 쓰는 보조 생성자로 유지한다.

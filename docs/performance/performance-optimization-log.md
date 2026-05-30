@@ -216,7 +216,7 @@ Interpretation:
 
 ## Current Active Batch
 
-### 2026-05-30: ranking constructor fix closeout + representative search explain follow-up
+### 2026-05-30: ranking constructor fix closeout + search representative benchmark realignment
 
 Current trigger values from the accepted server rerun:
 
@@ -227,16 +227,19 @@ Planned changes in this batch:
 
 1. `PolicyRankingService`
    - merge the constructor-selection fix into the repository so the runtime no longer depends on a server hotfix
-2. performance docs / troubleshooting
+2. runtime search indexes
+   - add the missing `idx_ws_title_trgm` / `idx_ws_keyword_trgm` migration so existing RDS instances match fresh init `schema.sql`
+3. performance docs / troubleshooting
    - record the accepted rerun and the constructor failure as a closed operational issue
-3. search representative benchmark
-   - decide whether the current lowered `LIKE` explain should be replaced with a more realistic API-adjacent representative query, or whether a further DB/index change is justified
+4. search representative benchmark
+   - replace the current lowered `LIKE` explain with a more realistic API-adjacent query shape so future server reruns compare the actual search contract rather than a stale fallback probe
 
 Server remeasurement status:
 
-- pending after the constructor-fix merge only
-- requires app redeploy
-- compare against the `10e3bea61cf1bc7812d4264e3a51ed5072f79c66` server baseline
+- pending after the constructor-fix merge and the representative benchmark realignment
+- requires DB index apply + app redeploy
+- compare ranking and wrapper values against the `10e3bea61cf1bc7812d4264e3a51ed5072f79c66` server baseline
+- treat `policy_search_keyword_ilike` as historical; next accepted DB comparison key should be `policy_search_keyword_api_shape`
 
 ## Comparison Table
 
