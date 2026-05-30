@@ -5,6 +5,7 @@
 관련 문서:
 
 - [collect-ops.md](./collect-ops.md)
+- [collect-governance-observation-runbook.md](./collect-governance-observation-runbook.md)
 - [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
 - [phase-plan.md](../phase-plan.md)
 
@@ -15,6 +16,8 @@
 
 실행 체크리스트나 장애 기록 양식은 별도 문서를 봅니다.
 현재 collect 문서 해석도 `phase-plan` 의 긴 전환 로그보다 이 문서와 `collect-operation-checklist`, `collect-ops` 를 우선합니다.
+
+daily operator entrypoint는 [collect-governance-observation-runbook.md](./collect-governance-observation-runbook.md) 와 `bash deploy/smoke/run-local-collect-governance-observation-suite.sh` 입니다. 이 wrapper는 `collect-failures` 전체 contract 대신 `nightly/manual lane count`, `latest failed/partial lane`, `open circuit`, `next_action` 을 compact하게 요약하고 `latest-collect-governance-observation-note.md` 사람용 artifact도 남깁니다.
 
 ## 현재 collect entry
 

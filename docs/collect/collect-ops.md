@@ -7,6 +7,8 @@
 공공 API 수집은 외부 서비스 상태와 호출 제한에 영향을 받는다.  
 이 문서는 현재 로컬 기준으로 수집을 실행하고 해석할 때 따르는 기준을 정리한다.
 
+compact daily operator 확인은 [collect-governance-observation-runbook.md](./collect-governance-observation-runbook.md) 와 `bash deploy/smoke/run-local-collect-governance-observation-suite.sh` 를 먼저 쓴다. 이 문서는 compact summary 뒤에 lane별 운영 해석과 bounded repair 판단이 더 필요할 때 여는 상세 runbook이다.
+
 ---
 
 ## 현재 운영 원칙
