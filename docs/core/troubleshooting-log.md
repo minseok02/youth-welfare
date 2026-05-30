@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 1035) representative explain이 index scan으로 닫혀도 API latency는 summary 조립과 반복 public query 비용 때문에 별도 완화가 더 필요할 수 있다
+- 문제: `policy_search_keyword_api_shape` representative explain은 `index_scan=true` 로 정리됐지만, 실제 `/api/policies/search?keyword=청년` API는 baseline 기준 아직 `400ms+` 대였다. 이 경로는 DB search 자체 외에도 `PolicyPresentationReadService` 조립, projection 조회, region 조회까지 묶여 있어 대표 explain 하나만으로 전체 API p95를 설명할 수 없다.
+- 해결: `PolicySearchService` 에 `userId=null` 공개 검색 전용 30초 TTL cache를 추가했다. key는 normalized keyword/filter/page/size 조합이고, 로그인 검색은 북마크 차이가 있으므로 캐시하지 않는다.
+- 이유: 이 endpoint는 public 반복 조회 비중이 높고, baseline/실사용 모두 동일 keyword 재조회가 잦다. ranking cache와 같은 bounded TTL 패턴으로 read amplification을 줄이는 편이 출력 계약을 바꾸지 않으면서 가장 안전하다.
+
 ## 1034) fresh init `schema.sql` 에만 있고 runtime migration에 빠진 search trigram index가 있으면 서버 representative explain은 계속 drift될 수 있다
 - 문제: `policy_search_keyword` API latency는 이미 꽤 내려왔는데, 서버 representative explain은 계속 `policy_search_keyword_ilike` / lowered `LIKE` 기반 `Seq Scan` 으로 남아 있었다. 원인을 다시 보면 fresh init `schema.sql` 에는 `idx_ws_title_trgm`, `idx_ws_keyword_trgm` 이 있었지만, 운영 RDS에 수동 적용한 performance migration에는 `description/support_content/search_document` 인덱스만 있고 `title/keyword` 인덱스는 빠져 있었다.
 - 해결: runtime DB에도 `idx_ws_title_trgm`, `idx_ws_keyword_trgm` 를 보장하는 별도 migration을 추가했다. 동시에 performance DB baseline의 representative search explain도 더 이상 legacy `...description/support_content...` OR-LIKE fallback이 아니라, 현재 API와 같은 `ACTIVE/UPCOMING + youth_relevant + FTS + title/keyword fallback + relevance order` shape를 보도록 바꿨다.
