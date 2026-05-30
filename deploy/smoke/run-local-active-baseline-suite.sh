@@ -73,40 +73,60 @@ printf 'label\texit_code\tduration_ms\toutput_file\n' > "${DURATIONS_TSV}"
 
 if [[ "${RUN_BACKEND_TESTS}" == "true" ]]; then
   run_command_step \
-    "backend tests" \
+    "backend_tests" \
     "${ARTIFACT_DIR}/backend-test.txt" \
     bash -lc "cd '${ROOT_DIR}/backend' && ./gradlew test --no-daemon"
 fi
 
 if [[ "${RUN_FRONTEND_BASELINE}" == "true" ]]; then
-  smoke_print_step "frontend lint/build/e2e"
-  {
-    bash -lc "cd '${ROOT_DIR}/frontend' && npm run lint && npm run build"
-    if [[ "${RUN_FRONTEND_E2E}" == "true" ]]; then
-      case "${FRONTEND_E2E_MODE}" in
-        local-dev)
+  run_command_step \
+    "frontend_lint" \
+    "${ARTIFACT_DIR}/frontend-lint.txt" \
+    bash -lc "cd '${ROOT_DIR}/frontend' && npm run lint"
+
+  run_command_step \
+    "frontend_build" \
+    "${ARTIFACT_DIR}/frontend-build.txt" \
+    bash -lc "cd '${ROOT_DIR}/frontend' && npm run build"
+
+  if [[ "${RUN_FRONTEND_E2E}" == "true" ]]; then
+    case "${FRONTEND_E2E_MODE}" in
+      local-dev)
+        run_command_step \
+          "frontend_e2e" \
+          "${ARTIFACT_DIR}/frontend-e2e.txt" \
           bash -lc "cd '${ROOT_DIR}/frontend' && npm run test:e2e"
-          ;;
-        deployed-origin)
-          if [[ -z "${FRONTEND_PUBLIC_BASE_URL}" ]]; then
-            echo "FRONTEND_PUBLIC_BASE_URL or PUBLIC_BASE_URL is required for FRONTEND_E2E_MODE=deployed-origin" >&2
-            exit 1
-          fi
+        ;;
+      deployed-origin)
+        if [[ -z "${FRONTEND_PUBLIC_BASE_URL}" ]]; then
+          echo "FRONTEND_PUBLIC_BASE_URL or PUBLIC_BASE_URL is required for FRONTEND_E2E_MODE=deployed-origin" >&2
+          exit 1
+        fi
+        run_command_step \
+          "frontend_e2e" \
+          "${ARTIFACT_DIR}/frontend-e2e.txt" \
           bash -lc "cd '${ROOT_DIR}/frontend' && PLAYWRIGHT_SKIP_WEBSERVER=true PLAYWRIGHT_BASE_URL='${FRONTEND_PUBLIC_BASE_URL}' PLAYWRIGHT_GREP_INVERT='@dev-only' npm run test:e2e"
-          ;;
-        skip)
-          echo "frontend_e2e=skipped"
-          ;;
-      esac
-    else
-      echo "frontend_e2e=disabled"
-    fi
-  } | tee "${ARTIFACT_DIR}/frontend-baseline.txt"
+        ;;
+      skip)
+        cat <<'EOF' > "${ARTIFACT_DIR}/frontend-e2e.txt"
+frontend_e2e=skipped
+EOF
+        printf 'frontend_e2e\t0\t0\t%s\n' "${ARTIFACT_DIR}/frontend-e2e.txt" >> "${DURATIONS_TSV}"
+        cat "${ARTIFACT_DIR}/frontend-e2e.txt"
+        ;;
+    esac
+  else
+    cat <<'EOF' > "${ARTIFACT_DIR}/frontend-e2e.txt"
+frontend_e2e=disabled
+EOF
+    printf 'frontend_e2e\t0\t0\t%s\n' "${ARTIFACT_DIR}/frontend-e2e.txt" >> "${DURATIONS_TSV}"
+    cat "${ARTIFACT_DIR}/frontend-e2e.txt"
+  fi
 fi
 
 if [[ "${RUN_OPS_BASELINE}" == "true" ]]; then
   run_script_step \
-    "ops baseline suite" \
+    "ops_baseline" \
     "${ARTIFACT_DIR}/ops-baseline.txt" \
     env ARTIFACT_DIR="${ARTIFACT_DIR}/ops-baseline-artifacts" \
     APP_BASE_URL="${APP_BASE_URL}" \
@@ -116,7 +136,7 @@ fi
 
 if [[ "${RUN_COLLECT_LEGACY_REPAIR}" == "true" ]]; then
   run_script_step \
-    "collect legacy repair suite" \
+    "collect_legacy_repair" \
     "${ARTIFACT_DIR}/collect-legacy-repair.txt" \
     env ARTIFACT_DIR="${ARTIFACT_DIR}/collect-legacy-repair-artifacts" \
     APP_BASE_URL="${APP_BASE_URL}" \
@@ -172,7 +192,9 @@ for row in rows:
 if run_backend_tests == "true":
     lines.append(f"backend_test_stdout={artifact_dir}/backend-test.txt")
 if run_frontend_baseline == "true":
-    lines.append(f"frontend_baseline_stdout={artifact_dir}/frontend-baseline.txt")
+    lines.append(f"frontend_lint_stdout={artifact_dir}/frontend-lint.txt")
+    lines.append(f"frontend_build_stdout={artifact_dir}/frontend-build.txt")
+    lines.append(f"frontend_e2e_stdout={artifact_dir}/frontend-e2e.txt")
 if run_ops_baseline == "true":
     lines.append(f"ops_baseline_stdout={artifact_dir}/ops-baseline.txt")
 if run_collect_legacy_repair == "true":

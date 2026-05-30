@@ -4,10 +4,10 @@ import com.example.welfare.policy.dto.PolicyRankingResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.PolicyRankingReadRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -17,11 +17,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class PolicyRankingService {
 
     private static final int DEFAULT_SIZE = 20;
@@ -29,17 +29,46 @@ public class PolicyRankingService {
     private static final int UNIQUE_VIEW_WINDOW_DAYS = 7;
     private static final int EXPLORE_SLOT_COUNT = 2;
     private static final int EXPLORE_WINDOW_DAYS = 14;
+    private static final long RANKING_CACHE_TTL_MILLIS = 30_000L;
 
     private final PolicyRankingReadRepository policyRankingReadRepository;
     private final PolicyPresentationReadService policyPresentationReadService;
+    private final Clock clock;
+    private final Map<Integer, CachedRanking> rankingCache = new ConcurrentHashMap<>();
+
+    public PolicyRankingService(PolicyRankingReadRepository policyRankingReadRepository,
+                                PolicyPresentationReadService policyPresentationReadService) {
+        this(policyRankingReadRepository, policyPresentationReadService, Clock.systemUTC());
+    }
+
+    PolicyRankingService(PolicyRankingReadRepository policyRankingReadRepository,
+                         PolicyPresentationReadService policyPresentationReadService,
+                         Clock clock) {
+        this.policyRankingReadRepository = policyRankingReadRepository;
+        this.policyPresentationReadService = policyPresentationReadService;
+        this.clock = clock;
+    }
 
     @Transactional(readOnly = true)
     public List<PolicyRankingResponse> getRanking(int size) {
         int limit = normalizeSize(size);
+        CachedRanking cachedRanking = rankingCache.get(limit);
+        long nowMillis = clock.millis();
+        if (cachedRanking != null && nowMillis - cachedRanking.cachedAtMillis() < RANKING_CACHE_TTL_MILLIS) {
+            return cachedRanking.responses();
+        }
+
+        List<PolicyRankingResponse> computed = computeRanking(limit);
+        rankingCache.put(limit, new CachedRanking(nowMillis, computed));
+        return computed;
+    }
+
+    private List<PolicyRankingResponse> computeRanking(int limit) {
         List<PolicyRankingReadRepository.RankableServiceSnapshot> snapshots = policyRankingReadRepository.findRankableSnapshots();
         if (snapshots.isEmpty()) return List.of();
 
-        LocalDateTime uniqueCutoff = LocalDateTime.now().minusDays(UNIQUE_VIEW_WINDOW_DAYS);
+        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDateTime uniqueCutoff = now.minusDays(UNIQUE_VIEW_WINDOW_DAYS);
         Map<Long, Long> uniqueViewsByServiceId = policyRankingReadRepository.findUniqueViewCountsSinceForStatuses(
                         List.of(
                                 WelfareService.ServiceStatus.ACTIVE,
@@ -84,7 +113,7 @@ public class PolicyRankingService {
                     long uniqueViews = uniqueViewsByServiceId.getOrDefault(service.getId(), 0L);
                     double uniqueNorm = normalize(log1p(uniqueViews), maxUniqueRaw);
                     double viewNorm = normalize(log1p(service.getViewCount()), maxViewRaw);
-                    double freshnessNorm = freshnessScore(service);
+                    double freshnessNorm = freshnessScore(service, now);
 
                     double externalNorm = 0.0;
                     boolean externalAvailable = maxExternalBySource.getOrDefault(service.getSourceType(), 0.0) > 0.0;
@@ -157,10 +186,10 @@ public class PolicyRankingService {
         return Math.min(size, MAX_SIZE);
     }
 
-    private double freshnessScore(PolicyRankingReadRepository.RankableServiceSnapshot service) {
+    private double freshnessScore(PolicyRankingReadRepository.RankableServiceSnapshot service, LocalDateTime now) {
         LocalDateTime base = policyBaseTime(service);
         if (base == null) return 0.0;
-        long days = Math.max(0, ChronoUnit.DAYS.between(base, LocalDateTime.now()));
+        long days = Math.max(0, ChronoUnit.DAYS.between(base, now));
         return Math.exp(-days / 30.0); // 30일 반감
     }
 
@@ -198,7 +227,7 @@ public class PolicyRankingService {
 
         int slots = Math.min(EXPLORE_SLOT_COUNT, limit);
         Set<Long> existingIds = top.stream().map(s -> s.snapshot().getId()).collect(Collectors.toSet());
-        LocalDateTime exploreCutoff = LocalDateTime.now().minusDays(EXPLORE_WINDOW_DAYS);
+        LocalDateTime exploreCutoff = LocalDateTime.now(clock).minusDays(EXPLORE_WINDOW_DAYS);
 
         List<ScoredSnapshot> exploreCandidates = services.stream()
                 .filter(this::isRecentPolicy)
@@ -239,5 +268,8 @@ public class PolicyRankingService {
 
     @lombok.Builder
     private record ScoredSnapshot(PolicyRankingReadRepository.RankableServiceSnapshot snapshot, double score) {
+    }
+
+    private record CachedRanking(long cachedAtMillis, List<PolicyRankingResponse> responses) {
     }
 }

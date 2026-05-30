@@ -12,13 +12,17 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -32,9 +36,18 @@ class PolicyRankingServiceTest {
     @InjectMocks
     private PolicyRankingService policyRankingService;
 
+    private PolicyRankingService fixedClockService() {
+        return new PolicyRankingService(
+                policyRankingReadRepository,
+                policyPresentationReadService,
+                Clock.fixed(Instant.parse("2026-05-30T00:00:00Z"), ZoneOffset.UTC)
+        );
+    }
+
     @Test
     @DisplayName("랭킹 응답에 7일 고유 조회수를 포함한다")
     void rankingIncludesUniqueViewCount() {
+        PolicyRankingService policyRankingService = fixedClockService();
         WelfareService service = WelfareService.builder()
                 .id(1L)
                 .sourceType(WelfareService.SourceType.YOUTH)
@@ -82,6 +95,7 @@ class PolicyRankingServiceTest {
     @Test
     @DisplayName("탐색 슬롯은 최근 정책을 top 결과에 포함시킨다")
     void rankingExplorationSlotInjectsRecentPolicies() {
+        PolicyRankingService policyRankingService = fixedClockService();
         WelfareService oldHighScore = WelfareService.builder()
                 .id(1L)
                 .sourceType(WelfareService.SourceType.YOUTH)
@@ -141,6 +155,7 @@ class PolicyRankingServiceTest {
     @Test
     @DisplayName("랭킹 projection 조회는 정규화된 응답 후보에만 수행한다")
     void rankingProjectionLookupUsesSelectedServicesOnly() {
+        PolicyRankingService policyRankingService = fixedClockService();
         List<WelfareService> services = java.util.stream.LongStream.rangeClosed(1, 150)
                 .mapToObj(id -> WelfareService.builder()
                         .id(id)
@@ -170,6 +185,36 @@ class PolicyRankingServiceTest {
         verify(policyPresentationReadService).findProjections(projectionServices.capture());
         assertEquals(100, ranking.size());
         assertEquals(100, projectionServices.getValue().size());
+    }
+
+    @Test
+    @DisplayName("동일 size 랭킹 반복 호출은 TTL 안에서 캐시를 재사용한다")
+    void rankingReusesCacheWithinTtl() {
+        PolicyRankingService policyRankingService = fixedClockService();
+        WelfareService service = WelfareService.builder()
+                .id(1L)
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("S-1")
+                .title("청년 월세 지원")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .viewCount(10)
+                .apiViewCount(100L)
+                .registeredAt(LocalDateTime.now().minusDays(2))
+                .build();
+
+        given(policyRankingReadRepository.findRankableSnapshots()).willReturn(List.of(snapshot(service)));
+        given(policyRankingReadRepository.findUniqueViewCountsSinceForStatuses(any(), any()))
+                .willReturn(List.of(uniqueCount(1L, 7L)));
+        given(policyRankingReadRepository.findServicesByIds(List.of(1L))).willReturn(List.of(service));
+        given(policyPresentationReadService.findProjections(List.of(service))).willReturn(java.util.Map.of());
+
+        policyRankingService.getRanking(20);
+        policyRankingService.getRanking(20);
+
+        verify(policyRankingReadRepository, times(1)).findRankableSnapshots();
+        verify(policyRankingReadRepository, times(1)).findUniqueViewCountsSinceForStatuses(any(), any());
+        verify(policyRankingReadRepository, times(1)).findServicesByIds(List.of(1L));
+        verify(policyPresentationReadService, times(1)).findProjections(List.of(service));
     }
 
     private PolicyRankingReadRepository.RankableServiceSnapshot snapshot(WelfareService service) {
