@@ -14,7 +14,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import jakarta.annotation.PostConstruct;
 import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +28,8 @@ import java.util.List;
 public class Gov24Client {
 
     private static final int PAGE_SIZE = 100;
+    private static final String COND_SERVICE_ID_EQ =
+            URLEncoder.encode("cond[서비스ID::EQ]", StandardCharsets.UTF_8);
 
     private final WebClient webClient;
     private final CollectHttpRetryExecutor collectHttpRetryExecutor;
@@ -41,6 +46,11 @@ public class Gov24Client {
     private long retryBaseBackoffMs;
     @Value("${gov24.max-items-per-run:20000}")
     private int maxItemsPerRun;
+
+    @PostConstruct
+    private void encodeApiKey() {
+        this.apiKey = URLEncoder.encode(this.apiKey, StandardCharsets.UTF_8);
+    }
 
     public List<Gov24ServiceListDto.Item> fetchAll() {
         List<Gov24ServiceListDto.Item> result = new ArrayList<>();
@@ -93,9 +103,8 @@ public class Gov24Client {
                 .queryParam("page", 1)
                 .queryParam("perPage", 1)
                 .queryParam("returnType", "JSON")
-                .queryParam("cond[서비스ID::EQ]", serviceId)
-                .encode()
-                .build()
+                .queryParam(COND_SERVICE_ID_EQ, serviceId)
+                .build(true)
                 .toUri();
 
         ExecutionResult<Gov24ServiceDetailDto> result = collectHttpRetryExecutor.execute(
@@ -136,9 +145,8 @@ public class Gov24Client {
                 .queryParam("page", 1)
                 .queryParam("perPage", 1)
                 .queryParam("returnType", "JSON")
-                .queryParam("cond[서비스ID::EQ]", serviceId)
-                .encode()
-                .build()
+                .queryParam(COND_SERVICE_ID_EQ, serviceId)
+                .build(true)
                 .toUri();
 
         ExecutionResult<Gov24SupportConditionsDto> result = collectHttpRetryExecutor.execute(
@@ -179,8 +187,7 @@ public class Gov24Client {
                 .queryParam("page", page)
                 .queryParam("perPage", perPage)
                 .queryParam("returnType", "JSON")
-                .encode()
-                .build()
+                .build(true)
                 .toUri();
 
         ExecutionResult<Gov24ServiceListDto> result = collectHttpRetryExecutor.execute(

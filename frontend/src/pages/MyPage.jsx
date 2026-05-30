@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
-  Snackbar, Alert, CircularProgress,
+  Snackbar, Alert, CircularProgress, useMediaQuery,
 } from "@mui/material";
 import Header from "../components/Header";
 import FloatingNav from "../components/FloatingNav";
@@ -273,6 +273,37 @@ function ProfileBanner({ pct, missing, onComplete }) {
 }
 
 function SidebarNav({ active, onChange, bookmarkCount, alertUnreadCount }) {
+  const isMobile = useMediaQuery("(max-width: 1199px)");
+
+  if (isMobile) {
+    return (
+      <div style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none", WebkitOverflowScrolling: "touch", paddingBottom: 4, marginBottom: 4 }}>
+        <style>{`.sidebar-scroll::-webkit-scrollbar{display:none}`}</style>
+        {TAB_IDS.map(id => {
+          const m = TAB_META[id];
+          const isActive = active === id;
+          return (
+            <button key={id} onClick={() => onChange(id)} style={{
+              flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 5,
+              padding: "8px 14px", borderRadius: 20, fontSize: 13, fontWeight: isActive ? 700 : 500,
+              background: isActive ? AS : WHITE,
+              border: `1.5px solid ${isActive ? A : LINE}`,
+              color: isActive ? AI : INK2, cursor: "pointer", whiteSpace: "nowrap",
+            }}>
+              {m.l}
+              {id === "bookmark" && bookmarkCount > 0 && (
+                <span style={{ background: A, color: WHITE, fontSize: 10, padding: "1px 6px", borderRadius: 99, fontWeight: 700 }}>{bookmarkCount}</span>
+              )}
+              {id === "noti" && alertUnreadCount > 0 && (
+                <span style={{ background: WARN, color: WHITE, fontSize: 10, padding: "1px 6px", borderRadius: 99, fontWeight: 700 }}>{alertUnreadCount}</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <div style={{ background: WHITE, border: `1px solid ${LINE}`, borderRadius: 18, padding: 12, position: "sticky", top: 80 }}>
       <div style={{ padding: "12px 16px 8px", fontSize: 11, color: INK3, fontWeight: 700, letterSpacing: "0.06em" }}>마이페이지</div>
@@ -320,6 +351,7 @@ export default function MyPage() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { isLoggedIn, user, logout, filterSettings, setFilterSettings, setUser } = useAuthStore();
+  const isMobile = useMediaQuery("(max-width: 1199px)");
 
   const activeTab = resolveTabId(searchParams.get("tab"));
   const [toast, setToast] = useState({ open: false, msg: "", severity: "success" });
@@ -994,7 +1026,7 @@ export default function MyPage() {
   return (
     <div style={{ minHeight: "100vh", background: BG }}>
       <Header />
-      <div style={{ maxWidth: 1240, margin: "0 auto", padding: "0 24px 64px" }}>
+      <div style={{ maxWidth: 1240, margin: "0 auto", padding: isMobile ? "0 16px 80px" : "0 24px 64px" }}>
         {/* Breadcrumb */}
         <nav style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: INK3, padding: "20px 0 8px" }}>
           <span style={{ cursor: "pointer" }} onClick={() => navigate("/")}>홈</span>
@@ -1012,7 +1044,7 @@ export default function MyPage() {
           />
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: 28, alignItems: "flex-start" }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "260px 1fr", gap: isMobile ? 16 : 28, alignItems: "flex-start" }}>
           {/* Sidebar */}
           <SidebarNav active={activeTab} onChange={handleTabChange} bookmarkCount={bookmarks.length} alertUnreadCount={alertUnreadCount} />
 
@@ -1119,7 +1151,7 @@ export default function MyPage() {
                 </SectionCard>
 
                 <SectionCard title="취업상태">
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 10 }}>
                     {["재직중", "구직중", "학생", "기타"].map(v => {
                       const active = myInfo.employ === v;
                       return (
@@ -1139,7 +1171,7 @@ export default function MyPage() {
                 </SectionCard>
 
                 <SectionCard title="가구 형태" desc="특화 대상 정책 매칭에 활용돼요">
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : "repeat(5, 1fr)", gap: 10 }}>
                     {HOUSEHOLD_TYPES.map(v => {
                       const active = myInfo.householdType === v;
                       return (
@@ -1184,7 +1216,7 @@ export default function MyPage() {
             {activeTab === "pref" && (
               <>
                 <SectionCard title="관심있는 정책 카테고리" desc="최대 5개까지 선택할 수 있어요 · 순서가 곧 우선순위예요">
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 12 }}>
                     {PRIORITY_OPTIONS.map(c => {
                       const idx = priorities.indexOf(c.value);
                       const active = idx >= 0;
@@ -1238,7 +1270,7 @@ export default function MyPage() {
                 )}
 
                 <SectionCard title="관심 분야" desc="정책 관심사와 맞는 후보를 더 우선해서 보여줘요">
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 10 }}>
                     {INTEREST_FIELD_OPTIONS.map((value) => {
                       const active = interestFields.includes(value);
                       return (
@@ -1257,7 +1289,7 @@ export default function MyPage() {
                 </SectionCard>
 
                 <SectionCard title="특화 대상" desc="특수 대상 정책이 맞으면 bonus, 어긋나면 mismatch를 줄이는 기준이에요">
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : "repeat(5, 1fr)", gap: 10 }}>
                     {TARGET_TYPE_OPTIONS.map((value) => {
                       const active = targetTypes.includes(value);
                       return (

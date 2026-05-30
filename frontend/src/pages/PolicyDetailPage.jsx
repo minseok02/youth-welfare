@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Snackbar, Alert } from "@mui/material";
+import { Snackbar, Alert, useMediaQuery } from "@mui/material";
 import Header from "../components/Header";
 import FloatingNav from "../components/FloatingNav";
 import api from "../lib/axios";
@@ -238,6 +238,7 @@ export default function PolicyDetailPage() {
   const [searchParams] = useSearchParams();
   const { isLoggedIn } = useAuthStore();
 
+  const isMobile = useMediaQuery("(max-width: 1199px)");
   const [policy, setPolicy] = useState(null);
   const [bookmarked, setBookmarked] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -659,27 +660,29 @@ export default function PolicyDetailPage() {
   return (
     <div style={{ minHeight: "100vh", background: BG }}>
       <Header />
-      <div style={{ maxWidth: 1240, margin: "0 auto", padding: "0 24px 64px" }}>
-        <div style={{ paddingTop: 20 }}>
-          <button
-            onClick={handleBack}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "8px 14px",
-              borderRadius: 999,
-              border: `1px solid ${LINE}`,
-              background: WHITE,
-              color: INK2,
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-          >
-            ← 뒤로가기
-          </button>
-        </div>
+      <div style={{ maxWidth: 1240, margin: "0 auto", padding: isMobile ? "0 16px 80px" : "0 24px 64px" }}>
+        {!isMobile && (
+          <div style={{ paddingTop: 20 }}>
+            <button
+              onClick={handleBack}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "8px 14px",
+                borderRadius: 999,
+                border: `1px solid ${LINE}`,
+                background: WHITE,
+                color: INK2,
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              ← 뒤로가기
+            </button>
+          </div>
+        )}
         {/* Breadcrumb */}
         <nav style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: INK3, padding: "20px 0 8px", flexWrap: "wrap" }}>
           <span style={{ cursor: "pointer" }} onClick={() => navigate("/")}>홈</span>
@@ -727,7 +730,7 @@ export default function PolicyDetailPage() {
                     {statusLabel}
                   </Tag>
                 </div>
-                <h1 style={{ margin: "0 0 16px", fontSize: 34, fontWeight: 800, letterSpacing: "-0.025em", lineHeight: 1.2, color: INK }}>
+                <h1 style={{ margin: "0 0 16px", fontSize: isMobile ? 24 : 34, fontWeight: 800, letterSpacing: "-0.025em", lineHeight: 1.25, color: INK }}>
                   {policy.title}
                 </h1>
                 <div style={{ display: "flex", gap: 18, fontSize: 13, color: INK3, flexWrap: "wrap" }}>
@@ -776,15 +779,15 @@ export default function PolicyDetailPage() {
               {/* Tab bar */}
               <div
                 className="policy-detail-tabbar"
-                style={{ display: "flex", gap: 4, borderBottom: `1px solid ${LINE}`, position: "sticky", top: 60, background: BG, zIndex: 10, padding: "8px 0 0" }}
+                style={{ display: "flex", gap: 2, borderBottom: `1px solid ${LINE}`, position: "sticky", top: 60, background: BG, zIndex: 10, padding: "4px 0 0" }}
               >
                 {detailTabs.map(t => (
                   <button key={t.id} onClick={() => scrollToSection(t.id)} style={{
-                    padding: "14px 22px", background: "transparent", border: 0,
+                    padding: "7px 14px", background: "transparent", border: 0,
                     borderBottom: `2px solid ${activeTab === t.id ? A : "transparent"}`,
                     color: activeTab === t.id ? INK : INK3,
-                    fontSize: 14, fontWeight: activeTab === t.id ? 700 : 500,
-                    marginBottom: -1, cursor: "pointer",
+                    fontSize: 13, fontWeight: activeTab === t.id ? 700 : 500,
+                    marginBottom: -1, cursor: "pointer", whiteSpace: "nowrap",
                   }}>
                     {t.label}
                   </button>
@@ -1168,6 +1171,31 @@ export default function PolicyDetailPage() {
           </div>
         )}
       </div>
+
+      {isMobile && (
+        <button
+          onClick={handleBack}
+          style={{
+            position: "fixed",
+            bottom: 72,
+            right: 16,
+            zIndex: 1100,
+            display: "flex",
+            alignItems: "center",
+            padding: "12px 16px",
+            borderRadius: 999,
+            border: `1px solid ${LINE}`,
+            background: WHITE,
+            color: INK2,
+            fontSize: 20,
+            fontWeight: 400,
+            cursor: "pointer",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
+          }}
+        >
+          ←
+        </button>
+      )}
 
       <Snackbar
         open={toast.open}

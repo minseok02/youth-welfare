@@ -1,5 +1,6 @@
 import { createBrowserRouter } from "react-router-dom";
 import AuthExpiryHandler from "../components/AuthExpiryHandler.jsx";
+import NavLayout from "../components/NavLayout.jsx";
 import RequireAdmin from "../components/RequireAdmin.jsx";
 import RequireLogin from "../components/RequireLogin.jsx";
 import LazyRoute from "./LazyRoute.jsx";
@@ -17,19 +18,21 @@ import {
 } from "./lazy-pages.jsx";
 
 const router = createBrowserRouter([
-  { path: "/", element: <AuthExpiryHandler><LazyRoute><MainPage /></LazyRoute></AuthExpiryHandler> },
-  { path: "/login", element: <AuthExpiryHandler><LazyRoute><LoginPage /></LazyRoute></AuthExpiryHandler> },
-  { path: "/signup", element: <AuthExpiryHandler><LazyRoute><SignupPage /></LazyRoute></AuthExpiryHandler> },
-  { path: "/reset-password", element: <AuthExpiryHandler><LazyRoute><ResetPasswordPage /></LazyRoute></AuthExpiryHandler> },
-  { path: "/policies", element: <AuthExpiryHandler><LazyRoute><PoliciesPage /></LazyRoute></AuthExpiryHandler> },
-  { path: "/policies/:id", element: <AuthExpiryHandler><LazyRoute><PolicyDetailPage /></LazyRoute></AuthExpiryHandler> },
+  { path: "/", element: <AuthExpiryHandler><LazyRoute><NavLayout><MainPage /></NavLayout></LazyRoute></AuthExpiryHandler> },
+  { path: "/login", element: <AuthExpiryHandler><LazyRoute><NavLayout><LoginPage /></NavLayout></LazyRoute></AuthExpiryHandler> },
+  { path: "/signup", element: <AuthExpiryHandler><LazyRoute><NavLayout><SignupPage /></NavLayout></LazyRoute></AuthExpiryHandler> },
+  { path: "/reset-password", element: <AuthExpiryHandler><LazyRoute><NavLayout><ResetPasswordPage /></NavLayout></LazyRoute></AuthExpiryHandler> },
+  { path: "/policies", element: <AuthExpiryHandler><LazyRoute><NavLayout><PoliciesPage /></NavLayout></LazyRoute></AuthExpiryHandler> },
+  { path: "/policies/:id", element: <AuthExpiryHandler><LazyRoute><NavLayout><PolicyDetailPage /></NavLayout></LazyRoute></AuthExpiryHandler> },
   {
     path: "/alerts",
     element: (
       <AuthExpiryHandler>
         <LazyRoute>
           <RequireLogin>
-            <AlertsPage />
+            <NavLayout>
+              <AlertsPage />
+            </NavLayout>
           </RequireLogin>
         </LazyRoute>
       </AuthExpiryHandler>
@@ -41,7 +44,9 @@ const router = createBrowserRouter([
       <AuthExpiryHandler>
         <LazyRoute>
           <RequireLogin>
-            <MyPage />
+            <NavLayout>
+              <MyPage />
+            </NavLayout>
           </RequireLogin>
         </LazyRoute>
       </AuthExpiryHandler>
@@ -53,7 +58,9 @@ const router = createBrowserRouter([
       <AuthExpiryHandler>
         <LazyRoute>
           <RequireLogin>
-            <ChatPage />
+            <NavLayout>
+              <ChatPage />
+            </NavLayout>
           </RequireLogin>
         </LazyRoute>
       </AuthExpiryHandler>
@@ -65,7 +72,9 @@ const router = createBrowserRouter([
       <AuthExpiryHandler>
         <LazyRoute>
           <RequireAdmin>
-            <AdminDashboardPage />
+            <NavLayout>
+              <AdminDashboardPage />
+            </NavLayout>
           </RequireAdmin>
         </LazyRoute>
       </AuthExpiryHandler>

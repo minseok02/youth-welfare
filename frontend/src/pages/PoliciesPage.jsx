@@ -410,6 +410,7 @@ export default function PoliciesPage() {
   const canResetSearch = Boolean(draftSearch.trim() || appliedSearch.trim());
   const isTablet = viewportWidth < 1100;
   const isMobile = viewportWidth < 760;
+  const [filterOpen, setFilterOpen] = useState(false);
 
   // ── URL 파라미터 동기화 ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -754,7 +755,7 @@ export default function PoliciesPage() {
       <Header />
 
       {/* 검색 히어로 */}
-      <div style={{ background: "white", borderBottom: `1px solid ${LINE}`, padding: "32px 24px 24px" }}>
+      <div style={{ background: "white", borderBottom: `1px solid ${LINE}`, padding: isMobile ? "20px 16px 16px" : "32px 24px 24px" }}>
         <div style={{ maxWidth: 1240, margin: "0 auto" }}>
           <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.02em", color: INK }}>청년을 위한 복지정책을 찾아드려요</div>
           <div style={{ fontSize: 14, color: INK3, marginTop: 6 }}>
@@ -875,13 +876,18 @@ export default function PoliciesPage() {
       </div>
 
       {/* 콘텐츠 영역 */}
-      <div style={{ maxWidth: 1240, margin: "0 auto", padding: "28px 24px 80px", display: "grid", gridTemplateColumns: isTablet ? "1fr" : "280px 1fr", gap: 28, alignItems: "flex-start" }}>
+      <div style={{ maxWidth: 1240, margin: "0 auto", padding: isTablet ? "20px 16px 80px" : "28px 24px 80px", display: "grid", gridTemplateColumns: isTablet ? "1fr" : "280px 1fr", gap: 28, alignItems: "flex-start" }}>
 
         {/* ── 필터 사이드바 ── */}
-        <aside style={{ background: "white", border: `1px solid ${LINE}`, borderRadius: 16, padding: "6px 20px 18px", position: isTablet ? "static" : "sticky", top: isTablet ? "auto" : 80 }}>
+        <aside style={{ background: "white", border: `1px solid ${LINE}`, borderRadius: 16, padding: "6px 20px 18px", position: isTablet ? "static" : "sticky", top: isTablet ? undefined : 80, display: isTablet ? (filterOpen ? "block" : "none") : "block" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0 8px", borderBottom: `1px solid ${LINE2}` }}>
             <span style={{ fontSize: 15, fontWeight: 800, color: INK }}>상세 필터</span>
-            <button onClick={handleResetFilter} style={{ background: "none", border: "none", fontSize: 12, color: INK3, cursor: "pointer" }}>초기화</button>
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <button onClick={handleResetFilter} style={{ background: "none", border: "none", fontSize: 12, color: INK3, cursor: "pointer" }}>초기화</button>
+              {isTablet && (
+                <button onClick={() => setFilterOpen(false)} style={{ background: "none", border: "none", fontSize: 20, color: INK2, cursor: "pointer", padding: "0 2px", lineHeight: 1 }}>×</button>
+              )}
+            </div>
           </div>
 
           {/* 카테고리 */}
@@ -968,7 +974,7 @@ export default function PoliciesPage() {
           </FilterSection>
 
           <button
-            onClick={handleApplyFilter}
+            onClick={() => { handleApplyFilter(); if (isTablet) setFilterOpen(false); }}
             style={{ width: "100%", marginTop: 16, padding: "12px 0", background: A, color: "white", border: 0, borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer" }}
           >
             {totalCount > 0 ? `${totalCount.toLocaleString()}개 정책 보기` : "정책 보기"}
@@ -977,6 +983,24 @@ export default function PoliciesPage() {
 
         {/* ── 결과 영역 ── */}
         <div>
+          {/* 모바일 필터 버튼 */}
+          {isTablet && (
+            <div style={{ marginBottom: 14 }}>
+              <button
+                onClick={() => setFilterOpen(true)}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  padding: "9px 18px", borderRadius: 10, fontSize: 13, fontWeight: 700,
+                  background: activeFilters.length > 0 ? AS : "white",
+                  color: activeFilters.length > 0 ? AI : INK2,
+                  border: `1.5px solid ${activeFilters.length > 0 ? A : LINE}`,
+                  cursor: "pointer",
+                }}
+              >
+                🔧 필터{activeFilters.length > 0 ? ` (${activeFilters.length}개 적용됨)` : ""}
+              </button>
+            </div>
+          )}
           {/* 활성 필터 칩 */}
           {activeFilters.length > 0 && (
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>

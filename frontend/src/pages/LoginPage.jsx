@@ -185,7 +185,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <Snackbar open={toast.open} autoHideDuration={2000} onClose={() => setToast(t => ({ ...t, open: false }))} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
+      <Snackbar open={toast.open} autoHideDuration={2000} onClose={() => setToast(t => ({ ...t, open: false }))} anchorOrigin={{ vertical: "bottom", horizontal: "center" }} sx={{ bottom: { xs: 72, sm: 0 } }}>
         <Alert severity="info">{toast.msg}</Alert>
       </Snackbar>
     </div>

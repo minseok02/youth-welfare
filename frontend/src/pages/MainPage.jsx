@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Snackbar, Alert } from "@mui/material";
+import { Snackbar, Alert, useMediaQuery } from "@mui/material";
 import Header from "../components/Header";
+import FloatingNav from "../components/FloatingNav";
 import api from "../lib/axios";
 import { useAuthStore } from "../store/authStore";
 
@@ -89,21 +90,22 @@ function Tag({ children, style }) {
 }
 
 function HeroNonLogin({ totalPolicies, deadlineCount, firstDeadlinePolicy, secondDeadlinePolicy, navigate, authState }) {
+  const isMobile = useMediaQuery("(max-width: 1199px)");
   return (
     <section style={{
       background: "linear-gradient(135deg, #1e3a8a 0%, #2563eb 55%, #3b82f6 100%)",
-      borderRadius: 28, padding: "48px 56px", color: "white", marginTop: 24,
+      borderRadius: 28, padding: isMobile ? "28px 20px" : "48px 56px", color: "white", marginTop: 24,
       position: "relative", overflow: "hidden",
     }}>
       <div style={{ position: "absolute", right: -80, top: -80, width: 280, height: 280, borderRadius: "50%", background: "rgba(255,255,255,0.08)", pointerEvents: "none" }} />
       <div style={{ position: "absolute", right: 120, bottom: -100, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 40, alignItems: "center", position: "relative", zIndex: 1 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.2fr 1fr", gap: isMobile ? 0 : 40, alignItems: "center", position: "relative", zIndex: 1 }}>
         <div>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.15)", padding: "6px 14px", borderRadius: 99, fontSize: 13, fontWeight: 600 }}>
             안녕하세요, 청년님
           </span>
-          <h1 style={{ fontSize: 40, fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.2, margin: "16px 0 14px", color: "white" }}>
+          <h1 style={{ fontSize: isMobile ? 28 : 40, fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.2, margin: "16px 0 14px", color: "white" }}>
             나에게 딱 맞는<br />
             <span style={{ background: "linear-gradient(180deg, transparent 65%, rgba(255,255,255,0.25) 65%)", padding: "0 4px" }}>
               청년 복지정책
@@ -128,75 +130,76 @@ function HeroNonLogin({ totalPolicies, deadlineCount, firstDeadlinePolicy, secon
               전체 둘러보기
             </button>
           </div>
-          <div style={{ display: "flex", gap: 24, marginTop: 28, fontSize: 13 }}>
+          <div style={{ display: "flex", gap: isMobile ? 16 : 24, marginTop: 28, fontSize: 13 }}>
             <div>
-              <div style={{ fontSize: 22, fontWeight: 800 }}>{totalPolicies > 0 ? totalPolicies.toLocaleString() : "—"}</div>
+              <div style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800 }}>{totalPolicies > 0 ? totalPolicies.toLocaleString() : "—"}</div>
               <div style={{ opacity: 0.7, fontSize: 12, marginTop: 2 }}>전체 정책</div>
             </div>
             <div style={{ width: 1, background: "rgba(255,255,255,0.2)" }} />
             <div>
-              <div style={{ fontSize: 22, fontWeight: 800 }}>{deadlineCount > 0 ? `${deadlineCount}건` : "—"}</div>
+              <div style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800 }}>{deadlineCount > 0 ? `${deadlineCount}건` : "—"}</div>
               <div style={{ opacity: 0.7, fontSize: 12, marginTop: 2 }}>이번 주 마감</div>
             </div>
             <div style={{ width: 1, background: "rgba(255,255,255,0.2)" }} />
             <div>
-              <div style={{ fontSize: 22, fontWeight: 800 }}>무료</div>
+              <div style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800 }}>무료</div>
               <div style={{ opacity: 0.7, fontSize: 12, marginTop: 2 }}>AI 추천 서비스</div>
             </div>
           </div>
         </div>
 
-        {/* 플로팅 카드 */}
-        <div style={{ position: "relative", height: 270 }}>
-          {/* 카드 1: 마감임박 정책 */}
-          {firstDeadlinePolicy && (
-            <div style={{ position: "absolute", right: 30, top: 8, width: 190, background: "white", borderRadius: 14, padding: 16, color: INK, boxShadow: "0 12px 32px rgba(0,0,0,0.18)", transform: "rotate(-3deg)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <Tag style={{ background: "#fef2f2", color: WARN }}>마감임박</Tag>
-                <span style={{ fontSize: 18, fontWeight: 800, color: WARN }}>{firstDeadlinePolicy.dday}</span>
+        {/* 플로팅 카드 — PC 전용 */}
+        {!isMobile && (
+          <div style={{ position: "relative", height: 270 }}>
+            {firstDeadlinePolicy && (
+              <div style={{ position: "absolute", right: 30, top: 8, width: 190, background: "white", borderRadius: 14, padding: 16, color: INK, boxShadow: "0 12px 32px rgba(0,0,0,0.18)", transform: "rotate(-3deg)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Tag style={{ background: "#fef2f2", color: WARN }}>마감임박</Tag>
+                  <span style={{ fontSize: 18, fontWeight: 800, color: WARN }}>{firstDeadlinePolicy.dday}</span>
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, marginTop: 10, lineHeight: 1.3, letterSpacing: "-0.01em" }}>
+                  {firstDeadlinePolicy.title}
+                </div>
+                {firstDeadlinePolicy.source && (
+                  <div style={{ fontSize: 11, color: INK3, marginTop: 5 }}>{firstDeadlinePolicy.source}</div>
+                )}
               </div>
-              <div style={{ fontSize: 13, fontWeight: 700, marginTop: 10, lineHeight: 1.3, letterSpacing: "-0.01em" }}>
-                {firstDeadlinePolicy.title}
+            )}
+            {secondDeadlinePolicy && (
+              <div style={{ position: "absolute", right: 0, top: 140, width: 200, background: "white", borderRadius: 14, padding: 16, color: INK, boxShadow: "0 12px 32px rgba(0,0,0,0.22)", transform: "rotate(2.5deg)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Tag style={{ background: AS, color: AI }}>{secondDeadlinePolicy.category}</Tag>
+                  <span style={{ fontSize: 14, fontWeight: 800, color: WARN }}>{secondDeadlinePolicy.dday}</span>
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, marginTop: 10, letterSpacing: "-0.01em", lineHeight: 1.3 }}>
+                  {secondDeadlinePolicy.title}
+                </div>
+                {secondDeadlinePolicy.source && (
+                  <div style={{ fontSize: 11, color: INK3, marginTop: 4 }}>{secondDeadlinePolicy.source}</div>
+                )}
+                <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #f3f4f6", display: "flex", alignItems: "center", gap: 4 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", flexShrink: 0 }} />
+                  <span style={{ fontSize: 10, color: INK3, fontWeight: 600 }}>실시간 업데이트</span>
+                </div>
               </div>
-              {firstDeadlinePolicy.source && (
-                <div style={{ fontSize: 11, color: INK3, marginTop: 5 }}>{firstDeadlinePolicy.source}</div>
-              )}
-            </div>
-          )}
-          {/* 카드 2: 두 번째 마감임박 정책 */}
-          {secondDeadlinePolicy && (
-            <div style={{ position: "absolute", right: 0, top: 140, width: 200, background: "white", borderRadius: 14, padding: 16, color: INK, boxShadow: "0 12px 32px rgba(0,0,0,0.22)", transform: "rotate(2.5deg)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <Tag style={{ background: AS, color: AI }}>{secondDeadlinePolicy.category}</Tag>
-                <span style={{ fontSize: 14, fontWeight: 800, color: WARN }}>{secondDeadlinePolicy.dday}</span>
-              </div>
-              <div style={{ fontSize: 13, fontWeight: 700, marginTop: 10, letterSpacing: "-0.01em", lineHeight: 1.3 }}>
-                {secondDeadlinePolicy.title}
-              </div>
-              {secondDeadlinePolicy.source && (
-                <div style={{ fontSize: 11, color: INK3, marginTop: 4 }}>{secondDeadlinePolicy.source}</div>
-              )}
-              <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #f3f4f6", display: "flex", alignItems: "center", gap: 4 }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", flexShrink: 0 }} />
-                <span style={{ fontSize: 10, color: INK3, fontWeight: 600 }}>실시간 업데이트</span>
-              </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     </section>
   );
 }
 
 function HeroLoggedIn({ user, navigate, onRefresh, onPersonalRefresh, refreshingRec, personalRefreshing, totalPolicies }) {
+  const isMobile = useMediaQuery("(max-width: 1199px)");
   return (
     <section style={{
       background: "linear-gradient(135deg, #1e3a8a 0%, #2563eb 55%, #3b82f6 100%)",
-      borderRadius: 28, padding: "36px 48px", color: "white", marginTop: 24,
+      borderRadius: 28, padding: isMobile ? "24px 20px" : "36px 48px", color: "white", marginTop: 24,
       position: "relative", overflow: "hidden",
     }}>
       <div style={{ position: "absolute", right: -60, top: -60, width: 220, height: 220, borderRadius: "50%", background: "rgba(255,255,255,0.08)", pointerEvents: "none" }} />
-      <div style={{ position: "relative", zIndex: 1, display: "grid", gridTemplateColumns: "1fr auto", gap: 32, alignItems: "center" }}>
+      <div style={{ position: "relative", zIndex: 1, display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr auto", gap: isMobile ? 16 : 32, alignItems: "center" }}>
         <div>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.15)", padding: "6px 14px", borderRadius: 99, fontSize: 13, fontWeight: 600 }}>
             {user?.name ? `${user.name}님, 안녕하세요!` : "안녕하세요!"}
@@ -239,18 +242,19 @@ function HeroLoggedIn({ user, navigate, onRefresh, onPersonalRefresh, refreshing
 }
 
 function CategoryBar({ counts, navigate }) {
+  const isMobile = useMediaQuery("(max-width: 1199px)");
   return (
-    <section style={{ marginTop: 32, display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 12 }}>
+    <section style={{ marginTop: 32, display: "grid", gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : "repeat(6, 1fr)", gap: 12 }}>
       {CATEGORY_META.map((c) => (
         <div
           key={c.value}
           onClick={() => navigate(`/policies?category=${encodeURIComponent(c.value)}`)}
-          style={{ background: "white", border: `1px solid ${LINE}`, borderRadius: 16, padding: "20px 16px", textAlign: "center", cursor: "pointer", transition: "transform .15s, box-shadow .15s" }}
+          style={{ background: "white", border: `1px solid ${LINE}`, borderRadius: 16, padding: isMobile ? "14px 8px" : "20px 16px", textAlign: "center", cursor: "pointer", transition: "transform .15s, box-shadow .15s" }}
           onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(37,99,235,0.12)"; }}
           onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}
         >
-          <div style={{ width: 52, height: 52, borderRadius: 16, background: c.bg, margin: "0 auto 10px" }} />
-          <div style={{ fontSize: 13, fontWeight: 700, color: INK }}>{c.label}</div>
+          <div style={{ width: isMobile ? 40 : 52, height: isMobile ? 40 : 52, borderRadius: 14, background: c.bg, margin: "0 auto 8px" }} />
+          <div style={{ fontSize: isMobile ? 12 : 13, fontWeight: 700, color: INK }}>{c.label}</div>
           {counts[c.value] > 0 && (
             <div style={{ fontSize: 11, color: INK3, marginTop: 2 }}>{counts[c.value].toLocaleString()}개</div>
           )}
@@ -261,6 +265,7 @@ function CategoryBar({ counts, navigate }) {
 }
 
 function DeadlineRail({ policies, navigate, onPolicyNavigate }) {
+  const isMobile = useMediaQuery("(max-width: 1199px)");
   if (!policies.length) return null;
   return (
     <section style={{ marginTop: 48 }}>
@@ -278,7 +283,7 @@ function DeadlineRail({ policies, navigate, onPolicyNavigate }) {
           전체 보기 →
         </button>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: `repeat(${policies.length}, 1fr)`, gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? `repeat(${Math.min(2, policies.length)}, 1fr)` : `repeat(${policies.length}, 1fr)`, gap: 14 }}>
         {policies.map((p) => (
           <div
             key={p.id}
@@ -342,13 +347,14 @@ function RecentViewedRail({ policies, navigate, onPolicyNavigate }) {
 }
 
 function PopularSection({ teaserPolicies, categoryCounts, navigate, onPolicyNavigate }) {
+  const isMobile = useMediaQuery("(max-width: 1199px)");
   return (
     <section style={{ marginTop: 56 }}>
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", color: INK }}>지금 청년들이 많이 보는 정책</div>
         <div style={{ fontSize: 13, color: INK3, marginTop: 4 }}>조회수 기준 인기 정책</div>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 28 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))", gap: 28 }}>
         {POPULAR_CATEGORIES.map((catValue) => {
           const items = teaserPolicies[catValue] ?? [];
           if (!items.length) return null;
@@ -471,6 +477,7 @@ function RecCard({ rec, onPolicyNavigate, onBookmarkToggle }) {
 }
 
 function CTASection({ navigate, teaserPolicies, onPolicyNavigate, authState }) {
+  const isMobile = useMediaQuery("(max-width: 1199px)");
   const previewItems = ["일자리", "금융·생활지원", "주거"]
     .map(cat => {
       const policy = (teaserPolicies ?? {})[cat]?.[0];
@@ -479,7 +486,7 @@ function CTASection({ navigate, teaserPolicies, onPolicyNavigate, authState }) {
     .filter(Boolean);
 
   return (
-    <section style={{ marginTop: 56, background: "white", border: `1px solid ${LINE}`, borderRadius: 24, padding: 36, display: "grid", gridTemplateColumns: previewItems.length ? "1.5fr 1fr" : "1fr", gap: 32, alignItems: "center" }}>
+    <section style={{ marginTop: 56, background: "white", border: `1px solid ${LINE}`, borderRadius: 24, padding: isMobile ? "28px 20px" : 36, display: "grid", gridTemplateColumns: (!isMobile && previewItems.length) ? "1.5fr 1fr" : "1fr", gap: 32, alignItems: "center" }}>
       <div>
         <Tag style={{ background: AS, color: AI }}>베타 서비스</Tag>
         <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.02em", marginTop: 14, lineHeight: 1.3, color: INK }}>
@@ -503,7 +510,7 @@ function CTASection({ navigate, teaserPolicies, onPolicyNavigate, authState }) {
           </button>
         </div>
       </div>
-      {previewItems.length > 0 && (
+      {!isMobile && previewItems.length > 0 && (
         <div style={{ background: AS2, borderRadius: 16, padding: 22 }}>
           <div style={{ fontSize: 11, color: INK3, fontWeight: 700, marginBottom: 10 }}>인기 정책</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -537,6 +544,7 @@ export default function MainPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isLoggedIn, user, setUser } = useAuthStore();
+  const isMobile = useMediaQuery("(max-width: 1199px)");
 
   // AI 추천 (로그인)
   const [recommendations, setRecommendations] = useState([]);
@@ -719,7 +727,7 @@ export default function MainPage() {
     <div style={{ minHeight: "100vh", background: "#f7f8fc" }}>
       <Header />
 
-      <div style={{ maxWidth: 1240, margin: "0 auto", padding: "0 24px 80px" }}>
+      <div style={{ maxWidth: 1240, margin: "0 auto", padding: isMobile ? "0 16px 80px" : "0 24px 80px" }}>
 
         {/* 히어로 */}
         {isLoggedIn ? (
@@ -799,7 +807,7 @@ export default function MainPage() {
               </div>
             )
           ) : (
-            <div style={{ background: "white", borderRadius: 20, border: `1px solid ${LINE}`, padding: "48px 40px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 32 }}>
+            <div style={{ background: "white", borderRadius: 20, border: `1px solid ${LINE}`, padding: isMobile ? "28px 20px" : "48px 40px", display: "flex", alignItems: isMobile ? "flex-start" : "center", justifyContent: "space-between", gap: 32, flexDirection: isMobile ? "column" : "row" }}>
               <div>
                 <div style={{ fontSize: 28, fontWeight: 800, color: INK, letterSpacing: "-0.02em", lineHeight: 1.3 }}>
                   로그인하여<br />맞춤 정책 찾아보기
@@ -826,7 +834,7 @@ export default function MainPage() {
                   </button>
                 </div>
               </div>
-              {(() => {
+              {!isMobile && (() => {
                 const previewItems = ["일자리", "금융·생활지원", "주거"]
                   .map(cat => {
                     const meta = CATEGORY_META.find(c => c.value === cat);
@@ -875,8 +883,8 @@ export default function MainPage() {
         {!isLoggedIn && <CTASection navigate={navigate} teaserPolicies={teaserPolicies} onPolicyNavigate={navigateToPolicyDetail} authState={authState} />}
 
         {/* 푸터 */}
-        <footer style={{ marginTop: 72, padding: "28px 0 0", borderTop: `1px solid ${LINE}`, color: INK3, fontSize: 12 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <footer style={{ marginTop: isMobile ? 40 : 72, padding: "28px 0 0", borderTop: `1px solid ${LINE}`, color: INK3, fontSize: 12 }}>
+          <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", gap: isMobile ? 12 : 0 }}>
             <div>
               <div style={{ fontSize: 14, color: INK2, fontWeight: 700 }}>청년복지플랫폼</div>
               <div style={{ marginTop: 6 }}>© 2026 청년복지플랫폼. 정책 데이터는 온통청년·복지로·Gov24에서 제공받습니다.</div>
@@ -890,6 +898,7 @@ export default function MainPage() {
         </footer>
       </div>
 
+      <FloatingNav />
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       <Snackbar

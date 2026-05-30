@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Alert, CircularProgress, Snackbar } from "@mui/material";
+import { Alert, CircularProgress, Snackbar, useMediaQuery } from "@mui/material";
 import Header from "../components/Header";
 import FloatingNav from "../components/FloatingNav";
 import api from "../lib/axios";
@@ -56,6 +56,7 @@ const formatAlertTime = (value) => {
 export default function AlertsPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const isMobile = useMediaQuery("(max-width: 1199px)");
   const [alerts, setAlerts] = useState([]);
   const [alertsLoading, setAlertsLoading] = useState(false);
   const [alertUnreadCount, setAlertUnreadCount] = useState(0);
@@ -233,7 +234,7 @@ export default function AlertsPage() {
   return (
     <div style={{ minHeight: "100vh", background: BG }}>
       <Header />
-      <div style={{ maxWidth: 980, margin: "0 auto", padding: "0 24px 64px" }}>
+      <div style={{ maxWidth: 980, margin: "0 auto", padding: isMobile ? "0 16px 80px" : "0 24px 64px" }}>
         <nav style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: INK3, padding: "20px 0 8px" }}>
           <span style={{ cursor: "pointer" }} onClick={() => navigate("/")}>홈</span>
           <span>›</span>

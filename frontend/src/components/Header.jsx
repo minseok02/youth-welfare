@@ -198,12 +198,10 @@ export default function Header() {
         <Toolbar
           sx={{
             justifyContent: "space-between",
-            alignItems: { xs: "stretch", sm: "center" },
-            minHeight: { xs: 72, sm: 56 },
+            alignItems: "center",
+            minHeight: 56,
             px: { xs: 1.5, sm: 4 },
-            py: { xs: 1, sm: 0.75 },
             gap: { xs: 1, sm: 1.5 },
-            flexWrap: "wrap",
           }}
         >
           <Typography
@@ -215,7 +213,6 @@ export default function Header() {
               alignItems: "center",
               gap: 0.5,
               flexShrink: 0,
-              width: { xs: "100%", sm: "auto" },
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
@@ -232,10 +229,8 @@ export default function Header() {
             sx={{
               display: "flex",
               alignItems: "center",
-              justifyContent: { xs: "flex-start", sm: "flex-end" },
+              justifyContent: "flex-end",
               gap: 0.75,
-              flexWrap: "wrap",
-              width: { xs: "100%", sm: "auto" },
             }}
           >
             <Button
@@ -245,6 +240,7 @@ export default function Header() {
               startIcon={<ForumOutlinedIcon />}
               onClick={handleChat}
               sx={{
+                display: { xs: "none", lg: "inline-flex" },
                 borderRadius: 2,
                 fontSize: { xs: 12, sm: 13 },
                 minWidth: "auto",
@@ -269,6 +265,7 @@ export default function Header() {
                     state: policiesTarget.state,
                   })}
                   sx={{
+                    display: { xs: "none", lg: "inline-flex" },
                     fontSize: { xs: 12, sm: 13 },
                     color: "rgba(255,255,255,0.9)",
                     minWidth: "auto",
@@ -284,6 +281,7 @@ export default function Header() {
                     startIcon={<AdminPanelSettingsOutlinedIcon fontSize="small" />}
                     onClick={() => navigate("/admin/dashboard")}
                     sx={{
+                      display: { xs: "none", lg: "inline-flex" },
                       fontSize: { xs: 12, sm: 13 },
                       color: "white",
                       bgcolor: "rgba(255,255,255,0.12)",
@@ -445,6 +443,7 @@ export default function Header() {
                     state: mypageTarget.state,
                   })}
                   sx={{
+                    display: { xs: "none", lg: "inline-flex" },
                     borderColor: "rgba(255,255,255,0.6)",
                     borderRadius: 2,
                     fontSize: { xs: 12, sm: 13 },
@@ -481,6 +480,7 @@ export default function Header() {
                   size="small"
                   onClick={handleMypage}
                   sx={{
+                    display: { xs: "none", lg: "inline-flex" },
                     borderColor: "rgba(255,255,255,0.6)",
                     borderRadius: 2,
                     fontSize: { xs: 12, sm: 13 },
