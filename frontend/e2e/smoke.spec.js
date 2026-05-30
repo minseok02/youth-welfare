@@ -219,6 +219,37 @@ test("chat 보호 API가 401 후 refresh도 실패하면 로그인으로 이동�
   await expectLoggedInChat(page);
 });
 
+test("로그인 401은 refresh를 시도하지 않고 원래 credential 오류를 보여준다", async ({ page }) => {
+  let refreshAttemptCount = 0;
+
+  await page.goto("/login");
+
+  await page.route("**/api/auth/login", async (route) => {
+    await route.fulfill({
+      status: 401,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify({ success: false, errorCode: "A004", message: "이메일 또는 비밀번호가 올바르지 않습니다." }),
+    });
+  });
+
+  await page.route("**/api/auth/refresh", async (route) => {
+    refreshAttemptCount += 1;
+    await route.fulfill({
+      status: 401,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify({ success: false, errorCode: "A003", message: "이미 사용된 Refresh Token입니다. 재로그인이 필요합니다." }),
+    });
+  });
+
+  await page.getByPlaceholder("example@email.com").fill("wrong@example.com");
+  await page.getByPlaceholder("비밀번호를 입력하세요").fill("WrongPass123!");
+  await page.getByRole("button", { name: "로그인" }).click();
+
+  await expect(page.getByText("⚠ 이메일 또는 비밀번호가 올바르지 않습니다.")).toBeVisible();
+  expect(refreshAttemptCount).toBe(0);
+  await expect(page).toHaveURL(/\/login$/);
+});
+
 test("정책 목록 검색 query는 상세 진입 후 브라우저 back과 상세 뒤로가기에서 유지된다", async ({ page, request }) => {
   const firstPolicy = await openFirstSearchResult(page, request, "청년");
   await page.goBack();
