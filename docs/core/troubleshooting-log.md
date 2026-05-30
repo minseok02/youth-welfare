@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 1039) collect lane inventory가 풍부해도 operator handoff가 full `collect-failures` contract에 묶여 있으면 daily triage가 길어진다
+- 문제: `collect-failures` 는 이미 failed/partial/streak/circuit, lane inventory, latestRun, configEntries 까지 다 내리지만, operator가 매일 보고 싶은 건 그 전체 계약이 아니라 “지금 baseline이 건강한가, nightly/manual lane 수는 얼마인가, 실패/partial/circuit이 있나, 다음 문서는 무엇인가” 수준이다. 이 compact reading이 없으면 collect surface는 recommendation observation보다 daily handoff 비용이 더 크다.
+- 해결: `run-local-admin-collect-failures-smoke.sh` 에 `KEEP_ARTIFACTS` 표준 경계를 추가하고, 그 위에 `run-local-collect-governance-observation-suite.sh` 를 새로 얹었다. 이 wrapper는 `collect-failures` child artifact를 재사용해 `decision_class`, `scheduled/manual lane count`, `latest_failed_lane_keys`, `latest_partial_lane_keys`, `missing_latest_lane_keys`, `next_action` 을 `summary/json/note` 로 다시 publish한다. 동시에 [collect-governance-observation-runbook.md](/home/minseok/youth-welfare/docs/collect/collect-governance-observation-runbook.md:1) 를 추가해 daily operator entrypoint를 한 장으로 고정했다.
+- 이유: collect도 recommendation과 마찬가지로 machine-readable full contract와 human-readable compact handoff를 분리하는 편이 운영 일관성이 좋다. 전체 `collect-failures` JSON을 매번 다시 해석하는 것보다 baseline health 여부를 먼저 읽게 하는 편이 더 bounded하다.
+
 ## 1038) recommendation observation current truth는 맞아도 operator handoff가 summary/json key 나열에만 머물면 “왜 아직 reopen이 아닌지”를 매번 다시 해석해야 한다
 - 문제: `run-local-recommendation-observation-suite.sh` 는 이미 `precheck_status`, `precheck_reason`, `observation_blocker`, `recommended_cadence`, `next_action` 을 compact하게 내리고 있었지만, 운영자 handoff 관점에서는 여전히 key/value 목록이라 `KEEP_OBSERVING`, `WAIT_FOR_REAL_USER_TRAFFIC`, `SUPPLEMENTAL_REVIEW_ONLY` 같은 상태를 사람 말로 다시 번역해야 했다.
 - 해결: observation suite가 이제 `decision_class`, `reopen_allowed`, `operator_reading` 을 summary/json에 같이 남기고, `tmp/recommendation-observation/latest-recommendation-observation-note.md` 사람용 note artifact도 publish하게 바꿨다. 동시에 [recommendation-observation-runbook.md](/home/minseok/youth-welfare/docs/recommendation/recommendation-observation-runbook.md:1) 를 추가해 daily operator entrypoint와 상태 해석 ladder를 한 장으로 고정했다.

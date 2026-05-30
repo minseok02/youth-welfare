@@ -53,6 +53,7 @@
 - backend only: `cd backend && ./gradlew test --no-daemon`
 - frontend only: `cd frontend && npm run lint && npm run build && npm run test:e2e`
 - runtime read-only baseline only: `bash deploy/smoke/run-local-ops-baseline-suite.sh`
+- collect governance observation only: `bash deploy/smoke/run-local-collect-governance-observation-suite.sh`
 - collect legacy repair only: `bash deploy/smoke/run-local-collect-legacy-repair-suite.sh`
 
 추천을 다시 열지 말지 빠르게 다시 보고 싶으면 아래 wrapper를 먼저 씁니다.
@@ -63,6 +64,10 @@
 - server/RDS recommendation observation suite: `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-recommendation-observation-suite.sh`
   - latest artifact: `tmp/recommendation-observation/latest-recommendation-observation-summary.txt`, `tmp/recommendation-observation/latest-recommendation-observation-note.md`, `tmp/recommendation-observation/latest-recommendation-observation.json`
   - `KEEP_ARTIFACTS=false` 기본값에서도 latest summary/json 과 `tmp/recommendation-observation/latest/` snapshot은 남습니다.
+- collect governance observation suite: `APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-collect-governance-observation-suite.sh`
+- server/RDS collect governance observation suite: `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-collect-governance-observation-suite.sh`
+  - latest artifact: `tmp/collect-governance-observation/latest-collect-governance-observation-summary.txt`, `tmp/collect-governance-observation/latest-collect-governance-observation-note.md`, `tmp/collect-governance-observation/latest-collect-governance-observation.json`
+  - `KEEP_ARTIFACTS=false` 기본값에서도 latest summary/json 과 `tmp/collect-governance-observation/latest/` snapshot은 남습니다.
 
 ## 작업 전/후 읽는 법
 

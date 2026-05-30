@@ -17,6 +17,7 @@
 - [collect-current-state.md](./collect-current-state.md)
 - [collect-operation-checklist.md](./collect-operation-checklist.md)
 - [collect-ops.md](./collect-ops.md)
+- [collect-governance-observation-runbook.md](./collect-governance-observation-runbook.md)
 
 ### 같이 보면 좋은 기준 문서
 
@@ -67,13 +68,25 @@
 
 같은 운영 해석 기준을 더 자세히 적어 둔 문서입니다.
 
-### 4. 실행/장애 기록 템플릿
+### 4. daily governance observation
+
+- [collect-governance-observation-runbook.md](./collect-governance-observation-runbook.md)
+
+이 문서는
+
+- nightly/manual lane inventory
+- latest run 상태
+- partial/failure/open circuit 유무
+
+를 compact하게 다시 읽는 operator entrypoint 입니다.
+
+### 5. 실행/장애 기록 템플릿
 
 - [collect-incident-template.md](./collect-incident-template.md)
 
 수집 실행이나 장애를 기록할 때 복사해서 쓰는 템플릿입니다.
 
-### 5. collect closeout / quality audit
+### 6. collect closeout / quality audit
 
 - [policy-gov24-runtime-audit-runbook.md](../policy/policy-gov24-runtime-audit-runbook.md)
 - [policy-quality-summary-runbook.md](../policy/policy-quality-summary-runbook.md)
@@ -96,8 +109,9 @@
 
 1. [collect-operation-checklist.md](./collect-operation-checklist.md)
 2. [collect-ops.md](./collect-ops.md)
-3. [policy-gov24-runtime-audit-runbook.md](../policy/policy-gov24-runtime-audit-runbook.md)
-4. 필요하면 [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
+3. [collect-governance-observation-runbook.md](./collect-governance-observation-runbook.md)
+4. [policy-gov24-runtime-audit-runbook.md](../policy/policy-gov24-runtime-audit-runbook.md)
+5. 필요하면 [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
 
 ### collect closeout / quality baseline을 다시 확인할 때
 
@@ -115,5 +129,6 @@
 1. 현재 동작은 [collect-current-state.md](./collect-current-state.md) 부터 봅니다.
 2. 실제 실행은 [collect-operation-checklist.md](./collect-operation-checklist.md) 기준으로 봅니다.
 3. 운영 해석은 [collect-ops.md](./collect-ops.md) 에 더 자세히 적혀 있습니다.
-4. collect closeout / quality baseline은 `Gov24 runtime closeout/deferred inventory audit` 과 `policy quality summary` runbook을 먼저 봅니다.
-5. 기록은 [collect-incident-template.md](./collect-incident-template.md) 를 기준으로 남기고, 오래된 전환 로그는 `phase-plan` 을 보조 참고로만 봅니다.
+4. daily operator 관찰은 [collect-governance-observation-runbook.md](./collect-governance-observation-runbook.md) 를 먼저 봅니다.
+5. collect closeout / quality baseline은 `Gov24 runtime closeout/deferred inventory audit` 과 `policy quality summary` runbook을 먼저 봅니다.
+6. 기록은 [collect-incident-template.md](./collect-incident-template.md) 를 기준으로 남기고, 오래된 전환 로그는 `phase-plan` 을 보조 참고로만 봅니다.

@@ -40,6 +40,12 @@ bash deploy/smoke/run-local-ops-baseline-suite.sh
 2. `run-local-admin-collect-failures-smoke.sh`
 3. `run-local-admin-recommendation-breakdowns-smoke.sh`
 
+collect governance를 compact하게 다시 읽고 싶으면 아래 wrapper를 추가로 쓴다.
+
+```bash
+bash deploy/smoke/run-local-collect-governance-observation-suite.sh
+```
+
 ## 언제 쓰나
 
 아래 상황이면 이 runbook이 맞습니다.

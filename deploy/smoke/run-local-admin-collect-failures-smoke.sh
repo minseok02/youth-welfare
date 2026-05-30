@@ -7,6 +7,7 @@ source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
 APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:8082}"
 APP_HEALTH_URL="${APP_HEALTH_URL:-${APP_BASE_URL}/actuator/health}"
 APP_CONTAINER_NAME="${APP_CONTAINER_NAME:-youth-welfare-app}"
+KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
 
 smoke_resolve_admin_credentials "${ROOT_DIR}"
 : "${ADMIN_EMAIL:?ADMIN_EMAIL is empty; export ADMIN_EMAIL or set SECURITY_ADMIN_EMAILS/.env or /tmp/youth-welfare-admin-smoke-email}"
@@ -22,9 +23,14 @@ LOGIN_RESPONSE="${ARTIFACT_DIR}/admin-login.json"
 COLLECT_RESPONSE="${ARTIFACT_DIR}/collect-failures.json"
 
 cleanup() {
+  if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
+    return 0
+  fi
   rm -rf "${ARTIFACT_DIR}"
 }
 trap cleanup EXIT
+
+KEEP_ARTIFACTS="$(smoke_normalize_bool "${KEEP_ARTIFACTS}")"
 
 extract_access_token() {
   local response_file="$1"
