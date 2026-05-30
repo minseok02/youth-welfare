@@ -13,6 +13,19 @@
 이 문서는 그 세 가지를 **한 번의 요약 실행**으로 확인하는 절차입니다.
 즉 active 문서에서 말하는 `retrieval/category one-shot summary smoke` 는 이 wrapper와 이 문서를 뜻합니다.
 
+daily operator가 full retrieval/category baseline 숫자를 다시 읽기보다
+`지금 baseline이 healthy 인가`, `gate가 실패했는가`, `다음 문서를 어디로 열어야 하는가`
+같은 compact 판단만 먼저 보고 싶다면 아래 observation wrapper를 먼저 씁니다.
+
+```bash
+bash deploy/smoke/run-local-policy-quality-observation-suite.sh
+```
+
+이 wrapper는 기존 `run-local-policy-quality-summary.sh` child artifact를 재사용해
+`decision_class`, `operator_reading`, `next_action` 을 summary/json/note artifact로 다시 남깁니다.
+즉 이 문서는 raw baseline 숫자를 읽는 runbook이고,
+compact handoff entrypoint는 observation wrapper라고 구분하는 편이 맞습니다.
+
 ## 실행
 
 ```bash
@@ -142,6 +155,7 @@ raw JSON 대신 이 스크립트 출력만 기록해도 첫 triage는 충분합�
 ## 관련 문서
 
 - bounded admin 절차 전체: [policy-admin-runtime-runbook.md](./policy-admin-runtime-runbook.md)
+- compact operator handoff는 `bash deploy/smoke/run-local-policy-quality-observation-suite.sh`
 - Gov24 runtime closeout/deferred inventory audit: [policy-gov24-runtime-audit-runbook.md](./policy-gov24-runtime-audit-runbook.md)
 - Gov24 deferred support-code inventory: [policy-gov24-support-unmapped-inventory.md](./policy-gov24-support-unmapped-inventory.md)
 - 현재 전체 기준선: [current-state.md](../current-state.md)

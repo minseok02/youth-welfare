@@ -53,6 +53,9 @@
 - collect governance를 compact하게 다시 보려면 `bash deploy/smoke/run-local-collect-governance-observation-suite.sh`
 - 운영 서버/RDS에서는 `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-collect-governance-observation-suite.sh`
 - collect governance artifact latest 경로는 `tmp/collect-governance-observation/latest-collect-governance-observation-summary.txt`, `latest-collect-governance-observation-note.md`, `latest-collect-governance-observation.json` 을 먼저 봅니다. `KEEP_ARTIFACTS=false` 기본값에서도 이 stable snapshot은 남습니다.
+- policy quality를 compact하게 다시 보려면 `bash deploy/smoke/run-local-policy-quality-observation-suite.sh`
+- 운영 서버/RDS에서는 `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-policy-quality-observation-suite.sh`
+- policy quality artifact latest 경로는 `tmp/policy-quality-observation/latest-policy-quality-observation-summary.txt`, `latest-policy-quality-observation-note.md`, `latest-policy-quality-observation.json` 을 먼저 봅니다. `KEEP_ARTIFACTS=false` 기본값에서도 이 stable snapshot은 남습니다.
 - baseline 유지와 recommendation 관찰을 한 번에 다시 보려면 `bash deploy/smoke/run-local-current-priority-suite.sh`
 - 운영 서버/RDS에서는 `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-local-current-priority-suite.sh`
 - current priority artifact latest 경로는 `tmp/current-priority-suite/latest-current-priority-summary.txt`, `latest-current-priority-summary.json` 을 먼저 봅니다. `KEEP_ARTIFACTS=false` 기본값에서도 이 stable snapshot은 남습니다.

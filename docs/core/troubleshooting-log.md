@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 1040) policy retrieval/category baseline도 raw metric wrapper만 있으면 daily operator가 recommendation/collect보다 다시 해석 비용을 더 부담한다
+- 문제: `run-local-policy-quality-summary.sh` 는 retrieval/gate/category baseline 수치를 잘 모아 주지만, operator가 매일 알고 싶은 건 전체 raw metric보다 “지금 quality gate가 healthy 인가, drift 시 어디를 먼저 열어야 하나” 쪽이다. recommendation/collect 는 이미 compact observation surface가 있는데 policy만 raw summary wrapper에 머물면 handoff 형식이 다시 달라진다.
+- 해결: 새 `run-local-policy-quality-observation-suite.sh` 를 추가해 기존 `run-local-policy-quality-summary.sh` child artifact를 재사용하고, `decision_class`, `operator_reading`, `next_action` 을 `summary/json/note` 로 다시 publish하게 맞췄다. 동시에 `start.md`, `current-state.md`, `policy-docs-index.md`, `policy-normalization-current-state.md`, `policy-quality-summary-runbook.md` 에 이 wrapper를 daily operator entrypoint로 연결했다.
+- 이유: recommendation/collect/policy 세 축 모두 machine-readable full contract와 human-readable compact handoff를 같은 패턴으로 맞춰야 운영 재사용성과 문서 일관성이 좋아진다.
+
 ## 1039) collect lane inventory가 풍부해도 operator handoff가 full `collect-failures` contract에 묶여 있으면 daily triage가 길어진다
 - 문제: `collect-failures` 는 이미 failed/partial/streak/circuit, lane inventory, latestRun, configEntries 까지 다 내리지만, operator가 매일 보고 싶은 건 그 전체 계약이 아니라 “지금 baseline이 건강한가, nightly/manual lane 수는 얼마인가, 실패/partial/circuit이 있나, 다음 문서는 무엇인가” 수준이다. 이 compact reading이 없으면 collect surface는 recommendation observation보다 daily handoff 비용이 더 크다.
 - 해결: `run-local-admin-collect-failures-smoke.sh` 에 `KEEP_ARTIFACTS` 표준 경계를 추가하고, 그 위에 `run-local-collect-governance-observation-suite.sh` 를 새로 얹었다. 이 wrapper는 `collect-failures` child artifact를 재사용해 `decision_class`, `scheduled/manual lane count`, `latest_failed_lane_keys`, `latest_partial_lane_keys`, `missing_latest_lane_keys`, `next_action` 을 `summary/json/note` 로 다시 publish한다. 동시에 [collect-governance-observation-runbook.md](/home/minseok/youth-welfare/docs/collect/collect-governance-observation-runbook.md:1) 를 추가해 daily operator entrypoint를 한 장으로 고정했다.
