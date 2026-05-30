@@ -54,7 +54,7 @@ class PolicySearchServiceTest {
         WelfareService youthService = welfareService(1L, "청년 정책");
         given(welfareServiceReadRepository.search(
                 eq(new PolicySearchReadCondition(
-                        "청년", null, "ACTIVE_ONLY", null, null, null, null, null, "RELEVANCE", null, null, "주거·자립"
+                        "청년", null, "ACTIVE_ONLY", null, null, null, null, null, "RELEVANCE", null, null, "주거·자립", "개인"
                 )),
                 any(PageRequest.class)
         )).willReturn(new PageImpl<>(List.of(youthService), PageRequest.of(0, 10), 21));
@@ -72,7 +72,7 @@ class PolicySearchServiceTest {
                         21
                 ));
 
-        PolicySearchResponse results = service.search(null, "청년", null, null, null, null, null, null, null, null, null, null, "주거·자립", 0, 10);
+        PolicySearchResponse results = service.search(null, "청년", null, null, null, null, null, null, null, null, null, null, "주거·자립", "개인", 0, 10);
 
         assertThat(results.getContent()).hasSize(1);
         assertThat(results.getContent().get(0).getUnifiedCategory()).isEqualTo("주거");
@@ -83,7 +83,7 @@ class PolicySearchServiceTest {
         ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
         verify(welfareServiceReadRepository).search(
                 eq(new PolicySearchReadCondition(
-                        "청년", null, "ACTIVE_ONLY", null, null, null, null, null, "RELEVANCE", null, null, "주거·자립"
+                        "청년", null, "ACTIVE_ONLY", null, null, null, null, null, "RELEVANCE", null, null, "주거·자립", "개인"
                 )),
                 captor.capture()
         );
@@ -99,7 +99,7 @@ class PolicySearchServiceTest {
         WelfareService youthService = welfareService(2L, "서울 청년 정책");
         given(welfareServiceReadRepository.search(
                 eq(new PolicySearchReadCondition(
-                        "청년", null, "ACTIVE_ONLY", null, null, null, "서울특별시", "관악구", "RELEVANCE", null, null, null
+                        "청년", null, "ACTIVE_ONLY", null, null, null, "서울특별시", "관악구", "RELEVANCE", null, null, null, null
                 )),
                 any(PageRequest.class)
         )).willReturn(new PageImpl<>(List.of(youthService), PageRequest.of(0, 10), 1));
@@ -119,15 +119,16 @@ class PolicySearchServiceTest {
                 null,
                 null,
                 null,
-                null,
-                0,
-                10
+                        null,
+                        null,
+                        0,
+                        10
         );
 
         assertThat(results.getContent()).hasSize(1);
         verify(welfareServiceReadRepository).search(
                 eq(new PolicySearchReadCondition(
-                        "청년", null, "ACTIVE_ONLY", null, null, null, "서울특별시", "관악구", "RELEVANCE", null, null, null
+                        "청년", null, "ACTIVE_ONLY", null, null, null, "서울특별시", "관악구", "RELEVANCE", null, null, null, null
                 )),
                 any(PageRequest.class)
         );
@@ -141,7 +142,7 @@ class PolicySearchServiceTest {
         WelfareService youthService = welfareService(3L, "서울 전체 청년 정책");
         given(welfareServiceReadRepository.search(
                 eq(new PolicySearchReadCondition(
-                        "청년", null, "ACTIVE_ONLY", null, null, null, "서울특별시", null, "RELEVANCE", null, null, null
+                        "청년", null, "ACTIVE_ONLY", null, null, null, "서울특별시", null, "RELEVANCE", null, null, null, null
                 )),
                 any(PageRequest.class)
         )).willReturn(new PageImpl<>(List.of(youthService), PageRequest.of(0, 10), 1));
@@ -161,15 +162,16 @@ class PolicySearchServiceTest {
                 null,
                 null,
                 null,
-                null,
-                0,
-                10
+                        null,
+                        null,
+                        0,
+                        10
         );
 
         assertThat(results.getContent()).hasSize(1);
         verify(welfareServiceReadRepository).search(
                 eq(new PolicySearchReadCondition(
-                        "청년", null, "ACTIVE_ONLY", null, null, null, "서울특별시", null, "RELEVANCE", null, null, null
+                        "청년", null, "ACTIVE_ONLY", null, null, null, "서울특별시", null, "RELEVANCE", null, null, null, null
                 )),
                 any(PageRequest.class)
         );
@@ -182,7 +184,7 @@ class PolicySearchServiceTest {
 
         String longKeyword = "a".repeat(101);
 
-        assertThatThrownBy(() -> service.search(null, longKeyword, null, null, null, null, null, null, null, null, null, null, null, 0, 10))
+        assertThatThrownBy(() -> service.search(null, longKeyword, null, null, null, null, null, null, null, null, null, null, null, null, 0, 10))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.INVALID_INPUT);
@@ -195,7 +197,7 @@ class PolicySearchServiceTest {
 
         String manyTokens = "a b c d e f g h i j k";
 
-        assertThatThrownBy(() -> service.search(null, manyTokens, null, null, null, null, null, null, null, null, null, null, null, 0, 10))
+        assertThatThrownBy(() -> service.search(null, manyTokens, null, null, null, null, null, null, null, null, null, null, null, null, 0, 10))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.INVALID_INPUT);
@@ -217,19 +219,19 @@ class PolicySearchServiceTest {
 
         given(welfareServiceReadRepository.search(
                 eq(new PolicySearchReadCondition(
-                        "청년", null, "ACTIVE_ONLY", null, null, null, null, null, "RELEVANCE", null, null, null
+                        "청년", null, "ACTIVE_ONLY", null, null, null, null, null, "RELEVANCE", null, null, null, null
                 )),
                 any(PageRequest.class)
         )).willReturn(page);
         given(policyPresentationReadService.buildSummaryPage(eq(null), any(org.springframework.data.domain.Page.class)))
                 .willReturn(summaryPage);
 
-        service.search(null, "청년", null, null, null, null, null, null, null, null, null, null, null, 0, 10);
-        service.search(null, "청년", null, null, null, null, null, null, null, null, null, null, null, 0, 10);
+        service.search(null, "청년", null, null, null, null, null, null, null, null, null, null, null, null, 0, 10);
+        service.search(null, "청년", null, null, null, null, null, null, null, null, null, null, null, null, 0, 10);
 
         verify(welfareServiceReadRepository).search(
                 eq(new PolicySearchReadCondition(
-                        "청년", null, "ACTIVE_ONLY", null, null, null, null, null, "RELEVANCE", null, null, null
+                        "청년", null, "ACTIVE_ONLY", null, null, null, null, null, "RELEVANCE", null, null, null, null
                 )),
                 any(PageRequest.class)
         );
@@ -252,19 +254,19 @@ class PolicySearchServiceTest {
 
         given(welfareServiceReadRepository.search(
                 eq(new PolicySearchReadCondition(
-                        "청년", null, "ACTIVE_ONLY", null, null, null, null, null, "RELEVANCE", null, null, null
+                        "청년", null, "ACTIVE_ONLY", null, null, null, null, null, "RELEVANCE", null, null, null, null
                 )),
                 any(PageRequest.class)
         )).willReturn(page);
         given(policyPresentationReadService.buildSummaryPage(eq(7L), any(org.springframework.data.domain.Page.class)))
                 .willReturn(summaryPage);
 
-        service.search(7L, "청년", null, null, null, null, null, null, null, null, null, null, null, 0, 10);
-        service.search(7L, "청년", null, null, null, null, null, null, null, null, null, null, null, 0, 10);
+        service.search(7L, "청년", null, null, null, null, null, null, null, null, null, null, null, null, 0, 10);
+        service.search(7L, "청년", null, null, null, null, null, null, null, null, null, null, null, null, 0, 10);
 
         verify(welfareServiceReadRepository, org.mockito.Mockito.times(2)).search(
                 eq(new PolicySearchReadCondition(
-                        "청년", null, "ACTIVE_ONLY", null, null, null, null, null, "RELEVANCE", null, null, null
+                        "청년", null, "ACTIVE_ONLY", null, null, null, null, null, "RELEVANCE", null, null, null, null
                 )),
                 any(PageRequest.class)
         );
@@ -278,7 +280,19 @@ class PolicySearchServiceTest {
         PolicySearchService service = fixedClockService();
 
         assertThatThrownBy(() -> service.search(
-                null, "청년", null, null, null, null, null, null, null, null, null, null, "알수없음", 0, 10
+                null, "청년", null, null, null, null, null, null, null, null, null, null, "알수없음", null, 0, 10
+        )).isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_INPUT);
+    }
+
+    @Test
+    @DisplayName("Gov24 사용자구분 filter는 managed token만 허용한다")
+    void searchRejectsUnknownGov24UserType() {
+        PolicySearchService service = fixedClockService();
+
+        assertThatThrownBy(() -> service.search(
+                null, "청년", null, null, null, null, null, null, null, null, null, null, null, "청년", 0, 10
         )).isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.INVALID_INPUT);
