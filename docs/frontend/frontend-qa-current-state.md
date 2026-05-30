@@ -6,6 +6,10 @@
 
 이 문서는 현재 프론트엔드 QA를 어떤 방식으로 봐야 하는지, 그리고 브라우저 사용자 흐름 기준으로 어디가 핵심 경계인지 빠르게 확인하기 위한 current-state 문서입니다.
 
+현재 daily operator entrypoint는 `bash deploy/smoke/run-local-frontend-observation-suite.sh` 입니다.
+이 wrapper는 lint/build/Playwright smoke를 다시 읽어 `decision_class`, `enabled_smoke_steps`, `suite_duration_ms`, `next_action` 을 compact artifact로 남깁니다.
+세부 브라우저 흐름을 직접 다시 따라갈 때만 [frontend-qa-checklist.md](./frontend-qa-checklist.md) 로 내려갑니다.
+
 ## 현재 결론
 
 - 현재 프론트엔드에는 repo-native `Playwright` browser smoke가 있습니다.
