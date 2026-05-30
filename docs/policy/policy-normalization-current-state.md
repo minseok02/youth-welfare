@@ -17,6 +17,7 @@
 - [policy-normalization-recommendation-read-model.md](./policy-normalization-recommendation-read-model.md)
 - [policy-normalization-recommendation-migration-order.md](./policy-normalization-recommendation-migration-order.md)
 - [policy-gov24-reopen-checklist.md](./policy-gov24-reopen-checklist.md)
+- [policy-quality-summary-runbook.md](./policy-quality-summary-runbook.md)
 - [policy-normalization-compat-storage-policy.md](../history/policy/policy-normalization-compat-storage-policy.md)
 - [policy-post-local-closeout-track-split.md](./policy-post-local-closeout-track-split.md)
 
@@ -28,6 +29,10 @@
 
 이 문서는 **현재 normalization source of truth 요약** 입니다.  
 세부 drift, request template, 실험 기록, source 조사 메모는 개별 문서를 design history / research 로 읽습니다.
+
+현재 daily operator entrypoint는 `bash deploy/smoke/run-local-policy-quality-observation-suite.sh` 입니다.
+이 wrapper는 retrieval/category one-shot summary를 다시 읽어 `decision_class`, `operator_reading`, `next_action` 을 compact artifact로 남깁니다.
+raw baseline 숫자와 full retrieval/category summary가 더 필요할 때만 [policy-quality-summary-runbook.md](./policy-quality-summary-runbook.md) 쪽으로 내려가면 됩니다.
 
 ## 현재 구현된 핵심 범위
 
