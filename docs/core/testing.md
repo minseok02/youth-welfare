@@ -56,7 +56,7 @@ cd backend
 ```
 
 이 스크립트는 기존 PostgreSQL volume을 지우지 않고, 현재 main 기준에서 확인된 drift patch
-(`chat_messages.references_json`, `chat_retrieval_snapshots.needs_clarification`, `recommendation_review_gate_promotion_approvals`, `recent_policy_views`, `admin_dashboard_ro`, `chat_session_cleanup_rw`, `cluster_ai_cleanup_rw`, `recommendation_retention_cleanup_rw`, `collect_execution_lock_cleanup_rw`, `web_push_subscription_cleanup_rw` role/grant, `app_core_rw DELETE revoke(chat_sessions / cluster_ai_results / collect_execution_locks / web_push_subscriptions)`, `users.name/birth_date` plain duplicate null patch 등)를 재적용합니다.
+(`chat_messages.references_json`, `chat_retrieval_snapshots.needs_clarification`, `recommendation_review_gate_promotion_approvals`, `recent_policy_views`, `admin_dashboard_ro`, `chat_session_cleanup_rw`, `cluster_ai_cleanup_rw`, `recommendation_retention_cleanup_rw`, `collect_execution_lock_cleanup_rw`, `web_push_subscription_cleanup_rw` role/grant, `app_core_rw DELETE revoke(chat_sessions / cluster_ai_results / collect_execution_locks / web_push_subscriptions / recent_policy_views)`, `users.name/birth_date` plain duplicate null patch 등)를 재적용합니다.
 현재 main 기준 로컬 계정/권한은 Docker Compose init 경로에서 맞춰지므로,
 `deploy/mysql/**` 아래 계정 복구 스크립트는 legacy MySQL history로만 봅니다.
 

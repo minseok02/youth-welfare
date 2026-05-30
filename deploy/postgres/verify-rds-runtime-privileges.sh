@@ -204,6 +204,8 @@ expect_master_bool app_core_rw_collect_execution_locks_delete f \
   "select has_table_privilege('${DB_USERNAME}', 'public.collect_execution_locks', 'DELETE')"
 expect_master_bool app_core_rw_web_push_subscriptions_delete f \
   "select has_table_privilege('${DB_USERNAME}', 'public.web_push_subscriptions', 'DELETE')"
+expect_master_bool app_core_rw_recent_policy_views_delete f \
+  "select has_table_privilege('${DB_USERNAME}', 'public.recent_policy_views', 'DELETE')"
 expect_master_bool chat_session_cleanup_delete t \
   "select has_table_privilege('${DB_CHAT_SESSION_CLEANUP_USERNAME}', 'public.chat_sessions', 'DELETE')"
 expect_master_bool chat_session_cleanup_select_id t \
