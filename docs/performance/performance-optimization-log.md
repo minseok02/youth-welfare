@@ -71,7 +71,7 @@ Interpretation:
 - ranking remains the primary unresolved hotspot
 - the representative fallback `ILIKE` query still needs DB-side help even though API search latency improved
 
-## Current Active Batch
+## Closed Batch
 
 ### 2026-05-30: ranking 2차 + search representative explain 보강
 
@@ -100,11 +100,53 @@ cd backend && ./gradlew test --no-daemon \
 git diff --check
 ```
 
+Accepted server remeasurement:
+
+- server HEAD: `909bb4d682f9eee5cd6f09556dc584fe3b3696d4`
+- runtime DB indexes applied manually with the RDS master account because `DB_MIGRATION_USERNAME` lacked owner privileges
+- app redeploy completed
+- baseline and extended suites passed
+
+Observed deltas from the accepted server rerun:
+
+- `policy_ranking` p95: `999.4ms -> 885.1ms`
+- `recommendation_observation` wrapper: `7.502s -> 6.231s`
+- `policy_search_keyword` p95: `338.6ms -> 628.7ms`
+- `current_priority` wrapper: `105.535s -> 208.540s`
+- `policy_search_keyword_ilike` representative explain: `133.042ms -> 127.449ms`, still `Seq Scan`
+
+Interpretation:
+
+- ranking improved enough to keep the recent-view aggregation/index change
+- search did not close; API latency regressed and the representative explain remained on a seq scan
+- current-priority total became harder to interpret because the wrapper still reported only a top-level duration
+
+## Current Active Batch
+
+### 2026-05-30: current-priority breakdown observability + search 3차 query-shape cleanup
+
+Current trigger values from the accepted server rerun:
+
+- `policy_search_keyword`: `p95 628.7ms`, `p99 650.7ms`, `max 656.2ms`
+- `policy_search_keyword_ilike`: `execution 127.449ms`, `seq scan`
+- `current_priority`: `208.540s`
+
+Planned changes in this batch:
+
+1. `run-local-active-baseline-suite.sh` / `run-local-current-priority-suite.sh`
+   - publish nested step durations in summary/json so the next server rerun shows which sub-step regressed
+2. `WelfareServiceSearchRepositoryImpl`
+   - narrow expensive trigram scoring back to `title`/`keyword`
+   - keep full-document FTS as the long-text match path
+   - align substring fallback with `lower(...) LIKE` so the existing trigram expression indexes are more likely to help
+3. `run-local-db-query-baseline.sh`
+   - align the representative `policy_search_keyword_ilike` explain with the lowered expression/index path instead of raw `ILIKE`
+
 Server remeasurement status:
 
 - pending
-- requires app redeploy and migration/index application on the server
-- compare against the `487bf64b75d9a20e606ebd89f10bcb0dc9b23db1` server baseline
+- requires app redeploy
+- compare against the `909bb4d682f9eee5cd6f09556dc584fe3b3696d4` server baseline
 
 ## Comparison Table
 
@@ -115,5 +157,7 @@ Server remeasurement status:
 | 2026-05-30 | `a57dcf7510b47537c95d90a76b15131ebfca0520` | `487bf64b75d9a20e606ebd89f10bcb0dc9b23db1` | Current Priority | nested search/ranking effects | `154.715s` | `105.535s` | `-49.180s` | improvement accepted |
 | 2026-05-30 | `a57dcf7510b47537c95d90a76b15131ebfca0520` | `487bf64b75d9a20e606ebd89f10bcb0dc9b23db1` | Ranking | snapshot-based scoring + no full-entity preload | `p95 870.6ms` | `p95 999.4ms` | `+128.8ms` | needs follow-up |
 | 2026-05-30 | `a57dcf7510b47537c95d90a76b15131ebfca0520` | `487bf64b75d9a20e606ebd89f10bcb0dc9b23db1` | Wrapper | recommendation observation | `5.956s` | `7.502s` | `+1.546s` | observe, likely environment-sensitive |
-| 2026-05-30 | `487bf64b75d9a20e606ebd89f10bcb0dc9b23db1` | pending | Ranking | status-filtered unique-view aggregation + recent-view index | `p95 999.4ms` | pending | pending | server remeasure needed |
-| 2026-05-30 | `487bf64b75d9a20e606ebd89f10bcb0dc9b23db1` | pending | Search DB | extra trigram indexes for representative fallback query | `133.042ms seq scan` | pending | pending | server remeasure needed |
+| 2026-05-30 | `487bf64b75d9a20e606ebd89f10bcb0dc9b23db1` | `909bb4d682f9eee5cd6f09556dc584fe3b3696d4` | Ranking | status-filtered unique-view aggregation + recent-view index | `p95 999.4ms` | `p95 885.1ms` | `-114.3ms` | improvement accepted |
+| 2026-05-30 | `487bf64b75d9a20e606ebd89f10bcb0dc9b23db1` | `909bb4d682f9eee5cd6f09556dc584fe3b3696d4` | Search | extra trigram indexes + broadened similarity scoring | `p95 338.6ms` | `p95 628.7ms` | `+290.1ms` | replace with 3차 query-shape cleanup |
+| 2026-05-30 | `487bf64b75d9a20e606ebd89f10bcb0dc9b23db1` | `909bb4d682f9eee5cd6f09556dc584fe3b3696d4` | Search DB | extra trigram indexes for representative fallback query | `133.042ms seq scan` | `127.449ms seq scan` | `-5.593ms` | still unresolved |
+| 2026-05-30 | `487bf64b75d9a20e606ebd89f10bcb0dc9b23db1` | `909bb4d682f9eee5cd6f09556dc584fe3b3696d4` | Current Priority | full wrapper total | `105.535s` | `208.540s` | `+103.005s` | add nested duration breakdown |

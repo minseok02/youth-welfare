@@ -1,5 +1,15 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 1030) representative `ILIKE` explain이 raw column 기준이면 lower-expression trigram index를 추가해도 planner 개선 여부를 제대로 못 읽는다
+- 문제: 2차 성능 배치에서 `description/support_content/combined document` trigram index를 추가했지만, 서버 rerun의 representative `policy_search_keyword_ilike` explain은 여전히 raw `title ilike '%청년%' or description ilike ...` 형태였고 `127.449ms seq scan` 으로 남았다. 그런데 schema 인덱스는 `lower(title)`, `lower(description)` 같은 expression index라, explain query 자체가 실제 index contract와 어긋나 있었다.
+- 해결: performance DB baseline의 representative search explain을 `lower(title) like ... or lower(description) like ...` 형태로 맞췄다. 동시에 실제 repository query도 long-text similarity를 줄이고, full-document matching은 FTS에 맡기며, substring fallback은 lowered expression 경로로 맞춘다.
+- 이유: representative explain은 “대충 비슷한 쿼리”가 아니라 실제 index contract와 맞아야 before/after가 의미 있다. expression index를 만들었으면 benchmark query도 같은 expression을 써야 planner 변화를 읽을 수 있다.
+
+## 1029) `current_priority` 총 duration만 남기면 회귀가 생겨도 active baseline 내부 어느 step이 느려졌는지 다시 수작업으로 파야 한다
+- 문제: 서버 rerun에서 `current_priority` 가 `105.535s -> 208.540s` 로 크게 튀었지만, wrapper summary에는 top-level total만 있어서 `backend test`, `frontend lint/build/e2e`, `ops baseline`, `collect legacy repair`, `recommendation observation` 중 어느 step이 회귀했는지 바로 알 수 없었다.
+- 해결: `run-local-active-baseline-suite.sh` 와 `run-local-current-priority-suite.sh` 가 이제 각 nested step의 `duration_ms` / `duration_seconds` 를 summary/json 에 직접 기록한다. 다음 서버 rerun부터는 top-level wrapper total뿐 아니라 active-baseline 내부 step별 duration까지 같은 artifact에서 바로 읽을 수 있다.
+- 이유: 성능 회귀는 “느려졌다”보다 “어느 단계가 느려졌나”가 더 중요하다. 현재 wrapper 체계도 smoke/performance 공통 방식으로 duration contract를 남겨야 재사용성과 운영 해석 일관성이 유지된다.
+
 ## 1027) `service_view_logs(service_id, viewed_at)` 만 있으면 recent-window 집계는 service predicate가 없는 ranking path에서 덜 유리하다
 - 문제: `policy_ranking` 1차 최적화 뒤에도 서버 rerun에서 `p95 999.4ms` 로 오히려 느려졌고, 원인은 최근 7일 unique view 집계가 `viewed_at >= cutoff` 조건으로 먼저 범위를 자르는 경로인데 기존 인덱스는 `(service_id, viewed_at)` 순서라 recent-window scan에 딱 맞지 않는다는 점이었다.
 - 해결: `service_view_logs(viewed_at, service_id)` 인덱스를 추가하고, ranking unique view query도 `ACTIVE/UPCOMING` status join을 직접 걸어 inactive 서비스까지 같이 세지 않게 바꿨다.

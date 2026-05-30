@@ -16,6 +16,8 @@ RUN_COLLECT_LEGACY_REPAIR="${RUN_COLLECT_LEGACY_REPAIR:-true}"
 
 ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
 SUMMARY_OUT="${ARTIFACT_DIR}/active-baseline-summary.txt"
+JSON_OUT="${ARTIFACT_DIR}/active-baseline-summary.json"
+DURATIONS_TSV="${ARTIFACT_DIR}/active-baseline-durations.tsv"
 
 cleanup() {
   if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
@@ -31,7 +33,12 @@ run_command_step() {
   shift 2
 
   smoke_print_step "${label}"
-  "$@" | tee "${output_file}"
+  set +e
+  smoke_duration_step "${label}" "${output_file}" "$@" >> "${DURATIONS_TSV}"
+  local exit_code=$?
+  set -e
+  cat "${output_file}"
+  return "${exit_code}"
 }
 
 run_script_step() {
@@ -39,8 +46,7 @@ run_script_step() {
   local output_file="$2"
   shift 2
 
-  smoke_print_step "${label}"
-  "$@" | tee "${output_file}"
+  run_command_step "${label}" "${output_file}" "$@"
 }
 
 KEEP_ARTIFACTS="$(smoke_normalize_bool "${KEEP_ARTIFACTS}")"
@@ -63,6 +69,7 @@ case "${FRONTEND_E2E_MODE}" in
 esac
 
 mkdir -p "${ARTIFACT_DIR}"
+printf 'label\texit_code\tduration_ms\toutput_file\n' > "${DURATIONS_TSV}"
 
 if [[ "${RUN_BACKEND_TESTS}" == "true" ]]; then
   run_command_step \
@@ -117,27 +124,74 @@ if [[ "${RUN_COLLECT_LEGACY_REPAIR}" == "true" ]]; then
     bash "${ROOT_DIR}/deploy/smoke/run-local-collect-legacy-repair-suite.sh"
 fi
 
-{
-  echo "active_baseline_suite=passed"
-  echo "app_base_url=${APP_BASE_URL}"
-  echo "artifact_dir=${ARTIFACT_DIR}"
-  echo "run_backend_tests=${RUN_BACKEND_TESTS}"
-  echo "run_frontend_baseline=${RUN_FRONTEND_BASELINE}"
-  echo "run_frontend_e2e=${RUN_FRONTEND_E2E}"
-  echo "frontend_e2e_mode=${FRONTEND_E2E_MODE}"
-  echo "frontend_public_base_url=${FRONTEND_PUBLIC_BASE_URL}"
-  echo "run_ops_baseline=${RUN_OPS_BASELINE}"
-  echo "run_collect_legacy_repair=${RUN_COLLECT_LEGACY_REPAIR}"
-  if [[ "${RUN_BACKEND_TESTS}" == "true" ]]; then
-    echo "backend_test_stdout=${ARTIFACT_DIR}/backend-test.txt"
-  fi
-  if [[ "${RUN_FRONTEND_BASELINE}" == "true" ]]; then
-    echo "frontend_baseline_stdout=${ARTIFACT_DIR}/frontend-baseline.txt"
-  fi
-  if [[ "${RUN_OPS_BASELINE}" == "true" ]]; then
-    echo "ops_baseline_stdout=${ARTIFACT_DIR}/ops-baseline.txt"
-  fi
-  if [[ "${RUN_COLLECT_LEGACY_REPAIR}" == "true" ]]; then
-    echo "collect_legacy_repair_stdout=${ARTIFACT_DIR}/collect-legacy-repair.txt"
-  fi
-} | tee "${SUMMARY_OUT}"
+python3 - "${DURATIONS_TSV}" "${SUMMARY_OUT}" "${JSON_OUT}" "${APP_BASE_URL}" "${ARTIFACT_DIR}" "${RUN_BACKEND_TESTS}" "${RUN_FRONTEND_BASELINE}" "${RUN_FRONTEND_E2E}" "${FRONTEND_E2E_MODE}" "${FRONTEND_PUBLIC_BASE_URL}" "${RUN_OPS_BASELINE}" "${RUN_COLLECT_LEGACY_REPAIR}" <<'PY'
+import csv
+import json
+import sys
+from pathlib import Path
+
+durations_path = Path(sys.argv[1])
+summary_out = Path(sys.argv[2])
+json_out = Path(sys.argv[3])
+app_base_url = sys.argv[4]
+artifact_dir = sys.argv[5]
+run_backend_tests = sys.argv[6]
+run_frontend_baseline = sys.argv[7]
+run_frontend_e2e = sys.argv[8]
+frontend_e2e_mode = sys.argv[9]
+frontend_public_base_url = sys.argv[10]
+run_ops_baseline = sys.argv[11]
+run_collect_legacy_repair = sys.argv[12]
+
+rows = list(csv.DictReader(durations_path.open(encoding="utf-8"), delimiter="\t"))
+failed = [row for row in rows if row["exit_code"] != "0"]
+
+lines = [
+    f"active_baseline_suite={'failed' if failed else 'passed'}",
+    f"app_base_url={app_base_url}",
+    f"artifact_dir={artifact_dir}",
+    f"durations_tsv={artifact_dir}/active-baseline-durations.tsv",
+    f"run_backend_tests={run_backend_tests}",
+    f"run_frontend_baseline={run_frontend_baseline}",
+    f"run_frontend_e2e={run_frontend_e2e}",
+    f"frontend_e2e_mode={frontend_e2e_mode}",
+    f"frontend_public_base_url={frontend_public_base_url}",
+    f"run_ops_baseline={run_ops_baseline}",
+    f"run_collect_legacy_repair={run_collect_legacy_repair}",
+]
+
+for row in rows:
+    seconds = int(row["duration_ms"]) / 1000
+    lines.append(
+        f"{row['label']}_duration_ms={row['duration_ms']}"
+    )
+    lines.append(
+        f"{row['label']}_duration_seconds={seconds:.3f}"
+    )
+
+if run_backend_tests == "true":
+    lines.append(f"backend_test_stdout={artifact_dir}/backend-test.txt")
+if run_frontend_baseline == "true":
+    lines.append(f"frontend_baseline_stdout={artifact_dir}/frontend-baseline.txt")
+if run_ops_baseline == "true":
+    lines.append(f"ops_baseline_stdout={artifact_dir}/ops-baseline.txt")
+if run_collect_legacy_repair == "true":
+    lines.append(f"collect_legacy_repair_stdout={artifact_dir}/collect-legacy-repair.txt")
+
+summary_out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+json_out.write_text(json.dumps({
+    "artifact_dir": artifact_dir,
+    "app_base_url": app_base_url,
+    "run_backend_tests": run_backend_tests,
+    "run_frontend_baseline": run_frontend_baseline,
+    "run_frontend_e2e": run_frontend_e2e,
+    "frontend_e2e_mode": frontend_e2e_mode,
+    "frontend_public_base_url": frontend_public_base_url,
+    "run_ops_baseline": run_ops_baseline,
+    "run_collect_legacy_repair": run_collect_legacy_repair,
+    "steps": rows,
+}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+print(summary_out.read_text(encoding="utf-8"), end="")
+if failed:
+    raise SystemExit(1)
+PY

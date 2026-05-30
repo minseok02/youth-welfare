@@ -220,6 +220,28 @@ smoke_now_iso_kst() {
   TZ=Asia/Seoul date +%Y-%m-%dT%H:%M:%S%z
 }
 
+smoke_now_ms() {
+  date +%s%3N
+}
+
+smoke_duration_step() {
+  local label="$1"
+  local output_file="$2"
+  shift 2
+
+  local start_ms end_ms exit_code duration_ms
+  start_ms="$(smoke_now_ms)"
+  set +e
+  "$@" > "${output_file}" 2>&1
+  exit_code=$?
+  set -e
+  end_ms="$(smoke_now_ms)"
+  duration_ms=$((end_ms - start_ms))
+
+  printf '%s\t%s\t%s\t%s\n' "${label}" "${exit_code}" "${duration_ms}" "${output_file}"
+  return "${exit_code}"
+}
+
 smoke_update_links() {
   if (( $# == 0 || $# % 2 != 0 )); then
     echo "smoke_update_links requires target/link pairs" >&2
