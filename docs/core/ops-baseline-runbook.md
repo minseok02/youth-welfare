@@ -28,6 +28,18 @@
 
 - `ENV_FILE=.env.production PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-prod-cutover-verification.sh`
 
+daily operator가 raw child stdout 대신 compact handoff를 먼저 보려면 아래 wrapper를 먼저 씁니다.
+
+```bash
+bash deploy/smoke/run-local-ops-observation-suite.sh
+```
+
+운영 서버/RDS:
+
+```bash
+ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-ops-observation-suite.sh
+```
+
 ## 기본 wrapper
 
 ```bash

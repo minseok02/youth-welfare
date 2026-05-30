@@ -23,6 +23,7 @@
 ### 같이 보면 좋은 문서
 
 - [demo-scenario.md](./demo-scenario.md)
+- [ops-observation-runbook.md](./ops-observation-runbook.md)
 - [policy-quality-summary-runbook.md](../policy/policy-quality-summary-runbook.md)
 - [policy-gov24-runtime-audit-runbook.md](../policy/policy-gov24-runtime-audit-runbook.md)
 - [policy-admin-runtime-runbook.md](../policy/policy-admin-runtime-runbook.md)
@@ -106,6 +107,7 @@
 
 이 문서군은
 
+- ops baseline compact handoff
 - retrieval/category quality baseline
 - Gov24 runtime closeout / deferred inventory audit
 - bounded admin runtime 응답 baseline
@@ -134,15 +136,16 @@
 
 ### bounded runtime baseline을 다시 확인할 때
 
-1. [policy-quality-summary-runbook.md](../policy/policy-quality-summary-runbook.md)
-2. [policy-gov24-runtime-audit-runbook.md](../policy/policy-gov24-runtime-audit-runbook.md)
-3. [policy-admin-runtime-runbook.md](../policy/policy-admin-runtime-runbook.md)
-4. [recommendation-ctr-readiness-runbook.md](../recommendation/recommendation-ctr-readiness-runbook.md)
-5. [performance-docs-index.md](../performance/performance-docs-index.md)
+1. [ops-observation-runbook.md](./ops-observation-runbook.md)
+2. [policy-quality-summary-runbook.md](../policy/policy-quality-summary-runbook.md)
+3. [policy-gov24-runtime-audit-runbook.md](../policy/policy-gov24-runtime-audit-runbook.md)
+4. [policy-admin-runtime-runbook.md](../policy/policy-admin-runtime-runbook.md)
+5. [recommendation-ctr-readiness-runbook.md](../recommendation/recommendation-ctr-readiness-runbook.md)
+6. [performance-docs-index.md](../performance/performance-docs-index.md)
 
 ## 요약
 
 1. 단위/통합 테스트 실행 기준은 [testing.md](./testing.md) 부터 봅니다.
 2. curl 기반 API smoke는 [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md) 를 보고, 전체 baseline은 가능하면 `run-local-validation-from-env.sh` wrapper부터 사용합니다.
 3. 데모/검수 순서는 [demo-scenario.md](./demo-scenario.md) 를 기준으로 잡습니다.
-4. bounded runtime quality/audit baseline은 policy/recommendation runbook과 [performance-docs-index.md](../performance/performance-docs-index.md) 를 먼저 봅니다.
+4. bounded runtime quality/audit baseline은 [ops-observation-runbook.md](./ops-observation-runbook.md), policy/recommendation runbook, [performance-docs-index.md](../performance/performance-docs-index.md) 순으로 먼저 봅니다.
