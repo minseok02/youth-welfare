@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 1033) Spring bean에 생성자가 둘이면 `Clock` 같은 test-only 보조 생성자도 runtime autowiring 대상으로 오해될 수 있다
+- 문제: `PolicyRankingService` 에 public 2-arg 생성자와 package-private 3-arg 생성자(`Clock` 주입용)를 같이 둔 뒤, 최신 `main` 을 서버에 배포했더니 첫 기동에서 `PolicyRankingService.<init>()` constructor injection failure로 restart loop가 났다. 서버에서는 `@Autowired` 를 2-arg 생성자에 붙이는 핫픽스로 바로 우회했다.
+- 해결: 저장소 코드도 public 2-arg 생성자에 `@Autowired` 를 명시해 runtime bean selection을 고정했다. 3-arg 생성자는 test에서만 직접 쓰는 보조 생성자로 유지한다.
+- 이유: Spring은 생성자가 여러 개일 때 선택 규칙이 애매해질 수 있다. production bean은 명시적 생성자를 하나로 고정하고, test seam은 package-private 보조 생성자로만 두는 편이 운영 재현성과 일관성에 맞다.
+
 ## 1032) active baseline step label에 공백이 남아 있으면 summary를 다시 파싱할 때 stable metric key로 쓰기 어렵다
 - 문제: `current_priority` nested duration은 잘 보이기 시작했지만, `active_baseline` summary 안의 키는 `backend tests_duration_ms`, `ops baseline suite_duration_ms` 처럼 공백이 섞여 있었다. 서버에서 바로 grep/JSON 후처리를 하려면 stable snake_case key가 더 적합하다.
 - 해결: `run-local-active-baseline-suite.sh` 의 step label을 `backend_tests`, `frontend_lint`, `frontend_build`, `frontend_e2e`, `ops_baseline`, `collect_legacy_repair` 로 고정하고, summary/json에도 같은 snake_case duration key를 남기도록 맞췄다.

@@ -4,6 +4,7 @@ import com.example.welfare.policy.dto.PolicyRankingResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.PolicyRankingReadRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +37,7 @@ public class PolicyRankingService {
     private final Clock clock;
     private final Map<Integer, CachedRanking> rankingCache = new ConcurrentHashMap<>();
 
+    @Autowired
     public PolicyRankingService(PolicyRankingReadRepository policyRankingReadRepository,
                                 PolicyPresentationReadService policyPresentationReadService) {
         this(policyRankingReadRepository, policyPresentationReadService, Clock.systemUTC());

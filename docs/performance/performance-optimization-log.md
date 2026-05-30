@@ -165,7 +165,7 @@ Interpretation:
 - `current_priority` is no longer opaque; most of the total time is `active_baseline`
 - ranking still needs one more bounded optimization
 
-## Current Active Batch
+## Closed Batch
 
 ### 2026-05-30: ranking 3차 + active baseline step contract cleanup
 
@@ -184,11 +184,59 @@ Planned changes in this batch:
 3. performance docs / troubleshooting
    - record the accepted rerun and distinguish endpoint hotspots from wrapper bundle time
 
+Accepted server remeasurement:
+
+- server HEAD: `10e3bea61cf1bc7812d4264e3a51ed5072f79c66`
+- first boot failed because `PolicyRankingService` had two constructors and Spring did not have a fixed runtime selection
+- server hotfix added `@Autowired` to the public 2-arg constructor before rebuild
+- after that hotfix, baseline, wrapper baseline, and extended suites passed
+
+Observed deltas from the accepted server rerun:
+
+- `policy_ranking` p95: `933.3ms -> 5.8ms` in the wrapper-inclusive baseline
+- `policy_ranking` p95: `1088.2ms -> 8.5ms` in the baseline-only run
+- `policy_search_keyword` p95: `417.1ms -> 426.7ms` in the wrapper-inclusive baseline
+- `policy_search_keyword` p95: `334.6ms -> 402.1ms` in the baseline-only run
+- `policy_search_keyword_ilike` representative explain: `258.805ms -> 117.078ms`, still `Seq Scan`
+- `current_priority` wrapper: `194.844s -> 156.841s`
+- `active_baseline` nested durations are now stable and machine-friendly:
+  - `backend_tests_duration_ms=61941`
+  - `frontend_lint_duration_ms=8446`
+  - `frontend_build_duration_ms=1492`
+  - `frontend_e2e_duration_ms=59436`
+  - `ops_baseline_duration_ms=3056`
+  - `collect_legacy_repair_duration_ms=16416`
+
+Interpretation:
+
+- the ranking TTL cache is accepted and closed
+- `active_baseline` step contract cleanup is accepted and closed
+- search API remains acceptable, but the representative explain still does not close because the lowered `LIKE` benchmark remains a seq scan
+- the constructor injection fix is mandatory follow-through because the accepted server rerun required a manual hotfix
+
+## Current Active Batch
+
+### 2026-05-30: ranking constructor fix closeout + representative search explain follow-up
+
+Current trigger values from the accepted server rerun:
+
+- `policy_search_keyword_ilike`: `execution 117.078ms`, `seq scan`
+- server hotfix was required for `PolicyRankingService` constructor selection on `HEAD=10e3bea61cf1bc7812d4264e3a51ed5072f79c66`
+
+Planned changes in this batch:
+
+1. `PolicyRankingService`
+   - merge the constructor-selection fix into the repository so the runtime no longer depends on a server hotfix
+2. performance docs / troubleshooting
+   - record the accepted rerun and the constructor failure as a closed operational issue
+3. search representative benchmark
+   - decide whether the current lowered `LIKE` explain should be replaced with a more realistic API-adjacent representative query, or whether a further DB/index change is justified
+
 Server remeasurement status:
 
-- pending
+- pending after the constructor-fix merge only
 - requires app redeploy
-- compare against the `f351ee32466ce9aed73c7d755e38ab6bcac2db03` server baseline
+- compare against the `10e3bea61cf1bc7812d4264e3a51ed5072f79c66` server baseline
 
 ## Comparison Table
 
@@ -206,3 +254,6 @@ Server remeasurement status:
 | 2026-05-30 | `909bb4d682f9eee5cd6f09556dc584fe3b3696d4` | `f351ee32466ce9aed73c7d755e38ab6bcac2db03` | Search | title/keyword-focused query-shape cleanup | `p95 628.7ms` | `p95 417.1ms` | `-211.6ms` | improvement accepted |
 | 2026-05-30 | `909bb4d682f9eee5cd6f09556dc584fe3b3696d4` | `f351ee32466ce9aed73c7d755e38ab6bcac2db03` | Search DB | lowered representative explain | `127.449ms seq scan` | `258.805ms seq scan` | `+131.356ms` | representative query still unresolved |
 | 2026-05-30 | `909bb4d682f9eee5cd6f09556dc584fe3b3696d4` | `f351ee32466ce9aed73c7d755e38ab6bcac2db03` | Wrapper | current_priority nested duration visibility | top-level total only | `active_baseline_duration_ms`, `recommendation_observation_duration_ms` exposed | observability improved | accepted |
+| 2026-05-30 | `f351ee32466ce9aed73c7d755e38ab6bcac2db03` | `10e3bea61cf1bc7812d4264e3a51ed5072f79c66` | Ranking | 30s public read TTL cache | `p95 933.3ms` | `p95 5.8ms` | `-927.5ms` | improvement accepted |
+| 2026-05-30 | `f351ee32466ce9aed73c7d755e38ab6bcac2db03` | `10e3bea61cf1bc7812d4264e3a51ed5072f79c66` | Active Baseline | snake_case step durations | frontend bundled, key names unstable | `backend_tests/frontend_lint/frontend_build/frontend_e2e/...` direct keys | observability improved | accepted |
+| 2026-05-30 | `f351ee32466ce9aed73c7d755e38ab6bcac2db03` | `10e3bea61cf1bc7812d4264e3a51ed5072f79c66` | Search DB | lowered representative explain | `258.805ms seq scan` | `117.078ms seq scan` | `-141.727ms` | still unresolved |
