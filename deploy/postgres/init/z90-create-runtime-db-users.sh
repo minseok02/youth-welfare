@@ -112,6 +112,8 @@ SELECT format('REVOKE DELETE ON TABLE public.collect_execution_locks FROM %I', :
 WHERE to_regclass('public.collect_execution_locks') IS NOT NULL \gexec
 SELECT format('REVOKE DELETE ON TABLE public.web_push_subscriptions FROM %I', :'app_username')
 WHERE to_regclass('public.web_push_subscriptions') IS NOT NULL \gexec
+SELECT format('REVOKE DELETE ON TABLE public.recent_policy_views FROM %I', :'app_username')
+WHERE to_regclass('public.recent_policy_views') IS NOT NULL \gexec
 
 SELECT format('GRANT DELETE ON TABLE public.chat_sessions TO %I', :'chat_session_cleanup_username')
 WHERE to_regclass('public.chat_sessions') IS NOT NULL \gexec

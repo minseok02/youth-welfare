@@ -247,6 +247,8 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO :"db_username";
 
 SELECT format('REVOKE DELETE ON TABLE public.chat_sessions FROM %I', :'db_username')
 WHERE to_regclass('public.chat_sessions') IS NOT NULL \gexec
+SELECT format('REVOKE DELETE ON TABLE public.recent_policy_views FROM %I', :'db_username')
+WHERE to_regclass('public.recent_policy_views') IS NOT NULL \gexec
 SELECT format('GRANT DELETE ON TABLE public.chat_sessions TO %I', :'db_chat_session_cleanup_username')
 WHERE to_regclass('public.chat_sessions') IS NOT NULL \gexec
 SELECT format('GRANT SELECT (id, user_key) ON TABLE public.chat_sessions TO %I', :'db_chat_session_cleanup_username')
