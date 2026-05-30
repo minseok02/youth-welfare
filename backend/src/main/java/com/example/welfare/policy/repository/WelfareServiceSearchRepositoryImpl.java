@@ -94,6 +94,31 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
                   AND st.tag_type = 'TARGET_GROUP'
                   AND st.tag_value = :targetGroup
             ))
+            AND (
+                :gov24ServiceField IS NULL
+                OR EXISTS (
+                    SELECT 1
+                    FROM service_taxonomy_terms stt
+                    WHERE stt.service_id = ws.id
+                      AND stt.term_group = 'GOV24_SERVICE_FIELD'
+                      AND stt.term_label = :gov24ServiceField
+                )
+                OR (
+                    NOT EXISTS (
+                        SELECT 1
+                        FROM service_taxonomy_terms stt1
+                        WHERE stt1.service_id = ws.id
+                          AND stt1.term_group = 'GOV24_SERVICE_FIELD'
+                    )
+                    AND EXISTS (
+                        SELECT 1
+                        FROM service_taxonomy_summary_slots stss
+                        WHERE stss.service_id = ws.id
+                          AND stss.slot_key = 'GOV24_SERVICE_FIELD'
+                          AND stss.slot_label = :gov24ServiceField
+                    )
+                )
+            )
             AND (:incomeMaxWon IS NULL OR ws.max_income IS NULL OR ws.max_income = 0 OR ws.max_income > :incomeMaxWon)
             """;
 
@@ -282,7 +307,8 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
                 .addValue("sido", condition.sido(), Types.VARCHAR)
                 .addValue("sgg", condition.sgg(), Types.VARCHAR)
                 .addValue("incomeMaxWon", condition.incomeMaxWon(), Types.INTEGER)
-                .addValue("targetGroup", condition.targetGroup(), Types.VARCHAR);
+                .addValue("targetGroup", condition.targetGroup(), Types.VARCHAR)
+                .addValue("gov24ServiceField", condition.gov24ServiceField(), Types.VARCHAR);
     }
 
     private MapSqlParameterSource baseKeywordParams(SearchKeyword keyword) {

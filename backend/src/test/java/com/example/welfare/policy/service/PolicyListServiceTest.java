@@ -59,7 +59,8 @@ class PolicyListServiceTest {
                         true,
                         "VIEWS",
                         null,
-                        null
+                        null,
+                        "주거·자립"
                 )),
                 any(PageRequest.class)
         )).willReturn(page);
@@ -78,6 +79,7 @@ class PolicyListServiceTest {
                 "views",
                 null,
                 null,
+                "주거·자립",
                 PageRequest.of(0, 20)
         );
 
@@ -94,7 +96,8 @@ class PolicyListServiceTest {
                         true,
                         "VIEWS",
                         null,
-                        null
+                        null,
+                        "주거·자립"
                 )),
                 captor.capture()
         );
@@ -115,7 +118,7 @@ class PolicyListServiceTest {
         Page<WelfareService> page = new PageImpl<>(List.of(service));
 
         given(welfareServiceReadRepository.findList(
-                eq(new PolicyListReadCondition(null, null, null, "ACTIVE_ONLY", null, null, null, "LATEST", null, null)),
+                eq(new PolicyListReadCondition(null, null, null, "ACTIVE_ONLY", null, null, null, "LATEST", null, null, null)),
                 any(PageRequest.class)
         )).willReturn(page);
         given(policyPresentationReadService.buildSummaryPage(eq(7L), any(Page.class)))
@@ -151,6 +154,7 @@ class PolicyListServiceTest {
                 null,
                 null,
                 null,
+                null,
                 PageRequest.of(0, 20)
         );
 
@@ -173,7 +177,7 @@ class PolicyListServiceTest {
     @DisplayName("정책 목록 조회는 과도한 페이지 크기를 상한으로 제한한다")
     void getListClampsOversizedPageSize() {
         given(welfareServiceReadRepository.findList(
-                eq(new PolicyListReadCondition(null, null, null, "ACTIVE_ONLY", null, null, null, "LATEST", null, null)),
+                eq(new PolicyListReadCondition(null, null, null, "ACTIVE_ONLY", null, null, null, "LATEST", null, null, null)),
                 any(PageRequest.class)
         )).willReturn(Page.empty());
         given(policyPresentationReadService.buildSummaryPage(eq(null), any(Page.class)))
@@ -191,14 +195,37 @@ class PolicyListServiceTest {
                 null,
                 null,
                 null,
+                null,
                 PageRequest.of(0, 10_000)
         );
 
         ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
         verify(welfareServiceReadRepository).findList(
-                eq(new PolicyListReadCondition(null, null, null, "ACTIVE_ONLY", null, null, null, "LATEST", null, null)),
+                eq(new PolicyListReadCondition(null, null, null, "ACTIVE_ONLY", null, null, null, "LATEST", null, null, null)),
                 captor.capture()
         );
         assertEquals(100, captor.getValue().getPageSize());
+    }
+
+    @Test
+    @DisplayName("Gov24 서비스분야 filter는 managed exact label만 허용한다")
+    void getListRejectsUnknownGov24ServiceField() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> policyListService.getList(
+                null,
+                null,
+                "GOV24",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "알수없음",
+                PageRequest.of(0, 20)
+        )).isInstanceOf(com.example.welfare.global.exception.CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(com.example.welfare.global.exception.ErrorCode.INVALID_INPUT);
     }
 }

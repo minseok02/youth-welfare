@@ -6,6 +6,7 @@ import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.PolicyListReadCondition;
 import com.example.welfare.policy.repository.WelfareServiceReadRepository;
+import com.example.welfare.policy.support.Gov24ServiceFieldSupport;
 import com.example.welfare.policy.support.WelfareSourceTypeSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -43,6 +44,7 @@ public class PolicyListService {
                                                String sort,
                                                Integer incomeLevel,
                                                String targetGroup,
+                                               String gov24ServiceField,
                                                Pageable pageable) {
         // sidoCode/regionCode 계산 및 sort는 WelfareServiceReadRepositoryImpl에서 처리
         Page<WelfareService> page = welfareServiceReadRepository.findList(
@@ -56,7 +58,8 @@ public class PolicyListService {
                         onlineApply,
                         normalizeSort(sort),
                         resolveIncomeMaxWon(incomeLevel),
-                        normalizeNullable(targetGroup)
+                        normalizeNullable(targetGroup),
+                        normalizeGov24ServiceField(gov24ServiceField)
                 ),
                 normalizePageable(pageable)
         );
@@ -111,6 +114,17 @@ public class PolicyListService {
         if (value == null) return null;
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String normalizeGov24ServiceField(String gov24ServiceField) {
+        String normalized = Gov24ServiceFieldSupport.normalizeManagedLabel(gov24ServiceField);
+        if (gov24ServiceField == null || gov24ServiceField.isBlank()) {
+            return null;
+        }
+        if (normalized == null) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+        return normalized;
     }
 
     private Pageable normalizePageable(Pageable pageable) {

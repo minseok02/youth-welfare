@@ -50,7 +50,7 @@
 
 1. `GOV24_SERVICE_FIELD / USER_TYPE / BENEFIT_TYPE` stable code SQL
 2. `service_facts` 로의 직접 승격
-3. public filter/scoring/matcher 소비
+3. `GOV24_USER_TYPE_TOKEN`, `GOV24_BENEFIT_TYPE_TOKEN` public filter/scoring/matcher 소비
 4. `YOUTH_MID` bridge
 5. `supportConditions` 사업체/업종/창업 상태 full-scope 승격
 
@@ -198,7 +198,7 @@ canonical term은 additive multi-term 으로만 봅니다.
 
 즉 아래는 계속 열지 않습니다.
 
-- `/api/policies` public filter
+- `GOV24_USER_TYPE_TOKEN`, `GOV24_BENEFIT_TYPE_TOKEN` public filter
 - recommendation scoring
 - matcher hard condition
 - AI prompt 추가 입력
@@ -209,6 +209,17 @@ canonical term은 additive multi-term 으로만 봅니다.
 - admin facet/read-model 안정화
 
 까지만 봅니다.
+
+예외적으로 `2026-05-31` 기준 아래 bounded public filter는 열었다.
+
+- `/api/policies`
+- `/api/policies/search`
+- query param: `gov24ServiceField`
+- 허용값: managed exact label `10개`
+- query contract: `GOV24_SERVICE_FIELD` term 우선, term이 없는 legacy row만 summary slot fallback
+
+즉 현재 public 소비는 “Gov24 전체 public filter/scoring 개방”이 아니라
+`serviceField` exact-label 한 축만 read-only discovery filter로 좁게 연 상태다.
 
 ## 지금 active 로 볼 구현 범위
 
