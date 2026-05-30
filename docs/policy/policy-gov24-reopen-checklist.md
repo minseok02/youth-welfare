@@ -109,8 +109,8 @@ bash deploy/smoke/run-local-active-baseline-suite.sh
 
 1. `GOV24_*` stable code SQL
 2. `service_facts` 직접 승격
-3. public filter 노출
-4. recommendation scoring 직접 연결
+3. matcher hard condition 직접 연결
+4. `service_facts` 를 통한 recommendation hard gate
 5. `YOUTH_MID` bridge
 
 ## 요약

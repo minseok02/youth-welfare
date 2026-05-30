@@ -512,6 +512,113 @@ class RuleScoringServiceTest {
         assertThat(findByServiceId(scored, 110L).getRuleWeightedScore()).isEqualTo(5.0);
     }
 
+    @Test
+    @DisplayName("Gov24 serviceField는 같은 priority code와 정렬될 때 bounded soft bonus를 준다")
+    void gov24ServiceFieldAddsSoftBonusForMatchingPriority() {
+        RecommendationUserSnapshot user = snapshotWithPriorities(
+                List.of(),
+                List.of(),
+                (byte) 5,
+                null,
+                null,
+                List.of(new PriorityPreference(1, "HOUSING", 2.0))
+        );
+
+        WelfareService baseline = welfareService(120L, "기본 Gov24 정책", WelfareService.SourceType.GOV24, null);
+        WelfareService projected = welfareService(121L, "주거 자립 정책", WelfareService.SourceType.GOV24, null);
+
+        when(recommendationCandidateReadRepository.findTagsByServiceIds(anyList())).thenReturn(Map.of());
+
+        List<ScoredCandidate> scored = ruleScoringService.score(
+                new RetrievedRecommendationCandidates(
+                        List.of(baseline, projected),
+                        Map.of(
+                                projected.getId(),
+                                RecommendationCandidateProjection.builder()
+                                        .serviceId(projected.getId())
+                                        .gov24ServiceFieldLabel("주거·자립")
+                                        .build()
+                        )
+                ),
+                user
+        );
+
+        assertThat(findByServiceId(scored, 121L).getRuleBaseScore())
+                .isEqualTo(findByServiceId(scored, 120L).getRuleBaseScore() + 4.0);
+    }
+
+    @Test
+    @DisplayName("Gov24 benefitType는 같은 priority code와 정렬될 때 bounded soft bonus를 준다")
+    void gov24BenefitTypeAddsSoftBonusForMatchingPriority() {
+        RecommendationUserSnapshot user = snapshotWithPriorities(
+                List.of(),
+                List.of(),
+                (byte) 5,
+                null,
+                null,
+                List.of(new PriorityPreference(1, "EDUCATION", 2.0))
+        );
+
+        WelfareService baseline = welfareService(122L, "기본 Gov24 정책", WelfareService.SourceType.GOV24, null);
+        WelfareService projected = welfareService(123L, "장학 정책", WelfareService.SourceType.GOV24, null);
+
+        when(recommendationCandidateReadRepository.findTagsByServiceIds(anyList())).thenReturn(Map.of());
+
+        List<ScoredCandidate> scored = ruleScoringService.score(
+                new RetrievedRecommendationCandidates(
+                        List.of(baseline, projected),
+                        Map.of(
+                                projected.getId(),
+                                RecommendationCandidateProjection.builder()
+                                        .serviceId(projected.getId())
+                                        .gov24BenefitTypeTokens(List.of("현금(장학금)"))
+                                        .build()
+                        )
+                ),
+                user
+        );
+
+        assertThat(findByServiceId(scored, 123L).getRuleBaseScore())
+                .isEqualTo(findByServiceId(scored, 122L).getRuleBaseScore() + 3.0);
+    }
+
+    @Test
+    @DisplayName("Gov24 soft bonus는 서비스분야, 지원유형, 사용자구분 신호를 합쳐도 bounded cap 안에서만 더한다")
+    void gov24SoftBonusStaysWithinBoundedCap() {
+        RecommendationUserSnapshot user = snapshotWithPriorities(
+                List.of(),
+                List.of(),
+                (byte) 5,
+                "1인 가구",
+                null,
+                List.of(new PriorityPreference(1, "EDUCATION", 2.0))
+        );
+
+        WelfareService baseline = welfareService(124L, "기본 Gov24 정책", WelfareService.SourceType.GOV24, null);
+        WelfareService projected = welfareService(125L, "교육 지원 정책", WelfareService.SourceType.GOV24, null);
+
+        when(recommendationCandidateReadRepository.findTagsByServiceIds(anyList())).thenReturn(Map.of());
+
+        List<ScoredCandidate> scored = ruleScoringService.score(
+                new RetrievedRecommendationCandidates(
+                        List.of(baseline, projected),
+                        Map.of(
+                                projected.getId(),
+                                RecommendationCandidateProjection.builder()
+                                        .serviceId(projected.getId())
+                                        .gov24ServiceFieldLabel("보육·교육")
+                                        .gov24BenefitTypeTokens(List.of("현금(장학금)"))
+                                        .gov24UserTypeTokens(List.of("개인", "가구"))
+                                        .build()
+                        )
+                ),
+                user
+        );
+
+        assertThat(findByServiceId(scored, 125L).getRuleBaseScore())
+                .isEqualTo(findByServiceId(scored, 124L).getRuleBaseScore() + 6.0);
+    }
+
     private ScoredCandidate findByServiceId(List<ScoredCandidate> scored, Long serviceId) {
         return scored.stream()
                 .filter(candidate -> serviceId.equals(candidate.getService().getId()))
@@ -529,9 +636,16 @@ class RuleScoringServiceTest {
     }
 
     private WelfareService welfareService(Long id, String title, java.time.LocalDate applyEndDate) {
+        return welfareService(id, title, WelfareService.SourceType.BOKJIRO_LOCAL, applyEndDate);
+    }
+
+    private WelfareService welfareService(Long id,
+                                          String title,
+                                          WelfareService.SourceType sourceType,
+                                          java.time.LocalDate applyEndDate) {
         return WelfareService.builder()
                 .id(id)
-                .sourceType(WelfareService.SourceType.BOKJIRO_LOCAL)
+                .sourceType(sourceType)
                 .sourceId("S" + id)
                 .title(title)
                 .status(WelfareService.ServiceStatus.ACTIVE)

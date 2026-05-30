@@ -198,5 +198,5 @@ blocked SQL 과 deferred Gov24 business-code 승격보다 먼저
 | 항목 | 지금 안 하는 이유 | 다시 열 조건 |
 |---|---|---|
 | recommendation 제품 판단 | bug closeout은 끝났고, 남은 것은 local 청년 정책 신호를 더 강하게 넣을지에 대한 제품/모델링 선택이다. | 새 재현 버그가 생기거나, local 청년 정책 노출 강화가 명시 목표로 승인될 때 |
-| `Gov24` canonical promotion | `supportConditions` 는 partial runtime fact가 active 이고, `serviceField/userType/benefitType` raw inventory와 1차 내부 매핑 초안도 정리됐다. label-first canonical 경계는 이미 local closeout 됐고, 현재 practical next action은 새 구현이 아니라 그 경계를 유지하는 것이다. | stable code/import-backfill, public filter/scoring, full-scope supportConditions 확장이 실제 목표로 승인될 때 |
+| `Gov24` canonical promotion | `supportConditions` 는 partial runtime fact가 active 이고, `serviceField/userType/benefitType` raw inventory와 1차 내부 매핑 초안도 정리됐다. label-first canonical 경계와 public discovery filter는 이미 local closeout 됐고, recommendation scoring도 bounded soft additive bonus까지만 열렸다. 현재 practical next action은 새 구현이 아니라 matcher hard condition / stable code / service_facts 같은 더 큰 reopen 경계를 유지하는 것이다. | stable code/import-backfill, matcher hard condition, full-scope supportConditions 확장이 실제 목표로 승인될 때 |
 | infra/server 확장 | 서버 reality는 확인됐지만, 현재 main track은 bounded runtime 기준선 유지와 drift 정리다. | 배포/운영 절차 고도화가 별도 active 목표로 승격될 때 |

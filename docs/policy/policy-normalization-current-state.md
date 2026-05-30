@@ -57,7 +57,7 @@ legacy `service_taxonomies` raw summary는 canonical term이 없는 row에서만
 **raw exact label / allowlist token을 보존하는 label-first taxonomy term** 으로 읽는 편이 맞다.
 따라서 다음 `Gov24` 작업은 자동 reopen 이 아니라,
 [policy-gov24-reopen-checklist.md](./policy-gov24-reopen-checklist.md) 기준으로
-`stable import/backfill`, `recommendation scoring`, `service_facts 승격`, `supportConditions full-scope` 중
+`stable import/backfill`, `recommendation matcher hard condition`, `service_facts 승격`, `supportConditions full-scope` 중
 하나가 명시 승인될 때만 다시 여는 편이 맞다.
 예외적으로 `2026-05-31` 기준 public discovery filter는 bounded step으로 이미 세 축을 열었다.
 
@@ -300,7 +300,7 @@ raw exact label summary(`gov24ServiceFieldLabel/gov24UserTypeLabel/gov24BenefitT
 경계를 넘어서
 `service_taxonomy_terms` canonical term 저장
 까지는 닫혔고,
-`service_facts`, stable code/import-backfill SQL, recommendation scoring은 계속 deferred 다.
+`service_facts`, stable code/import-backfill SQL, matcher hard condition은 계속 deferred 다.
 추가로 `2026-05-31` 기준 public 소비는 전면 deferred 가 아니라,
 `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE_TOKEN` 두 축만 bounded public filter로 열었다.
 - `/api/policies`, `/api/policies/search` 는 `gov24ServiceField` query param을 받는다.
@@ -311,7 +311,9 @@ raw exact label summary(`gov24ServiceFieldLabel/gov24UserTypeLabel/gov24BenefitT
 - 허용값은 managed token `4개(개인/가구/법인·시설·단체/소상공인)` 뿐이다.
 - query contract는 `service_taxonomy_terms(term_group='GOV24_USER_TYPE_TOKEN')` 우선,
   term이 없는 legacy row만 `service_taxonomies.gov24_user_type_label` `||` split fallback 이다.
-- `GOV24_BENEFIT_TYPE_TOKEN` public filter, matcher, scoring 연결은 계속 deferred 다.
+- `GOV24_BENEFIT_TYPE_TOKEN` public filter는 active 이고,
+  recommendation scoring은 이제 `serviceField/userType/benefitType` 를 bounded soft additive bonus로만 소비한다.
+- 다만 matcher hard condition과 `service_facts` 승격은 계속 deferred 다.
 추가로 admin recommendation facet도 이제 canonical term을 우선 읽는다.
 - `GOV24_USER_TYPE_TOKEN`, `GOV24_BENEFIT_TYPE_TOKEN` term이 있으면 이를 그대로 집계한다.
 - term이 없는 legacy row만 `service_taxonomies.gov24_user_type_label`, `gov24_benefit_type_label` `||` split 으로 fallback 한다.
@@ -319,6 +321,11 @@ raw exact label summary(`gov24ServiceFieldLabel/gov24UserTypeLabel/gov24BenefitT
 같은 원칙으로 recommendation read-model projection 도 canonical term 우선으로 정리했다.
 - `gov24ServiceFieldLabel` 은 `GOV24_SERVICE_FIELD` term이 있으면 그 exact label을 우선 쓰고, 없으면 legacy summary label을 fallback 으로 쓴다.
 - `gov24UserTypeTokens`, `gov24BenefitTypeTokens` 도 term이 있으면 term 값을 그대로 쓰고, term이 없는 legacy row만 기존 raw summary label split 으로 fallback 한다.
+- recommendation scoring도 이제 같은 canonical term/projection truth를 soft signal로 읽는다.
+  - `serviceField` 는 `주거·자립 -> HOUSING`, `고용·창업 -> JOB`, `보육·교육 -> EDUCATION`, `생활안정 -> FINANCE`, `문화·환경 -> CULTURE`, `보호·돌봄/임신·출산 -> FAMILY` bridge를 bounded additive bonus로만 소비한다.
+  - `benefitType` 는 `현금(장학금)/기타(교육)`, `현금/현금(감면)/현금(보험)/현금(융자)`, `서비스(일자리)/기술지원`, `문화/여가지원`, `서비스(돌봄)` 같은 일부 managed token만 small bonus로 읽는다.
+  - `userType` 는 `개인`, `가구` 만 end-user soft audience signal로 읽고, `법인/시설/단체`, `소상공인` 은 hard exclusion으로 쓰지 않는다.
+  - 즉 현재 Gov24 scoring 연결은 discovery filter와 같은 canonical token truth를 재사용하지만, hard eligibility나 hard matcher로는 승격하지 않는다.
 
 ## 2. `YOUTH_MID_RAW_ALIAS` 현재 상태
 
