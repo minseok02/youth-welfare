@@ -255,9 +255,9 @@ WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_migration_username
 SELECT format('ALTER ROLE %I LOGIN PASSWORD %L', :'db_migration_username', :'db_migration_password')
 WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_migration_username') \gexec
 
-GRANT CONNECT ON DATABASE :"db_name" TO :"db_username", :"db_app_pii_username", :"db_notification_pii_ro_username", :"db_admin_ro_username", :"db_recommendation_review_gate_command_username", :"db_chat_session_cleanup_username", :"db_cluster_ai_cleanup_username", :"db_recommendation_retention_cleanup_username", :"db_collect_execution_lock_cleanup_username", :"db_web_push_subscription_cleanup_username", :"db_migration_username";
+GRANT CONNECT ON DATABASE :"db_name" TO :"db_username", :"db_app_pii_username", :"db_notification_pii_ro_username", :"db_admin_ro_username", :"db_recommendation_review_gate_command_username", :"db_recommendation_persistence_command_username", :"db_chat_session_cleanup_username", :"db_cluster_ai_cleanup_username", :"db_recommendation_retention_cleanup_username", :"db_collect_execution_lock_cleanup_username", :"db_web_push_subscription_cleanup_username", :"db_migration_username";
 
-GRANT USAGE ON SCHEMA public TO :"db_username", :"db_admin_ro_username", :"db_recommendation_review_gate_command_username", :"db_chat_session_cleanup_username", :"db_cluster_ai_cleanup_username", :"db_recommendation_retention_cleanup_username", :"db_collect_execution_lock_cleanup_username", :"db_web_push_subscription_cleanup_username", :"db_migration_username";
+GRANT USAGE ON SCHEMA public TO :"db_username", :"db_admin_ro_username", :"db_recommendation_review_gate_command_username", :"db_recommendation_persistence_command_username", :"db_chat_session_cleanup_username", :"db_cluster_ai_cleanup_username", :"db_recommendation_retention_cleanup_username", :"db_collect_execution_lock_cleanup_username", :"db_web_push_subscription_cleanup_username", :"db_migration_username";
 GRANT CREATE ON SCHEMA public TO :"db_migration_username";
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO :"db_username";
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO :"db_admin_ro_username";
@@ -271,6 +271,14 @@ SELECT format('REVOKE ALL PRIVILEGES ON TABLE public.recommendation_review_gate_
 WHERE to_regclass('public.recommendation_review_gate_promotion_approvals') IS NOT NULL \gexec
 SELECT format('GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.recommendation_review_gate_promotion_approvals TO %I', :'db_recommendation_review_gate_command_username')
 WHERE to_regclass('public.recommendation_review_gate_promotion_approvals') IS NOT NULL \gexec
+SELECT format('REVOKE DELETE ON TABLE public.user_recommendations FROM %I', :'db_username')
+WHERE to_regclass('public.user_recommendations') IS NOT NULL \gexec
+SELECT format('GRANT INSERT, DELETE ON TABLE public.user_recommendations TO %I', :'db_recommendation_persistence_command_username')
+WHERE to_regclass('public.user_recommendations') IS NOT NULL \gexec
+SELECT format('GRANT SELECT (user_key) ON TABLE public.user_recommendations TO %I', :'db_recommendation_persistence_command_username')
+WHERE to_regclass('public.user_recommendations') IS NOT NULL \gexec
+SELECT format('GRANT USAGE, SELECT ON SEQUENCE public.user_recommendations_id_seq TO %I', :'db_recommendation_persistence_command_username')
+WHERE to_regclass('public.user_recommendations_id_seq') IS NOT NULL \gexec
 SELECT format('GRANT DELETE ON TABLE public.chat_sessions TO %I', :'db_chat_session_cleanup_username')
 WHERE to_regclass('public.chat_sessions') IS NOT NULL \gexec
 SELECT format('GRANT SELECT (id, user_key) ON TABLE public.chat_sessions TO %I', :'db_chat_session_cleanup_username')
