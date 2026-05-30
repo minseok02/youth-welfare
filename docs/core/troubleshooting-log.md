@@ -6731,3 +6731,8 @@ admin API와 latest artifact에
 - 문제: `frontend-browser-smoke` job의 전역 `APP_BASE_URL` 은 Playwright와 Vite용 `http://127.0.0.1:5173` 이었다. 그런데 [bootstrap-playwright-smoke-data.sh](/home/minseok/youth-welfare/frontend/scripts/bootstrap-playwright-smoke-data.sh:1) 는 `APP_BASE_URL` 을 백엔드 API base와 health endpoint 기준으로 읽어 `HEALTH_URL=${APP_BASE_URL}/actuator/health` 를 만들기 때문에, CI에서 `127.0.0.1:5173/actuator/health` 를 60회 재시도하다가 실패했다.
 - 해결: [.github/workflows/ci.yml](/home/minseok/youth-welfare/.github/workflows/ci.yml:1) 의 `Bootstrap frontend smoke data` step에만 `APP_BASE_URL=http://127.0.0.1:8082`, `HEALTH_URL=http://127.0.0.1:8082/actuator/health` 를 명시적으로 덮어썼다. 브라우저 smoke 자체는 계속 `PLAYWRIGHT_BASE_URL=5173`, `VITE_API_BASE_URL=8082` 계약을 유지한다.
 - 이유: 이 job 안에는 “프런트 origin” 과 “백엔드 API/health base” 두 종류의 URL이 공존한다. bootstrap script는 백엔드 건강 상태와 seed API를 대상으로 하므로, step 단위 env override로 역할을 분리하는 편이 가장 작고 안전하다.
+
+## 1049) GitHub Actions YAML의 숫자형 secret은 문자열로 따옴표 처리하지 않으면 JWT key가 약해질 수 있다
+- 문제: `frontend-browser-smoke` job의 backend `bootRun` 이 health 대기 전에 바로 죽었는데, backend log를 보면 `JWT_SECRET` 이 `1.23456789012346E+30` 으로 전달되어 [JwtUtil.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/global/util/JwtUtil.java:1) 초기화에서 `WeakKeyException` 이 났다. workflow YAML에 `012345...` 값을 따옴표 없이 썼기 때문에 GitHub Actions env가 이를 숫자로 해석해 과학 표기 문자열로 바꿨다.
+- 해결: [.github/workflows/ci.yml](/home/minseok/youth-welfare/.github/workflows/ci.yml:1) 의 `backend-unit`, `frontend-browser-smoke` 두 job 모두 `JWT_SECRET` 을 `"01234567890123456789012345678901"` 처럼 명시적으로 문자열 quoting 했다.
+- 이유: CI에서는 앱 secret도 결국 YAML literal을 env로 주입하는 경로이므로, leading zero가 있는 토큰/키는 문자열 quoting을 강제해야 한다. 특히 JWT HMAC key처럼 길이 검증이 있는 값은 숫자 해석 한 번으로 바로 startup failure로 이어진다.
