@@ -325,12 +325,48 @@ Interpretation from this rerun:
 - ranking is still the primary unresolved endpoint hotspot
 - the representative lowered `LIKE` explain stayed on a seq scan and got slower, so the benchmark query is still not closed
 - `current_priority` is now explainable: most of the total comes from `active_baseline`, not `recommendation_observation`
-| API Load | policy search keyword p95 | 924.8ms | improved versus prior load probe |
-| API Load | policy search keyword max | 943.8ms | improved versus prior load probe |
 
-Interpretation:
+## 2026-05-30 Fourth Optimization Rerun
 
-- `policy_search_keyword` API latency improved enough to accept the read-path reduction
-- `current_priority` runtime also improved materially
-- `policy_ranking` remains the main unresolved optimization target
-- representative fallback `ILIKE` explain is still seq-scan-based, so DB-side follow-up is justified
+The next accepted server rerun was captured on `HEAD=10e3bea61cf1bc7812d4264e3a51ed5072f79c66`.
+
+- first boot on the untouched merge commit failed because `PolicyRankingService` constructor selection was ambiguous
+- the server applied a one-line hotfix by marking the 2-arg constructor with `@Autowired`, then rebuilt and continued the rerun
+- after that hotfix, baseline, wrapper baseline, and extended suites all passed
+- `health=UP`
+- recent app log `ERROR/Exception 없음` after the successful redeploy
+
+Accepted rerun values:
+
+| Area | Scenario | Value | Notes |
+|---|---|---:|---|
+| API | policy ranking p95 | 5.8ms | wrapper-inclusive baseline |
+| API | policy ranking p99 | 6.0ms | wrapper-inclusive baseline |
+| API | policy ranking max | 6.0ms | wrapper-inclusive baseline |
+| API | policy ranking p95 (baseline) | 8.5ms | baseline-only run |
+| API | policy ranking p99 (baseline) | 8.5ms | baseline-only run |
+| API | policy ranking max (baseline) | 8.5ms | baseline-only run |
+| API | policy search keyword p95 | 426.7ms | wrapper-inclusive baseline |
+| API | policy search keyword p99 | 464.3ms | wrapper-inclusive baseline |
+| API | policy search keyword max | 473.7ms | wrapper-inclusive baseline |
+| API | policy search keyword p95 (baseline) | 402.1ms | baseline-only run |
+| API | policy search keyword p99 (baseline) | 418.6ms | baseline-only run |
+| API | policy search keyword max (baseline) | 422.7ms | baseline-only run |
+| DB | policy_search_keyword_ilike explain | 117.078ms | still seq scan |
+| Wrapper | recommendation observation | 5.879s | stable |
+| Wrapper | current priority | 156.841s | improved |
+| Wrapper | current priority -> active baseline | 150.881s | nested step total visible |
+| Wrapper | current priority -> recommendation observation | 5.828s | nested step total visible |
+| Wrapper | active baseline -> backend tests | 61.941s | snake_case key exposed |
+| Wrapper | active baseline -> frontend lint | 8.446s | snake_case key exposed |
+| Wrapper | active baseline -> frontend build | 1.492s | snake_case key exposed |
+| Wrapper | active baseline -> frontend e2e | 59.436s | snake_case key exposed |
+| Wrapper | active baseline -> ops baseline | 3.056s | snake_case key exposed |
+| Wrapper | active baseline -> collect legacy repair | 16.416s | snake_case key exposed |
+
+Interpretation from this rerun:
+
+- the ranking TTL micro-cache is accepted; `/api/policies/ranking` dropped from a ~900ms hotspot to single-digit milliseconds under repeated baseline sampling
+- `current_priority` improved materially and is now directly attributable to backend tests + frontend e2e rather than opaque wrapper time
+- `policy_search_keyword` remains acceptable at the API level but the representative lowered `LIKE` explain still does not close
+- the constructor injection bug must be reflected back into the repository because the server had to hotfix it manually
