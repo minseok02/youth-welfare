@@ -9,6 +9,14 @@ CURRENT_PRIORITY_ROOT="${CURRENT_PRIORITY_ROOT:-${ROOT_DIR}/tmp/current-priority
 KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
 RUN_ACTIVE_BASELINE="${RUN_ACTIVE_BASELINE:-true}"
 RUN_RECOMMENDATION_OBSERVATION="${RUN_RECOMMENDATION_OBSERVATION:-true}"
+REUSE_RECENT_ACTIVE_BASELINE="${REUSE_RECENT_ACTIVE_BASELINE:-true}"
+ACTIVE_BASELINE_REUSE_TTL_SECONDS="${ACTIVE_BASELINE_REUSE_TTL_SECONDS:-900}"
+ACTIVE_BASELINE_ROOT="${ACTIVE_BASELINE_ROOT:-${ROOT_DIR}/tmp/active-baseline-suite}"
+ACTIVE_BASELINE_RUN_BACKEND_TESTS="${ACTIVE_BASELINE_RUN_BACKEND_TESTS:-true}"
+ACTIVE_BASELINE_RUN_FRONTEND_BASELINE="${ACTIVE_BASELINE_RUN_FRONTEND_BASELINE:-true}"
+ACTIVE_BASELINE_RUN_FRONTEND_E2E="${ACTIVE_BASELINE_RUN_FRONTEND_E2E:-true}"
+ACTIVE_BASELINE_RUN_OPS_BASELINE="${ACTIVE_BASELINE_RUN_OPS_BASELINE:-true}"
+ACTIVE_BASELINE_RUN_COLLECT_LEGACY_REPAIR="${ACTIVE_BASELINE_RUN_COLLECT_LEGACY_REPAIR:-true}"
 
 RUN_TS_UTC="$(smoke_now_ts_utc)"
 ARTIFACT_DIR="${ARTIFACT_DIR:-${CURRENT_PRIORITY_ROOT}/${RUN_TS_UTC}}"
@@ -30,6 +38,12 @@ trap cleanup EXIT
 KEEP_ARTIFACTS="$(smoke_normalize_bool "${KEEP_ARTIFACTS}")"
 RUN_ACTIVE_BASELINE="$(smoke_normalize_bool "${RUN_ACTIVE_BASELINE}")"
 RUN_RECOMMENDATION_OBSERVATION="$(smoke_normalize_bool "${RUN_RECOMMENDATION_OBSERVATION}")"
+REUSE_RECENT_ACTIVE_BASELINE="$(smoke_normalize_bool "${REUSE_RECENT_ACTIVE_BASELINE}")"
+ACTIVE_BASELINE_RUN_BACKEND_TESTS="$(smoke_normalize_bool "${ACTIVE_BASELINE_RUN_BACKEND_TESTS}")"
+ACTIVE_BASELINE_RUN_FRONTEND_BASELINE="$(smoke_normalize_bool "${ACTIVE_BASELINE_RUN_FRONTEND_BASELINE}")"
+ACTIVE_BASELINE_RUN_FRONTEND_E2E="$(smoke_normalize_bool "${ACTIVE_BASELINE_RUN_FRONTEND_E2E}")"
+ACTIVE_BASELINE_RUN_OPS_BASELINE="$(smoke_normalize_bool "${ACTIVE_BASELINE_RUN_OPS_BASELINE}")"
+ACTIVE_BASELINE_RUN_COLLECT_LEGACY_REPAIR="$(smoke_normalize_bool "${ACTIVE_BASELINE_RUN_COLLECT_LEGACY_REPAIR}")"
 
 smoke_require_command bash
 smoke_require_command tee
@@ -49,18 +63,76 @@ run_priority_step() {
   return "${exit_code}"
 }
 
+read_summary_value() {
+  local summary_file="$1"
+  local key="$2"
+  grep -E "^${key}=" "${summary_file}" | tail -n 1 | cut -d= -f2-
+}
+
+reuse_recent_active_baseline_if_possible() {
+  local latest_summary="${ACTIVE_BASELINE_ROOT}/latest-active-baseline-summary.txt"
+  local latest_json="${ACTIVE_BASELINE_ROOT}/latest-active-baseline-summary.json"
+  local latest_artifact="${ACTIVE_BASELINE_ROOT}/latest"
+  local latest_output="${ARTIFACT_DIR}/active-baseline.out"
+
+  [[ "${REUSE_RECENT_ACTIVE_BASELINE}" == "true" ]] || return 1
+  [[ -f "${latest_summary}" ]] || return 1
+  [[ -f "${latest_json}" ]] || return 1
+  [[ -d "${latest_artifact}" ]] || return 1
+
+  local now_epoch file_epoch age_seconds
+  now_epoch="$(date +%s)"
+  file_epoch="$(stat -c %Y "${latest_summary}")"
+  age_seconds="$((now_epoch - file_epoch))"
+  (( age_seconds <= ACTIVE_BASELINE_REUSE_TTL_SECONDS )) || return 1
+
+  [[ "$(read_summary_value "${latest_summary}" "active_baseline_suite")" == "passed" ]] || return 1
+  [[ "$(read_summary_value "${latest_summary}" "app_base_url")" == "${APP_BASE_URL}" ]] || return 1
+  [[ "$(read_summary_value "${latest_summary}" "run_backend_tests")" == "${ACTIVE_BASELINE_RUN_BACKEND_TESTS}" ]] || return 1
+  [[ "$(read_summary_value "${latest_summary}" "run_frontend_baseline")" == "${ACTIVE_BASELINE_RUN_FRONTEND_BASELINE}" ]] || return 1
+  [[ "$(read_summary_value "${latest_summary}" "run_frontend_e2e")" == "${ACTIVE_BASELINE_RUN_FRONTEND_E2E}" ]] || return 1
+  [[ "$(read_summary_value "${latest_summary}" "frontend_e2e_mode")" == "${FRONTEND_E2E_MODE:-local-dev}" ]] || return 1
+  [[ "$(read_summary_value "${latest_summary}" "frontend_public_base_url")" == "${FRONTEND_PUBLIC_BASE_URL:-${PUBLIC_BASE_URL:-}}" ]] || return 1
+  [[ "$(read_summary_value "${latest_summary}" "run_ops_baseline")" == "${ACTIVE_BASELINE_RUN_OPS_BASELINE}" ]] || return 1
+  [[ "$(read_summary_value "${latest_summary}" "run_collect_legacy_repair")" == "${ACTIVE_BASELINE_RUN_COLLECT_LEGACY_REPAIR}" ]] || return 1
+
+  cp "${latest_summary}" "${ARTIFACT_DIR}/active-baseline-reused-summary.txt"
+  cp "${latest_json}" "${ARTIFACT_DIR}/active-baseline-reused-summary.json"
+  cat > "${latest_output}" <<EOF
+active_baseline=reused_recent_pass
+reuse_age_seconds=${age_seconds}
+reuse_ttl_seconds=${ACTIVE_BASELINE_REUSE_TTL_SECONDS}
+reused_summary=${ARTIFACT_DIR}/active-baseline-reused-summary.txt
+reused_json=${ARTIFACT_DIR}/active-baseline-reused-summary.json
+reused_artifact_dir=${latest_artifact}
+EOF
+  printf 'active_baseline\t0\t%s\t%s\n' \
+    "$(read_summary_value "${latest_summary}" "suite_duration_ms")" \
+    "${latest_output}" >> "${DURATIONS_TSV}"
+  cat "${latest_output}"
+  return 0
+}
+
 if [[ "${RUN_ACTIVE_BASELINE}" == "true" ]]; then
   smoke_print_step "active baseline"
-  run_priority_step \
-    "active_baseline" \
-    "${ARTIFACT_DIR}/active-baseline.out" \
-    env \
-    APP_BASE_URL="${APP_BASE_URL}" \
-    KEEP_ARTIFACTS=true \
-    ARTIFACT_DIR="${ARTIFACT_DIR}/active-baseline-artifact" \
-    FRONTEND_E2E_MODE="${FRONTEND_E2E_MODE:-local-dev}" \
-    FRONTEND_PUBLIC_BASE_URL="${FRONTEND_PUBLIC_BASE_URL:-${PUBLIC_BASE_URL:-}}" \
-    bash "${ROOT_DIR}/deploy/smoke/run-local-active-baseline-suite.sh"
+  if ! reuse_recent_active_baseline_if_possible; then
+    run_priority_step \
+      "active_baseline" \
+      "${ARTIFACT_DIR}/active-baseline.out" \
+      env \
+      APP_BASE_URL="${APP_BASE_URL}" \
+      KEEP_ARTIFACTS=true \
+      ARTIFACT_DIR="${ARTIFACT_DIR}/active-baseline-artifact" \
+      ACTIVE_BASELINE_ROOT="${ACTIVE_BASELINE_ROOT}" \
+      RUN_BACKEND_TESTS="${ACTIVE_BASELINE_RUN_BACKEND_TESTS}" \
+      RUN_FRONTEND_BASELINE="${ACTIVE_BASELINE_RUN_FRONTEND_BASELINE}" \
+      RUN_FRONTEND_E2E="${ACTIVE_BASELINE_RUN_FRONTEND_E2E}" \
+      RUN_OPS_BASELINE="${ACTIVE_BASELINE_RUN_OPS_BASELINE}" \
+      RUN_COLLECT_LEGACY_REPAIR="${ACTIVE_BASELINE_RUN_COLLECT_LEGACY_REPAIR}" \
+      FRONTEND_E2E_MODE="${FRONTEND_E2E_MODE:-local-dev}" \
+      FRONTEND_PUBLIC_BASE_URL="${FRONTEND_PUBLIC_BASE_URL:-${PUBLIC_BASE_URL:-}}" \
+      bash "${ROOT_DIR}/deploy/smoke/run-local-active-baseline-suite.sh"
+  fi
 fi
 
 if [[ "${RUN_RECOMMENDATION_OBSERVATION}" == "true" ]]; then
@@ -75,7 +147,7 @@ if [[ "${RUN_RECOMMENDATION_OBSERVATION}" == "true" ]]; then
     bash "${ROOT_DIR}/deploy/smoke/run-local-recommendation-observation-suite.sh"
 fi
 
-python3 - "${DURATIONS_TSV}" "${SUMMARY_OUT}" "${JSON_OUT}" "${ARTIFACT_DIR}" "${APP_BASE_URL}" "${RUN_ACTIVE_BASELINE}" "${RUN_RECOMMENDATION_OBSERVATION}" <<'PY'
+python3 - "${DURATIONS_TSV}" "${SUMMARY_OUT}" "${JSON_OUT}" "${ARTIFACT_DIR}" "${APP_BASE_URL}" "${RUN_ACTIVE_BASELINE}" "${RUN_RECOMMENDATION_OBSERVATION}" "${REUSE_RECENT_ACTIVE_BASELINE}" "${ACTIVE_BASELINE_REUSE_TTL_SECONDS}" "${ACTIVE_BASELINE_RUN_BACKEND_TESTS}" "${ACTIVE_BASELINE_RUN_FRONTEND_BASELINE}" "${ACTIVE_BASELINE_RUN_FRONTEND_E2E}" "${ACTIVE_BASELINE_RUN_OPS_BASELINE}" "${ACTIVE_BASELINE_RUN_COLLECT_LEGACY_REPAIR}" <<'PY'
 import csv
 import json
 import sys
@@ -88,9 +160,17 @@ artifact_dir = sys.argv[4]
 app_base_url = sys.argv[5]
 run_active_baseline = sys.argv[6]
 run_recommendation_observation = sys.argv[7]
+reuse_recent_active_baseline = sys.argv[8]
+active_baseline_reuse_ttl_seconds = sys.argv[9]
+active_baseline_run_backend_tests = sys.argv[10]
+active_baseline_run_frontend_baseline = sys.argv[11]
+active_baseline_run_frontend_e2e = sys.argv[12]
+active_baseline_run_ops_baseline = sys.argv[13]
+active_baseline_run_collect_legacy_repair = sys.argv[14]
 
 rows = list(csv.DictReader(durations_path.open(encoding="utf-8"), delimiter="\t"))
 failed = [row for row in rows if row["exit_code"] != "0"]
+active_baseline_reused = False
 
 lines = [
     f"current_priority_suite={'failed' if failed else 'passed'}",
@@ -99,12 +179,24 @@ lines = [
     f"app_base_url={app_base_url}",
     f"run_active_baseline={run_active_baseline}",
     f"run_recommendation_observation={run_recommendation_observation}",
+    f"reuse_recent_active_baseline={reuse_recent_active_baseline}",
+    f"active_baseline_reuse_ttl_seconds={active_baseline_reuse_ttl_seconds}",
+    f"active_baseline_run_backend_tests={active_baseline_run_backend_tests}",
+    f"active_baseline_run_frontend_baseline={active_baseline_run_frontend_baseline}",
+    f"active_baseline_run_frontend_e2e={active_baseline_run_frontend_e2e}",
+    f"active_baseline_run_ops_baseline={active_baseline_run_ops_baseline}",
+    f"active_baseline_run_collect_legacy_repair={active_baseline_run_collect_legacy_repair}",
 ]
 
 for row in rows:
     seconds = int(row["duration_ms"]) / 1000
+    if row["label"] == "active_baseline":
+        output_text = Path(row["output_file"]).read_text(encoding="utf-8", errors="replace")
+        active_baseline_reused = "active_baseline=reused_recent_pass" in output_text
     lines.append(f"{row['label']}_duration_ms={row['duration_ms']}")
     lines.append(f"{row['label']}_duration_seconds={seconds:.3f}")
+
+lines.append(f"active_baseline_reused={str(active_baseline_reused).lower()}")
 
 if run_active_baseline == "true":
     lines.append(f"active_baseline_stdout={artifact_dir}/active-baseline.out")
@@ -117,6 +209,14 @@ json_out.write_text(json.dumps({
     "app_base_url": app_base_url,
     "run_active_baseline": run_active_baseline,
     "run_recommendation_observation": run_recommendation_observation,
+    "reuse_recent_active_baseline": reuse_recent_active_baseline,
+    "active_baseline_reuse_ttl_seconds": active_baseline_reuse_ttl_seconds,
+    "active_baseline_run_backend_tests": active_baseline_run_backend_tests,
+    "active_baseline_run_frontend_baseline": active_baseline_run_frontend_baseline,
+    "active_baseline_run_frontend_e2e": active_baseline_run_frontend_e2e,
+    "active_baseline_run_ops_baseline": active_baseline_run_ops_baseline,
+    "active_baseline_run_collect_legacy_repair": active_baseline_run_collect_legacy_repair,
+    "active_baseline_reused": active_baseline_reused,
     "steps": rows,
 }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 print(summary_out.read_text(encoding="utf-8"), end="")

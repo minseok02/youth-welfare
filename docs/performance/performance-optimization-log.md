@@ -289,6 +289,58 @@ Planned changes in this batch:
    - prove logged-in search still executes on each call
 3. docs / troubleshooting
    - record that API latency can remain after representative explain is closed because response assembly still contributes meaningfully
+
+Accepted server remeasurement:
+
+- server HEAD: `7b53d637395aa6c5978a633bc25477f30fd38c9f`
+- app redeploy completed
+- baseline and wrapper baseline passed
+- recent app log `ERROR/Exception 없음`
+
+Observed deltas from the accepted server rerun:
+
+- `policy_search_keyword` baseline:
+  - `p95 481.0ms -> 33.5ms`
+  - `p99 513.8ms -> 33.8ms`
+  - `max 522.0ms -> 33.9ms`
+- `policy_search_keyword` wrapper baseline:
+  - `p95 340.9ms -> 20.3ms`
+  - `p99 346.6ms -> 21.0ms`
+  - `max 348.0ms -> 21.2ms`
+- server logs showed the cache effect directly:
+  - first same-shape search `294~324ms`
+  - repeated same-shape search `0~1ms`
+- `policy_search_keyword_api_shape` remained stable:
+  - baseline `execution 316.565ms`, `seq_scan=false`, `index_scan=true`
+  - wrapper baseline `execution 313.969ms`, `seq_scan=false`, `index_scan=true`
+
+Interpretation:
+
+- the public search TTL cache is accepted and closed
+- the representative DB plan stayed healthy while the API hotspot itself collapsed
+- the remaining performance work is no longer search/ranking endpoint latency, but wrapper bundle rerun cost
+
+## Current Active Batch
+
+### 2026-05-30: current-priority recent baseline reuse
+
+Current trigger values from the accepted server rerun:
+
+- `current_priority` stayed materially above recommendation observation because `active_baseline` dominated the total
+- recent accepted examples:
+  - `active_baseline_duration_ms=146306`
+  - `recommendation_observation_duration_ms=5998`
+
+Planned changes in this batch:
+
+1. `run-local-active-baseline-suite.sh`
+   - publish stable `tmp/active-baseline-suite/latest*` snapshot and summary/json
+   - include `suite_duration_ms` and run settings in the summary/json contract
+2. `run-local-current-priority-suite.sh`
+   - reuse a recent passed `active_baseline` with matching settings inside a short TTL
+   - keep explicit `active_baseline_reused=true/false` in summary/json
+3. docs / troubleshooting
+   - record that this optimization targets wrapper rerun cost, not application endpoint latency
 ## Comparison Table
 
 | Date | Before HEAD | After HEAD | Area | Change | Before | After | Delta | Decision |
@@ -309,3 +361,4 @@ Planned changes in this batch:
 | 2026-05-30 | `f351ee32466ce9aed73c7d755e38ab6bcac2db03` | `10e3bea61cf1bc7812d4264e3a51ed5072f79c66` | Active Baseline | snake_case step durations | frontend bundled, key names unstable | `backend_tests/frontend_lint/frontend_build/frontend_e2e/...` direct keys | observability improved | accepted |
 | 2026-05-30 | `f351ee32466ce9aed73c7d755e38ab6bcac2db03` | `10e3bea61cf1bc7812d4264e3a51ed5072f79c66` | Search DB | lowered representative explain | `258.805ms seq scan` | `117.078ms seq scan` | `-141.727ms` | still unresolved |
 | 2026-05-30 | `10e3bea61cf1bc7812d4264e3a51ed5072f79c66` | `731f5f2c2e6f58a61ba5b7d89ff20ce6e36990f3` | Search DB | runtime `title/keyword` trgm index + API-shape benchmark realignment | historical lowered LIKE seq scan | `policy_search_keyword_api_shape` index scan | contract realigned | accepted |
+| 2026-05-30 | `731f5f2c2e6f58a61ba5b7d89ff20ce6e36990f3` | `7b53d637395aa6c5978a633bc25477f30fd38c9f` | Search | public policy search TTL cache | baseline `p95 481.0ms`, wrapper `p95 340.9ms` | baseline `p95 33.5ms`, wrapper `p95 20.3ms` | `-447.5ms`, `-320.6ms` | improvement accepted |
