@@ -237,7 +237,19 @@ user_id = int(user_id_raw)
 expiration_ms = int(expiration_ms_raw)
 issued_at_ms = int(time.time() * 1000)
 
-header = {"alg": "HS256", "typ": "JWT"}
+secret_bytes = secret.encode("utf-8")
+secret_len = len(secret_bytes)
+if secret_len >= 64:
+    alg = "HS512"
+    digest = hashlib.sha512
+elif secret_len >= 48:
+    alg = "HS384"
+    digest = hashlib.sha384
+else:
+    alg = "HS256"
+    digest = hashlib.sha256
+
+header = {"alg": alg, "typ": "JWT"}
 payload = {
     "sub": user_key,
     "uid": user_id,
@@ -253,7 +265,7 @@ def b64url(data: bytes) -> str:
 header_b64 = b64url(json.dumps(header, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
 payload_b64 = b64url(json.dumps(payload, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
 signing_input = f"{header_b64}.{payload_b64}".encode("ascii")
-signature = hmac.new(secret.encode("utf-8"), signing_input, hashlib.sha256).digest()
+signature = hmac.new(secret_bytes, signing_input, digest).digest()
 print(f"{header_b64}.{payload_b64}.{b64url(signature)}")
 PY
 }
@@ -300,14 +312,15 @@ smoke_resolve_admin_access_token() {
       WITH admin_candidate AS (
         SELECT u.id, u.user_key
         FROM auth_users au
-        JOIN users u ON u.id = au.user_id
+        JOIN users u ON u.user_key = au.user_key
         WHERE au.email_lookup_hash = '${admin_lookup_hash}'
-          AND COALESCE(u.active, true) = true
+          AND COALESCE(au.is_active, true) = true
+          AND COALESCE(u.is_active, true) = true
         UNION ALL
         SELECT u.id, u.user_key
         FROM users u
         WHERE lower(COALESCE(u.email, '')) = lower('${ADMIN_EMAIL}')
-          AND COALESCE(u.active, true) = true
+          AND COALESCE(u.is_active, true) = true
       )
       SELECT id, user_key
       FROM admin_candidate

@@ -369,8 +369,10 @@ smoke_assert_status 200 "${HEALTH_STATUS}" "health check" "${HEALTH_RESPONSE}"
 
 CONTAINER_ADMIN_ALLOWLIST="$(extract_container_admin_allowlist)"
 
-smoke_print_step "ensure admin account"
-smoke_ensure_admin_account "${APP_BASE_URL}" "${ADMIN_EMAIL}" "${ADMIN_PASSWORD}"
+if [[ -z "${ADMIN_ACCESS_TOKEN:-}" ]]; then
+  smoke_print_step "ensure admin account"
+  smoke_ensure_admin_account "${APP_BASE_URL}" "${ADMIN_EMAIL}" "${ADMIN_PASSWORD}"
+fi
 
 if [[ -n "${ADMIN_ACCESS_TOKEN:-}" ]]; then
   smoke_print_step "admin access token reuse (${ADMIN_EMAIL})"
