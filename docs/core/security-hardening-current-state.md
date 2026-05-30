@@ -143,8 +143,10 @@ edge case:
 - `app_core_rw` 는 더 이상 `chat_sessions`, `cluster_ai_results`, `collect_execution_locks`, `web_push_subscriptions`, `recent_policy_views` 에서 `DELETE` 를 직접 갖지 않습니다.
 - 해당 delete는 각각 `chat_session_cleanup_rw`, `cluster_ai_cleanup_rw`, `collect_execution_lock_cleanup_rw`, `web_push_subscription_cleanup_rw` 전용 경계가 맡습니다.
 - `recent_policy_views` 는 앱 경로상 `INSERT ... ON CONFLICT DO UPDATE` 와 read만 사용하므로, 별도 cleanup role을 추가하지 않고 `DELETE` 만 걷어내는 bounded step으로 닫았습니다.
+- `recommendation_review_gate_promotion_approvals` 는 admin 전용 upsert/delete 단일 테이블이라 `recommendation_review_gate_command_rw` 전용 command 경계로 분리했습니다. 이제 `app_core_rw` 는 이 테이블에 대한 `SELECT/INSERT/UPDATE/DELETE` 를 직접 갖지 않습니다.
 - fresh init은 [z90-create-runtime-db-users.sh](../../deploy/postgres/init/z90-create-runtime-db-users.sh), 기존 volume drift 복구는 [V2026_05_29_01__tighten_app_core_cleanup_delete_grants.sql](../../deploy/postgres/patches/V2026_05_29_01__tighten_app_core_cleanup_delete_grants.sql) 기준으로 맞춥니다.
 - `recent_policy_views` revoke drift 복구는 [V2026_05_30_03__tighten_recent_policy_views_delete_grant.sql](../../deploy/postgres/patches/V2026_05_30_03__tighten_recent_policy_views_delete_grant.sql) 기준으로 맞춥니다.
+- `recommendation_review_gate_promotion_approvals` command role drift 복구는 [V2026_05_30_04__add_recommendation_review_gate_command_role.sql](../../deploy/postgres/patches/V2026_05_30_04__add_recommendation_review_gate_command_role.sql) 기준으로 맞춥니다.
 - local 재검증 기준 `ChatSessionApi/AuthRedis/ChatMessage/ChatRepository/UserWithdraw` integration 세트와 `run-local-runtime-api-smoke.sh`, `run-local-admin-forced-logout-smoke.sh` 가 다시 통과했습니다.
 
 ### 8. query/input cost guard
