@@ -38,6 +38,7 @@ smoke_require_command bash
 smoke_require_command python3
 smoke_require_command tee
 mkdir -p "${ARTIFACT_DIR}"
+mkdir -p "${SMOKE_ARTIFACT_DIR}"
 
 smoke_print_step "collect governance observation"
 APP_BASE_URL="${APP_BASE_URL}" \
@@ -70,8 +71,8 @@ lanes = data["collectSourceLanes"]
 scheduled = [lane for lane in lanes if lane["executionMode"] == "SCHEDULED"]
 manual = [lane for lane in lanes if lane["executionMode"] == "MANUAL"]
 open_circuits = [c for c in data["circuitStatuses"] if c.get("open") is True]
-latest_failed = [lane["laneKey"] for lane in lanes if lane.get("latestRun", {}).get("status") == "FAILED"]
-latest_partial = [lane["laneKey"] for lane in lanes if lane.get("latestRun", {}).get("status") == "PARTIAL_SUCCESS"]
+latest_failed = [lane["laneKey"] for lane in lanes if (lane.get("latestRun") or {}).get("status") == "FAILED"]
+latest_partial = [lane["laneKey"] for lane in lanes if (lane.get("latestRun") or {}).get("status") == "PARTIAL_SUCCESS"]
 missing_latest = [lane["laneKey"] for lane in lanes if lane.get("latestRun") is None]
 
 if data["failedJobsInWindow"] > 0 or open_circuits:
