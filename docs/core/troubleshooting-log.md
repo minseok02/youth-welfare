@@ -6716,3 +6716,13 @@ admin API와 latest artifact에
 - 문제: `recommendation_persistence_command_rw` 에 `INSERT, DELETE` 와 sequence usage만 주고 서버 sanity를 돌렸더니, `DELETE FROM user_recommendations WHERE user_key = ?` 에서 `permission denied` 가 났다. app health와 datasource login은 정상이라 role 자체가 없는 문제가 아니라, PostgreSQL이 `WHERE user_key` 평가에도 컬럼 read 권한을 요구하는 경계였다.
 - 해결: fresh init([z90-create-runtime-db-users.sh](/home/minseok/youth-welfare/deploy/postgres/init/z90-create-runtime-db-users.sh:1)), RDS bootstrap([bootstrap-rds-runtime.sh](/home/minseok/youth-welfare/deploy/postgres/bootstrap-rds-runtime.sh:1)), runtime drift patch([V2026_05_30_06__grant_recommendation_persistence_user_key_select.sql](/home/minseok/youth-welfare/deploy/postgres/patches/V2026_05_30_06__grant_recommendation_persistence_user_key_select.sql:1)), verifier([verify-rds-runtime-privileges.sh](/home/minseok/youth-welfare/deploy/postgres/verify-rds-runtime-privileges.sh:1)) 기준을 모두 `SELECT(user_key)` bounded grant 포함 형태로 맞췄다.
 - 이유: 이 경계에서 필요한 것은 전체 `SELECT` 가 아니라 `DELETE predicate` 에 필요한 최소 읽기 권한이다. 컬럼 단위 `SELECT(user_key)` 만 주는 편이 least-privilege와 실제 PostgreSQL 실행 계약을 동시에 만족한다.
+
+## 1046) npm 11에서는 통과하는 lockfile도 GitHub Actions의 npm 10에서는 `npm ci` sync 오류가 날 수 있다
+- 문제: local `npm ci` 는 통과했지만, GitHub Actions `frontend-browser-smoke` job의 `Install frontend dependencies` 단계는 `npm ci` 에서 `Missing: @emnapi/core@1.10.0`, `Missing: @emnapi/runtime@1.10.0` 로 계속 실패했다. local 기본 환경은 `npm 11.6.2`, CI는 `Node 22 / npm 10.9.8` 이라 lockfile 해석 결과가 달랐다.
+- 해결: `frontend/package-lock.json` 을 CI와 같은 `npm 10.9.8` 기준으로 다시 생성했다. 이후 local에서도 `cd frontend && npx -y npm@10.9.8 ci` 로 같은 runner 조건 재검증을 통과시켰다.
+- 이유: 현재 CI는 `actions/setup-node@v4` 로 Node 22와 npm 10을 사용하므로, lockfile drift도 그 기준에서 닫아야 한다. local 최신 npm만 보고 통과를 판단하면 실제 GitHub Actions install 단계가 계속 깨질 수 있다.
+
+## 1047) GitHub Actions cleanup에서 `docker compose down` 은 서비스에서 참조하는 `.env` 파일이 없어도 실패한다
+- 문제: `frontend-browser-smoke` job은 `npm ci` 단계에서 먼저 실패하면 아직 `docker compose up` 을 하지 않았더라도 마지막 cleanup step의 `docker compose down -v` 는 그대로 실행된다. 이 저장소의 [docker-compose.yml](/home/minseok/youth-welfare/docker-compose.yml:1) `app` 서비스는 `env_file: .env` 를 참조하므로, CI workspace 루트에 `.env` 가 없으면 cleanup 자체가 또 한 번 빨갛게 남는다.
+- 해결: [.github/workflows/ci.yml](/home/minseok/youth-welfare/.github/workflows/ci.yml:1) 에 `Prepare CI compose env file` step을 추가해 early stage에서 `touch .env` 를 수행하도록 했다. 이렇게 하면 install 단계가 먼저 실패해도 cleanup의 compose parse는 더 이상 `.env not found` 로 깨지지 않는다.
+- 이유: 여기서 필요한 것은 production용 실제 secret 값이 아니라 compose parser가 만족할 파일 존재 계약이다. 최소 빈 `.env` 파일만 만들어도 `docker compose down -v` 는 CI cleanup 용도로 충분히 안정화된다.
