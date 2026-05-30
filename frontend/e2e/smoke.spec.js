@@ -404,7 +404,7 @@ test("일반 사용자로 admin dashboard 접근 시 홈으로 리다이렉트�
   await expect(page.getByText("운영 대시보드는 관리자 계정만 접근할 수 있습니다.")).toBeVisible();
 });
 
-test("admin dashboard는 recommendation overview와 triage 섹션을 함께 보여준다", async ({ page }) => {
+test("admin dashboard는 recommendation overview와 triage 섹션을 함께 보여준다 @admin-required", async ({ page }) => {
   await mockAdminDashboardApis(page);
   await loginFromProtectedRoute(page, "/admin/dashboard", adminCredentials);
 
@@ -415,7 +415,7 @@ test("admin dashboard는 recommendation overview와 triage 섹션을 함께 보�
   await expect(page.getByText("최근 0건 검색 키워드", { exact: true })).toBeVisible();
 });
 
-test("admin dashboard quick jump는 recommendation breakdown 섹션으로 이동한다", async ({ page }) => {
+test("admin dashboard quick jump는 recommendation breakdown 섹션으로 이동한다 @admin-required", async ({ page }) => {
   await mockAdminDashboardApis(page);
   await loginFromProtectedRoute(page, "/admin/dashboard", adminCredentials);
   await expect(page.getByText("운영 추천 대시보드")).toBeVisible();

@@ -6,6 +6,7 @@ source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
 
 APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:8082}"
 HEALTH_URL="${HEALTH_URL:-${APP_BASE_URL}/actuator/health}"
+RUN_ADMIN_SETUP="${RUN_ADMIN_SETUP:-true}"
 E2E_ADMIN_EMAIL="${E2E_ADMIN_EMAIL:-${ADMIN_EMAIL:-admin@example.com}}"
 E2E_ADMIN_PASSWORD="${E2E_ADMIN_PASSWORD:-${ADMIN_PASSWORD:-password123!}}"
 E2E_USER_EMAIL="${E2E_USER_EMAIL:-${SMOKE_EMAIL:-playwright.user@example.com}}"
@@ -15,6 +16,8 @@ ADMIN_EMAIL_FILE="${ADMIN_EMAIL_FILE:-/tmp/youth-welfare-admin-smoke-email}"
 ADMIN_PASSWORD_FILE="${ADMIN_PASSWORD_FILE:-/tmp/youth-welfare-admin-smoke-password}"
 
 export APP_BASE_URL E2E_ADMIN_EMAIL E2E_ADMIN_PASSWORD E2E_USER_EMAIL E2E_USER_PASSWORD SECURITY_ADMIN_EMAILS
+
+RUN_ADMIN_SETUP="$(smoke_normalize_bool "${RUN_ADMIN_SETUP}")"
 
 reset_login_account_state() {
   local email="$1"
@@ -96,21 +99,30 @@ smoke_print_step "wait for backend health"
 smoke_wait_for_health 60 2 "${HEALTH_URL}" "${health_response}" "${health_stderr}" >/dev/null
 
 smoke_print_step "ensure admin account"
-smoke_ensure_admin_account "${APP_BASE_URL}" "${E2E_ADMIN_EMAIL}" "${E2E_ADMIN_PASSWORD}"
-printf '%s\n' "${E2E_ADMIN_EMAIL}" > "${ADMIN_EMAIL_FILE}"
-printf '%s\n' "${E2E_ADMIN_PASSWORD}" > "${ADMIN_PASSWORD_FILE}"
+if [[ "${RUN_ADMIN_SETUP}" == "true" ]]; then
+  smoke_ensure_admin_account "${APP_BASE_URL}" "${E2E_ADMIN_EMAIL}" "${E2E_ADMIN_PASSWORD}"
+  printf '%s\n' "${E2E_ADMIN_EMAIL}" > "${ADMIN_EMAIL_FILE}"
+  printf '%s\n' "${E2E_ADMIN_PASSWORD}" > "${ADMIN_PASSWORD_FILE}"
+else
+  echo "admin_setup=skipped"
+fi
 
 smoke_print_step "ensure e2e user account"
 ensure_signup_user "${APP_BASE_URL}" "${E2E_USER_EMAIL}" "${E2E_USER_PASSWORD}"
 
 smoke_print_step "reset auth throttle state"
-reset_login_account_state "${E2E_ADMIN_EMAIL}"
+if [[ "${RUN_ADMIN_SETUP}" == "true" ]]; then
+  reset_login_account_state "${E2E_ADMIN_EMAIL}"
+fi
 reset_login_account_state "${E2E_USER_EMAIL}"
 clear_login_rate_limit_keys
 
 smoke_print_step "ensure searchable policy fixture"
 smoke_ensure_policy_fixture
 
-echo "admin_email=${E2E_ADMIN_EMAIL}"
+echo "admin_setup=${RUN_ADMIN_SETUP}"
+if [[ "${RUN_ADMIN_SETUP}" == "true" ]]; then
+  echo "admin_email=${E2E_ADMIN_EMAIL}"
+fi
 echo "user_email=${E2E_USER_EMAIL}"
 echo "app_base_url=${APP_BASE_URL}"

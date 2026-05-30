@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 1053) frontend observation deployed-origin 기본 명령이 bootstrap/user/env/admin 전제조건을 직접 닫지 않으면 서버에서는 wrapper 자체가 아닌 준비 단계에서 쉽게 실패한다
+- 문제: `run-local-frontend-observation-suite.sh` 를 서버에서 `FRONTEND_E2E_MODE=deployed-origin` 기본 명령 그대로 실행했더니, 기본 e2e 사용자 로그인 실패, reset-password helper의 `.env` DB hostname drift, 실제 admin password 부재 때문에 admin dashboard 케이스가 한꺼번에 깨졌다. wrapper summary는 유효했지만 “기본 명령 그대로 통과한다”는 계약은 닫히지 않은 상태였다.
+- 해결: deployed-origin 경로가 이제 backend `APP_BASE_URL` / `HEALTH_URL` 기준으로 `bootstrap-playwright-smoke-data.sh` 를 먼저 실행해 fresh e2e user와 searchable policy fixture를 준비한다. `ENV_FILE` 은 Playwright helper까지 전달해 reset-password helper도 production DB 접속값을 같은 env file에서 읽게 했고, admin dashboard 케이스는 `@admin-required` 로 분리해 기본값에서는 제외했다. 실제 admin credential이 있을 때만 `RUN_FRONTEND_ADMIN_E2E=true` 로 opt-in 한다.
+- 이유: compact operator wrapper는 기본 명령이 운영 현실에서 바로 통과해야 재사용 가치가 있다. deployed-origin smoke는 local-dev보다 준비 조건이 많으므로, user/bootstrap/env/admin 전제조건을 wrapper가 직접 닫는 편이 bounded하고 운영 일관성도 좋다.
+
 ## 1041) 로그인 401도 공용 axios refresh interceptor를 타면 잘못된 credential 오류가 stale refresh 오류로 덮일 수 있다
 - 문제: 프런트 `api` interceptor가 모든 `401` 을 `/api/auth/refresh` 대상으로 취급하면, `/api/auth/login` 이 `A004` 로 실패한 경우에도 stale refresh cookie 때문에 `/api/auth/refresh -> A003` 을 추가로 태운다. 이 경우 사용자는 비밀번호가 맞든 틀리든 `이미 사용된 Refresh Token입니다. 재로그인이 필요합니다.` 만 보게 된다.
 - 해결: `frontend/src/lib/axios.js` 에서 `/api/auth/*` 자체는 refresh 대상에서 제외했다. 즉 refresh rotation은 보호 API의 `401` 에만 적용하고, 로그인/회원가입/비밀번호 재설정 같은 auth endpoint 자체 오류는 원래 서버 메시지를 그대로 사용자에게 보여 준다. Playwright smoke에도 “로그인 401 시 refresh 0회, A004 유지” 회귀 케이스를 추가했다.

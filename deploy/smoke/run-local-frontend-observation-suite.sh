@@ -14,6 +14,9 @@ RUN_FRONTEND_BUILD="${RUN_FRONTEND_BUILD:-true}"
 RUN_FRONTEND_E2E="${RUN_FRONTEND_E2E:-true}"
 FRONTEND_E2E_MODE="${FRONTEND_E2E_MODE:-local-dev}"
 FRONTEND_PUBLIC_BASE_URL="${FRONTEND_PUBLIC_BASE_URL:-${PUBLIC_BASE_URL:-}}"
+RUN_FRONTEND_ADMIN_E2E="${RUN_FRONTEND_ADMIN_E2E:-false}"
+FRONTEND_OBSERVATION_APP_BASE_URL="${FRONTEND_OBSERVATION_APP_BASE_URL:-${APP_BASE_URL:-http://127.0.0.1:8082}}"
+FRONTEND_OBSERVATION_HEALTH_URL="${FRONTEND_OBSERVATION_HEALTH_URL:-${HEALTH_URL:-${FRONTEND_OBSERVATION_APP_BASE_URL}/actuator/health}}"
 
 SUMMARY_OUT="${ARTIFACT_DIR}/frontend-observation-summary.txt"
 JSON_OUT="${ARTIFACT_DIR}/frontend-observation.json"
@@ -51,6 +54,7 @@ KEEP_ARTIFACTS="$(smoke_normalize_bool "${KEEP_ARTIFACTS}")"
 RUN_FRONTEND_LINT="$(smoke_normalize_bool "${RUN_FRONTEND_LINT}")"
 RUN_FRONTEND_BUILD="$(smoke_normalize_bool "${RUN_FRONTEND_BUILD}")"
 RUN_FRONTEND_E2E="$(smoke_normalize_bool "${RUN_FRONTEND_E2E}")"
+RUN_FRONTEND_ADMIN_E2E="$(smoke_normalize_bool "${RUN_FRONTEND_ADMIN_E2E}")"
 
 smoke_require_command bash
 smoke_require_command python3
@@ -95,10 +99,24 @@ if [[ "${RUN_FRONTEND_E2E}" == "true" ]]; then
         echo "FRONTEND_PUBLIC_BASE_URL or PUBLIC_BASE_URL is required for FRONTEND_E2E_MODE=deployed-origin" >&2
         exit 1
       fi
+      if [[ -z "${E2E_USER_EMAIL:-}" ]]; then
+        E2E_USER_EMAIL="playwright.frontend.observation.${RUN_TS_UTC,,}@example.com"
+      fi
+      if [[ -z "${E2E_USER_PASSWORD:-}" ]]; then
+        E2E_USER_PASSWORD="Password123!"
+      fi
+      PLAYWRIGHT_GREP_INVERT="@dev-only"
+      if [[ "${RUN_FRONTEND_ADMIN_E2E}" != "true" ]]; then
+        PLAYWRIGHT_GREP_INVERT="${PLAYWRIGHT_GREP_INVERT}|@admin-required"
+      fi
+      run_command_step \
+        "frontend_e2e_bootstrap" \
+        "${ARTIFACT_DIR}/frontend-e2e-bootstrap.txt" \
+        bash -lc "cd '${ROOT_DIR}/frontend' && APP_BASE_URL='${FRONTEND_OBSERVATION_APP_BASE_URL}' HEALTH_URL='${FRONTEND_OBSERVATION_HEALTH_URL}' RUN_ADMIN_SETUP='${RUN_FRONTEND_ADMIN_E2E}' E2E_USER_EMAIL='${E2E_USER_EMAIL}' E2E_USER_PASSWORD='${E2E_USER_PASSWORD}' ENV_FILE='${ENV_FILE:-}' DB_QUERY_USERNAME='${DB_QUERY_USERNAME:-}' DB_QUERY_PASSWORD='${DB_QUERY_PASSWORD:-}' bash ./scripts/bootstrap-playwright-smoke-data.sh"
       run_command_step \
         "frontend_e2e" \
         "${ARTIFACT_DIR}/frontend-e2e.txt" \
-        bash -lc "cd '${ROOT_DIR}/frontend' && PLAYWRIGHT_SKIP_WEBSERVER=true PLAYWRIGHT_BASE_URL='${FRONTEND_PUBLIC_BASE_URL}' PLAYWRIGHT_GREP_INVERT='@dev-only' npm run test:e2e"
+        bash -lc "cd '${ROOT_DIR}/frontend' && ENV_FILE='${ENV_FILE:-}' E2E_USER_EMAIL='${E2E_USER_EMAIL}' E2E_USER_PASSWORD='${E2E_USER_PASSWORD}' PLAYWRIGHT_SKIP_WEBSERVER=true PLAYWRIGHT_BASE_URL='${FRONTEND_PUBLIC_BASE_URL}' PLAYWRIGHT_GREP_INVERT='${PLAYWRIGHT_GREP_INVERT}' npm run test:e2e"
       ;;
     skip)
       cat <<'EOF' > "${ARTIFACT_DIR}/frontend-e2e.txt"
@@ -110,7 +128,7 @@ EOF
   esac
 fi
 
-python3 - "${DURATIONS_TSV}" "${SUMMARY_OUT}" "${JSON_OUT}" "${NOTE_OUT}" "${ARTIFACT_DIR}" "${RUN_TS_UTC}" "${RUN_FRONTEND_LINT}" "${RUN_FRONTEND_BUILD}" "${RUN_FRONTEND_E2E}" "${FRONTEND_E2E_MODE}" "${FRONTEND_PUBLIC_BASE_URL}" <<'PY'
+python3 - "${DURATIONS_TSV}" "${SUMMARY_OUT}" "${JSON_OUT}" "${NOTE_OUT}" "${ARTIFACT_DIR}" "${RUN_TS_UTC}" "${RUN_FRONTEND_LINT}" "${RUN_FRONTEND_BUILD}" "${RUN_FRONTEND_E2E}" "${FRONTEND_E2E_MODE}" "${FRONTEND_PUBLIC_BASE_URL}" "${RUN_FRONTEND_ADMIN_E2E}" "${FRONTEND_OBSERVATION_APP_BASE_URL}" "${FRONTEND_OBSERVATION_HEALTH_URL}" <<'PY'
 import csv
 import json
 import sys
@@ -127,6 +145,9 @@ run_frontend_build = sys.argv[8]
 run_frontend_e2e = sys.argv[9]
 frontend_e2e_mode = sys.argv[10]
 frontend_public_base_url = sys.argv[11]
+run_frontend_admin_e2e = sys.argv[12]
+frontend_observation_app_base_url = sys.argv[13]
+frontend_observation_health_url = sys.argv[14]
 
 rows = list(csv.DictReader(durations_path.open(encoding="utf-8"), delimiter="\t"))
 suite_duration_ms = sum(int(row["duration_ms"]) for row in rows)
@@ -159,6 +180,9 @@ lines = [
     f"run_frontend_e2e={run_frontend_e2e}",
     f"frontend_e2e_mode={frontend_e2e_mode}",
     f"frontend_public_base_url={frontend_public_base_url}",
+    f"run_frontend_admin_e2e={run_frontend_admin_e2e}",
+    f"frontend_observation_app_base_url={frontend_observation_app_base_url}",
+    f"frontend_observation_health_url={frontend_observation_health_url}",
 ]
 
 for row in rows:
@@ -185,6 +209,9 @@ json_payload = {
     "run_frontend_e2e": run_frontend_e2e,
     "frontend_e2e_mode": frontend_e2e_mode,
     "frontend_public_base_url": frontend_public_base_url,
+    "run_frontend_admin_e2e": run_frontend_admin_e2e,
+    "frontend_observation_app_base_url": frontend_observation_app_base_url,
+    "frontend_observation_health_url": frontend_observation_health_url,
     "decision_class": decision_class,
     "operator_reading": operator_reading,
     "next_action": next_action,
@@ -202,6 +229,7 @@ note_lines = [
     f"- `enabled_smoke_steps`: `{enabled_value}`",
     f"- `suite_duration_ms`: `{suite_duration_ms}`",
     f"- `frontend_e2e_mode`: `{frontend_e2e_mode}`",
+    f"- `run_frontend_admin_e2e`: `{run_frontend_admin_e2e}`",
     f"- `next_action`: `{next_action}`",
     "",
     "## Operator Reading",

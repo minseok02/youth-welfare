@@ -8,6 +8,7 @@
 
 현재 daily operator entrypoint는 `bash deploy/smoke/run-local-frontend-observation-suite.sh` 입니다.
 이 wrapper는 lint/build/Playwright smoke를 다시 읽어 `decision_class`, `enabled_smoke_steps`, `suite_duration_ms`, `next_action` 을 compact artifact로 남깁니다.
+운영 서버 `deployed-origin` 기본 경계에서는 backend bootstrap으로 fresh e2e user와 검색 fixture를 먼저 준비하고, `@dev-only`, `@admin-required` 케이스를 제외한 browser smoke를 기본 기준선으로 봅니다. admin dashboard smoke는 실제 admin credential이 있을 때만 `RUN_FRONTEND_ADMIN_E2E=true` 로 opt-in 합니다.
 세부 브라우저 흐름을 직접 다시 따라갈 때만 [frontend-qa-checklist.md](./frontend-qa-checklist.md) 로 내려갑니다.
 
 ## 현재 결론
@@ -93,7 +94,7 @@
 - `cd frontend && npm run lint` 통과
 - `cd frontend && npm run test:e2e` 통과
 
-현재 Playwright smoke 범위:
+현재 기본 Playwright smoke 범위:
 
 - `/chat` 비로그인 접근 -> `/login` -> 로그인 후 원 경로 복귀
 - 로그인된 `/chat` 에서 `authExpired` callback 실행 -> `/login` -> 재로그인 후 `/chat` 복귀
@@ -106,6 +107,9 @@
 - `/reset-password#token=...` hash 딥링크 진입 -> 새 비밀번호 설정 -> 새 비밀번호 로그인 성공
 - `/reset-password#token=...` invalid token 제출 -> `A008` 만료 안내 노출 + reset-password 화면 유지
 - 일반 사용자 `/admin/dashboard` 접근 차단
+
+opt-in admin Playwright smoke 범위:
+
 - 관리자 `/admin/dashboard` recommendation overview + triage 섹션 렌더
 - admin dashboard quick jump -> recommendation breakdown 섹션 이동
 - admin dashboard `summary` 강제 실패 -> `수집 실패 상세`, `검색 실패 상세` 유지

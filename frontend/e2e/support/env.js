@@ -3,7 +3,6 @@ import path from "node:path";
 
 const FRONTEND_DIR = process.cwd();
 const ROOT_DIR = path.resolve(FRONTEND_DIR, "..");
-const ROOT_ENV_FILE = path.join(ROOT_DIR, ".env");
 const ADMIN_EMAIL_FILE = "/tmp/youth-welfare-admin-smoke-email";
 const ADMIN_PASSWORD_FILE = "/tmp/youth-welfare-admin-smoke-password";
 
@@ -47,6 +46,23 @@ function readEnvFile(filePath) {
   return entries;
 }
 
+function resolveEnvFilePath(rawPath) {
+  const candidate = trim(rawPath);
+  if (!candidate) {
+    return path.join(ROOT_DIR, ".env");
+  }
+
+  if (path.isAbsolute(candidate)) {
+    return candidate;
+  }
+
+  if (fs.existsSync(candidate)) {
+    return path.resolve(FRONTEND_DIR, candidate);
+  }
+
+  return path.resolve(ROOT_DIR, candidate);
+}
+
 function firstCsvValue(value) {
   return trim((value || "").split(",")[0]);
 }
@@ -60,7 +76,7 @@ function readFirstLine(filePath) {
   return trim(firstLine);
 }
 
-const envFile = readEnvFile(ROOT_ENV_FILE);
+const envFile = readEnvFile(resolveEnvFilePath(process.env.ENV_FILE));
 
 export function resolveAdminCredentials() {
   const email = trim(
