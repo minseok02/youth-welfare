@@ -93,6 +93,9 @@ jobs:
 
       - name: Bootstrap frontend smoke data
         working-directory: frontend
+        env:
+          APP_BASE_URL: http://127.0.0.1:8082
+          HEALTH_URL: http://127.0.0.1:8082/actuator/health
         run: bash ./scripts/bootstrap-playwright-smoke-data.sh
 
       - name: Run runtime logout smoke

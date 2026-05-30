@@ -6726,3 +6726,8 @@ admin API와 latest artifact에
 - 문제: `frontend-browser-smoke` job은 `npm ci` 단계에서 먼저 실패하면 아직 `docker compose up` 을 하지 않았더라도 마지막 cleanup step의 `docker compose down -v` 는 그대로 실행된다. 이 저장소의 [docker-compose.yml](/home/minseok/youth-welfare/docker-compose.yml:1) `app` 서비스는 `env_file: .env` 를 참조하므로, CI workspace 루트에 `.env` 가 없으면 cleanup 자체가 또 한 번 빨갛게 남는다.
 - 해결: [.github/workflows/ci.yml](/home/minseok/youth-welfare/.github/workflows/ci.yml:1) 에 `Prepare CI compose env file` step을 추가해 early stage에서 `touch .env` 를 수행하도록 했다. 이렇게 하면 install 단계가 먼저 실패해도 cleanup의 compose parse는 더 이상 `.env not found` 로 깨지지 않는다.
 - 이유: 여기서 필요한 것은 production용 실제 secret 값이 아니라 compose parser가 만족할 파일 존재 계약이다. 최소 빈 `.env` 파일만 만들어도 `docker compose down -v` 는 CI cleanup 용도로 충분히 안정화된다.
+
+## 1048) CI smoke bootstrap은 프런트 `5173` 이 아니라 백엔드 `8082` health 계약으로 실행해야 한다
+- 문제: `frontend-browser-smoke` job의 전역 `APP_BASE_URL` 은 Playwright와 Vite용 `http://127.0.0.1:5173` 이었다. 그런데 [bootstrap-playwright-smoke-data.sh](/home/minseok/youth-welfare/frontend/scripts/bootstrap-playwright-smoke-data.sh:1) 는 `APP_BASE_URL` 을 백엔드 API base와 health endpoint 기준으로 읽어 `HEALTH_URL=${APP_BASE_URL}/actuator/health` 를 만들기 때문에, CI에서 `127.0.0.1:5173/actuator/health` 를 60회 재시도하다가 실패했다.
+- 해결: [.github/workflows/ci.yml](/home/minseok/youth-welfare/.github/workflows/ci.yml:1) 의 `Bootstrap frontend smoke data` step에만 `APP_BASE_URL=http://127.0.0.1:8082`, `HEALTH_URL=http://127.0.0.1:8082/actuator/health` 를 명시적으로 덮어썼다. 브라우저 smoke 자체는 계속 `PLAYWRIGHT_BASE_URL=5173`, `VITE_API_BASE_URL=8082` 계약을 유지한다.
+- 이유: 이 job 안에는 “프런트 origin” 과 “백엔드 API/health base” 두 종류의 URL이 공존한다. bootstrap script는 백엔드 건강 상태와 seed API를 대상으로 하므로, step 단위 env override로 역할을 분리하는 편이 가장 작고 안전하다.
