@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 1056) `Gov24 benefitType` public filter는 token 수가 많아도 scoring/service_facts reopen과 섞지 말고 allowlist discovery filter로만 좁혀야 한다
+- 문제: `serviceField`, `userType` 다음 단계로 `benefitType` 을 열 때 가장 쉬운 실수는 이 축을 recommendation scoring, matcher hard condition, `service_facts` 승격과 한 번에 묶어 다시 여는 것이다. 하지만 `benefitType` 은 raw combo가 많고, 현재 canonical truth도 `GOV24_BENEFIT_TYPE_TOKEN` term 우선 + legacy raw `||` split fallback 정도까지만 닫혀 있다.
+- 해결: `/api/policies`, `/api/policies/search` 에 `gov24BenefitType` query param만 bounded하게 추가했다. 허용값은 managed token `20개` 만 받고, 조회 계약은 `service_taxonomy_terms(term_group='GOV24_BENEFIT_TYPE_TOKEN')` 우선, term이 없는 legacy row만 `service_taxonomies.gov24_benefit_type_label` 을 `regexp_split_to_table(..., '||')` 로 분해해 token match 하게 고정했다. 프런트 `/policies` 도 sourceType=`Gov24` 일 때만 `Gov24 지원유형` filter를 노출한다.
+- 이유: `benefitType` 은 discovery filter로는 충분히 bounded 하지만, scoring/service-facts/matcher까지 같이 열면 곧바로 larger reopen으로 변한다. public discovery filter와 recommendation/service-facts 소비를 분리해야 `Gov24` 제품 확장을 작은 단계로 유지할 수 있다.
+
 ## 1055) read-only admin smoke가 운영 비밀번호 파일을 기본 전제로 두면 compact operator wrapper가 서버 기본 명령 그대로는 닫히지 않는다
 - 문제: `ops observation` 서버 검증에서 wrapper 자체와 compact summary는 유효했지만, 기본 명령은 child `admin dashboard` smoke의 `ADMIN_PASSWORD` 전제에서 바로 막혔다. 운영 비밀번호를 파일로 저장하지 않는 환경에서는 사용자가 DB `password_hash` 를 임시로 바꾸는 우회까지 해야 했고, 이건 compact read-only wrapper의 기본 계약으로 보기 어렵다.
 - 해결: `run-local-admin-dashboard-smoke.sh`, `run-local-admin-collect-failures-smoke.sh`, `run-local-admin-recommendation-breakdowns-smoke.sh` 가 이제 `ADMIN_ACCESS_TOKEN` 을 우선 재사용한다. 토큰이 없더라도 `ENV_FILE` 의 `JWT_SECRET` 과 DB query credential이 있으면 `auth_users.email_lookup_hash -> auth_users.user_key -> users(id,user_key)` 경로로 admin 계정을 찾고, current JJWT 계약과 같은 HMAC 선택 규칙(`HS512/HS384/HS256`)으로 short-lived `ROLE_USER,ROLE_ADMIN` access token을 bounded mint 해서 read-only admin API 호출에 쓴다. 이 token 경로에서는 `smoke_ensure_admin_account` bootstrap도 건너뛴다. 비밀번호는 token/login 둘 다 없을 때만 fallback 전제로 남긴다.

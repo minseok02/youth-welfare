@@ -563,6 +563,29 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         )
                     )
                   )
+              AND (
+                    :gov24BenefitType IS NULL
+                    OR EXISTS (
+                        SELECT 1 FROM service_taxonomy_terms stt
+                        WHERE stt.service_id = ws.id
+                          AND stt.term_group = 'GOV24_BENEFIT_TYPE_TOKEN'
+                          AND stt.term_label = :gov24BenefitType
+                    )
+                    OR (
+                        NOT EXISTS (
+                            SELECT 1 FROM service_taxonomy_terms stt1
+                            WHERE stt1.service_id = ws.id
+                              AND stt1.term_group = 'GOV24_BENEFIT_TYPE_TOKEN'
+                        )
+                        AND EXISTS (
+                            SELECT 1
+                            FROM service_taxonomies stx
+                            CROSS JOIN LATERAL regexp_split_to_table(coalesce(stx.gov24_benefit_type_label, ''), '\\|\\|') AS token_parts(bucket_label)
+                            WHERE stx.service_id = ws.id
+                              AND btrim(token_parts.bucket_label) = :gov24BenefitType
+                        )
+                    )
+                  )
               AND (:incomeMaxWon IS NULL OR ws.max_income IS NULL OR ws.max_income = 0 OR ws.max_income > :incomeMaxWon)
               AND (
                     :sido IS NULL
@@ -694,6 +717,29 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         )
                     )
                   )
+              AND (
+                    :gov24BenefitType IS NULL
+                    OR EXISTS (
+                        SELECT 1 FROM service_taxonomy_terms stt
+                        WHERE stt.service_id = ws.id
+                          AND stt.term_group = 'GOV24_BENEFIT_TYPE_TOKEN'
+                          AND stt.term_label = :gov24BenefitType
+                    )
+                    OR (
+                        NOT EXISTS (
+                            SELECT 1 FROM service_taxonomy_terms stt1
+                            WHERE stt1.service_id = ws.id
+                              AND stt1.term_group = 'GOV24_BENEFIT_TYPE_TOKEN'
+                        )
+                        AND EXISTS (
+                            SELECT 1
+                            FROM service_taxonomies stx
+                            CROSS JOIN LATERAL regexp_split_to_table(coalesce(stx.gov24_benefit_type_label, ''), '\\|\\|') AS token_parts(bucket_label)
+                            WHERE stx.service_id = ws.id
+                              AND btrim(token_parts.bucket_label) = :gov24BenefitType
+                        )
+                    )
+                  )
               AND (:incomeMaxWon IS NULL OR ws.max_income IS NULL OR ws.max_income = 0 OR ws.max_income > :incomeMaxWon)
               AND (
                     :sido IS NULL
@@ -730,6 +776,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                                              @Param("targetGroup") String targetGroup,
                                              @Param("gov24ServiceField") String gov24ServiceField,
                                              @Param("gov24UserType") String gov24UserType,
+                                             @Param("gov24BenefitType") String gov24BenefitType,
                                              Pageable pageable);
 
     // 상태별 전체 조회 (StatusUpdateService 용)

@@ -8,6 +8,7 @@ import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.PolicySearchReadCondition;
 import com.example.welfare.policy.repository.WelfareServiceReadRepository;
+import com.example.welfare.policy.support.Gov24BenefitTypeSupport;
 import com.example.welfare.policy.support.Gov24ServiceFieldSupport;
 import com.example.welfare.policy.support.Gov24UserTypeSupport;
 import com.example.welfare.policy.support.WelfareSourceTypeSupport;
@@ -56,7 +57,7 @@ public class PolicySearchService {
 
     @Transactional(readOnly = true)
     public PolicySearchResponse search(Long userId, String keyword, int page) {
-        return search(userId, keyword, null, null, null, null, null, null, null, null, null, null, null, null, page, DEFAULT_SEARCH_LIMIT);
+        return search(userId, keyword, null, null, null, null, null, null, null, null, null, null, null, null, null, page, DEFAULT_SEARCH_LIMIT);
     }
 
     // 소득분위(1~9) → 연소득 상한 (만원) — PolicyListService와 동일 기준
@@ -79,6 +80,7 @@ public class PolicySearchService {
                                        String targetGroup,
                                        String gov24ServiceField,
                                        String gov24UserType,
+                                       String gov24BenefitType,
                                        int page,
                                        int size) {
         String normalizedKeyword = normalizeKeyword(keyword);
@@ -94,6 +96,7 @@ public class PolicySearchService {
         String normalizedSort = normalizeSort(sort);
         String normalizedGov24ServiceField = normalizeGov24ServiceField(gov24ServiceField);
         String normalizedGov24UserType = normalizeGov24UserType(gov24UserType);
+        String normalizedGov24BenefitType = normalizeGov24BenefitType(gov24BenefitType);
 
         Integer incomeMaxWon = resolveIncomeMaxWon(incomeLevel);
         String normalizedTargetGroup = normalizeNullable(targetGroup);
@@ -115,6 +118,7 @@ public class PolicySearchService {
                     normalizedTargetGroup,
                     normalizedGov24ServiceField,
                     normalizedGov24UserType,
+                    normalizedGov24BenefitType,
                     pageNumber,
                     limit
             );
@@ -149,7 +153,8 @@ public class PolicySearchService {
                         incomeMaxWon,
                         normalizedTargetGroup,
                         normalizedGov24ServiceField,
-                        normalizedGov24UserType
+                        normalizedGov24UserType,
+                        normalizedGov24BenefitType
                 ),
                 PageRequest.of(pageNumber, limit)
         );
@@ -338,6 +343,17 @@ public class PolicySearchService {
         return normalized;
     }
 
+    private String normalizeGov24BenefitType(String gov24BenefitType) {
+        String normalized = Gov24BenefitTypeSupport.normalizeManagedToken(gov24BenefitType);
+        if (gov24BenefitType == null || gov24BenefitType.isBlank()) {
+            return null;
+        }
+        if (normalized == null) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+        return normalized;
+    }
+
     private Integer resolveIncomeMaxWon(Integer incomeLevel) {
         if (incomeLevel == null || incomeLevel <= 1) return null;
         int prevLevel = incomeLevel - 2;
@@ -359,6 +375,7 @@ public class PolicySearchService {
             String targetGroup,
             String gov24ServiceField,
             String gov24UserType,
+            String gov24BenefitType,
             int page,
             int size
     ) {

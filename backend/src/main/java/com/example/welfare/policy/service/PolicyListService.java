@@ -6,6 +6,7 @@ import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.PolicyListReadCondition;
 import com.example.welfare.policy.repository.WelfareServiceReadRepository;
+import com.example.welfare.policy.support.Gov24BenefitTypeSupport;
 import com.example.welfare.policy.support.Gov24ServiceFieldSupport;
 import com.example.welfare.policy.support.Gov24UserTypeSupport;
 import com.example.welfare.policy.support.WelfareSourceTypeSupport;
@@ -47,6 +48,7 @@ public class PolicyListService {
                                                String targetGroup,
                                                String gov24ServiceField,
                                                String gov24UserType,
+                                               String gov24BenefitType,
                                                Pageable pageable) {
         // sidoCode/regionCode 계산 및 sort는 WelfareServiceReadRepositoryImpl에서 처리
         Page<WelfareService> page = welfareServiceReadRepository.findList(
@@ -62,7 +64,8 @@ public class PolicyListService {
                         resolveIncomeMaxWon(incomeLevel),
                         normalizeNullable(targetGroup),
                         normalizeGov24ServiceField(gov24ServiceField),
-                        normalizeGov24UserType(gov24UserType)
+                        normalizeGov24UserType(gov24UserType),
+                        normalizeGov24BenefitType(gov24BenefitType)
                 ),
                 normalizePageable(pageable)
         );
@@ -133,6 +136,17 @@ public class PolicyListService {
     private String normalizeGov24UserType(String gov24UserType) {
         String normalized = Gov24UserTypeSupport.normalizeManagedToken(gov24UserType);
         if (gov24UserType == null || gov24UserType.isBlank()) {
+            return null;
+        }
+        if (normalized == null) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+        return normalized;
+    }
+
+    private String normalizeGov24BenefitType(String gov24BenefitType) {
+        String normalized = Gov24BenefitTypeSupport.normalizeManagedToken(gov24BenefitType);
+        if (gov24BenefitType == null || gov24BenefitType.isBlank()) {
             return null;
         }
         if (normalized == null) {

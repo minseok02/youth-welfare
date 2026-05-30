@@ -20,6 +20,8 @@ public record PolicyListReadCondition(
         // Gov24 exact-label 서비스분야 filter, null이면 미선택
         String gov24ServiceField,
         // Gov24 additive 사용자구분 token filter, null이면 미선택
-        String gov24UserType
+        String gov24UserType,
+        // Gov24 additive 지원유형 token filter, null이면 미선택
+        String gov24BenefitType
 ) {
 }
