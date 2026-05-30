@@ -12,9 +12,11 @@ ARTIFACT_DIR="${ARTIFACT_DIR:-${OBSERVATION_ROOT}/${RUN_TS_UTC}}"
 PRECHECK_OUTPUT="${ARTIFACT_DIR}/recommendation-reopen-precheck.out"
 SUMMARY_OUT="${ARTIFACT_DIR}/recommendation-observation-summary.txt"
 JSON_OUT="${ARTIFACT_DIR}/recommendation-observation.json"
+NOTE_OUT="${ARTIFACT_DIR}/recommendation-observation-note.md"
 LATEST_ARTIFACT_LINK="${OBSERVATION_ROOT}/latest"
 LATEST_SUMMARY_LINK="${OBSERVATION_ROOT}/latest-recommendation-observation-summary.txt"
 LATEST_JSON_LINK="${OBSERVATION_ROOT}/latest-recommendation-observation.json"
+LATEST_NOTE_LINK="${OBSERVATION_ROOT}/latest-recommendation-observation-note.md"
 
 cleanup() {
   if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
@@ -37,7 +39,7 @@ KEEP_ARTIFACTS=true \
 ARTIFACT_DIR="${ARTIFACT_DIR}/precheck-artifact" \
 bash "${ROOT_DIR}/deploy/smoke/run-local-recommendation-reopen-precheck.sh" | tee "${PRECHECK_OUTPUT}"
 
-python3 - "${PRECHECK_OUTPUT}" "${SUMMARY_OUT}" "${JSON_OUT}" "${ARTIFACT_DIR}" <<'PY'
+python3 - "${PRECHECK_OUTPUT}" "${SUMMARY_OUT}" "${JSON_OUT}" "${NOTE_OUT}" "${ARTIFACT_DIR}" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -45,7 +47,8 @@ from pathlib import Path
 output_path = Path(sys.argv[1])
 summary_out = Path(sys.argv[2])
 json_out = Path(sys.argv[3])
-artifact_dir = sys.argv[4]
+note_out = Path(sys.argv[4])
+artifact_dir = sys.argv[5]
 
 values = {}
 for raw_line in output_path.read_text(encoding="utf-8").splitlines():
@@ -65,21 +68,39 @@ review_gate = values.get("real_user_review_gate", "")
 if precheck_status == "KEEP_OBSERVING":
     observation_blocker = "REAL_USER_TRAFFIC"
     recommended_cadence = "daily"
+    decision_class = "OBSERVE_REAL_USER_TRAFFIC"
+    reopen_allowed = "false"
+    operator_reading = "Recommendation code stays closed. Keep daily observation until real-user traffic and leader signal grow."
 elif precheck_status == "WAIT_FOR_REAL_USER_LEADER_SIGNAL":
     observation_blocker = "REAL_USER_LEADER_SIGNAL"
     recommended_cadence = "daily"
+    decision_class = "OBSERVE_LEADER_SIGNAL"
+    reopen_allowed = "false"
+    operator_reading = "Read latest overview and blocker audit, but do not reopen tuning yet."
 elif precheck_status == "SUPPLEMENTAL_REVIEW_ONLY":
     observation_blocker = "EXPLICIT_POLICY_REVIEW"
     recommended_cadence = "event-driven"
+    decision_class = "SUPPLEMENTAL_POLICY_REVIEW"
+    reopen_allowed = "false"
+    operator_reading = "Use recent-window review as supplemental context. Keep the primary baseline unless an explicit policy review approves a change."
 elif precheck_status == "READY_FOR_REOPEN_DECISION":
     observation_blocker = "NONE"
     recommended_cadence = "immediate"
+    decision_class = "REOPEN_DECISION_READY"
+    reopen_allowed = "true"
+    operator_reading = "Recommendation reopen decision can be reviewed now."
 elif precheck_status == "INVESTIGATE_BASELINE_DRIFT":
     observation_blocker = "BASELINE_DRIFT"
     recommended_cadence = "immediate"
+    decision_class = "INVESTIGATE_BASELINE_DRIFT"
+    reopen_allowed = "false"
+    operator_reading = "Investigate baseline drift before any recommendation reopen or tuning decision."
 else:
     observation_blocker = "UNKNOWN"
     recommended_cadence = "manual"
+    decision_class = "MANUAL_INTERPRETATION"
+    reopen_allowed = "false"
+    operator_reading = "Manual interpretation is required because the observation state is outside the known ladder."
 
 summary_lines = [
     "recommendation_observation_suite=passed",
@@ -91,12 +112,15 @@ summary_lines = [
     f"breakdown_real_user_cohort_gate={cohort_gate}",
     f"recommendation_review_gate={review_gate}",
     f"observation_blocker={observation_blocker}",
+    f"decision_class={decision_class}",
+    f"reopen_allowed={reopen_allowed}",
     f"recommended_cadence={recommended_cadence}",
+    f"operator_reading={operator_reading}",
     f"next_action={next_action}",
 ]
 summary_out.write_text("\n".join(summary_lines) + "\n", encoding="utf-8")
 
-json_out.write_text(json.dumps({
+json_payload = {
     "artifact_dir": artifact_dir,
     "precheck_status": precheck_status,
     "precheck_reason": precheck_reason,
@@ -105,16 +129,45 @@ json_out.write_text(json.dumps({
     "breakdown_real_user_cohort_gate": cohort_gate,
     "recommendation_review_gate": review_gate,
     "observation_blocker": observation_blocker,
+    "decision_class": decision_class,
+    "reopen_allowed": reopen_allowed == "true",
     "recommended_cadence": recommended_cadence,
+    "operator_reading": operator_reading,
     "next_action": next_action,
-}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+}
+json_out.write_text(json.dumps(json_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+note_lines = [
+    "# Recommendation Observation",
+    "",
+    f"- `precheck_status`: `{precheck_status}`",
+    f"- `precheck_reason`: `{precheck_reason}`",
+    f"- `decision_class`: `{decision_class}`",
+    f"- `reopen_allowed`: `{reopen_allowed}`",
+    f"- `observation_blocker`: `{observation_blocker}`",
+    f"- `recommended_cadence`: `{recommended_cadence}`",
+    f"- `next_action`: `{next_action}`",
+    "",
+    "## Operator Reading",
+    "",
+    operator_reading,
+    "",
+    "## Gate Snapshot",
+    "",
+    f"- `dashboard_real_user_gate`: `{dashboard_gate}`",
+    f"- `breakdown_real_user_cohort_gate`: `{cohort_gate}`",
+    f"- `recommendation_review_gate`: `{review_gate}`",
+]
+note_out.write_text("\n".join(note_lines) + "\n", encoding="utf-8")
 PY
 
 smoke_publish_dir_snapshot "${ARTIFACT_DIR}" "${LATEST_ARTIFACT_LINK}"
 smoke_publish_file "${SUMMARY_OUT}" "${LATEST_SUMMARY_LINK}"
 smoke_publish_file "${JSON_OUT}" "${LATEST_JSON_LINK}"
+smoke_publish_file "${NOTE_OUT}" "${LATEST_NOTE_LINK}"
 
 cat "${SUMMARY_OUT}"
 echo "latest_artifact_link=${LATEST_ARTIFACT_LINK}"
 echo "latest_summary_link=${LATEST_SUMMARY_LINK}"
 echo "latest_json_link=${LATEST_JSON_LINK}"
+echo "latest_note_link=${LATEST_NOTE_LINK}"

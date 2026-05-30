@@ -49,7 +49,7 @@
 
 - 운영 current truth만 compact하게 다시 보려면 `bash deploy/smoke/run-local-recommendation-observation-suite.sh`
 - 운영 서버/RDS에서는 `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-recommendation-observation-suite.sh`
-- observation artifact latest 경로는 `tmp/recommendation-observation/latest-recommendation-observation-summary.txt`, `latest-recommendation-observation.json` 을 먼저 봅니다. `KEEP_ARTIFACTS=false` 기본값에서도 이 stable snapshot은 남습니다.
+- observation artifact latest 경로는 `tmp/recommendation-observation/latest-recommendation-observation-summary.txt`, `latest-recommendation-observation-note.md`, `latest-recommendation-observation.json` 을 먼저 봅니다. `KEEP_ARTIFACTS=false` 기본값에서도 이 stable snapshot은 남습니다.
 - baseline 유지와 recommendation 관찰을 한 번에 다시 보려면 `bash deploy/smoke/run-local-current-priority-suite.sh`
 - 운영 서버/RDS에서는 `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-local-current-priority-suite.sh`
 - current priority artifact latest 경로는 `tmp/current-priority-suite/latest-current-priority-summary.txt`, `latest-current-priority-summary.json` 을 먼저 봅니다. `KEEP_ARTIFACTS=false` 기본값에서도 이 stable snapshot은 남습니다.

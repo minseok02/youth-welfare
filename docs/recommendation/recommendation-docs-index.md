@@ -20,6 +20,7 @@
 - [recommendation-ctr-readiness-runbook.md](./recommendation-ctr-readiness-runbook.md)
 - [recommendation-concentration-audit-runbook.md](./recommendation-concentration-audit-runbook.md)
 - [recommendation-real-user-baseline-runbook.md](./recommendation-real-user-baseline-runbook.md)
+- [recommendation-observation-runbook.md](./recommendation-observation-runbook.md)
 - [recommendation-real-user-cohort-library-manifest.md](./recommendation-real-user-cohort-library-manifest.md)
 - [recommendation-real-user-exclusion-readiness-check-runbook.md](./recommendation-real-user-exclusion-readiness-check-runbook.md)
 - [recommendation-review-gate-blocker-audit-runbook.md](./recommendation-review-gate-blocker-audit-runbook.md)
@@ -99,6 +100,9 @@
 - `RUN_COUNT=2 bash deploy/smoke/run-local-recommendation-ai-exclusion-baseline-refresh.sh`
 - `bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh`
   - daily one-shot 확인 뒤 artifact는 `tmp/recommendation-ai-exclusion-latest-overview/latest-overview-summary.txt`, `latest-overview-note.md`, `latest-overview.json`
+- `bash deploy/smoke/run-local-recommendation-observation-suite.sh`
+  - daily operator 진입점
+  - artifact는 `tmp/recommendation-observation/latest-recommendation-observation-summary.txt`, `latest-recommendation-observation-note.md`, `latest-recommendation-observation.json`
 - `bash deploy/smoke/run-local-gov24-recommend-surface-audit.sh`
 - `bash deploy/smoke/run-local-gov24-recommend-score-audit.sh`
 - `bash deploy/smoke/run-local-gov24-zero-ai-audit.sh`

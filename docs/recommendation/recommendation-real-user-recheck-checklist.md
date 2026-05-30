@@ -64,6 +64,8 @@ bash deploy/smoke/run-local-recommendation-observation-suite.sh
 
 - `precheck_status`
 - `precheck_reason`
+- `decision_class`
+- `reopen_allowed`
 - `observation_blocker`
 - `recommended_cadence`
 - `next_action`

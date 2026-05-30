@@ -37,6 +37,8 @@
 
 입니다. 즉 지금 단계의 다음 액션은 recommendation 코드를 다시 여는 것이 아니라, `REAL_USER` traffic/leader signal이 더 쌓일 때까지 baseline 유지와 latest overview 관찰을 계속하는 것입니다.
 
+daily operator entrypoint는 [recommendation-observation-runbook.md](./recommendation-observation-runbook.md) 와 `bash deploy/smoke/run-local-recommendation-observation-suite.sh` 입니다. 이제 observation suite는 `summary/json` 외에 `latest-recommendation-observation-note.md` 도 남겨, “왜 아직 reopen이 아닌가”를 사람 말로 바로 handoff 할 수 있습니다.
+
 즉 지금까지 닫힌 것은 아래입니다.
 
 - `REAL_USER` gate, concentration gate, dashboard review gate가 운영 서버에서 실제로 열리는지 여부
