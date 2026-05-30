@@ -278,6 +278,53 @@ Interpretation from this rerun:
 - the `policy_ranking` unique-view aggregation/index batch helped
 - the search path still needs a query-shape follow-up; the representative explain stayed on a seq scan and API latency regressed
 - `current_priority` now needs nested duration breakdown, not just a top-level wrapper total
+
+## 2026-05-30 Third Optimization Rerun
+
+The next accepted server rerun was captured on `HEAD=f351ee32466ce9aed73c7d755e38ab6bcac2db03`.
+
+- app redeploy completed
+- `health=UP`
+- baseline, wrapper baseline, and extended suites passed
+- recent app log `ERROR/Exception 없음`
+
+Important run context:
+
+- wrapper-inclusive rerun now publishes nested duration fields directly in `current_priority` summary/json
+- `active_baseline` summary/json now exposes backend, ops, and collect step durations, but frontend is still one level short of full sub-step parity in the published field names
+
+Accepted rerun values:
+
+| Area | Scenario | Value | Notes |
+|---|---|---:|---|
+| API | policy ranking p95 | 933.3ms | wrapper-inclusive baseline |
+| API | policy ranking p99 | 935.3ms | wrapper-inclusive baseline |
+| API | policy ranking max | 935.7ms | wrapper-inclusive baseline |
+| API | policy ranking p95 (baseline) | 1088.2ms | baseline-only run |
+| API | policy ranking p99 (baseline) | 1103.0ms | baseline-only run |
+| API | policy ranking max (baseline) | 1106.7ms | baseline-only run |
+| API | policy search keyword p95 | 417.1ms | wrapper-inclusive baseline |
+| API | policy search keyword p99 | 432.1ms | wrapper-inclusive baseline |
+| API | policy search keyword max | 435.9ms | wrapper-inclusive baseline |
+| API | policy search keyword p95 (baseline) | 334.6ms | baseline-only run |
+| API | policy search keyword p99 (baseline) | 336.7ms | baseline-only run |
+| API | policy search keyword max (baseline) | 337.2ms | baseline-only run |
+| DB | policy_search_keyword_ilike explain | 258.805ms | still seq scan, wrapper-inclusive baseline |
+| Wrapper | recommendation observation | 5.858s | improved |
+| Wrapper | current priority | 194.844s | majority is active baseline |
+| Wrapper | current priority -> active baseline | 188.817s | nested step total now visible |
+| Wrapper | current priority -> recommendation observation | 5.895s | nested step total now visible |
+| API Load | policy ranking p95 | 2410.1ms | still hotspot |
+| API Load | policy ranking max | 2421.0ms | still hotspot |
+| API Load | policy search keyword p95 | 1662.2ms | hotspot under load |
+| API Load | policy search keyword max | 1667.0ms | hotspot under load |
+
+Interpretation from this rerun:
+
+- search API latency recovered again after the query-shape cleanup
+- ranking is still the primary unresolved endpoint hotspot
+- the representative lowered `LIKE` explain stayed on a seq scan and got slower, so the benchmark query is still not closed
+- `current_priority` is now explainable: most of the total comes from `active_baseline`, not `recommendation_observation`
 | API Load | policy search keyword p95 | 924.8ms | improved versus prior load probe |
 | API Load | policy search keyword max | 943.8ms | improved versus prior load probe |
 

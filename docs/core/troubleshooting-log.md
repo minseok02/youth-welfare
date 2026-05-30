@@ -1,5 +1,15 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 1032) active baseline step label에 공백이 남아 있으면 summary를 다시 파싱할 때 stable metric key로 쓰기 어렵다
+- 문제: `current_priority` nested duration은 잘 보이기 시작했지만, `active_baseline` summary 안의 키는 `backend tests_duration_ms`, `ops baseline suite_duration_ms` 처럼 공백이 섞여 있었다. 서버에서 바로 grep/JSON 후처리를 하려면 stable snake_case key가 더 적합하다.
+- 해결: `run-local-active-baseline-suite.sh` 의 step label을 `backend_tests`, `frontend_lint`, `frontend_build`, `frontend_e2e`, `ops_baseline`, `collect_legacy_repair` 로 고정하고, summary/json에도 같은 snake_case duration key를 남기도록 맞췄다.
+- 이유: smoke/performance summary는 사람이 읽는 로그이기도 하지만, 다음 측정에서 기계적으로 before/after를 비교하는 입력이기도 하다. 공백 기반 label보다 snake_case contract가 재사용성과 일관성에 맞다.
+
+## 1031) `/api/policies/ranking` 은 동일 조건 public read path라 짧은 TTL micro-cache가 read recomputation을 줄이는 가장 bounded한 3차 최적화다
+- 문제: `policy_ranking` 은 2차 배치 후 `p95 885.1ms` 까지 내려갔지만, 다음 accepted rerun에서 wrapper-inclusive 기준 `933.3ms`, baseline-only 기준 `1088.2ms` 로 다시 hotspot에 남았다. 현재 path는 여전히 active/upcoming snapshot 전체 + recent unique view 집계 + projection hydration을 요청마다 다시 수행한다.
+- 해결: `PolicyRankingService` 에 size별 30초 TTL micro-cache를 추가했다. write path나 DB schema는 건드리지 않고, public ranking read path에서 동일 size 반복 호출이 짧은 window 안에서는 recomputation을 피하도록 한다.
+- 이유: ranking endpoint는 per-request personalization이 없고, freshness 요구도 초 단위 실시간보다 분 단위 near-real-time에 가깝다. 이런 경계에서는 query shape만 더 비트는 것보다 짧은 TTL cache가 더 bounded하고 운영 리스크가 낮다.
+
 ## 1030) representative `ILIKE` explain이 raw column 기준이면 lower-expression trigram index를 추가해도 planner 개선 여부를 제대로 못 읽는다
 - 문제: 2차 성능 배치에서 `description/support_content/combined document` trigram index를 추가했지만, 서버 rerun의 representative `policy_search_keyword_ilike` explain은 여전히 raw `title ilike '%청년%' or description ilike ...` 형태였고 `127.449ms seq scan` 으로 남았다. 그런데 schema 인덱스는 `lower(title)`, `lower(description)` 같은 expression index라, explain query 자체가 실제 index contract와 어긋나 있었다.
 - 해결: performance DB baseline의 representative search explain을 `lower(title) like ... or lower(description) like ...` 형태로 맞췄다. 동시에 실제 repository query도 long-text similarity를 줄이고, full-document matching은 FTS에 맡기며, substring fallback은 lowered expression 경로로 맞춘다.

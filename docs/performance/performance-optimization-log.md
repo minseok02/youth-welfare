@@ -121,7 +121,7 @@ Interpretation:
 - search did not close; API latency regressed and the representative explain remained on a seq scan
 - current-priority total became harder to interpret because the wrapper still reported only a top-level duration
 
-## Current Active Batch
+## Closed Batch
 
 ### 2026-05-30: current-priority breakdown observability + search 3차 query-shape cleanup
 
@@ -142,11 +142,53 @@ Planned changes in this batch:
 3. `run-local-db-query-baseline.sh`
    - align the representative `policy_search_keyword_ilike` explain with the lowered expression/index path instead of raw `ILIKE`
 
+Accepted server remeasurement:
+
+- server HEAD: `f351ee32466ce9aed73c7d755e38ab6bcac2db03`
+- app redeploy completed
+- baseline, wrapper baseline, and extended suites passed
+
+Observed deltas from the accepted server rerun:
+
+- `policy_search_keyword` p95: `628.7ms -> 417.1ms` in the wrapper-inclusive baseline
+- `policy_search_keyword` p95: `628.7ms -> 334.6ms` in the baseline-only run
+- `policy_ranking` p95: `885.1ms -> 933.3ms` in the wrapper-inclusive baseline
+- `policy_search_keyword_ilike` representative explain: `127.449ms -> 258.805ms`, still `Seq Scan`
+- `current_priority` wrapper remained large, but the rerun exposed nested durations:
+  - `active_baseline_duration_ms=188817`
+  - `recommendation_observation_duration_ms=5895`
+
+Interpretation:
+
+- search API latency recovered, so keeping the simplified title/keyword trigram path is reasonable
+- the representative search explain is still unresolved and may need a different benchmark query or a different index/query contract
+- `current_priority` is no longer opaque; most of the total time is `active_baseline`
+- ranking still needs one more bounded optimization
+
+## Current Active Batch
+
+### 2026-05-30: ranking 3차 + active baseline step contract cleanup
+
+Current trigger values from the accepted server rerun:
+
+- `policy_ranking`: `p95 933.3ms`, `p99 935.3ms`, `max 935.7ms`
+- `policy_search_keyword_ilike`: `execution 258.805ms`, `seq scan`
+- `current_priority`: `194.844s`, but now attributable mostly to `active_baseline`
+
+Planned changes in this batch:
+
+1. `PolicyRankingService`
+   - add a short TTL cache for the public `/api/policies/ranking` read path so repeated baseline hits stop recomputing the same ranking within a small window
+2. `run-local-active-baseline-suite.sh`
+   - finish the step contract cleanup with stable snake_case labels and direct frontend `lint/build/e2e` duration fields
+3. performance docs / troubleshooting
+   - record the accepted rerun and distinguish endpoint hotspots from wrapper bundle time
+
 Server remeasurement status:
 
 - pending
 - requires app redeploy
-- compare against the `909bb4d682f9eee5cd6f09556dc584fe3b3696d4` server baseline
+- compare against the `f351ee32466ce9aed73c7d755e38ab6bcac2db03` server baseline
 
 ## Comparison Table
 
@@ -161,3 +203,6 @@ Server remeasurement status:
 | 2026-05-30 | `487bf64b75d9a20e606ebd89f10bcb0dc9b23db1` | `909bb4d682f9eee5cd6f09556dc584fe3b3696d4` | Search | extra trigram indexes + broadened similarity scoring | `p95 338.6ms` | `p95 628.7ms` | `+290.1ms` | replace with 3차 query-shape cleanup |
 | 2026-05-30 | `487bf64b75d9a20e606ebd89f10bcb0dc9b23db1` | `909bb4d682f9eee5cd6f09556dc584fe3b3696d4` | Search DB | extra trigram indexes for representative fallback query | `133.042ms seq scan` | `127.449ms seq scan` | `-5.593ms` | still unresolved |
 | 2026-05-30 | `487bf64b75d9a20e606ebd89f10bcb0dc9b23db1` | `909bb4d682f9eee5cd6f09556dc584fe3b3696d4` | Current Priority | full wrapper total | `105.535s` | `208.540s` | `+103.005s` | add nested duration breakdown |
+| 2026-05-30 | `909bb4d682f9eee5cd6f09556dc584fe3b3696d4` | `f351ee32466ce9aed73c7d755e38ab6bcac2db03` | Search | title/keyword-focused query-shape cleanup | `p95 628.7ms` | `p95 417.1ms` | `-211.6ms` | improvement accepted |
+| 2026-05-30 | `909bb4d682f9eee5cd6f09556dc584fe3b3696d4` | `f351ee32466ce9aed73c7d755e38ab6bcac2db03` | Search DB | lowered representative explain | `127.449ms seq scan` | `258.805ms seq scan` | `+131.356ms` | representative query still unresolved |
+| 2026-05-30 | `909bb4d682f9eee5cd6f09556dc584fe3b3696d4` | `f351ee32466ce9aed73c7d755e38ab6bcac2db03` | Wrapper | current_priority nested duration visibility | top-level total only | `active_baseline_duration_ms`, `recommendation_observation_duration_ms` exposed | observability improved | accepted |
