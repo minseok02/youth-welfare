@@ -43,10 +43,13 @@
 - one-shot local active baseline: `bash deploy/smoke/run-local-active-baseline-suite.sh`
 - one-shot server active baseline: `APP_BASE_URL='http://127.0.0.1:8082' FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-local-active-baseline-suite.sh`
   - 참고: `deployed-origin` 모드는 배포 번들에서 성립하지 않는 `@dev-only` admin forced-failure Playwright 2개를 자동 제외합니다.
+  - latest artifact: `tmp/active-baseline-suite/latest-active-baseline-summary.txt`, `tmp/active-baseline-suite/latest-active-baseline-summary.json`
+  - `KEEP_ARTIFACTS=false` 기본값에서도 latest summary/json 과 `tmp/active-baseline-suite/latest/` snapshot은 남습니다.
 - one-shot current priority suite: `bash deploy/smoke/run-local-current-priority-suite.sh`
 - one-shot server current priority suite: `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-local-current-priority-suite.sh`
   - latest artifact: `tmp/current-priority-suite/latest-current-priority-summary.txt`, `tmp/current-priority-suite/latest-current-priority-summary.json`
   - `KEEP_ARTIFACTS=false` 기본값에서도 latest summary/json 과 `tmp/current-priority-suite/latest/` snapshot은 남습니다.
+  - same-config `active_baseline` latest가 TTL 안에 있으면 재사용할 수 있고, summary/json 에 `active_baseline_reused=true` 로 남습니다.
 - backend only: `cd backend && ./gradlew test --no-daemon`
 - frontend only: `cd frontend && npm run lint && npm run build && npm run test:e2e`
 - runtime read-only baseline only: `bash deploy/smoke/run-local-ops-baseline-suite.sh`

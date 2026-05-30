@@ -53,6 +53,8 @@
 - baseline 유지와 recommendation 관찰을 한 번에 다시 보려면 `bash deploy/smoke/run-local-current-priority-suite.sh`
 - 운영 서버/RDS에서는 `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-local-current-priority-suite.sh`
 - current priority artifact latest 경로는 `tmp/current-priority-suite/latest-current-priority-summary.txt`, `latest-current-priority-summary.json` 을 먼저 봅니다. `KEEP_ARTIFACTS=false` 기본값에서도 이 stable snapshot은 남습니다.
+- active baseline standalone latest 경로는 `tmp/active-baseline-suite/latest-active-baseline-summary.txt`, `latest-active-baseline-summary.json` 입니다.
+- current priority는 같은 설정의 recent passed `active_baseline` latest가 TTL 안에 있으면 이를 재사용하고 `active_baseline_reused=true` 로 남깁니다.
 - daily one-shot으로 recommendation 상태를 다시 보려면 `bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh`
 - `REAL_USER` readiness까지 같이 보려면 `APP_BASE_URL='http://127.0.0.1:8082' ADMIN_EMAIL='<local admin email>' ADMIN_PASSWORD='<local admin password>' INCLUDE_REAL_USER_READINESS=true bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh`
 - overview artifact는 `tmp/recommendation-ai-exclusion-latest-overview/latest-overview-summary.txt`, `latest-overview-note.md`, `latest-overview.json` 을 먼저 봅니다.

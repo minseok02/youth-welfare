@@ -13,11 +13,15 @@ FRONTEND_E2E_MODE="${FRONTEND_E2E_MODE:-local-dev}"
 FRONTEND_PUBLIC_BASE_URL="${FRONTEND_PUBLIC_BASE_URL:-${PUBLIC_BASE_URL:-}}"
 RUN_OPS_BASELINE="${RUN_OPS_BASELINE:-true}"
 RUN_COLLECT_LEGACY_REPAIR="${RUN_COLLECT_LEGACY_REPAIR:-true}"
-
-ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
+ACTIVE_BASELINE_ROOT="${ACTIVE_BASELINE_ROOT:-${ROOT_DIR}/tmp/active-baseline-suite}"
+RUN_TS_UTC="$(smoke_now_ts_utc)"
+ARTIFACT_DIR="${ARTIFACT_DIR:-${ACTIVE_BASELINE_ROOT}/${RUN_TS_UTC}}"
 SUMMARY_OUT="${ARTIFACT_DIR}/active-baseline-summary.txt"
 JSON_OUT="${ARTIFACT_DIR}/active-baseline-summary.json"
 DURATIONS_TSV="${ARTIFACT_DIR}/active-baseline-durations.tsv"
+LATEST_ARTIFACT_LINK="${ACTIVE_BASELINE_ROOT}/latest"
+LATEST_SUMMARY_LINK="${ACTIVE_BASELINE_ROOT}/latest-active-baseline-summary.txt"
+LATEST_JSON_LINK="${ACTIVE_BASELINE_ROOT}/latest-active-baseline-summary.json"
 
 cleanup() {
   if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
@@ -144,7 +148,7 @@ if [[ "${RUN_COLLECT_LEGACY_REPAIR}" == "true" ]]; then
     bash "${ROOT_DIR}/deploy/smoke/run-local-collect-legacy-repair-suite.sh"
 fi
 
-python3 - "${DURATIONS_TSV}" "${SUMMARY_OUT}" "${JSON_OUT}" "${APP_BASE_URL}" "${ARTIFACT_DIR}" "${RUN_BACKEND_TESTS}" "${RUN_FRONTEND_BASELINE}" "${RUN_FRONTEND_E2E}" "${FRONTEND_E2E_MODE}" "${FRONTEND_PUBLIC_BASE_URL}" "${RUN_OPS_BASELINE}" "${RUN_COLLECT_LEGACY_REPAIR}" <<'PY'
+python3 - "${DURATIONS_TSV}" "${SUMMARY_OUT}" "${JSON_OUT}" "${APP_BASE_URL}" "${ARTIFACT_DIR}" "${RUN_TS_UTC}" "${RUN_BACKEND_TESTS}" "${RUN_FRONTEND_BASELINE}" "${RUN_FRONTEND_E2E}" "${FRONTEND_E2E_MODE}" "${FRONTEND_PUBLIC_BASE_URL}" "${RUN_OPS_BASELINE}" "${RUN_COLLECT_LEGACY_REPAIR}" <<'PY'
 import csv
 import json
 import sys
@@ -155,22 +159,28 @@ summary_out = Path(sys.argv[2])
 json_out = Path(sys.argv[3])
 app_base_url = sys.argv[4]
 artifact_dir = sys.argv[5]
-run_backend_tests = sys.argv[6]
-run_frontend_baseline = sys.argv[7]
-run_frontend_e2e = sys.argv[8]
-frontend_e2e_mode = sys.argv[9]
-frontend_public_base_url = sys.argv[10]
-run_ops_baseline = sys.argv[11]
-run_collect_legacy_repair = sys.argv[12]
+generated_at_utc = sys.argv[6]
+run_backend_tests = sys.argv[7]
+run_frontend_baseline = sys.argv[8]
+run_frontend_e2e = sys.argv[9]
+frontend_e2e_mode = sys.argv[10]
+frontend_public_base_url = sys.argv[11]
+run_ops_baseline = sys.argv[12]
+run_collect_legacy_repair = sys.argv[13]
 
 rows = list(csv.DictReader(durations_path.open(encoding="utf-8"), delimiter="\t"))
 failed = [row for row in rows if row["exit_code"] != "0"]
+suite_duration_ms = sum(int(row["duration_ms"]) for row in rows)
+suite_duration_seconds = suite_duration_ms / 1000
 
 lines = [
     f"active_baseline_suite={'failed' if failed else 'passed'}",
+    f"generated_at_utc={generated_at_utc}",
     f"app_base_url={app_base_url}",
     f"artifact_dir={artifact_dir}",
     f"durations_tsv={artifact_dir}/active-baseline-durations.tsv",
+    f"suite_duration_ms={suite_duration_ms}",
+    f"suite_duration_seconds={suite_duration_seconds:.3f}",
     f"run_backend_tests={run_backend_tests}",
     f"run_frontend_baseline={run_frontend_baseline}",
     f"run_frontend_e2e={run_frontend_e2e}",
@@ -203,7 +213,10 @@ if run_collect_legacy_repair == "true":
 summary_out.write_text("\n".join(lines) + "\n", encoding="utf-8")
 json_out.write_text(json.dumps({
     "artifact_dir": artifact_dir,
+    "generated_at_utc": generated_at_utc,
     "app_base_url": app_base_url,
+    "suite_duration_ms": suite_duration_ms,
+    "suite_duration_seconds": suite_duration_seconds,
     "run_backend_tests": run_backend_tests,
     "run_frontend_baseline": run_frontend_baseline,
     "run_frontend_e2e": run_frontend_e2e,
@@ -217,3 +230,11 @@ print(summary_out.read_text(encoding="utf-8"), end="")
 if failed:
     raise SystemExit(1)
 PY
+
+smoke_publish_dir_snapshot "${ARTIFACT_DIR}" "${LATEST_ARTIFACT_LINK}"
+smoke_publish_file "${SUMMARY_OUT}" "${LATEST_SUMMARY_LINK}"
+smoke_publish_file "${JSON_OUT}" "${LATEST_JSON_LINK}"
+
+echo "latest_artifact_link=${LATEST_ARTIFACT_LINK}"
+echo "latest_summary_link=${LATEST_SUMMARY_LINK}"
+echo "latest_json_link=${LATEST_JSON_LINK}"

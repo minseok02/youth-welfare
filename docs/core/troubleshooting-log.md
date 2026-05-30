@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 1036) `current_priority` 의 큰 시간은 endpoint보다 `active_baseline` 재실행 비용이므로, recent passed snapshot 재사용이 더 bounded하다
+- 문제: search/ranking endpoint hotspot을 닫은 뒤에도 `current_priority` 는 여전히 `150~190s` 수준으로 컸다. nested duration을 보면 대부분이 `active_baseline` 이고, 그 안에서도 `backend_tests`, `frontend_e2e`, `collect_legacy_repair` 가 큰 비중을 차지했다. 즉 남은 병목은 서비스 응답시간보다 baseline bundle 재실행 비용이었다.
+- 해결: `run-local-active-baseline-suite.sh` 가 `tmp/active-baseline-suite/latest*` stable snapshot과 `suite_duration_ms` 를 남기게 바꿨다. `run-local-current-priority-suite.sh` 는 같은 설정의 recent passed `active_baseline` latest가 TTL 안에 있으면 재사용하고, summary/json에 `active_baseline_reused=true` 를 남긴다.
+- 이유: coverage를 약화시키는 대신, 방금 통과한 같은 설정의 baseline 결과를 짧은 window 안에서 재사용하는 편이 더 bounded하고 운영 일관성도 좋다. 특히 `current_priority` 는 daily operator wrapper 성격이 강해서 직전에 성공한 baseline을 그대로 다시 한 번 full rerun하는 비용을 줄이는 쪽이 실익이 크다.
+
 ## 1035) representative explain이 index scan으로 닫혀도 API latency는 summary 조립과 반복 public query 비용 때문에 별도 완화가 더 필요할 수 있다
 - 문제: `policy_search_keyword_api_shape` representative explain은 `index_scan=true` 로 정리됐지만, 실제 `/api/policies/search?keyword=청년` API는 baseline 기준 아직 `400ms+` 대였다. 이 경로는 DB search 자체 외에도 `PolicyPresentationReadService` 조립, projection 조회, region 조회까지 묶여 있어 대표 explain 하나만으로 전체 API p95를 설명할 수 없다.
 - 해결: `PolicySearchService` 에 `userId=null` 공개 검색 전용 30초 TTL cache를 추가했다. key는 normalized keyword/filter/page/size 조합이고, 로그인 검색은 북마크 차이가 있으므로 캐시하지 않는다.
