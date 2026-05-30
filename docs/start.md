@@ -140,6 +140,7 @@
 - 정책 정규화: [policy-normalization-current-state.md](policy/policy-normalization-current-state.md)
 - 다음 active track 우선순위: [policy-next-active-track-priority.md](policy/policy-next-active-track-priority.md)
 - 로컬 closeout pending: [policy-local-closeout-pending-inventory.md](policy/policy-local-closeout-pending-inventory.md)
+- `Gov24` bounded lane closeout: [policy-gov24-lane-closeout.md](policy/policy-gov24-lane-closeout.md)
 - `Gov24` runtime closeout / blocked-deferred track: [policy-gov24-blocked-track-status.md](policy/policy-gov24-blocked-track-status.md)
 - `Gov24` canonical promotion 설계: [policy-gov24-canonical-promotion-plan.md](policy/policy-gov24-canonical-promotion-plan.md)
 - 신규 source 구조: [policy-source-onboarding-architecture.md](policy/policy-source-onboarding-architecture.md)

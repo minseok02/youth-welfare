@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 1058) `Gov24` bounded step이 여러 번 닫힌 뒤에도 closeout 문서가 없으면 active/deferred 경계를 다시 과거 blocked 문서에서 추론하게 된다
+- 문제: `Gov24` lane은 이미 public filter 3축, recommendation soft scoring, matcher hard-condition deferred, `Gov24 -> YOUTH_MID` bridge deferred 까지 여러 번 작게 닫혔는데, 한 장으로 요약한 closeout 문서가 없었다. 그래서 나중에 다시 볼 때는 `policy-gov24-blocked-track-status.md` 나 `policy-gov24-canonical-promotion-plan.md` 같은 과거 문서를 뒤져서 “지금 실제로 열린 것”과 “계속 deferred 인 것”을 다시 합쳐 읽어야 했다.
+- 해결: [policy-gov24-lane-closeout.md](/home/minseok/youth-welfare/docs/policy/policy-gov24-lane-closeout.md:1) 를 추가해 현재 `Gov24` lane의 active/deferred 경계를 한 장으로 고정했다. 이 문서는 public filter 3축, recommendation soft additive scoring, matcher hard condition deferred, `service_facts` deferred, `Gov24 -> YOUTH_MID` bridge deferred, stable import/backfill deferred 를 현재 시제 기준으로 다시 정리한다.
+- 이유: 여기서 남은 것은 구현 누락보다 “어디까지 열었는지” 해석 문제다. closeout 문서를 분리해 두면 다음 reopen 판단이 과거 설계문서 해석이 아니라 현재 active 경계에서 출발한다.
+
 ## 1057) `Gov24` public filter를 모두 연 뒤 scoring까지 바로 hard matcher로 연결하면 canonical 확장이 제품 gate reopen으로 과도하게 커진다
 - 문제: `serviceField`, `userType`, `benefitType` public discovery filter 세 축이 닫힌 뒤 다음 단계로 recommendation까지 연결하려면, 가장 쉬운 실수는 이 값을 곧바로 hard eligibility나 matcher 경계로 써 버리는 것이다. 하지만 `Gov24` 3축은 여전히 label-first taxonomy이고, `법인/시설/단체`, `소상공인`, `현금(융자)`, `기타(교육)` 같은 값은 정책 설명/제공형태 신호에 더 가깝다.
 - 해결: [RuleScoringService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/RuleScoringService.java:1) 는 새 [Gov24RecommendationScoringSupport.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/support/Gov24RecommendationScoringSupport.java:1) 를 통해 `Gov24` projection을 **bounded soft additive bonus** 로만 소비한다. `serviceField` 는 existing compat bridge(`주거·자립 -> HOUSING`, `고용·창업 -> JOB`, `보육·교육 -> EDUCATION`, `생활안정 -> FINANCE`, `문화·환경 -> CULTURE`, `보호·돌봄/임신·출산 -> FAMILY`)를 small bonus로 재사용하고, `benefitType` 도 `현금(장학금)`, `현금(융자)`, `서비스(일자리)`, `문화/여가지원`, `서비스(돌봄)` 같은 일부 managed token만 additive signal로 읽는다. `userType` 은 `개인`, `가구` 만 tiny audience bonus로 쓰고, `법인/시설/단체`, `소상공인` 은 hard exclusion으로 해석하지 않는다.
