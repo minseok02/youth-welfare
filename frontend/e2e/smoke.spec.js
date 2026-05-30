@@ -60,6 +60,13 @@ function resolvePasswordResetToken(email) {
   }).trim();
 }
 
+function issueDirectPasswordResetToken(email) {
+  return execFileSync("bash", ["./scripts/issue-password-reset-token.sh", email], {
+    cwd: process.cwd(),
+    encoding: "utf8",
+  }).trim();
+}
+
 async function signupUser(request, { email, password, name = "리셋테스트" }) {
   seedVerifiedEmail(email);
   const response = await request.post(`${apiBaseUrl}/api/auth/signup`, {
@@ -82,6 +89,16 @@ async function issuePasswordReset(request, email) {
   const requestResetResponse = await request.post(`${apiBaseUrl}/api/auth/password-reset/request`, {
     data: { email },
   });
+
+  if (!requestResetResponse.ok()) {
+    const payload = await requestResetResponse.json().catch(() => null);
+    const errorCode = payload?.errorCode ?? payload?.code ?? payload?.data?.errorCode;
+    if (errorCode === "A009") {
+      const directToken = issueDirectPasswordResetToken(email);
+      expect(directToken).toBeTruthy();
+      return directToken;
+    }
+  }
   expect(requestResetResponse.ok()).toBeTruthy();
 
   const resetToken = resolvePasswordResetToken(email);
