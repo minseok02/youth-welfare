@@ -29,9 +29,10 @@
 1. `serviceField` public filter
 2. `userType` public filter
 3. `benefitType` public filter
-4. recommendation soft additive scoring
-5. matcher hard condition 비활성 경계
-6. `Gov24 -> YOUTH_MID` bridge 비활성 경계
+4. detail page `Gov24` tag -> filtered discovery bridge
+5. recommendation soft additive scoring
+6. matcher hard condition 비활성 경계
+7. `Gov24 -> YOUTH_MID` bridge 비활성 경계
 
 계속 deferred 인 범위:
 
@@ -52,6 +53,13 @@
 3. `gov24BenefitType`
 
 이 셋은 모두 canonical term 우선, legacy raw summary fallback 계약을 유지합니다.
+
+추가로 `PolicyDetailPage` 도 `Gov24` 태그를 read-only badge로만 두지 않고,
+같은 `Gov24` filter 결과로 바로 돌아가는 discovery bridge까지 연 상태입니다.
+
+- `분야 {gov24ServiceFieldLabel}` -> `/policies?sourceType=GOV24&gov24ServiceField=...`
+- `대상 {gov24UserTypeLabel}` -> `/policies?sourceType=GOV24&gov24UserType=...`
+- `유형 {gov24BenefitTypeLabel}` -> `/policies?sourceType=GOV24&gov24BenefitType=...`
 
 ### 2. recommendation scoring
 
