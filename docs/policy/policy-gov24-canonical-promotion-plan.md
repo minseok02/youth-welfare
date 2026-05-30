@@ -50,7 +50,7 @@
 
 1. `GOV24_SERVICE_FIELD / USER_TYPE / BENEFIT_TYPE` stable code SQL
 2. `service_facts` 로의 직접 승격
-3. `GOV24_USER_TYPE_TOKEN`, `GOV24_BENEFIT_TYPE_TOKEN` public filter/scoring/matcher 소비
+3. recommendation scoring/matcher/AI prompt 소비
 4. `YOUTH_MID` bridge
 5. `supportConditions` 사업체/업종/창업 상태 full-scope 승격
 
@@ -198,7 +198,6 @@ canonical term은 additive multi-term 으로만 봅니다.
 
 즉 아래는 계속 열지 않습니다.
 
-- `GOV24_BENEFIT_TYPE_TOKEN` public filter
 - recommendation scoring
 - matcher hard condition
 - AI prompt 추가 입력
@@ -220,9 +219,12 @@ canonical term은 additive multi-term 으로만 봅니다.
 - query param: `gov24UserType`
 - 허용값: managed token `4개`
 - query contract: `GOV24_USER_TYPE_TOKEN` term 우선, term이 없는 legacy row만 `gov24_user_type_label` `||` split fallback
+- query param: `gov24BenefitType`
+- 허용값: managed token `20개`
+- query contract: `GOV24_BENEFIT_TYPE_TOKEN` term 우선, term이 없는 legacy row만 `gov24_benefit_type_label` `||` split fallback
 
 즉 현재 public 소비는 “Gov24 전체 public filter/scoring 개방”이 아니라
-`serviceField` exact-label + `userType` additive token 두 축만 read-only discovery filter로 좁게 연 상태다.
+`serviceField` exact-label + `userType` additive token + `benefitType` additive token 세 축만 read-only discovery filter로 좁게 연 상태다.
 
 ## 지금 active 로 볼 구현 범위
 
@@ -241,8 +243,7 @@ canonical term은 additive multi-term 으로만 봅니다.
 1. `GOV24_*` stable code SQL
 2. `GOV24_SUPPORT_CONDITION` full-scope business/industry/startup code 승격
 3. `Gov24 -> YOUTH_MID` 연결
-4. public filter
-5. recommendation scoring/ranking 소비
+4. recommendation scoring/ranking 소비
 
 ## reopen 완료 판정
 
@@ -251,7 +252,7 @@ canonical term은 additive multi-term 으로만 봅니다.
 1. exact raw label 유지 원칙이 문서와 코드에 같이 반영됨
 2. term 승격 대상이 `서비스분야 10`, `사용자구분 4`, `지원유형 20` allowlist로 고정됨
 3. canonical 저장층이 `service_taxonomy_terms` 로 제한됨
-4. `service_facts` / public filter / scoring 미개방 경계가 문서에 명시됨
+4. `service_facts` / scoring 미개방 경계가 문서에 명시됨
 
 `2026-05-19` local closeout 기준 위 조건은 현재 충족된 상태다.
 
@@ -269,4 +270,4 @@ canonical term은 additive multi-term 으로만 봅니다.
 2. `서비스분야` 는 exact-label canonical term, `사용자구분/지원유형` 은 allowlist token term 으로 본다.
 3. 이번 승격 저장층은 `service_taxonomy_terms` 이고, `service_facts` 는 열지 않는다.
 4. raw exact label summary는 계속 유지한다.
-5. public filter/scoring 은 계속 deferred 다.
+5. recommendation scoring과 `service_facts` 승격은 계속 deferred 다.

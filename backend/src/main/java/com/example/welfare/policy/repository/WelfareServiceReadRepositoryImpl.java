@@ -38,6 +38,7 @@ public class WelfareServiceReadRepositoryImpl implements WelfareServiceReadRepos
                 condition.targetGroup(),
                 condition.gov24ServiceField(),
                 condition.gov24UserType(),
+                condition.gov24BenefitType(),
                 unsorted
         );
     }

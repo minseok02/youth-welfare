@@ -61,7 +61,8 @@ class PolicyListServiceTest {
                         null,
                         null,
                         "주거·자립",
-                        "개인"
+                        "개인",
+                        "현금"
                 )),
                 any(PageRequest.class)
         )).willReturn(page);
@@ -82,6 +83,7 @@ class PolicyListServiceTest {
                 null,
                 "주거·자립",
                 "개인",
+                "현금",
                 PageRequest.of(0, 20)
         );
 
@@ -100,7 +102,8 @@ class PolicyListServiceTest {
                         null,
                         null,
                         "주거·자립",
-                        "개인"
+                        "개인",
+                        "현금"
                 )),
                 captor.capture()
         );
@@ -121,7 +124,7 @@ class PolicyListServiceTest {
         Page<WelfareService> page = new PageImpl<>(List.of(service));
 
         given(welfareServiceReadRepository.findList(
-                eq(new PolicyListReadCondition(null, null, null, "ACTIVE_ONLY", null, null, null, "LATEST", null, null, null, null)),
+                eq(new PolicyListReadCondition(null, null, null, "ACTIVE_ONLY", null, null, null, "LATEST", null, null, null, null, null)),
                 any(PageRequest.class)
         )).willReturn(page);
         given(policyPresentationReadService.buildSummaryPage(eq(7L), any(Page.class)))
@@ -159,6 +162,7 @@ class PolicyListServiceTest {
                 null,
                 null,
                 null,
+                null,
                 PageRequest.of(0, 20)
         );
 
@@ -181,7 +185,7 @@ class PolicyListServiceTest {
     @DisplayName("정책 목록 조회는 과도한 페이지 크기를 상한으로 제한한다")
     void getListClampsOversizedPageSize() {
         given(welfareServiceReadRepository.findList(
-                eq(new PolicyListReadCondition(null, null, null, "ACTIVE_ONLY", null, null, null, "LATEST", null, null, null, null)),
+                eq(new PolicyListReadCondition(null, null, null, "ACTIVE_ONLY", null, null, null, "LATEST", null, null, null, null, null)),
                 any(PageRequest.class)
         )).willReturn(Page.empty());
         given(policyPresentationReadService.buildSummaryPage(eq(null), any(Page.class)))
@@ -201,12 +205,13 @@ class PolicyListServiceTest {
                 null,
                 null,
                 null,
+                null,
                 PageRequest.of(0, 10_000)
         );
 
         ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
         verify(welfareServiceReadRepository).findList(
-                eq(new PolicyListReadCondition(null, null, null, "ACTIVE_ONLY", null, null, null, "LATEST", null, null, null, null)),
+                eq(new PolicyListReadCondition(null, null, null, "ACTIVE_ONLY", null, null, null, "LATEST", null, null, null, null, null)),
                 captor.capture()
         );
         assertEquals(100, captor.getValue().getPageSize());
@@ -228,6 +233,7 @@ class PolicyListServiceTest {
                 null,
                 null,
                 "알수없음",
+                null,
                 null,
                 PageRequest.of(0, 20)
         )).isInstanceOf(com.example.welfare.global.exception.CustomException.class)
@@ -252,6 +258,31 @@ class PolicyListServiceTest {
                 null,
                 null,
                 "청년",
+                null,
+                PageRequest.of(0, 20)
+        )).isInstanceOf(com.example.welfare.global.exception.CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(com.example.welfare.global.exception.ErrorCode.INVALID_INPUT);
+    }
+
+    @Test
+    @DisplayName("Gov24 지원유형 filter는 managed token만 허용한다")
+    void getListRejectsUnknownGov24BenefitType() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> policyListService.getList(
+                null,
+                null,
+                "GOV24",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "생소한유형",
                 PageRequest.of(0, 20)
         )).isInstanceOf(com.example.welfare.global.exception.CustomException.class)
                 .extracting("errorCode")

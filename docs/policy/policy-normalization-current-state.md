@@ -57,8 +57,16 @@ legacy `service_taxonomies` raw summary는 canonical term이 없는 row에서만
 **raw exact label / allowlist token을 보존하는 label-first taxonomy term** 으로 읽는 편이 맞다.
 따라서 다음 `Gov24` 작업은 자동 reopen 이 아니라,
 [policy-gov24-reopen-checklist.md](./policy-gov24-reopen-checklist.md) 기준으로
-`stable import/backfill`, `public filter/scoring`, `supportConditions full-scope` 중
+`stable import/backfill`, `recommendation scoring`, `service_facts 승격`, `supportConditions full-scope` 중
 하나가 명시 승인될 때만 다시 여는 편이 맞다.
+예외적으로 `2026-05-31` 기준 public discovery filter는 bounded step으로 이미 세 축을 열었다.
+
+- `gov24ServiceField`: managed exact label `10개`
+- `gov24UserType`: managed additive token `4개`
+- `gov24BenefitType`: managed additive token `20개`
+
+세 축 모두 canonical term 우선, legacy raw summary fallback 계약을 유지하고,
+invalid label/token은 `INVALID_INPUT` 으로 막는다.
 
 ## 1. canonical sidecar 저장
 
