@@ -168,7 +168,7 @@ class RecommendationPolicyFlowWebMvcTest {
         given(serviceRegionRepository.findFirstSidoByServiceIds(List.of(11L)))
                 .willReturn(List.<Object[]>of(new Object[]{11L, "서울"}));
         given(policyRankingService.getRanking(5)).willReturn(List.of(ranking));
-        given(policySearchService.search(isNull(), eq("월세"), eq("ACTIVE"), isNull(), eq("HOUSING"), eq("YOUTH"), eq(true), isNull(), isNull(), eq("RELEVANCE"), isNull(), isNull(), isNull(), eq(0), eq(10)))
+        given(policySearchService.search(isNull(), eq("월세"), eq("ACTIVE"), isNull(), eq("HOUSING"), eq("YOUTH"), eq(true), isNull(), isNull(), eq("RELEVANCE"), isNull(), isNull(), isNull(), isNull(), eq(0), eq(10)))
                 .willReturn(PolicySearchResponse.builder()
                         .content(List.of(searchHit))
                         .totalElements(1)
@@ -242,7 +242,7 @@ class RecommendationPolicyFlowWebMvcTest {
 
         verify(recommendationGenerationService).recommend(isNull(), eq(false));
         verify(policyRankingService).getRanking(5);
-        verify(policySearchService).search(isNull(), eq("월세"), eq("ACTIVE"), isNull(), eq("HOUSING"), eq("YOUTH"), eq(true), isNull(), isNull(), eq("RELEVANCE"), isNull(), isNull(), isNull(), eq(0), eq(10));
+        verify(policySearchService).search(isNull(), eq("월세"), eq("ACTIVE"), isNull(), eq("HOUSING"), eq("YOUTH"), eq(true), isNull(), isNull(), eq("RELEVANCE"), isNull(), isNull(), isNull(), isNull(), eq(0), eq(10));
         verify(policySearchLogService).record(any());
     }
 

@@ -97,6 +97,7 @@ class PolicySearchRegionQueryIntegrationTest {
                 null,
                 null,
                 null,
+                null,
                 PageRequest.of(0, 100)
         );
 
@@ -138,6 +139,7 @@ class PolicySearchRegionQueryIntegrationTest {
                         "서울특별시",
                         "강남구",
                         "LATEST",
+                        null,
                         null,
                         null,
                         null
@@ -183,6 +185,7 @@ class PolicySearchRegionQueryIntegrationTest {
                 null,
                 null,
                 "LATEST",
+                null,
                 null,
                 null,
                 null,

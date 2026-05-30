@@ -37,6 +37,7 @@ public class WelfareServiceReadRepositoryImpl implements WelfareServiceReadRepos
                 condition.incomeMaxWon(),
                 condition.targetGroup(),
                 condition.gov24ServiceField(),
+                condition.gov24UserType(),
                 unsorted
         );
     }

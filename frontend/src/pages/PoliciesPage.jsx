@@ -96,6 +96,14 @@ const GOV24_SERVICE_FIELDS = [
   "주거·자립",
 ];
 
+const GOV24_USER_TYPES = [
+  "전체",
+  "개인",
+  "가구",
+  "법인/시설/단체",
+  "소상공인",
+];
+
 const SORT_MAP = { relevance: "RELEVANCE", views: "VIEWS", latest: "LATEST", deadline: "DEADLINE" };
 
 const FALLBACK_TRENDING = ["월세 지원", "국민취업제도", "도약계좌", "창업캠프", "자격증 응시료", "대학생 생활안정"];
@@ -389,6 +397,7 @@ export default function PoliciesPage() {
   const [targetGroup, setTargetGroup] = useState(searchParams.get("targetGroup") || "");
   const [sourceType, setSourceType] = useState(normalizeSourceTypeParam(searchParams.get("sourceType")));
   const [gov24ServiceField, setGov24ServiceField] = useState(searchParams.get("gov24ServiceField") || "전체");
+  const [gov24UserType, setGov24UserType] = useState(searchParams.get("gov24UserType") || "전체");
   const [statusFilter, setStatusFilter] = useState(searchParams.get("statusFilter") || defaultStatusFilter);
   const [sort, setSort] = useState(resolveInitialSort(searchParams.get("search") || "", searchParams.get("sort")));
   const [pageSize, setPageSize] = useState(Number(searchParams.get("pageSize")) || 10);
@@ -419,6 +428,7 @@ export default function PoliciesPage() {
     || targetGroup
     || sourceType !== "전체"
     || gov24ServiceField !== "전체"
+    || gov24UserType !== "전체"
     || statusFilter !== defaultStatusFilter
   );
   const hasCustomSort = sort !== defaultSort;
@@ -439,12 +449,13 @@ export default function PoliciesPage() {
     const sourceTypeParam = serializeSourceTypeParam(sourceType);
     if (sourceTypeParam) params.sourceType = sourceTypeParam;
     if (sourceTypeParam === "GOV24" && gov24ServiceField !== "전체") params.gov24ServiceField = gov24ServiceField;
+    if (sourceTypeParam === "GOV24" && gov24UserType !== "전체") params.gov24UserType = gov24UserType;
     if (statusFilter !== defaultStatusFilter) params.statusFilter = statusFilter;
     if (sort !== defaultSort) params.sort = sort;
     if (page !== 1) params.page = String(page);
     if (pageSize !== 10) params.pageSize = String(pageSize);
     setSearchParams(params, { replace: true, state: location.state });
-  }, [appliedSearch, defaultSort, defaultStatusFilter, gov24ServiceField, income, location.state, page, pageSize, region, selectedCat, setSearchParams, sort, sourceType, statusFilter, subRegion, targetGroup]);
+  }, [appliedSearch, defaultSort, defaultStatusFilter, gov24ServiceField, gov24UserType, income, location.state, page, pageSize, region, selectedCat, setSearchParams, sort, sourceType, statusFilter, subRegion, targetGroup]);
 
   useEffect(() => {
     const nextSearch = searchParams.get("search") || "";
@@ -455,6 +466,7 @@ export default function PoliciesPage() {
     const nextTargetGroup = searchParams.get("targetGroup") || "";
     const nextSourceType = normalizeSourceTypeParam(searchParams.get("sourceType"));
     const nextGov24ServiceField = searchParams.get("gov24ServiceField") || "전체";
+    const nextGov24UserType = searchParams.get("gov24UserType") || "전체";
     const nextStatusFilter = searchParams.get("statusFilter") || defaultStatusFilter;
     const nextSort = resolveInitialSort(nextSearch, searchParams.get("sort"));
     const nextPageSize = Number(searchParams.get("pageSize")) || 10;
@@ -469,6 +481,7 @@ export default function PoliciesPage() {
     setTargetGroup((prev) => (prev === nextTargetGroup ? prev : nextTargetGroup));
     setSourceType((prev) => (prev === nextSourceType ? prev : nextSourceType));
     setGov24ServiceField((prev) => (prev === nextGov24ServiceField ? prev : nextGov24ServiceField));
+    setGov24UserType((prev) => (prev === nextGov24UserType ? prev : nextGov24UserType));
     setStatusFilter((prev) => (prev === nextStatusFilter ? prev : nextStatusFilter));
     setSort((prev) => (prev === nextSort ? prev : nextSort));
     setPageSize((prev) => (prev === nextPageSize ? prev : nextPageSize));
@@ -479,7 +492,10 @@ export default function PoliciesPage() {
     if (sourceType !== "Gov24" && gov24ServiceField !== "전체") {
       setGov24ServiceField("전체");
     }
-  }, [gov24ServiceField, sourceType]);
+    if (sourceType !== "Gov24" && gov24UserType !== "전체") {
+      setGov24UserType("전체");
+    }
+  }, [gov24ServiceField, gov24UserType, sourceType]);
 
   useEffect(() => {
     if (!appliedSearch.trim() && sort === "relevance") { setSort("latest"); return; }
@@ -570,6 +586,7 @@ export default function PoliciesPage() {
           sgg: subRegion === "전체" ? undefined : subRegion,
           sourceType: sourceType === "전체" ? undefined : SOURCE_TYPE_MAP[sourceType],
           gov24ServiceField: sourceType === "Gov24" && gov24ServiceField !== "전체" ? gov24ServiceField : undefined,
+          gov24UserType: sourceType === "Gov24" && gov24UserType !== "전체" ? gov24UserType : undefined,
           sort: appliedSearch.trim() ? (SORT_MAP[sort] ?? "RELEVANCE") : (sort === "relevance" ? "LATEST" : (SORT_MAP[sort] ?? "LATEST")),
           incomeLevel: income === "전체" ? undefined : Number(income),
           targetGroup: targetGroup || undefined,
@@ -599,7 +616,7 @@ export default function PoliciesPage() {
     };
     fetchPolicies();
     return () => controller.abort();
-  }, [appliedSearch, gov24ServiceField, isLoggedIn, statusFilter, page, pageSize, region, selectedCat, sort, sourceType, subRegion, income, targetGroup]);
+  }, [appliedSearch, gov24ServiceField, gov24UserType, isLoggedIn, statusFilter, page, pageSize, region, selectedCat, sort, sourceType, subRegion, income, targetGroup]);
 
   // ── 핸들러 ───────────────────────────────────────────────────────────────────
   const handleBookmark = async (id, event) => {
@@ -631,7 +648,7 @@ export default function PoliciesPage() {
   const handleApplyFilter = () => { setPage(1); };
   const handleResetFilter = () => {
     setSelectedCat(""); setRegion("전체"); setSubRegion("전체"); setIncome("전체");
-    setTargetGroup(""); setSourceType("전체"); setGov24ServiceField("전체"); setStatusFilter(defaultStatusFilter);
+    setTargetGroup(""); setSourceType("전체"); setGov24ServiceField("전체"); setGov24UserType("전체"); setStatusFilter(defaultStatusFilter);
     setSort(appliedSearch.trim() ? "relevance" : "latest"); setPage(1);
   };
   const handleResetAll = () => {
@@ -647,6 +664,7 @@ export default function PoliciesPage() {
     setTargetGroup("");
     setSourceType("전체");
     setGov24ServiceField("전체");
+    setGov24UserType("전체");
     setStatusFilter(defaultStatusFilter);
     setSort("latest");
     setPageSize(10);
@@ -705,6 +723,7 @@ export default function PoliciesPage() {
     targetGroup && { key: "tg", label: targetGroup, clear: () => setTargetGroup("") },
     sourceType !== "전체" && { key: "src", label: sourceType, clear: () => setSourceType("전체") },
     sourceType === "Gov24" && gov24ServiceField !== "전체" && { key: "gov24sf", label: `Gov24 서비스분야 ${gov24ServiceField}`, clear: () => setGov24ServiceField("전체") },
+    sourceType === "Gov24" && gov24UserType !== "전체" && { key: "gov24ut", label: `Gov24 사용자구분 ${gov24UserType}`, clear: () => setGov24UserType("전체") },
     statusFilter !== defaultStatusFilter && { key: "status", label: statusFilter, clear: () => setStatusFilter(defaultStatusFilter) },
     hasCustomSort && {
       key: "sort",
@@ -994,7 +1013,7 @@ export default function PoliciesPage() {
                   key={source}
                   label={source}
                   checked={sourceType === source}
-                  onChange={() => { setSourceType(source); if (source !== "Gov24") setGov24ServiceField("전체"); setPage(1); }}
+                  onChange={() => { setSourceType(source); if (source !== "Gov24") { setGov24ServiceField("전체"); setGov24UserType("전체"); } setPage(1); }}
                 />
               ))}
             </div>
@@ -1009,6 +1028,21 @@ export default function PoliciesPage() {
                     label={field}
                     checked={gov24ServiceField === field}
                     onChange={() => { setGov24ServiceField(field); setPage(1); }}
+                  />
+                ))}
+              </div>
+            </FilterSection>
+          )}
+
+          {sourceType === "Gov24" && (
+            <FilterSection title="Gov24 사용자구분" defaultOpen={false}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                {GOV24_USER_TYPES.map((token) => (
+                  <RadioItem
+                    key={token}
+                    label={token}
+                    checked={gov24UserType === token}
+                    onChange={() => { setGov24UserType(token); setPage(1); }}
                   />
                 ))}
               </div>
