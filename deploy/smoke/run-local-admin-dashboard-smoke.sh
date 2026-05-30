@@ -9,8 +9,11 @@ APP_HEALTH_URL="${APP_HEALTH_URL:-${APP_BASE_URL}/actuator/health}"
 APP_CONTAINER_NAME="${APP_CONTAINER_NAME:-youth-welfare-app}"
 
 smoke_resolve_admin_credentials "${ROOT_DIR}"
+smoke_resolve_admin_access_token "${ROOT_DIR}"
 : "${ADMIN_EMAIL:?ADMIN_EMAIL is empty; export ADMIN_EMAIL or set SECURITY_ADMIN_EMAILS/.env or /tmp/youth-welfare-admin-smoke-email}"
-: "${ADMIN_PASSWORD:?ADMIN_PASSWORD is empty; export ADMIN_PASSWORD or set /tmp/youth-welfare-admin-smoke-password}"
+if [[ -z "${ADMIN_ACCESS_TOKEN:-}" ]]; then
+  : "${ADMIN_PASSWORD:?ADMIN_PASSWORD is empty; export ADMIN_PASSWORD or set /tmp/youth-welfare-admin-smoke-password}"
+fi
 SUMMARY_WINDOW_DAYS="${SUMMARY_WINDOW_DAYS:-7}"
 TREND_WINDOW_DAYS_CSV="${TREND_WINDOW_DAYS_CSV:-1,7,30}"
 HEALTH_RETRY_COUNT="${HEALTH_RETRY_COUNT:-15}"
@@ -319,18 +322,24 @@ CONTAINER_ADMIN_ALLOWLIST="$(extract_container_admin_allowlist)"
 smoke_print_step "ensure admin account"
 smoke_ensure_admin_account "${APP_BASE_URL}" "${ADMIN_EMAIL}" "${ADMIN_PASSWORD}"
 
-smoke_print_step "admin login (${ADMIN_EMAIL})"
-LOGIN_STATUS="$(
-  smoke_http_status POST "${APP_BASE_URL}/api/auth/login" "${LOGIN_RESPONSE}" \
-    -H 'Content-Type: application/json' \
-    -d "{
-      \"email\": \"${ADMIN_EMAIL}\",
-      \"password\": \"${ADMIN_PASSWORD}\"
-    }"
-)"
-smoke_assert_status 200 "${LOGIN_STATUS}" "admin login" "${LOGIN_RESPONSE}"
-ADMIN_TOKEN="$(extract_access_token "${LOGIN_RESPONSE}")"
-ADMIN_ROLES="$(extract_jwt_roles "${LOGIN_RESPONSE}")"
+if [[ -n "${ADMIN_ACCESS_TOKEN:-}" ]]; then
+  smoke_print_step "admin access token reuse (${ADMIN_EMAIL})"
+  ADMIN_TOKEN="${ADMIN_ACCESS_TOKEN}"
+  ADMIN_ROLES="$(smoke_extract_jwt_roles_from_token "${ADMIN_TOKEN}")"
+else
+  smoke_print_step "admin login (${ADMIN_EMAIL})"
+  LOGIN_STATUS="$(
+    smoke_http_status POST "${APP_BASE_URL}/api/auth/login" "${LOGIN_RESPONSE}" \
+      -H 'Content-Type: application/json' \
+      -d "{
+        \"email\": \"${ADMIN_EMAIL}\",
+        \"password\": \"${ADMIN_PASSWORD}\"
+      }"
+  )"
+  smoke_assert_status 200 "${LOGIN_STATUS}" "admin login" "${LOGIN_RESPONSE}"
+  ADMIN_TOKEN="$(extract_access_token "${LOGIN_RESPONSE}")"
+  ADMIN_ROLES="$(extract_jwt_roles "${LOGIN_RESPONSE}")"
+fi
 
 if [[ ",${ADMIN_ROLES}," != *",ROLE_ADMIN,"* ]]; then
   echo "admin login succeeded but ROLE_ADMIN is missing for ${ADMIN_EMAIL}" >&2

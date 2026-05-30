@@ -179,6 +179,157 @@ smoke_resolve_admin_credentials() {
   fi
 }
 
+smoke_extract_jwt_roles_from_token() {
+  local token="$1"
+
+  smoke_require_command python3
+
+  python3 - "${token}" <<'PY'
+import base64
+import json
+import sys
+
+token = sys.argv[1].strip()
+if not token:
+    print("")
+    raise SystemExit(0)
+
+parts = token.split(".")
+if len(parts) < 2:
+    print("")
+    raise SystemExit(0)
+
+payload = parts[1] + "=" * (-len(parts[1]) % 4)
+try:
+    decoded = json.loads(base64.urlsafe_b64decode(payload))
+except Exception:
+    print("")
+    raise SystemExit(0)
+
+roles = decoded.get("roles") or []
+if not isinstance(roles, list):
+    print("")
+    raise SystemExit(0)
+
+print(",".join(str(role) for role in roles))
+PY
+}
+
+smoke_mint_access_token() {
+  local jwt_secret="$1"
+  local user_key="$2"
+  local user_id="$3"
+  local roles_csv="$4"
+  local access_expiration_ms="$5"
+
+  smoke_require_command python3
+
+  python3 - "${jwt_secret}" "${user_key}" "${user_id}" "${roles_csv}" "${access_expiration_ms}" <<'PY'
+import base64
+import hashlib
+import hmac
+import json
+import sys
+import time
+
+secret, user_key, user_id_raw, roles_csv, expiration_ms_raw = sys.argv[1:6]
+user_id = int(user_id_raw)
+expiration_ms = int(expiration_ms_raw)
+issued_at_ms = int(time.time() * 1000)
+
+header = {"alg": "HS256", "typ": "JWT"}
+payload = {
+    "sub": user_key,
+    "uid": user_id,
+    "roles": [role for role in roles_csv.split(",") if role],
+    "iat": issued_at_ms // 1000,
+    "exp": (issued_at_ms + expiration_ms) // 1000,
+    "iatm": issued_at_ms,
+}
+
+def b64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+header_b64 = b64url(json.dumps(header, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
+payload_b64 = b64url(json.dumps(payload, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
+signing_input = f"{header_b64}.{payload_b64}".encode("ascii")
+signature = hmac.new(secret.encode("utf-8"), signing_input, hashlib.sha256).digest()
+print(f"{header_b64}.{payload_b64}.{b64url(signature)}")
+PY
+}
+
+smoke_resolve_admin_access_token() {
+  local root_dir="$1"
+  local env_file
+  local admin_access_token_file="${ADMIN_ACCESS_TOKEN_FILE:-/tmp/youth-welfare-admin-smoke-access-token}"
+  local jwt_secret
+  local access_expiration_ms
+  local admin_lookup_hash
+  local user_row=""
+  local user_id=""
+  local user_key=""
+
+  if [[ -z "${ADMIN_ACCESS_TOKEN:-}" && -r "${admin_access_token_file}" ]]; then
+    export ADMIN_ACCESS_TOKEN
+    ADMIN_ACCESS_TOKEN="$(smoke_first_file_line "${admin_access_token_file}")"
+  fi
+
+  if [[ -n "${ADMIN_ACCESS_TOKEN:-}" ]]; then
+    return 0
+  fi
+
+  smoke_resolve_admin_credentials "${root_dir}"
+
+  if [[ -z "${ADMIN_EMAIL:-}" ]]; then
+    return 0
+  fi
+
+  env_file="$(smoke_resolve_env_file "${ENV_FILE:-${root_dir}/.env}" "${root_dir}")"
+  jwt_secret="$(smoke_load_env_value "${env_file}" JWT_SECRET)"
+  access_expiration_ms="$(smoke_load_env_value "${env_file}" JWT_ACCESS_EXPIRATION 1800000)"
+
+  if [[ -z "${jwt_secret}" ]]; then
+    return 0
+  fi
+
+  admin_lookup_hash="$(smoke_sha256_hex "${ADMIN_EMAIL}")"
+
+  set +e
+  user_row="$(
+    smoke_db_query "
+      WITH admin_candidate AS (
+        SELECT u.id, u.user_key
+        FROM auth_users au
+        JOIN users u ON u.id = au.user_id
+        WHERE au.email_lookup_hash = '${admin_lookup_hash}'
+          AND COALESCE(u.active, true) = true
+        UNION ALL
+        SELECT u.id, u.user_key
+        FROM users u
+        WHERE lower(COALESCE(u.email, '')) = lower('${ADMIN_EMAIL}')
+          AND COALESCE(u.active, true) = true
+      )
+      SELECT id, user_key
+      FROM admin_candidate
+      LIMIT 1;
+    " 2>/dev/null
+  )"
+  set -e
+
+  if [[ -z "${user_row}" ]]; then
+    return 0
+  fi
+
+  IFS=$'\t' read -r user_id user_key <<< "${user_row}"
+
+  if [[ -z "${user_id}" || -z "${user_key}" ]]; then
+    return 0
+  fi
+
+  export ADMIN_ACCESS_TOKEN
+  ADMIN_ACCESS_TOKEN="$(smoke_mint_access_token "${jwt_secret}" "${user_key}" "${user_id}" "ROLE_USER,ROLE_ADMIN" "${access_expiration_ms}")"
+}
+
 smoke_require_command() {
   command -v "$1" >/dev/null 2>&1 || {
     echo "missing required command: $1" >&2
