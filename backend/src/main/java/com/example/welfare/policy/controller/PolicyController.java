@@ -61,9 +61,10 @@ public class PolicyController {
             @RequestParam(required = false) String sort,
             @RequestParam(required = false) Integer incomeLevel,
             @RequestParam(required = false) String targetGroup,
+            @RequestParam(required = false) String gov24ServiceField,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success(
-                policyListService.getList(resolveUserId(authenticatedUser), category, sourceType, status, statusFilter, sido, sgg, onlineApply, sort, incomeLevel, targetGroup, pageable)
+                policyListService.getList(resolveUserId(authenticatedUser), category, sourceType, status, statusFilter, sido, sgg, onlineApply, sort, incomeLevel, targetGroup, gov24ServiceField, pageable)
         ));
     }
 
@@ -99,6 +100,7 @@ public class PolicyController {
             @RequestParam(required = false) String sort,
             @RequestParam(required = false) Integer incomeLevel,
             @RequestParam(required = false) String targetGroup,
+            @RequestParam(required = false) String gov24ServiceField,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             HttpServletRequest request) {
@@ -119,6 +121,7 @@ public class PolicyController {
                 sort,
                 incomeLevel,
                 targetGroup,
+                gov24ServiceField,
                 page,
                 size
         );

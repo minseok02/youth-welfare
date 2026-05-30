@@ -292,7 +292,14 @@ raw exact label summary(`gov24ServiceFieldLabel/gov24UserTypeLabel/gov24BenefitT
 경계를 넘어서
 `service_taxonomy_terms` canonical term 저장
 까지는 닫혔고,
-`service_facts`, stable code/import-backfill SQL, public filter/scoring은 계속 deferred 다.
+`service_facts`, stable code/import-backfill SQL, recommendation scoring은 계속 deferred 다.
+추가로 `2026-05-31` 기준 public 소비는 전면 deferred 가 아니라,
+`GOV24_SERVICE_FIELD` exact-label 하나만 bounded public filter로 열었다.
+- `/api/policies`, `/api/policies/search` 는 `gov24ServiceField` query param을 받는다.
+- 허용값은 managed exact label `10개` 뿐이다.
+- query contract는 `service_taxonomy_terms(term_group='GOV24_SERVICE_FIELD')` 우선,
+  term이 없는 legacy row만 `service_taxonomy_summary_slots(slot_key='GOV24_SERVICE_FIELD')` fallback 이다.
+- `GOV24_USER_TYPE_TOKEN`, `GOV24_BENEFIT_TYPE_TOKEN` public filter, matcher, scoring 연결은 계속 deferred 다.
 추가로 admin recommendation facet도 이제 canonical term을 우선 읽는다.
 - `GOV24_USER_TYPE_TOKEN`, `GOV24_BENEFIT_TYPE_TOKEN` term이 있으면 이를 그대로 집계한다.
 - term이 없는 legacy row만 `service_taxonomies.gov24_user_type_label`, `gov24_benefit_type_label` `||` split 으로 fallback 한다.

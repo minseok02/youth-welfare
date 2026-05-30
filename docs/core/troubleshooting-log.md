@@ -6776,3 +6776,9 @@ admin API와 latest artifact에
 - 문제: frontend는 `frontend-qa-current-state.md`, `frontend-qa-checklist.md`, Playwright smoke까지 다 있었지만, recommendation/collect/policy/auth처럼 `summary/json/note` 를 남기는 compact observation wrapper는 없었다. 이 상태면 브라우저 baseline을 다시 확인할 때마다 `lint/build/test:e2e` raw 출력이나 active baseline 전체를 직접 해석해야 했다.
 - 해결: `deploy/smoke/run-local-frontend-observation-suite.sh` 를 추가해 `lint/build/Playwright smoke` 결과를 `decision_class`, `enabled_smoke_steps`, `suite_duration_ms`, `next_action` 중심 `summary/json/note` artifact로 다시 publish하게 맞췄다. `docs/frontend/frontend-observation-runbook.md` 를 추가하고 `frontend-qa-docs-index`, `frontend-qa-current-state`, `start`, `current-state` 도 같은 entrypoint 패턴으로 갱신했다.
 - 이유: frontend도 지금 단계는 새 UI 구현보다 baseline 유지가 더 중요하다. baseline 유지 단계에서는 수동 QA 문서와 별개로 “현재 lint/build/browser smoke가 healthy 한가”를 빠르게 읽는 compact surface가 있어야 다른 문서군과 같은 운영 패턴을 유지할 수 있다.
+
+## 1053) Gov24 public filter를 열더라도 `serviceField` exact-label 한 축만 bounded하게 열어야 나머지 canonical/deferred 계약을 흔들지 않는다
+
+- 문제: `policy/Gov24` lane을 다시 열 때 바로 `userType/benefitType` 까지 public filter나 scoring으로 연결하면, 지금까지 deferred 로 유지한 canonical/service_facts/recommendation 경계가 한 번에 다시 열리게 된다. 반대로 제품 표면을 전혀 안 열면 이미 닫힌 `GOV24_SERVICE_FIELD` exact-label canonical term이 public discovery에 기여하지 못한다.
+- 해결: `/api/policies`, `/api/policies/search` 에 `gov24ServiceField` query param만 bounded하게 추가했다. 허용값은 managed exact label `10개` 만 받고, 조회 계약은 `service_taxonomy_terms(term_group='GOV24_SERVICE_FIELD')` 우선, term이 없는 legacy row만 `service_taxonomy_summary_slots(slot_key='GOV24_SERVICE_FIELD')` fallback 으로 고정했다. 프런트 `/policies` 도 sourceType=`Gov24` 일 때만 `Gov24 서비스분야` filter를 노출하게 맞췄다.
+- 이유: `serviceField` 는 이미 exact-label inventory가 고정된 가장 좁은 Gov24 canonical 축이다. 이 한 축만 discovery filter로 여는 편이 `userType/benefitType`, scoring, matcher, service_facts 승격 같은 더 큰 reopen을 막으면서도 제품 확장을 한 단계 앞으로 밀 수 있다.
