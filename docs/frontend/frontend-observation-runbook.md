@@ -10,7 +10,14 @@ entrypoint는 아래 wrapper입니다.
 
 - `bash deploy/smoke/run-local-frontend-observation-suite.sh`
 - 운영 서버:
-  - `FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-local-frontend-observation-suite.sh`
+  - `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-local-frontend-observation-suite.sh`
+
+`deployed-origin` 기본 경계:
+
+- backend `APP_BASE_URL` / `HEALTH_URL` 기준으로 `bootstrap-playwright-smoke-data.sh` 를 먼저 실행해 fresh e2e user와 검색 fixture를 준비합니다.
+- `ENV_FILE` 은 Playwright helper까지 그대로 전달하므로 reset-password helper도 production DB 접속값을 같은 env file에서 읽습니다.
+- 기본값에서는 `@dev-only` 와 `@admin-required` 케이스를 제외합니다.
+- 실제 admin credential이 있고 admin dashboard smoke까지 포함해 확인하려면 `RUN_FRONTEND_ADMIN_E2E=true` 를 명시합니다.
 
 ## latest artifact
 
@@ -29,6 +36,7 @@ entrypoint는 아래 wrapper입니다.
 - `frontend_lint_duration_ms`
 - `frontend_build_duration_ms`
 - `frontend_e2e_duration_ms`
+- `run_frontend_admin_e2e`
 - `next_action`
 
 ## 현재 해석

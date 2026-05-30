@@ -73,7 +73,9 @@
   - latest artifact: `tmp/auth-observation/latest-auth-observation-summary.txt`, `tmp/auth-observation/latest-auth-observation-note.md`, `tmp/auth-observation/latest-auth-observation.json`
   - `KEEP_ARTIFACTS=false` 기본값에서도 latest summary/json 과 `tmp/auth-observation/latest/` snapshot은 남습니다.
 - frontend observation suite: `bash deploy/smoke/run-local-frontend-observation-suite.sh`
-- server frontend observation suite: `FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-local-frontend-observation-suite.sh`
+- server frontend observation suite: `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-local-frontend-observation-suite.sh`
+  - 기본 deployed-origin 경계는 fresh e2e user/bootstrap을 먼저 준비하고 `@dev-only`, `@admin-required` 케이스를 제외합니다.
+  - admin dashboard smoke까지 포함하려면 `RUN_FRONTEND_ADMIN_E2E=true` 를 명시합니다.
   - latest artifact: `tmp/frontend-observation/latest-frontend-observation-summary.txt`, `tmp/frontend-observation/latest-frontend-observation-note.md`, `tmp/frontend-observation/latest-frontend-observation.json`
   - `KEEP_ARTIFACTS=false` 기본값에서도 latest summary/json 과 `tmp/frontend-observation/latest/` snapshot은 남습니다.
 - policy quality observation suite: `APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-policy-quality-observation-suite.sh`
