@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 1038) recommendation observation current truth는 맞아도 operator handoff가 summary/json key 나열에만 머물면 “왜 아직 reopen이 아닌지”를 매번 다시 해석해야 한다
+- 문제: `run-local-recommendation-observation-suite.sh` 는 이미 `precheck_status`, `precheck_reason`, `observation_blocker`, `recommended_cadence`, `next_action` 을 compact하게 내리고 있었지만, 운영자 handoff 관점에서는 여전히 key/value 목록이라 `KEEP_OBSERVING`, `WAIT_FOR_REAL_USER_TRAFFIC`, `SUPPLEMENTAL_REVIEW_ONLY` 같은 상태를 사람 말로 다시 번역해야 했다.
+- 해결: observation suite가 이제 `decision_class`, `reopen_allowed`, `operator_reading` 을 summary/json에 같이 남기고, `tmp/recommendation-observation/latest-recommendation-observation-note.md` 사람용 note artifact도 publish하게 바꿨다. 동시에 [recommendation-observation-runbook.md](/home/minseok/youth-welfare/docs/recommendation/recommendation-observation-runbook.md:1) 를 추가해 daily operator entrypoint와 상태 해석 ladder를 한 장으로 고정했다.
+- 이유: recommendation 현재 truth는 “지금 reopen하지 않는다”는 운영 해석이 핵심이다. 이 단계에서는 모델링 변경보다 handoff/운영 일관성이 더 중요하므로, machine-readable summary와 human-readable note를 같이 남기는 편이 더 재사용 가능하다.
+
 ## 1037) `current_priority` 는 same-config recent `active_baseline` reuse가 실제 서버에서도 통과해야 비로소 bounded optimization으로 읽을 수 있다
 - 문제: `current_priority` recent baseline reuse를 로컬에서만 확인한 상태로 두면, `latest` snapshot publish 계약이나 TTL 비교 로직이 실제 서버 shell/cwd/runtime artifact 조건에서도 그대로 성립하는지 확신할 수 없다. 이 경우 wrapper rerun-cost 최적화가 문서상으로만 닫히고 운영 기준에서는 다시 full rerun으로 되돌아갈 수 있다.
 - 해결: 서버에서 `RUN_BACKEND_TESTS=false RUN_FRONTEND_BASELINE=false RUN_OPS_BASELINE=false RUN_COLLECT_LEGACY_REPAIR=false bash deploy/smoke/run-local-active-baseline-suite.sh` 로 standalone latest snapshot 계약을 먼저 검증하고, 곧바로 `RUN_RECOMMENDATION_OBSERVATION=false ... bash deploy/smoke/run-local-current-priority-suite.sh` 를 같은 설정으로 다시 태워 `active_baseline_reused=true`, `reuse_age_seconds=17`, `reuse_ttl_seconds=900` 를 실제 artifact summary/json 에서 확인했다.
