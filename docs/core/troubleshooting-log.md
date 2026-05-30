@@ -3,6 +3,7 @@
 ## 1059) `Gov24` filter를 열어도 detail page tag가 read-only badge로만 남아 있으면 discovery surface가 중간에서 끊긴다
 - 문제: `serviceField`, `userType`, `benefitType` public filter 세 축을 `/policies` 와 API에 열었어도, 상세 페이지에서 보이는 `Gov24` 태그가 단순 badge로만 남아 있으면 사용자는 같은 분류의 다른 정책으로 바로 되돌아갈 수 없다. 이 상태는 “filter는 있는데 detail에서 다시 탐색하는 연결은 없는” 반쯤 열린 discovery surface가 된다.
 - 해결: [PolicyDetailPage.jsx](/home/minseok/youth-welfare/frontend/src/pages/PolicyDetailPage.jsx:1) 의 `Gov24` 태그를 clickable chip으로 바꿔 `serviceField`, `userType`, `benefitType` 각각 `/policies?sourceType=GOV24&...` 로 바로 이동하게 했다. 즉 `분야/대상/유형` badge를 read-only 메타가 아니라 bounded discovery bridge로 승격한다.
+- 추가 해결: 운영 데이터처럼 detail API의 `gov24UserTypeLabel`, `gov24BenefitTypeLabel` 이 비어 있는 경우를 위해, 같은 파일에서 managed token 범위 안의 `tags` / `provisionType` fallback 도 함께 허용했다. 이 fallback은 표시/이동용 discovery chip에만 쓰고, matcher나 canonical truth 자체를 바꾸지는 않는다.
 - 이유: 이건 new taxonomy를 더 여는 작업이 아니라, 이미 열린 public filter 3축을 detail surface와 자연스럽게 잇는 작은 UX 마감이다. matcher, `service_facts`, `YOUTH_MID` bridge 같은 더 큰 deferred 범위를 건드리지 않으면서도 `Gov24` discovery 완성도를 올릴 수 있다.
 
 ## 1058) `Gov24` bounded step이 여러 번 닫힌 뒤에도 closeout 문서가 없으면 active/deferred 경계를 다시 과거 blocked 문서에서 추론하게 된다

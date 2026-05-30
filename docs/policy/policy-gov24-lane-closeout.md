@@ -61,6 +61,9 @@
 - `대상 {gov24UserTypeLabel}` -> `/policies?sourceType=GOV24&gov24UserType=...`
 - `유형 {gov24BenefitTypeLabel}` -> `/policies?sourceType=GOV24&gov24BenefitType=...`
 
+운영 데이터처럼 detail API의 `gov24UserTypeLabel`, `gov24BenefitTypeLabel` 이 비어 있는 경우에도,
+현재 프런트는 managed token 범위 안에서만 `tags` / `provisionType` fallback 을 써서 같은 discovery chip 을 유지합니다.
+
 ### 2. recommendation scoring
 
 recommendation 은 이제 `Gov24` taxonomy를 **soft additive bonus** 로만 소비합니다.
