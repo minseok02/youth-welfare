@@ -9,6 +9,7 @@ import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.dto.RetrievedRecommendationCandidates;
 import com.example.welfare.recommend.dto.ScoredCandidate;
 import com.example.welfare.recommend.repository.RecommendationCandidateReadRepository;
+import com.example.welfare.recommend.support.Gov24RecommendationScoringSupport;
 import com.example.welfare.recommend.support.RecommendationMatchingSupport;
 import com.example.welfare.recommend.support.RecommendationYouthRelevanceSupport;
 import com.example.welfare.recommend.support.RecommendationRuntimeSupport;
@@ -156,6 +157,8 @@ public class RuleScoringService {
         if (priorityMismatch) {
             score -= PRIORITY_MISMATCH_PENALTY;
         }
+
+        score += Gov24RecommendationScoringSupport.softBonus(service, user, projection);
 
         if (specialTargetMatches(user, targetTypes, service, tags, projection)) score += SPECIAL_TARGET_MATCH_BONUS;
         else if (hasSpecialTargetSignal(service, tags, projection)) score -= SPECIAL_TARGET_MISMATCH_PENALTY;

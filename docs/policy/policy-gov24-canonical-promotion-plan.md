@@ -50,7 +50,7 @@
 
 1. `GOV24_SERVICE_FIELD / USER_TYPE / BENEFIT_TYPE` stable code SQL
 2. `service_facts` 로의 직접 승격
-3. recommendation scoring/matcher/AI prompt 소비
+3. recommendation matcher hard condition / AI prompt 소비
 4. `YOUTH_MID` bridge
 5. `supportConditions` 사업체/업종/창업 상태 full-scope 승격
 
@@ -243,7 +243,7 @@ canonical term은 additive multi-term 으로만 봅니다.
 1. `GOV24_*` stable code SQL
 2. `GOV24_SUPPORT_CONDITION` full-scope business/industry/startup code 승격
 3. `Gov24 -> YOUTH_MID` 연결
-4. recommendation scoring/ranking 소비
+4. recommendation matcher hard condition / ranking hard gate 소비
 
 ## reopen 완료 판정
 
@@ -270,4 +270,4 @@ canonical term은 additive multi-term 으로만 봅니다.
 2. `서비스분야` 는 exact-label canonical term, `사용자구분/지원유형` 은 allowlist token term 으로 본다.
 3. 이번 승격 저장층은 `service_taxonomy_terms` 이고, `service_facts` 는 열지 않는다.
 4. raw exact label summary는 계속 유지한다.
-5. recommendation scoring과 `service_facts` 승격은 계속 deferred 다.
+5. recommendation scoring은 현재 `RuleScoringService` 의 bounded soft additive bonus까지만 열려 있고, matcher hard condition과 `service_facts` 승격은 계속 deferred 다.
