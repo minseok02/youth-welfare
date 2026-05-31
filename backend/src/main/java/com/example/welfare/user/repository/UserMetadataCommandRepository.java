@@ -13,4 +13,6 @@ public interface UserMetadataCommandRepository {
     void deleteAllByUserKey(String userKey);
 
     boolean hasAttributeValues(String userKey, String attrType);
+
+    boolean hasPriorities(String userKey);
 }

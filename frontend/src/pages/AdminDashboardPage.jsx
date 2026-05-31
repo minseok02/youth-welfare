@@ -68,15 +68,15 @@ const SEARCH_SORT_KEY_LABELS = {
 };
 
 const REVIEW_GATE_TONE = {
-  DEFERRED_EMPTY_COHORT: { label: "비어 있음", bg: WARNING_BG, border: WARNING_BORDER, color: WARNING_TEXT },
-  DEFERRED_NO_REAL_USER_TRAFFIC: { label: "실사용자 없음", bg: WARNING_BG, border: WARNING_BORDER, color: WARNING_TEXT },
+  DEFERRED_EMPTY_COHORT: { label: "추천 데이터 없음", bg: WARNING_BG, border: WARNING_BORDER, color: WARNING_TEXT },
+  DEFERRED_NO_REAL_USER_TRAFFIC: { label: "실사용자 이용 데이터 없음", bg: WARNING_BG, border: WARNING_BORDER, color: WARNING_TEXT },
   DEFERRED_REAL_USER_SAMPLE_THIN: { label: "실사용자 표본 부족", bg: WARNING_BG, border: WARNING_BORDER, color: WARNING_TEXT },
   DEFERRED_REAL_USER_CLICK_SAMPLE_THIN: { label: "실사용자 클릭 표본 부족", bg: WARNING_BG, border: WARNING_BORDER, color: WARNING_TEXT },
-  DEFERRED_NON_REAL_LEADER_SIGNAL: { label: "비실사용 leader", bg: WARNING_BG, border: WARNING_BORDER, color: WARNING_TEXT },
-  DEFERRED_REAL_USER_LEADER_SIGNAL_THIN: { label: "leader 실사용 신호 부족", bg: WARNING_BG, border: WARNING_BORDER, color: WARNING_TEXT },
-  READY_CONCENTRATED_TOP1_REVIEW: { label: "top1 집중 리뷰 가능", bg: SUCCESS_BG, border: SUCCESS_BORDER, color: SUCCESS_TEXT },
+  DEFERRED_NON_REAL_LEADER_SIGNAL: { label: "테스트 데이터 영향으로 보류", bg: WARNING_BG, border: WARNING_BORDER, color: WARNING_TEXT },
+  DEFERRED_REAL_USER_LEADER_SIGNAL_THIN: { label: "1순위 실사용자 신호 부족", bg: WARNING_BG, border: WARNING_BORDER, color: WARNING_TEXT },
+  READY_CONCENTRATED_TOP1_REVIEW: { label: "1순위 집중 검토 가능", bg: SUCCESS_BG, border: SUCCESS_BORDER, color: SUCCESS_TEXT },
   READY_NO_PRIORITY_DOMINANT_REVIEW: { label: "무우선순위 리뷰 가능", bg: SUCCESS_BG, border: SUCCESS_BORDER, color: SUCCESS_TEXT },
-  READY_BALANCED_LOGIC_REVIEW: { label: "로직 리뷰 가능", bg: SUCCESS_BG, border: SUCCESS_BORDER, color: SUCCESS_TEXT },
+  READY_BALANCED_LOGIC_REVIEW: { label: "추천 로직 검토 가능", bg: SUCCESS_BG, border: SUCCESS_BORDER, color: SUCCESS_TEXT },
 };
 
 const COLLECT_EXECUTION_TONE = {
@@ -99,34 +99,94 @@ const COLLECT_RESOURCE_TONE = {
 };
 
 const STATUS_LABELS = {
-  READY_REAL_USER_TRAFFIC: "실사용자 트래픽 준비됨",
-  READY_REAL_USER_COHORT: "실사용자 코호트 확보",
+  ALL_TIME_LATEST_PER_USER: "전체 기간 사용자별 최신 추천 기준",
+  READY_REAL_USER_TRAFFIC: "실사용자 이용 데이터 충분",
+  READY_REAL_USER_COHORT: "실사용자 그룹 확보",
+  BALANCED_ENOUGH_FOR_LOGIC_REVIEW: "추천 로직 검토 가능",
   CONCENTRATED_TOP1: "1순위 집중 상태",
   NO_PRIORITY_DOMINANT: "무우선순위 편중 상태",
+  EMPTY_TOP1_LEADER: "1순위 선두 없음",
   EXAMPLE_SMOKE_ONLY_LEADER: "예제 스모크만 선두",
+  BOUNDED_LOCAL_WITH_EXAMPLE_LEADER: "로컬 제한군과 예제가 선두",
   LOCAL_SEED_WITHOUT_REAL_USER_LEADER: "로컬 시드만 선두",
+  REAL_USER_SIGNAL_THIN_LEADER: "1순위 실사용자 신호 부족",
+  MIXED_REAL_USER_LEADER: "실사용자와 테스트 데이터 혼합 선두",
+  REAL_USER_ONLY_LEADER: "실사용자만 선두",
   SYNTHETIC_ONLY_LATEST_BATCH: "합성 데이터 위주 배치",
   MIXED_WITH_NON_REAL_BATCH: "비실사용 혼합 배치",
+  DEFERRED_EMPTY_COHORT: "추천 데이터 없음",
+  DEFERRED_EMPTY_RECENT_WINDOW: "최근 추천 데이터 없음",
+  DEFERRED_NO_REAL_USER_TRAFFIC: "실사용자 이용 데이터 없음",
+  DEFERRED_REAL_USER_SAMPLE_THIN: "실사용자 표본 부족",
+  DEFERRED_REAL_USER_CLICK_SAMPLE_THIN: "실사용자 클릭 표본 부족",
+  DEFERRED_NON_REAL_LEADER_SIGNAL: "테스트 데이터 영향으로 검토 보류",
+  DEFERRED_REAL_USER_LEADER_SIGNAL_THIN: "1순위 실사용자 신호 부족",
   DEFERRED_NO_REAL_USER_RECENT_WINDOW: "최근 실사용자 데이터 부족",
+  RECENT_WINDOW_STILL_TARGET_DOMINANT: "최근에도 기존 대상 서비스 편중",
+  RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE: "최근 데이터에서 기존 편중 해소",
+  RECENT_WINDOW_INCONCLUSIVE: "최근 데이터 판단 보류",
+  RECENT_WINDOW_POLICY_CANDIDATE: "최근 기준 전환 검토 대상",
   NOT_A_CANDIDATE_NO_HISTORICAL_EXAMPLE_DOMINANCE: "예제 지배 이력 없음",
-  NOT_A_CANDIDATE_PRIMARY_GATE_NOT_NON_REAL_BLOCKED: "현재 gate 기준 후보 아님",
-  KEEP_PRIMARY_BASELINE: "기본 gate 유지",
+  NOT_A_CANDIDATE_PRIMARY_GATE_NOT_NON_REAL_BLOCKED: "현재 상태 기준 후보 아님",
+  NOT_A_CANDIDATE_PRIMARY_REFERENCE_NOT_ALL_TIME_LATEST: "전체 기간 기준이 아니어서 후보 아님",
+  NOT_A_CANDIDATE_TARGET_STILL_PRESENT_IN_RECENT_EXAMPLE_WINDOW: "최근 예제 구간에 대상 서비스가 남아 있음",
+  NOT_A_CANDIDATE_NO_REAL_USER_RECENT_LATEST_USERS: "최근 실사용자 최신 추천 없음",
+  NOT_A_CANDIDATE_RECENT_WINDOW_NOT_CLEAR: "최근 데이터로 편중 해소 확인 안 됨",
+  KEEP_PRIMARY_BASELINE: "기본 기준 유지",
+  REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW: "명시적 정책 변경 검토 필요",
+  PROMOTION_READY: "전환 준비됨",
+  RUN_BOUNDED_PROMOTION_REVIEW: "제한 범위 검토 실행",
+  AWAIT_EXPLICIT_POLICY_REVIEW_DECISION: "명시적 정책 검토 결정 대기",
   NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW: "제한 승격 검토 미준비",
+  READY_FOR_BOUNDED_PROMOTION_REVIEW: "제한 승격 검토 준비됨",
   DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW: "제한 승격 검토 실행 안 함",
   NOT_READY_FOR_EXPLICIT_PROMOTION_APPROVAL: "명시적 승격 승인 미준비",
+  READY_FOR_EXPLICIT_PROMOTION_APPROVAL: "명시적 승격 승인 준비됨",
+  PENDING_EXPLICIT_PROMOTION_APPROVAL: "명시적 승격 승인 대기",
+  BOUNDED_PROMOTION_REVIEW_APPROVED: "제한 승격 검토 승인됨",
   PROMOTION_APPROVAL_NOT_APPLICABLE: "승격 승인 대상 아님",
   APPROVAL_DECISION_NOT_READY: "승인 결정 미준비",
+  AWAIT_EXPLICIT_PROMOTION_APPROVAL_DECISION: "명시적 승인 결정 대기",
+  APPROVED_FOR_BOUNDED_PROMOTION_REVIEW: "제한 승격 검토 승인",
+  APPROVAL_DECISION_NOT_APPLICABLE: "승인 결정 대상 아님",
   APPROVAL_RECORD_NOT_READY: "승인 기록 미준비",
+  PENDING_EXPLICIT_PROMOTION_APPROVAL_RECORD: "명시적 승인 기록 대기",
+  EXPLICIT_PROMOTION_APPROVAL_RECORDED: "명시적 승인 기록 완료",
+  APPROVAL_RECORD_NOT_APPLICABLE: "승인 기록 대상 아님",
   BOUNDED_PROMOTION_REVIEW_RUN_NOT_READY: "제한 검토 실행 미준비",
+  PENDING_BOUNDED_PROMOTION_REVIEW_RUN: "제한 검토 실행 대기",
+  AWAIT_BOUNDED_PROMOTION_REVIEW_RUN: "제한 검토 실행 승인 대기",
+  BOUNDED_PROMOTION_REVIEW_RUN_NOT_APPLICABLE: "제한 검토 실행 대상 아님",
   NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN: "제한 검토 실행 기준 미충족",
+  READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN: "제한 검토 실행 기준 충족",
   BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_READY: "제한 검토 실행 결정 미준비",
+  AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_DECISION: "제한 검토 실행 결정 대기",
+  BOUNDED_PROMOTION_REVIEW_RUN_APPROVED: "제한 검토 실행 승인됨",
+  BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_APPLICABLE: "제한 검토 실행 결정 대상 아님",
   NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL: "제한 검토 실행 승인 미준비",
+  READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL: "제한 검토 실행 승인 준비됨",
   BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_DECISION_NOT_READY: "제한 검토 실행 승인 결정 미준비",
+  AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_DECISION: "제한 검토 실행 승인 결정 대기",
+  BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_APPROVED: "제한 검토 실행 승인됨",
+  BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_DECISION_NOT_APPLICABLE: "제한 검토 실행 승인 결정 대상 아님",
   BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_NOT_READY: "제한 검토 실행 승인 기록 미준비",
+  PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL: "제한 검토 실행 승인 대기",
+  APPROVED_FOR_BOUNDED_PROMOTION_REVIEW_RUN: "제한 검토 실행 승인",
+  BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_NOT_APPLICABLE: "제한 검토 실행 승인 대상 아님",
   NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD: "제한 검토 실행 승인 레코드 미준비",
+  READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD: "제한 검토 실행 승인 기록 준비됨",
   BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_NOT_READY: "제한 검토 실행 승인 레코드 없음",
+  PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD: "제한 검토 실행 승인 기록 대기",
+  BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORDED: "제한 검토 실행 승인 기록 완료",
+  BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_NOT_APPLICABLE: "제한 검토 실행 승인 기록 대상 아님",
   BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_TRANSITION_NOT_READY: "제한 검토 실행 전이 미준비",
+  AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE: "제한 검토 실행 승인 기록 쓰기 대기",
+  BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITTEN: "제한 검토 실행 승인 기록 작성됨",
+  BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_TRANSITION_NOT_APPLICABLE: "제한 검토 실행 전이 대상 아님",
   BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE_NOT_READY: "제한 검토 실행 기록 쓰기 미준비",
+  PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE: "제한 검토 실행 승인 기록 쓰기 대기",
+  BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE_COMPLETED: "제한 검토 실행 승인 기록 쓰기 완료",
+  BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE_NOT_APPLICABLE: "제한 검토 실행 기록 쓰기 대상 아님",
   SCHEDULED: "예약됨",
   RUNNING: "실행 중",
   SUCCESS: "성공",
@@ -137,21 +197,170 @@ const STATUS_LABELS = {
   CLOSED: "닫힘",
 };
 
+const STATUS_TOKEN_LABELS = {
+  ALL: "전체",
+  TIME: "기간",
+  LATEST: "최신",
+  PER: "별",
+  USER: "사용자",
+  USERS: "사용자",
+  READY: "준비됨",
+  NOT: "아님",
+  FOR: "대상",
+  REAL: "실사용자",
+  TRAFFIC: "이용 데이터",
+  COHORT: "사용자 그룹",
+  GATE: "상태",
+  REVIEW: "검토",
+  RUN: "실행",
+  APPROVAL: "승인",
+  APPROVED: "승인됨",
+  RECORD: "기록",
+  RECORDED: "기록됨",
+  WRITE: "쓰기",
+  WRITTEN: "작성됨",
+  PENDING: "대기",
+  AWAIT: "대기",
+  DECISION: "결정",
+  CRITERIA: "기준",
+  APPLICABLE: "대상",
+  PROMOTION: "승격",
+  BOUNDED: "제한 범위",
+  EXPLICIT: "명시적",
+  POLICY: "정책",
+  PRIMARY: "기본",
+  BASELINE: "기준",
+  RECENT: "최근",
+  WINDOW: "구간",
+  CANDIDATE: "후보",
+  CLEAR: "해소",
+  CLEARS: "해소",
+  HISTORICAL: "과거",
+  EXAMPLE: "예제",
+  DOMINANCE: "편중",
+  TARGET: "대상",
+  PRESENT: "남아 있음",
+  EMPTY: "없음",
+  DEFERRED: "보류",
+  SAMPLE: "표본",
+  THIN: "부족",
+  CLICK: "클릭",
+  NON: "비",
+  LEADER: "선두",
+  SIGNAL: "신호",
+  TOP1: "1순위",
+  LOCAL: "로컬",
+  SEED: "시드",
+  MIXED: "혼합",
+  ONLY: "만",
+  BALANCED: "균형",
+  ENOUGH: "충분",
+  LOGIC: "로직",
+  INCONCLUSIVE: "판단 보류",
+  STALE: "오래된",
+  REFERENCE: "기준",
+  MODE: "방식",
+  EXECUTION: "실행",
+  LAYER: "단계",
+  ALIGNED: "정렬됨",
+  PREREQUISITES: "선행 조건",
+  MET: "충족",
+  SUPPORTS: "지원",
+  SUPPORTED: "지원됨",
+  TRANSITION: "전환",
+  COMPLETED: "완료",
+  IS: "임",
+  ARE: "임",
+  BY: "기준",
+  WITH: "포함",
+  WITHOUT: "없음",
+  BUT: "단",
+  AND: "및",
+  FROM: "에서",
+  STILL: "아직",
+  HAS: "있음",
+  HAVE: "있음",
+  DETECTED: "감지됨",
+  CONFIRMED: "확인됨",
+  CONDITIONS: "조건",
+  CHANGE: "변경",
+  ACTIVE: "활성",
+  EXECUTED: "실행됨",
+  ALLOWS: "허용",
+  CAN: "가능",
+  BE: "됨",
+  PROMOTED: "전환됨",
+  REQUIRES: "필요",
+  STATE: "상태",
+  READING: "판단",
+};
+
+const COLLECT_JOB_LABELS = {
+  YOUTH: "온통청년 목록 수집",
+  BOKJIRO_CENTRAL: "복지로 중앙 목록 수집",
+  BOKJIRO_LOCAL: "복지로 지자체 목록 수집",
+  BOKJIRO_DETAIL: "복지로 상세 수집",
+  GOV24: "정부24 목록 수집",
+  GOV24_DETAIL: "정부24 상세 수집",
+  GOV24_SUPPORT_CONDITIONS: "정부24 지원조건 수집",
+  YOUTH_DETAILS: "온통청년 상세 보강",
+  BOKJIRO_DETAIL_GAP_FILL: "복지로 상세 누락 보강",
+  BOKJIRO_DETAIL_REFRESH: "복지로 상세 재수집",
+};
+
+const CONFIG_LABELS = {
+  Scheduler: "자동 실행 일정",
+  Budget: "실행 한도",
+  "List pacing": "목록 요청 간격",
+  "Detail pacing": "상세 요청 간격",
+  Retry: "재시도",
+  "429 guard": "요청 제한 보호",
+  "429 abort": "요청 제한 중단 기준",
+  "Open circuit": "회로 열림 유지 시간",
+  "Lock guard": "중복 실행 방지",
+  "Per-source cap": "출처별 한도",
+};
+
 const humanizeStatusKey = (value) => {
   if (!value) return "—";
-  return String(value)
+  const tokens = String(value)
     .split("_")
     .filter(Boolean)
-    .join(" / ");
+    .map((token) => STATUS_TOKEN_LABELS[token] ?? token);
+  return tokens.join(" / ");
 };
 
 const formatStatusLabel = (value) => STATUS_LABELS[value] ?? humanizeStatusKey(value);
-const formatSourceType = (value) => SOURCE_TYPE_LABELS[value] ?? value ?? "—";
+const formatSourceType = (value) => SOURCE_TYPE_LABELS[value] ?? (value ? formatStatusLabel(value) : "—");
 const formatActorType = (value) => ACTOR_TYPE_LABELS[value] ?? formatStatusLabel(value);
 const formatSearchStatusFilter = (value) => SEARCH_STATUS_FILTER_LABELS[value] ?? (value ? formatStatusLabel(value) : "전체");
 const formatSortKey = (value) => SEARCH_SORT_KEY_LABELS[value] ?? (value ? formatStatusLabel(value) : "기본 정렬");
 const formatBooleanLabel = (value, trueLabel, falseLabel) => (value ? trueLabel : falseLabel);
 const formatCodeOrStatus = (value) => value ? formatStatusLabel(value) : "미분류";
+const formatCollectJobName = (value) => COLLECT_JOB_LABELS[value] ?? formatStatusLabel(value);
+const formatConfigLabel = (value) => CONFIG_LABELS[value] ?? value ?? "설정";
+const formatConfigValue = (value) => String(value ?? "—")
+  .replace(/^max /, "최대 ")
+  .replace(/ items\/run/g, "건/회")
+  .replace(/ calls\/run/g, "회 호출/회")
+  .replace(/ attempts/g, "회 시도")
+  .replace(/ backoff/g, " 대기")
+  .replace(/cooldown /g, "재개 대기 ")
+  .replace(/ consecutive hits/g, "회 연속")
+  .replace(/missing detail rows only/g, "상세 정보가 없는 항목만")
+  .replace(/operator supplied rounds\/maxCallsPerRound/g, "관리자가 지정한 회차/회차별 호출 수")
+  .replace(/central /g, "중앙 ")
+  .replace(/local /g, "지자체 ")
+  .replace(/lease /g, "잠금 ")
+  .replace(/heartbeat /g, "상태 확인 ");
+const formatAdminMessage = (value) => {
+  if (!value) return "에러 메시지 없음";
+  return String(value)
+    .replace(/notification gateway returned false/gi, "알림 발송 시스템이 실패를 반환했습니다")
+    .replace(/rate limit/gi, "요청 제한")
+    .replace(/timeout/gi, "응답 시간 초과")
+    .replace(/connection reset/gi, "연결이 끊어짐");
+};
 
 const formatPercent = (value) => {
   const num = Number(value);
@@ -566,7 +775,7 @@ export default function AdminDashboardPage() {
               운영 추천 대시보드
             </Typography>
             <Typography sx={{ fontSize: 14, color: INK3, mt: 1 }}>
-              추천 검토 게이트, 1순위 선두 신호, 코호트 구성을 한 화면에서 확인합니다.
+              추천 검토 상태, 1순위 선두 신호, 사용자 구성을 한 화면에서 확인합니다.
             </Typography>
           </Box>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ xs: "stretch", sm: "center" }}>
@@ -672,7 +881,7 @@ export default function AdminDashboardPage() {
           {summaryQuery.isLoading && (
             <SectionLoadingCard
               title="운영 요약 로딩 중"
-              description="추천 검토 상태, 최근 배치 집중도, 수집/검색 개요를 불러오는 중입니다."
+              description="추천 검토 상태, 최근 추천 집중도, 수집/검색 개요를 불러오는 중입니다."
             />
           )}
 
@@ -701,13 +910,13 @@ export default function AdminDashboardPage() {
                   <Box sx={{ position: "absolute", inset: 0, background: "radial-gradient(circle at top right, rgba(255,255,255,0.18), transparent 36%)" }} />
                   <Stack direction={{ xs: "column", lg: "row" }} justifyContent="space-between" spacing={3} sx={{ position: "relative" }}>
                     <Box>
-                      <Typography sx={{ fontSize: 12, fontWeight: 700, opacity: 0.8 }}>추천 검토 게이트</Typography>
+                      <Typography sx={{ fontSize: 12, fontWeight: 700, opacity: 0.8 }}>추천 검토 상태</Typography>
                   <Typography sx={{ fontSize: 30, fontWeight: 900, mt: 1, letterSpacing: "-0.03em" }}>
                         {formatStatusLabel(recommendationSummary.recommendationReviewGate)}
                       </Typography>
                       <Typography sx={{ fontSize: 14, opacity: 0.85, mt: 1.5, maxWidth: 720, lineHeight: 1.6 }}>
                         현재 추천 검토 상태는 <strong>{formatStatusLabel(recommendationSummary.recommendationReviewGate)}</strong> 입니다.
-                        1순위 선두 신호는 <strong>{formatStatusLabel(concentration.top1LeaderSignalSummary)}</strong>, 실사용자 트래픽 게이트는 <strong>{formatStatusLabel(recommendationSummary.realUserTrafficGateInWindow)}</strong> 입니다.
+                        1순위 선두 신호는 <strong>{formatStatusLabel(concentration.top1LeaderSignalSummary)}</strong>, 실사용자 이용 데이터 상태는 <strong>{formatStatusLabel(recommendationSummary.realUserTrafficGateInWindow)}</strong> 입니다.
                       </Typography>
                     </Box>
                     <GateChip value={recommendationSummary.recommendationReviewGate} />
@@ -722,13 +931,13 @@ export default function AdminDashboardPage() {
                     chip={<Typography sx={{ fontSize: 22, fontWeight: 900, color: ACCENT }}>{formatPercent(concentration.top1LeaderSharePct)}</Typography>}
                   />
                   <MetricCard
-                    title="최근 배치 사용자"
+                    title="최근 추천 사용자"
                     value={formatNumber(concentration.latestBatchUsers)}
                     description={`행 ${formatNumber(concentration.latestBatchRows)} · 서비스 ${formatNumber(concentration.latestBatchDistinctServices)}`}
                     chip={<GateChip value={concentration.realUserCohortGate} />}
                   />
                   <MetricCard
-                    title="선두 신호"
+                    title="1순위 선두 신호"
                     value={formatStatusLabel(concentration.top1LeaderSignalSummary)}
                     description={formatStatusLabel(concentration.signalQuality)}
                     chip={<GateChip value={recommendationSummary.realUserTrafficGateInWindow} />}
@@ -760,17 +969,17 @@ export default function AdminDashboardPage() {
 
                 <Card sx={{ mt: 2, background: PANEL_BG, border: `1px solid ${PANEL_LINE}`, boxShadow: "0 8px 24px rgba(15,23,42,0.04)" }}>
                   <CardContent sx={{ p: 2.5 }}>
-                    <Typography sx={{ fontSize: 15, fontWeight: 800, color: INK }}>1순위 선두 코호트 구성</Typography>
+                    <Typography sx={{ fontSize: 15, fontWeight: 800, color: INK }}>1순위 선두 사용자 구성</Typography>
                     <Typography sx={{ fontSize: 13, color: INK3, mt: 0.75 }}>
-                      현재 1순위 선두 서비스는 `{concentration.top1LeaderServiceId}` 이며, 실사용자 기준으로는 아직 재검토 재개 근거가 아닙니다.
+                      현재 1순위 선두 서비스 ID는 {concentration.top1LeaderServiceId ?? "—"}이며, 아래 사용자 구성을 기준으로 추천 검토 가능 여부를 판단합니다.
                     </Typography>
                     <Box mt={2}>
                       <CohortMix mix={concentration.top1LeaderUserMix} />
                     </Box>
                     <Divider sx={{ my: 2.5 }} />
                     <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" } }}>
-                      <MetricCard title="실사용자 트래픽 게이트" value={formatStatusLabel(recommendationSummary.realUserTrafficGateInWindow)} />
-                      <MetricCard title="추천 검토 게이트" value={formatStatusLabel(recommendationSummary.recommendationReviewGate)} />
+                      <MetricCard title="실사용자 이용 데이터 상태" value={formatStatusLabel(recommendationSummary.realUserTrafficGateInWindow)} />
+                      <MetricCard title="추천 검토 상태" value={formatStatusLabel(recommendationSummary.recommendationReviewGate)} />
                       <MetricCard title="집중도 준비 상태" value={formatStatusLabel(concentration.concentrationReadiness)} />
                       <MetricCard title="선두 신호 요약" value={formatStatusLabel(concentration.top1LeaderSignalSummary)} />
                     </Box>
@@ -786,7 +995,7 @@ export default function AdminDashboardPage() {
                       <Box key={`${item.jobName}-${item.startedAt}`} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
                         <Stack direction="row" justifyContent="space-between" spacing={2}>
                           <Box>
-                            <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{item.jobName}</Typography>
+                            <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{formatCollectJobName(item.jobName)}</Typography>
                             <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25 }}>
                               {formatCodeOrStatus(item.errorCode || item.status)} · {formatDateTime(item.startedAt)}
                             </Typography>
@@ -828,7 +1037,7 @@ export default function AdminDashboardPage() {
           {breakdownQuery.isError && (
             <SectionErrorCard
               title="추천 상세 진단 로드 실패"
-              description="요약 API가 살아 있으면 상단 추천 게이트와 최근 배치 집중도는 계속 볼 수 있습니다."
+              description="요약 데이터가 살아 있으면 상단 추천 검토 상태와 최근 추천 집중도는 계속 볼 수 있습니다."
               message={breakdownErrorMessage}
               onRetry={() => breakdownQuery.refetch()}
             />
@@ -976,7 +1185,7 @@ export default function AdminDashboardPage() {
                             {item.label}
                           </Typography>
                           <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25, overflowWrap: "anywhere", wordBreak: "break-word" }}>
-                            {formatStatusLabel(item.laneKey)} · {item.triggerPath}
+                            {formatCollectJobName(item.laneKey)} · 실행 경로 {item.triggerPath}
                           </Typography>
                           <Typography sx={{ fontSize: 12, color: INK2, mt: 0.75, lineHeight: 1.5, overflowWrap: "anywhere", wordBreak: "break-word" }}>
                             {item.governanceReason}
@@ -1002,7 +1211,7 @@ export default function AdminDashboardPage() {
                                   key={`${item.laneKey}-${entry.label}`}
                                   sx={{ fontSize: 12, color: INK3, mt: 0.25, overflowWrap: "anywhere", wordBreak: "break-word" }}
                                 >
-                                  {entry.label} · {entry.value}
+                                  {formatConfigLabel(entry.label)} · {formatConfigValue(entry.value)}
                                 </Typography>
                               ))}
                             </Box>
@@ -1030,7 +1239,7 @@ export default function AdminDashboardPage() {
                     <Box key={`${item.jobName}-${item.latestStartedAt}`} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
                       <Stack direction="row" justifyContent="space-between" spacing={2}>
                         <Box>
-                          <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{item.jobName}</Typography>
+                          <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{formatCollectJobName(item.jobName)}</Typography>
                           <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25 }}>
                             최근 실행 {formatDateTime(item.latestStartedAt)}
                           </Typography>
@@ -1055,7 +1264,7 @@ export default function AdminDashboardPage() {
                     <Box key={item.circuitKey} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: item.open ? "#fff7ed" : "#f8fafc" }}>
                       <Stack direction="row" justifyContent="space-between" spacing={2}>
                         <Box>
-                          <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{item.circuitKey}</Typography>
+                          <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{formatCollectJobName(item.circuitKey)}</Typography>
                           <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25 }}>
                             {item.open ? "해제 예정" : "마지막 확인"} {formatDateTime(item.openUntil)}
                           </Typography>
@@ -1091,7 +1300,7 @@ export default function AdminDashboardPage() {
                     <Box key={`${item.jobName}-${item.streakStatus}`} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
                       <Stack direction="row" justifyContent="space-between" spacing={2}>
                         <Box>
-                          <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{item.jobName}</Typography>
+                          <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{formatCollectJobName(item.jobName)}</Typography>
                           <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25 }}>
                             {formatStatusLabel(item.streakStatus)} · 최근 {formatDateTime(item.latestStartedAt)}
                           </Typography>
@@ -1107,7 +1316,7 @@ export default function AdminDashboardPage() {
                   items={collectFailures.recentSamples}
                   renderItem={(item) => (
                     <Box key={`${item.jobName}-${item.startedAt}-${item.errorCode}`} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
-                      <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{item.jobName}</Typography>
+                      <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{formatCollectJobName(item.jobName)}</Typography>
                       <Typography sx={{ fontSize: 12, color: INK3, mt: 0.35 }}>
                         {formatCodeOrStatus(item.errorCode || item.status)} · {formatDateTime(item.startedAt)}
                       </Typography>
@@ -1115,7 +1324,7 @@ export default function AdminDashboardPage() {
                         요청 {formatNumber(item.requestedCount)} / 저장 {formatNumber(item.savedCount)} / 실패 {formatNumber(item.failedCount)}
                       </Typography>
                       <Typography sx={{ fontSize: 12, color: INK3, mt: 0.75, lineHeight: 1.5 }}>
-                        {item.errorMessage || "에러 메시지 없음"}
+                        {formatAdminMessage(item.errorMessage)}
                       </Typography>
                     </Box>
                   )}

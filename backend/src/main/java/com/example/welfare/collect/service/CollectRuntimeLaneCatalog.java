@@ -16,33 +16,33 @@ public final class CollectRuntimeLaneCatalog {
     public static List<CollectLaneSpec> currentLanes() {
         return List.of(
                 scheduled(CollectSource.YOUTH, "SNAPSHOT", "HEAVY",
-                        "핵심 청년 snapshot lane이다. nightly 기준선 유지 때문에 자동수집에 포함한다."),
+                        "핵심 청년 정책 목록입니다. 매일 밤 기준 데이터를 갱신하기 위해 자동 수집합니다."),
                 scheduled(CollectSource.BOKJIRO_CENTRAL, "SNAPSHOT", "STANDARD",
-                        "복지로 중앙 목록 snapshot lane이다. detail/backfill과 분리된 기본 기준선으로 유지한다."),
+                        "복지로 중앙 정책 목록입니다. 상세 수집과 분리해 기본 목록 기준으로 유지합니다."),
                 scheduled(CollectSource.BOKJIRO_LOCAL, "SNAPSHOT", "STANDARD",
-                        "복지로 지자체 목록 snapshot lane이다. local 429/open-circuit triage 대상이라 nightly 기준선에 포함한다."),
+                        "복지로 지자체 정책 목록입니다. 요청 제한과 회로 열림 상태를 모니터링하며 매일 밤 갱신합니다."),
                 scheduled(CollectSource.BOKJIRO_DETAIL, "DETAIL", "BUDGETED",
-                        "복지로 detail nightly lane이다. quota/runtime 보호를 위해 call budget과 pacing guard를 둔 채 자동수집한다."),
+                        "복지로 상세 정보입니다. 호출 한도와 요청 간격을 둬서 안전하게 자동 수집합니다."),
                 manual(CollectSource.GOV24, "SNAPSHOT", "ON_DEMAND",
-                        "nightly에서는 제외한다. 수동 실행 시 Gov24 list 뒤에 detail/supportConditions를 연쇄 실행한다."),
+                        "정부24 목록은 자동 수집에서 제외하고 필요할 때 수동 실행합니다. 수동 실행 시 상세/지원조건 수집이 이어집니다."),
                 manual(CollectSource.GOV24_DETAIL, "DETAIL", "BUDGETED",
-                        "Gov24 detail 확장 lane이다. maxCallsPerRun 또는 sourceId override로만 수동 실행해 quota/runtime를 제어한다."),
+                        "정부24 상세 정보입니다. 호출 한도를 두고 수동으로만 실행해 외부 API 사용량을 제어합니다."),
                 manual(CollectSource.GOV24_SUPPORT_CONDITIONS, "DETAIL", "BUDGETED",
-                        "Gov24 지원조건 확장 lane이다. list snapshot과 분리해 수동/budgeted로만 운영한다."),
+                        "정부24 지원조건 상세 정보입니다. 목록 수집과 분리해 수동 실행과 호출 한도로 운영합니다."),
                 new CollectLaneSpec(
                         YOUTH_DETAILS_LANE_KEY,
-                        "온통청년 DETAIL",
+                        "온통청년 상세 보강",
                         "MANUAL",
                         "ENRICHMENT",
                         YOUTH_DETAILS_TRIGGER_PATH,
                         null,
                         "BUDGETED",
-                        "refUrlAddr1/2 같은 detail 보강 lane이다. 500ms pacing으로 느리게 돌리며 목록 snapshot과 분리 운영한다."
+                        "온통청년 상세 링크 같은 보강 정보입니다. 목록 수집과 분리해 천천히 수동 실행합니다."
                 ),
                 manual(CollectSource.BOKJIRO_DETAIL_GAP_FILL, "MAINTENANCE", "BUDGETED",
-                        "복지로 detail backlog를 메우는 one-off maintenance lane이다. coverage gap이 남을 때만 수동 실행한다."),
+                        "복지로 상세 정보 누락분을 메우는 유지보수 작업입니다. 누락이 남을 때만 수동 실행합니다."),
                 manual(CollectSource.BOKJIRO_DETAIL_REFRESH, "MAINTENANCE", "BUDGETED",
-                        "기존 복지로 detail row를 다시 읽는 rerun lane이다. nightly 기본 lane이 아니라 drift/refresh 목적의 수동 경로다.")
+                        "기존 복지로 상세 정보를 다시 읽는 유지보수 작업입니다. 데이터 변경 확인이 필요할 때 수동 실행합니다.")
         );
     }
 

@@ -112,6 +112,8 @@ class UserProfileCommandServiceTest {
         verify(recommendationRefreshCacheService).evict("user-key-1");
         ArgumentCaptor<List<UserPriority>> captor = ArgumentCaptor.forClass(List.class);
         verify(userMetadataCommandRepository).replacePriorities(org.mockito.Mockito.eq("user-key-1"), captor.capture());
+        verify(userMetadataCommandRepository).replaceAttributes(1L, "user-key-1",
+                UserAttribute.AttrType.INTEREST_FIELD.name(), List.of("주거", "취업"));
         assertThat(captor.getValue())
                 .extracting(UserPriority::getUserId, UserPriority::getUserKey, UserPriority::getPriorityRank, UserPriority::getWeight)
                 .containsExactly(
@@ -156,7 +158,47 @@ class UserProfileCommandServiceTest {
 
         verify(recommendationRefreshCacheService).evict("user-key-1");
         verify(userCoreSyncService).syncFromUser(org.mockito.Mockito.eq(user), org.mockito.ArgumentMatchers.any(UserPlainPii.class));
-        assertThat(user.getProfileCompleteness()).isEqualTo(90);
+        assertThat(user.getProfileCompleteness()).isEqualTo(100);
+    }
+
+    @Test
+    @DisplayName("프로필 수정 시 관심분야 요청이 없어도 기존 우선순위가 있으면 완성도 점수를 유지한다")
+    void updateProfileKeepsCompletenessWhenPrioritiesExist() {
+        UserProfileCommandService service = new UserProfileCommandService(
+                activeUserReadService,
+                userMetadataCommandRepository,
+                priorityOptionReadService,
+                priorityWeightPolicy,
+                userCoreSyncService,
+                userPlainPiiReadService,
+                recommendationRefreshCacheService
+        );
+        User user = User.builder()
+                .id(1L)
+                .email("user@example.com")
+                .passwordHash("hash")
+                .name("tester")
+                .birthDate(LocalDate.of(1998, 1, 1))
+                .sido("서울")
+                .incomeLevel((byte) 5)
+                .employmentStatus("EMPLOYED")
+                .householdType("ONE_PERSON")
+                .build();
+        when(activeUserReadService.getActiveUserContext(1L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
+        when(userPlainPiiReadService.resolveCurrent(user, "user-key-1"))
+                .thenReturn(new UserPlainPii("user@example.com", "tester", LocalDate.of(1998, 1, 1)));
+        when(userMetadataCommandRepository.hasAttributeValues("user-key-1", UserAttribute.AttrType.INTEREST_FIELD.name()))
+                .thenReturn(false);
+        when(userMetadataCommandRepository.hasPriorities("user-key-1"))
+                .thenReturn(true);
+
+        UpdateProfileRequest request = new UpdateProfileRequest();
+        service.updateProfile(1L, request);
+
+        verify(recommendationRefreshCacheService).evict("user-key-1");
+        verify(userCoreSyncService).syncFromUser(org.mockito.Mockito.eq(user), org.mockito.ArgumentMatchers.any(UserPlainPii.class));
+        assertThat(user.getProfileCompleteness()).isEqualTo(100);
     }
 
     @Test

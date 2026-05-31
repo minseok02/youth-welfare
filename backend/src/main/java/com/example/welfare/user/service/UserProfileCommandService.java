@@ -17,6 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -120,7 +122,8 @@ public class UserProfileCommandService {
 
     @Transactional
     public void updatePriorities(Long userId, UpdatePrioritiesRequest request) {
-        String userKey = activeUserReadService.getActiveUserContext(userId).userKey();
+        ActiveUserReadService.ActiveUserContext activeUserContext = activeUserReadService.getActiveUserContext(userId);
+        String userKey = activeUserContext.userKey();
         recommendationRefreshCacheService.evict(userKey);
         List<String> codes = request.getPriorityCodes();
 
@@ -146,6 +149,12 @@ public class UserProfileCommandService {
                     .build());
         }
         userMetadataCommandRepository.replacePriorities(userKey, priorities);
+        userMetadataCommandRepository.replaceAttributes(
+                userId,
+                userKey,
+                UserAttribute.AttrType.INTEREST_FIELD.name(),
+                deriveInterestFieldsFromPriorityCodes(codes)
+        );
     }
 
     private int calculateCompleteness(String userKey,
@@ -160,11 +169,31 @@ public class UserProfileCommandService {
         if (user.getIncomeLevel() != null) score += 10;
         if (user.getEmploymentStatus() != null) score += 10;
         if (user.getHouseholdType() != null) score += 10;
-        boolean hasInterestFields = request.getInterestFields() != null
+        boolean hasPreference = request.getInterestFields() != null
                 ? !request.getInterestFields().isEmpty()
-                : userMetadataCommandRepository.hasAttributeValues(userKey, UserAttribute.AttrType.INTEREST_FIELD.name());
-        if (hasInterestFields) score += 10;
+                : userMetadataCommandRepository.hasAttributeValues(userKey, UserAttribute.AttrType.INTEREST_FIELD.name())
+                || userMetadataCommandRepository.hasPriorities(userKey);
+        if (hasPreference) score += 20;
         return Math.min(score, 100);
+    }
+
+    private List<String> deriveInterestFieldsFromPriorityCodes(List<String> codes) {
+        LinkedHashSet<String> fields = new LinkedHashSet<>();
+        for (String code : codes) {
+            switch (code) {
+                case "HOUSING" -> fields.add("주거");
+                case "JOB" -> fields.add("취업");
+                case "EDUCATION" -> fields.add("교육");
+                case "FINANCE" -> fields.add("금융");
+                case "CULTURE" -> fields.add("문화");
+                case "PARTICIPATION" -> fields.add("참여");
+                case "FAMILY" -> fields.add("가족돌봄");
+                case "DEADLINE" -> fields.add("마감");
+                default -> {
+                }
+            }
+        }
+        return new ArrayList<>(fields);
     }
 
     private User.NotificationPeriod parseNotificationPeriod(String raw) {

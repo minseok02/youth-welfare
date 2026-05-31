@@ -23,6 +23,8 @@ public interface UserPriorityRepository extends JpaRepository<UserPriority, Long
             """, nativeQuery = true)
     List<UserPriorityReadModel> findReadModelsByUserKey(String userKey);
 
+    boolean existsByUserKey(String userKey);
+
     @Query(value = """
             select count(*)
             from user_priorities

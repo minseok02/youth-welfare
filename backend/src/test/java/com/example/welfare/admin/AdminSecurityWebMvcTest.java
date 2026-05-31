@@ -1571,7 +1571,7 @@ class AdminSecurityWebMvcTest {
                         List.of(
                                 new AdminRecommendationBreakdownResponse.FacetGroup(
                                         "GOV24_SERVICE_FIELD",
-                                        "Gov24 서비스분야",
+                                        "정부24 서비스 분야",
                                         List.of(
                                                 new AdminRecommendationBreakdownResponse.FacetBucket(
                                                         "주거·자립",
@@ -1582,7 +1582,7 @@ class AdminSecurityWebMvcTest {
                                 ),
                                 new AdminRecommendationBreakdownResponse.FacetGroup(
                                         "GOV24_USER_TYPE_TOKEN",
-                                        "Gov24 사용자구분",
+                                        "정부24 사용자 구분",
                                         List.of(
                                                 new AdminRecommendationBreakdownResponse.FacetBucket(
                                                         "소상공인",
@@ -1996,10 +1996,10 @@ class AdminSecurityWebMvcTest {
                                         "/api/admin/collect/youth",
                                         "매일 02:00 Asia/Seoul",
                                         "HEAVY",
-                                        "핵심 청년 snapshot lane이다.",
+                                        "핵심 청년 정책 목록입니다.",
                                         List.of(
-                                                new AdminCollectFailureResponse.ConfigEntry("Scheduler", "0 0 2 * * * @ Asia/Seoul"),
-                                                new AdminCollectFailureResponse.ConfigEntry("List pacing", "300ms")
+                                                new AdminCollectFailureResponse.ConfigEntry("자동 실행 일정", "0 0 2 * * * @ Asia/Seoul"),
+                                                new AdminCollectFailureResponse.ConfigEntry("목록 요청 간격", "300ms")
                                         ),
                                         new AdminCollectFailureResponse.LatestRun(
                                                 "SUCCESS",
@@ -2034,7 +2034,7 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.circuitStatuses[0].remainingMs").value(60000))
                 .andExpect(jsonPath("$.data.collectSourceLanes[0].laneKey").value("YOUTH"))
                 .andExpect(jsonPath("$.data.collectSourceLanes[0].executionMode").value("SCHEDULED"))
-                .andExpect(jsonPath("$.data.collectSourceLanes[0].configEntries[0].label").value("Scheduler"))
+                .andExpect(jsonPath("$.data.collectSourceLanes[0].configEntries[0].label").value("자동 실행 일정"))
                 .andExpect(jsonPath("$.data.collectSourceLanes[0].configEntries[1].value").value("300ms"))
                 .andExpect(jsonPath("$.data.collectSourceLanes[0].latestRun.status").value("SUCCESS"))
                 .andExpect(jsonPath("$.data.collectSourceLanes[0].latestRun.requestedCount").value(2500));
@@ -2057,7 +2057,7 @@ class AdminSecurityWebMvcTest {
                         .param("sourceId", "305000000168"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data").value("Gov24 상세 수집 완료 requested=1 saved=1 skipped=0 failed=0"));
+                .andExpect(jsonPath("$.data").value("정부24 상세 수집 완료 requested=1 saved=1 skipped=0 failed=0"));
 
         then(collectAdminService).should().collect(CollectSource.GOV24_DETAIL, "305000000168");
     }
@@ -2075,7 +2075,7 @@ class AdminSecurityWebMvcTest {
                         .header("Authorization", "Bearer admin-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data").value("복지로 상세 refresh 완료"));
+                .andExpect(jsonPath("$.data").value("복지로 상세 재수집 완료"));
 
         then(collectAdminService).should().collect(CollectSource.BOKJIRO_DETAIL_REFRESH);
     }
@@ -2095,7 +2095,7 @@ class AdminSecurityWebMvcTest {
                         .param("sourceId", "WLF00004717"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data").value("복지로 상세 refresh 완료 requested=1 saved=1 skipped=0 failed=0"));
+                .andExpect(jsonPath("$.data").value("복지로 상세 재수집 완료 requested=1 saved=1 skipped=0 failed=0"));
 
         then(collectAdminService).should().collect(CollectSource.BOKJIRO_DETAIL_REFRESH, "WLF00004717");
     }

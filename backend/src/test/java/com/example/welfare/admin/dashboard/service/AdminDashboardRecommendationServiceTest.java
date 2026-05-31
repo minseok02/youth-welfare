@@ -422,14 +422,14 @@ class AdminDashboardRecommendationServiceTest {
         assertThat(response.youthOfficialFacetGroups().get(1).facetKey()).isEqualTo("YOUTH_EMPLOYMENT_REQUIREMENT");
         assertThat(response.gov24FacetGroups()).hasSize(3);
         assertThat(response.gov24FacetGroups().get(0).facetKey()).isEqualTo("GOV24_SERVICE_FIELD");
-        assertThat(response.gov24FacetGroups().get(0).label()).isEqualTo("Gov24 서비스분야");
+        assertThat(response.gov24FacetGroups().get(0).label()).isEqualTo("정부24 서비스 분야");
         assertThat(response.gov24FacetGroups().get(0).buckets()).singleElement().satisfies(bucket -> {
             assertThat(bucket.label()).isEqualTo("주거·자립");
             assertThat(bucket.rowCount()).isEqualTo(5);
             assertThat(bucket.distinctServices()).isEqualTo(5);
         });
         assertThat(response.gov24FacetGroups().get(1).facetKey()).isEqualTo("GOV24_USER_TYPE_TOKEN");
-        assertThat(response.gov24FacetGroups().get(1).label()).isEqualTo("Gov24 사용자구분");
+        assertThat(response.gov24FacetGroups().get(1).label()).isEqualTo("정부24 사용자 구분");
         assertThat(response.gov24FacetGroups().get(1).buckets()).singleElement().satisfies(bucket -> {
             assertThat(bucket.label()).isEqualTo("소상공인");
             assertThat(bucket.rowCount()).isEqualTo(4);

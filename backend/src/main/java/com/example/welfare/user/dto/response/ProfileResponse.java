@@ -70,6 +70,17 @@ public class ProfileResponse {
                         .build())
                 .collect(Collectors.toList());
 
+        int profileCompleteness = calculateCompleteness(
+                user.getName(),
+                user.getBirthDate(),
+                user.getSido(),
+                user.getIncomeLevel(),
+                user.getEmploymentStatus(),
+                user.getHouseholdType(),
+                interestFields,
+                priorityItems
+        );
+
         return ProfileResponse.builder()
                 .id(user.getId())
                 .email(user.getEmail())
@@ -90,7 +101,7 @@ public class ProfileResponse {
                 .notificationMinScore(user.getNotificationMinScore())
                 .notificationConsentAt(user.getNotificationConsentAt())
                 .displayCount(user.getDisplayCount())
-                .profileCompleteness(user.getProfileCompleteness())
+                .profileCompleteness(profileCompleteness)
                 .hasPhone(user.getPhoneEnc() != null && !user.getPhoneEnc().trim().isEmpty())
                 .interestFields(interestFields)
                 .targetTypes(targetTypes)
@@ -119,6 +130,17 @@ public class ProfileResponse {
                         .build())
                 .collect(Collectors.toList());
 
+        int profileCompleteness = calculateCompleteness(
+                name,
+                birthDate,
+                profile.getSido(),
+                profile.getIncomeLevel(),
+                profile.getEmploymentStatus(),
+                profile.getHouseholdType(),
+                interestFields,
+                priorityItems
+        );
+
         return ProfileResponse.builder()
                 .id(userId)
                 .email(email)
@@ -139,11 +161,36 @@ public class ProfileResponse {
                 .notificationMinScore(profile.getNotificationMinScore())
                 .notificationConsentAt(profile.getNotificationConsentAt())
                 .displayCount(profile.getDisplayCount())
-                .profileCompleteness(profile.getProfileCompleteness())
+                .profileCompleteness(profileCompleteness)
                 .hasPhone(profile.isHasPhone())
                 .interestFields(interestFields)
                 .targetTypes(targetTypes)
                 .priorities(priorityItems)
                 .build();
+    }
+
+    private static int calculateCompleteness(String name,
+                                             LocalDate birthDate,
+                                             String sido,
+                                             Number incomeLevel,
+                                             String employmentStatus,
+                                             String householdType,
+                                             List<String> interestFields,
+                                             List<PriorityItem> priorities) {
+        int score = 0;
+        if (hasText(name)) score += 20;
+        if (birthDate != null) score += 20;
+        if (hasText(sido)) score += 10;
+        if (incomeLevel != null) score += 10;
+        if (hasText(employmentStatus)) score += 10;
+        if (hasText(householdType)) score += 10;
+        boolean hasPreference = (interestFields != null && !interestFields.isEmpty())
+                || (priorities != null && !priorities.isEmpty());
+        if (hasPreference) score += 20;
+        return Math.min(score, 100);
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
     }
 }

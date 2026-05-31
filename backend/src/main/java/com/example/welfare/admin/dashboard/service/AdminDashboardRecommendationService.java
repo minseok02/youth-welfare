@@ -37,9 +37,9 @@ public class AdminDashboardRecommendationService {
             "YOUTH_MARITAL_STATUS", "결혼 상태"
     );
     private static final Map<String, String> GOV24_FACET_LABELS = Map.of(
-            "GOV24_SERVICE_FIELD", "Gov24 서비스분야",
-            "GOV24_USER_TYPE_TOKEN", "Gov24 사용자구분",
-            "GOV24_BENEFIT_TYPE_TOKEN", "Gov24 지원유형"
+            "GOV24_SERVICE_FIELD", "정부24 서비스 분야",
+            "GOV24_USER_TYPE_TOKEN", "정부24 사용자 구분",
+            "GOV24_BENEFIT_TYPE_TOKEN", "정부24 지원 유형"
     );
 
     public AdminRecommendationBreakdownResponse getRecommendationBreakdowns(

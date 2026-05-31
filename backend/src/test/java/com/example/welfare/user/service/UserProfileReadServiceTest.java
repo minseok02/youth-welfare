@@ -2,10 +2,13 @@ package com.example.welfare.user.service;
 
 import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.user.dto.response.ProfileResponse;
+import com.example.welfare.user.entity.UserAttribute;
 import com.example.welfare.user.entity.UserProfile;
 import com.example.welfare.user.repository.UserPiiReadModel;
 import com.example.welfare.user.repository.UserProfileAggregateReadModel;
 import com.example.welfare.user.repository.UserProfileReadRepository;
+import com.example.welfare.user.repository.UserAttributeReadModel;
+import com.example.welfare.user.repository.UserPriorityReadModel;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -78,5 +81,120 @@ class UserProfileReadServiceTest {
         assertThat(response.getNotificationConsentAt()).isEqualTo(LocalDateTime.of(2026, 5, 1, 9, 30));
         assertThat(response.isHasPhone()).isTrue();
         verify(userProfileReadRepository).findProfileAggregateByUserKey("user-key-1");
+    }
+
+    @Test
+    @DisplayName("프로필 조회 완성도는 저장된 과거 값보다 현재 필드 기준으로 계산한다")
+    void getProfileCalculatesCompletenessFromCurrentFields() {
+        UserProfileReadService userProfileReadService = new UserProfileReadService(
+                userProfileReadRepository,
+                aesEncryptUtil,
+                userKeyLookupService,
+                authIdentityReadService
+        );
+        UserProfile profile = UserProfile.builder()
+                .userKey("user-key-1")
+                .sido("서울특별시")
+                .incomeLevel((byte) 5)
+                .employmentStatus("학생")
+                .householdType("기타")
+                .profileCompleteness(60)
+                .notificationYn(false)
+                .notificationEmailYn(true)
+                .notificationInAppYn(true)
+                .notificationWebPushYn(false)
+                .displayCount(10)
+                .build();
+
+        when(userKeyLookupService.findRequired(1L)).thenReturn("user-key-1");
+        when(authIdentityReadService.requireActiveUserKey("user-key-1")).thenReturn("user-key-1");
+        when(userProfileReadRepository.findProfileAggregateByUserKey("user-key-1"))
+                .thenReturn(Optional.of(new UserProfileAggregateReadModel(
+                        profile,
+                        new UserPiiReadModel("user-key-1", "enc-email", "enc-name", "enc-birth", null),
+                        List.of(attribute(UserAttribute.AttrType.INTEREST_FIELD.name(), "주거")),
+                        List.of()
+                )));
+        when(aesEncryptUtil.decrypt("enc-email")).thenReturn("user@example.com");
+        when(aesEncryptUtil.decrypt("enc-name")).thenReturn("홍길동");
+        when(aesEncryptUtil.decrypt("enc-birth")).thenReturn("1999-01-10");
+
+        ProfileResponse response = userProfileReadService.getProfile(1L);
+
+        assertThat(response.getProfileCompleteness()).isEqualTo(100);
+    }
+
+    @Test
+    @DisplayName("프로필 조회 완성도는 관심분야 없이 우선순위만 있어도 완료로 계산한다")
+    void getProfileCalculatesCompletenessFromPriorities() {
+        UserProfileReadService userProfileReadService = new UserProfileReadService(
+                userProfileReadRepository,
+                aesEncryptUtil,
+                userKeyLookupService,
+                authIdentityReadService
+        );
+        UserProfile profile = UserProfile.builder()
+                .userKey("user-key-1")
+                .sido("서울특별시")
+                .incomeLevel((byte) 5)
+                .employmentStatus("학생")
+                .householdType("기타")
+                .profileCompleteness(80)
+                .notificationYn(false)
+                .notificationEmailYn(true)
+                .notificationInAppYn(true)
+                .notificationWebPushYn(false)
+                .displayCount(10)
+                .build();
+
+        when(userKeyLookupService.findRequired(1L)).thenReturn("user-key-1");
+        when(authIdentityReadService.requireActiveUserKey("user-key-1")).thenReturn("user-key-1");
+        when(userProfileReadRepository.findProfileAggregateByUserKey("user-key-1"))
+                .thenReturn(Optional.of(new UserProfileAggregateReadModel(
+                        profile,
+                        new UserPiiReadModel("user-key-1", "enc-email", "enc-name", "enc-birth", null),
+                        List.of(),
+                        List.of(priority(1, "HOUSING", 2.0))
+                )));
+        when(aesEncryptUtil.decrypt("enc-email")).thenReturn("user@example.com");
+        when(aesEncryptUtil.decrypt("enc-name")).thenReturn("홍길동");
+        when(aesEncryptUtil.decrypt("enc-birth")).thenReturn("1999-01-10");
+
+        ProfileResponse response = userProfileReadService.getProfile(1L);
+
+        assertThat(response.getProfileCompleteness()).isEqualTo(100);
+    }
+
+    private static UserAttributeReadModel attribute(String type, String value) {
+        return new UserAttributeReadModel() {
+            @Override
+            public String getAttrType() {
+                return type;
+            }
+
+            @Override
+            public String getAttrValue() {
+                return value;
+            }
+        };
+    }
+
+    private static UserPriorityReadModel priority(int rank, String code, double weight) {
+        return new UserPriorityReadModel() {
+            @Override
+            public int getPriorityRank() {
+                return rank;
+            }
+
+            @Override
+            public String getCode() {
+                return code;
+            }
+
+            @Override
+            public double getWeight() {
+                return weight;
+            }
+        };
     }
 }

@@ -2,16 +2,13 @@ import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   AppBar, Toolbar, Typography, Button, IconButton, Box,
-  Menu, MenuItem, Divider, Snackbar, Alert, Badge, CircularProgress,
+  Menu, MenuItem, Badge, CircularProgress,
 } from "@mui/material";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import HomeIcon from "@mui/icons-material/Home";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
-import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
 import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
 import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
 import { useAuthStore } from "../store/authStore";
-import { performServerLogout } from "../lib/session";
 import { useUnreadAlertCount } from "../lib/useUnreadAlertCount";
 import api from "../lib/axios";
 
@@ -38,15 +35,11 @@ const formatAlertTime = (value) => {
 export default function Header() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isLoggedIn, user, logout } = useAuthStore();
+  const { isLoggedIn, user } = useAuthStore();
   const queryClient = useQueryClient();
   const unreadAlertCount = useUnreadAlertCount(isLoggedIn);
-  const [anchorEl, setAnchorEl] = useState(null);
   const [alertAnchorEl, setAlertAnchorEl] = useState(null);
-  const [toast, setToast] = useState(false);
 
-  const handleUserMenu = (e) => setAnchorEl(e.currentTarget);
-  const handleClose = () => setAnchorEl(null);
   const handleAlertMenu = (e) => setAlertAnchorEl(e.currentTarget);
   const handleAlertClose = () => setAlertAnchorEl(null);
   const authFromState = {
@@ -67,54 +60,6 @@ export default function Header() {
         state: {
           ...(location.state?.from?.pathname === "/mypage" ? (location.state.from.state ?? {}) : {}),
           from: location,
-        },
-      };
-  const policiesTarget = location.pathname === "/policies"
-    ? {
-        pathname: "/policies",
-        search: location.search,
-        state: location.state,
-      }
-    : location.state?.from?.pathname === "/policies"
-      ? {
-          pathname: "/policies",
-          search: location.state.from.search ?? "",
-          state: location.state.from.state,
-        }
-      : {
-          pathname: "/policies",
-          search: "",
-        };
-  const chatOriginTarget = location.state?.chatFrom?.pathname === "/chat"
-    ? {
-        pathname: "/chat",
-        search: location.state.chatFrom.search ?? "",
-        state: location.state.chatFrom.state,
-      }
-    : location.state?.from?.pathname === "/chat"
-      ? {
-          pathname: "/chat",
-          search: location.state.from.search ?? "",
-          state: location.state.from.state,
-        }
-      : null;
-  const chatTarget = location.pathname === "/chat"
-    ? {
-        pathname: "/chat",
-        search: location.search,
-        state: location.state,
-      }
-    : {
-        pathname: "/chat",
-        search: chatOriginTarget?.search ?? "",
-        state: {
-          ...(chatOriginTarget?.state ?? {}),
-          from: location,
-          chatFrom: {
-            pathname: "/chat",
-            search: chatOriginTarget?.search ?? "",
-            state: chatOriginTarget?.state,
-          },
         },
       };
   const alertInboxTarget = useMemo(() => ({
@@ -138,39 +83,6 @@ export default function Header() {
     },
     staleTime: 30_000,
   });
-
-  const handleMypage = () => {
-    if (!isLoggedIn) {
-      setToast(true);
-      setTimeout(() => navigate("/login", {
-        state: {
-          from: mypageTarget,
-          reason: "login-required",
-        },
-      }), 1500);
-    } else {
-      navigate(`${mypageTarget.pathname}${mypageTarget.search ?? ""}`, {
-        state: mypageTarget.state,
-      });
-    }
-  };
-
-  const handleChat = () => {
-    if (!isLoggedIn) {
-      setToast(true);
-      setTimeout(() => navigate("/login", { state: { from: chatTarget, reason: "login-required" } }), 1500);
-      return;
-    }
-    navigate(`${chatTarget.pathname}${chatTarget.search ?? ""}`, {
-      state: chatTarget.state,
-    });
-  };
-
-  const handleLogout = async () => {
-    handleClose();
-    await performServerLogout(logout);
-    navigate("/");
-  };
 
   const openAlert = async (alert) => {
     handleAlertClose();
@@ -233,72 +145,8 @@ export default function Header() {
               gap: 0.75,
             }}
           >
-            <Button
-              variant={isLoggedIn ? "contained" : "outlined"}
-              color={isLoggedIn ? "secondary" : "inherit"}
-              size="small"
-              startIcon={<ForumOutlinedIcon />}
-              onClick={handleChat}
-              sx={{
-                display: { xs: "none", lg: "inline-flex" },
-                borderRadius: 2,
-                fontSize: { xs: 12, sm: 13 },
-                minWidth: "auto",
-                px: { xs: 1.1, sm: 1.5 },
-                borderColor: "rgba(255,255,255,0.45)",
-                bgcolor: isLoggedIn ? "secondary.main" : "transparent",
-                color: "white",
-                "&:hover": {
-                  bgcolor: isLoggedIn ? "secondary.main" : "rgba(255,255,255,0.08)",
-                  borderColor: "rgba(255,255,255,0.7)",
-                },
-              }}
-            >
-              챗봇
-            </Button>
             {isLoggedIn ? (
               <>
-                <Button
-                  color="inherit"
-                  size="small"
-                  onClick={() => navigate(`${policiesTarget.pathname}${policiesTarget.search ?? ""}`, {
-                    state: policiesTarget.state,
-                  })}
-                  sx={{
-                    display: { xs: "none", lg: "inline-flex" },
-                    fontSize: { xs: 12, sm: 13 },
-                    color: "rgba(255,255,255,0.9)",
-                    minWidth: "auto",
-                    px: { xs: 1, sm: 1.25 },
-                  }}
-                >
-                  정책 목록
-                </Button>
-                {isAdmin && (
-                  <Button
-                    color="inherit"
-                    size="small"
-                    startIcon={<AdminPanelSettingsOutlinedIcon fontSize="small" />}
-                    onClick={() => navigate("/admin/dashboard")}
-                    sx={{
-                      display: { xs: "none", lg: "inline-flex" },
-                      fontSize: { xs: 12, sm: 13 },
-                      color: "white",
-                      bgcolor: "rgba(255,255,255,0.12)",
-                      border: "1px solid rgba(255,255,255,0.2)",
-                      minWidth: "auto",
-                      px: { xs: 1, sm: 1.25 },
-                      "&:hover": { bgcolor: "rgba(255,255,255,0.18)" },
-                    }}
-                  >
-                    <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
-                      운영 대시보드
-                    </Box>
-                    <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
-                      운영
-                    </Box>
-                  </Button>
-                )}
                 <IconButton
                   color="inherit"
                   size="small"
@@ -397,44 +245,31 @@ export default function Header() {
                     </div>
                   )}
                 </Menu>
-                <Button
-                  color="inherit"
-                  endIcon={<KeyboardArrowDownIcon />}
-                  onClick={handleUserMenu}
-                  sx={{
-                    bgcolor: "rgba(255,255,255,0.15)",
-                    border: "1px solid rgba(255,255,255,0.4)",
-                    borderRadius: 2,
-                    px: 1.5,
-                    fontSize: { xs: 12, sm: 13 },
-                    minWidth: "auto",
-                    maxWidth: { xs: 112, sm: 160 },
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {user?.name}님
-                </Button>
-                <Menu
-                  anchorEl={anchorEl}
-                  open={Boolean(anchorEl)}
-                  onClose={handleClose}
-                  PaperProps={{ sx: { minWidth: 140, mt: 0.5, borderRadius: 2 } }}
-                >
-                <MenuItem onClick={() => { handleClose(); navigate("/mypage?tab=0"); }}>
-                    <Badge color="error" badgeContent={unreadBadge} invisible={unreadAlertCount <= 0} overlap="rectangular">
-                      <span>회원정보</span>
-                    </Badge>
-                </MenuItem>
-                  <MenuItem onClick={() => { handleClose(); navigate("/mypage?tab=5"); }}>
-                    비밀번호 변경
-                  </MenuItem>
-                  <Divider />
-                  <MenuItem onClick={handleLogout} sx={{ color: "error.main" }}>
-                    로그아웃
-                  </MenuItem>
-                </Menu>
+                {isAdmin && (
+                  <Button
+                    color="inherit"
+                    size="small"
+                    startIcon={<AdminPanelSettingsOutlinedIcon fontSize="small" />}
+                    onClick={() => navigate("/admin/dashboard")}
+                    sx={{
+                      display: { xs: "none", lg: "inline-flex" },
+                      fontSize: { xs: 12, sm: 13 },
+                      color: "white",
+                      bgcolor: "rgba(255,255,255,0.12)",
+                      border: "1px solid rgba(255,255,255,0.2)",
+                      minWidth: "auto",
+                      px: { xs: 1, sm: 1.25 },
+                      "&:hover": { bgcolor: "rgba(255,255,255,0.18)" },
+                    }}
+                  >
+                    <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+                      운영 대시보드
+                    </Box>
+                    <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
+                      운영
+                    </Box>
+                  </Button>
+                )}
                 <Button
                   variant="outlined"
                   color="inherit"
@@ -457,55 +292,27 @@ export default function Header() {
                 </Button>
               </>
             ) : (
-              <>
-                <Button
-                  variant="contained"
-                  size="small"
-                  onClick={() => navigate("/login", { state: authFromState })}
-                  sx={{
-                    bgcolor: "white",
-                    color: "primary.main",
-                    fontWeight: 700,
-                    fontSize: { xs: 12, sm: 13 },
-                    minWidth: "auto",
-                    px: { xs: 1.1, sm: 1.5 },
-                    "&:hover": { bgcolor: "rgba(255,255,255,0.9)" },
-                  }}
-                >
-                  로그인
-                </Button>
-                <Button
-                  variant="outlined"
-                  color="inherit"
-                  size="small"
-                  onClick={handleMypage}
-                  sx={{
-                    display: { xs: "none", lg: "inline-flex" },
-                    borderColor: "rgba(255,255,255,0.6)",
-                    borderRadius: 2,
-                    fontSize: { xs: 12, sm: 13 },
-                    minWidth: "auto",
-                    px: { xs: 1, sm: 1.25 },
-                  }}
-                >
-                  마이페이지
-                </Button>
-              </>
+              <Button
+                variant="contained"
+                size="small"
+                onClick={() => navigate("/login", { state: authFromState })}
+                sx={{
+                  bgcolor: "white",
+                  color: "primary.main",
+                  fontWeight: 700,
+                  fontSize: { xs: 12, sm: 13 },
+                  minWidth: "auto",
+                  px: { xs: 1.1, sm: 1.5 },
+                  "&:hover": { bgcolor: "rgba(255,255,255,0.9)" },
+                }}
+              >
+                로그인
+              </Button>
             )}
           </Box>
         </Toolbar>
       </AppBar>
 
-      <Snackbar
-        open={toast}
-        autoHideDuration={2000}
-        onClose={() => setToast(false)}
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}
-      >
-        <Alert severity="info" onClose={() => setToast(false)}>
-          로그인 후 이용 가능한 기능이에요
-        </Alert>
-      </Snackbar>
     </>
   );
 }

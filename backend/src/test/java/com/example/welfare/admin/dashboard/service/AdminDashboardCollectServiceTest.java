@@ -115,12 +115,12 @@ class AdminDashboardCollectServiceTest {
                 )));
         given(collectRuntimeLaneConfigCatalog.configEntriesFor("YOUTH"))
                 .willReturn(List.of(
-                        new CollectRuntimeLaneConfigCatalog.ConfigEntrySpec("Scheduler", "0 0 2 * * * @ Asia/Seoul"),
-                        new CollectRuntimeLaneConfigCatalog.ConfigEntrySpec("List pacing", "300ms")
+                        new CollectRuntimeLaneConfigCatalog.ConfigEntrySpec("자동 실행 일정", "0 0 2 * * * @ Asia/Seoul"),
+                        new CollectRuntimeLaneConfigCatalog.ConfigEntrySpec("목록 요청 간격", "300ms")
                 ));
         given(collectRuntimeLaneConfigCatalog.configEntriesFor("YOUTH_DETAILS"))
                 .willReturn(List.of(
-                        new CollectRuntimeLaneConfigCatalog.ConfigEntrySpec("Budget", "missing detail rows only")
+                        new CollectRuntimeLaneConfigCatalog.ConfigEntrySpec("실행 한도", "상세 정보가 없는 항목만")
                 ));
         given(collectRuntimeLaneConfigCatalog.configEntriesFor("BOKJIRO_CENTRAL"))
                 .willReturn(List.of());
@@ -178,7 +178,7 @@ class AdminDashboardCollectServiceTest {
             assertThat(lane.laneType()).isEqualTo("SNAPSHOT");
             assertThat(lane.triggerPath()).isEqualTo("/api/admin/collect/youth");
             assertThat(lane.configEntries()).extracting(AdminCollectFailureResponse.ConfigEntry::label)
-                    .contains("Scheduler", "List pacing");
+                    .contains("자동 실행 일정", "목록 요청 간격");
             assertThat(lane.latestRun()).isNotNull();
             assertThat(lane.latestRun().status()).isEqualTo("SUCCESS");
             assertThat(lane.latestRun().requestedCount()).isEqualTo(2500);
@@ -189,8 +189,8 @@ class AdminDashboardCollectServiceTest {
             assertThat(lane.laneType()).isEqualTo("ENRICHMENT");
             assertThat(lane.triggerPath()).isEqualTo("/api/admin/collect/youth-details");
             assertThat(lane.configEntries()).singleElement().satisfies(entry -> {
-                assertThat(entry.label()).isEqualTo("Budget");
-                assertThat(entry.value()).isEqualTo("missing detail rows only");
+                assertThat(entry.label()).isEqualTo("실행 한도");
+                assertThat(entry.value()).isEqualTo("상세 정보가 없는 항목만");
             });
             assertThat(lane.latestRun()).isNotNull();
             assertThat(lane.latestRun().status()).isEqualTo("PARTIAL_SUCCESS");

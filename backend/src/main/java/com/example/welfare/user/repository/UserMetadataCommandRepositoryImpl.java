@@ -43,4 +43,9 @@ public class UserMetadataCommandRepositoryImpl implements UserMetadataCommandRep
     public boolean hasAttributeValues(String userKey, String attrType) {
         return !userAttributeRepository.findByUserKeyAndAttrType(userKey, attrType).isEmpty();
     }
+
+    @Override
+    public boolean hasPriorities(String userKey) {
+        return userPriorityRepository.existsByUserKey(userKey);
+    }
 }

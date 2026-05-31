@@ -49,7 +49,6 @@ const PRIORITY_OPTIONS = [
 
 const REGIONS = ["서울","부산","대구","인천","광주","대전","울산","세종","경기","강원","충북","충남","전북","전남","경북","경남","제주"];
 const HOUSEHOLD_TYPES = ["1인가구", "한부모", "다자녀", "조손", "기타"];
-const INTEREST_FIELD_OPTIONS = ["주거", "취업", "교육", "금융", "문화", "건강", "가족돌봄", "참여"];
 const TARGET_TYPE_OPTIONS = ["농어촌", "자립준비청년", "가족돌봄", "다문화", "북한이탈", "한부모", "조손", "보훈", "장애", "병역"];
 const NOTIFICATION_SCORE_OPTIONS = [
   { value: 0.3, label: "낮음 이상" },
@@ -107,7 +106,7 @@ const TAB_META = {
 };
 const TAB_TITLES = {
   info:     { t: "내 정보",      d: "정확한 정보는 더 잘 맞는 정책 추천으로 이어져요" },
-  pref:     { t: "우선순위",     d: "관심있는 카테고리 순서가 추천 가중치에 반영돼요" },
+  pref:     { t: "우선순위",     d: "중요하게 보고 싶은 정책 유형의 순서가 추천 가중치에 반영돼요" },
   bookmark: { t: "북마크",       d: "저장해 둔 정책을 모아볼 수 있어요" },
   noti:     { t: "알림 설정",    d: "놓치기 쉬운 마감 알림을 받을 수 있어요" },
   filter:   { t: "필터 기본값",  d: "메인 페이지의 기본 필터를 정해두세요" },
@@ -233,6 +232,7 @@ function Toggle({ on, onChange }) {
 
 function ProfileBanner({ pct, missing, onComplete }) {
   const r = 38, circumference = 2 * Math.PI * r;
+  const complete = pct >= 100;
   return (
     <div style={{
       background: WHITE, border: `1px solid ${LINE}`, borderRadius: 18, padding: 24,
@@ -252,8 +252,14 @@ function ProfileBanner({ pct, missing, onComplete }) {
         </div>
       </div>
       <div>
-        <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6, color: INK }}>프로필을 완성하면 더 정확한 추천을 받을 수 있어요</div>
-        {missing.length > 0 && (
+        <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6, color: INK }}>
+          {complete ? "프로필 완성도 100%예요" : "프로필을 완성하면 더 정확한 추천을 받을 수 있어요"}
+        </div>
+        {complete ? (
+          <div style={{ fontSize: 12, color: INK3 }}>
+            기본 추천 정보가 모두 입력되어 있어요.
+          </div>
+        ) : missing.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
             <span style={{ fontSize: 12, color: INK3 }}>아직 입력하지 않은 항목:</span>
             {missing.map(m => (
@@ -266,7 +272,7 @@ function ProfileBanner({ pct, missing, onComplete }) {
         onMouseEnter={e => { e.currentTarget.style.background = A7; }}
         onMouseLeave={e => { e.currentTarget.style.background = A; }}
       >
-        지금 완성하기 →
+        {complete ? "프로필 수정" : "지금 완성하기 →"}
       </button>
     </div>
   );
@@ -409,7 +415,6 @@ export default function MyPage() {
   const [priorities, setPriorities] = useState([]);
   const [priorityLoading, setPriorityLoading] = useState(false);
   const [dragIdx, setDragIdx] = useState(null);
-  const [interestFields, setInterestFields] = useState([]);
   const [targetTypes, setTargetTypes] = useState([]);
 
   const [bookmarks, setBookmarks] = useState([]);
@@ -465,10 +470,10 @@ export default function MyPage() {
     myInfo.income ? 10 : 0,
     myInfo.employ ? 10 : 0,
     myInfo.householdType ? 10 : 0,
-    interestFields.length > 0 ? 10 : 0,
+    priorities.length > 0 ? 20 : 0,
   ].reduce((sum, score) => sum + score, 0);
   const localCompletionPct = Math.min(localCompletionScore, 100);
-  const completionPct = profileCompleteness ?? localCompletionPct;
+  const completionPct = Math.max(profileCompleteness ?? 0, localCompletionPct);
   const missingLabels = [
     !myInfo.name && "이름",
     !myInfo.birthYear && "생년월일",
@@ -476,8 +481,16 @@ export default function MyPage() {
     !myInfo.income && "소득수준",
     !myInfo.employ && "취업상태",
     !myInfo.householdType && "가구 형태",
-    interestFields.length === 0 && "관심 분야",
+    priorities.length === 0 && "추천 우선순위",
   ].filter(Boolean);
+  const nextCompletionTab = (
+    !myInfo.name
+    || !myInfo.birthYear
+    || !myInfo.region
+    || !myInfo.income
+    || !myInfo.employ
+    || !myInfo.householdType
+  ) ? "info" : "pref";
 
   // ── Data fetch ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -517,7 +530,6 @@ export default function MyPage() {
         setNotifDisplayCount(Number.isFinite(p.displayCount) ? p.displayCount : 10);
         setNotificationConsentAt(p.notificationConsentAt ?? null);
         setPriorities((p.priorities ?? []).map(item => item.code));
-        setInterestFields(Array.isArray(p.interestFields) ? p.interestFields : []);
         setTargetTypes(Array.isArray(p.targetTypes) ? p.targetTypes : []);
         setUser({
           ...(p.name ? { name: p.name } : {}),
@@ -589,7 +601,7 @@ export default function MyPage() {
         householdType:    myInfo.householdType || undefined,
         employmentStatus: myInfo.employ || undefined,
       });
-      setProfileCompleteness(null);
+      setProfileCompleteness(localCompletionPct);
       setEditing(false);
       showToast("저장되었습니다");
     } catch {
@@ -604,9 +616,6 @@ export default function MyPage() {
     else if (priorities.length < 5) setPriorities([...priorities, val]);
   };
   const removePriority = (val) => setPriorities(priorities.filter(p => p !== val));
-  const toggleInterestField = (value) => {
-    setInterestFields((prev) => prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]);
-  };
   const toggleTargetType = (value) => {
     setTargetTypes((prev) => prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]);
   };
@@ -629,10 +638,11 @@ export default function MyPage() {
     }
     setPriorityLoading(true);
     try {
-      await api.put("/api/users/me", { interestFields, targetTypes });
+      await api.put("/api/users/me", { targetTypes });
       await api.put("/api/users/me/priorities", { priorityCodes: priorities });
       setUser({ hasPriorities: true });
-      showToast("우선순위와 관심 설정이 저장되었습니다");
+      setProfileCompleteness(Math.max(profileCompleteness ?? 0, localCompletionPct));
+      showToast("우선순위와 특화 대상이 저장되었습니다");
     } catch {
       showToast("우선순위 저장에 실패했습니다", "error");
     } finally {
@@ -1036,13 +1046,11 @@ export default function MyPage() {
 
         <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em", color: INK, marginBottom: 20 }}>마이페이지</div>
 
-        {completionPct < 100 && (
-          <ProfileBanner
-            pct={completionPct}
-            missing={missingLabels}
-            onComplete={() => handleTabChange(!myInfo.birthYear || !myInfo.region || !myInfo.income || !myInfo.employ ? "info" : "pref")}
-          />
-        )}
+        <ProfileBanner
+          pct={completionPct}
+          missing={missingLabels}
+          onComplete={() => handleTabChange(nextCompletionTab)}
+        />
 
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "260px 1fr", gap: isMobile ? 16 : 28, alignItems: "flex-start" }}>
           {/* Sidebar */}
@@ -1215,7 +1223,7 @@ export default function MyPage() {
             {/* ── 우선순위 ── */}
             {activeTab === "pref" && (
               <>
-                <SectionCard title="관심있는 정책 카테고리" desc="최대 5개까지 선택할 수 있어요 · 순서가 곧 우선순위예요">
+                <SectionCard title="추천 우선순위" desc="최대 5개까지 선택할 수 있어요 · 순서가 곧 추천 우선순위예요">
                   <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 12 }}>
                     {PRIORITY_OPTIONS.map(c => {
                       const idx = priorities.indexOf(c.value);
@@ -1269,26 +1277,7 @@ export default function MyPage() {
                   </SectionCard>
                 )}
 
-                <SectionCard title="관심 분야" desc="정책 관심사와 맞는 후보를 더 우선해서 보여줘요">
-                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 10 }}>
-                    {INTEREST_FIELD_OPTIONS.map((value) => {
-                      const active = interestFields.includes(value);
-                      return (
-                        <button key={value} onClick={() => toggleInterestField(value)} style={{
-                          padding: "12px 10px", borderRadius: 12,
-                          border: `1.5px solid ${active ? A : LINE}`,
-                          background: active ? AS : WHITE,
-                          color: active ? AI : INK2,
-                          fontSize: 13, fontWeight: 700, cursor: "pointer",
-                        }}>
-                          {value}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </SectionCard>
-
-                <SectionCard title="특화 대상" desc="특수 대상 정책이 맞으면 bonus, 어긋나면 mismatch를 줄이는 기준이에요">
+                <SectionCard title="특화 대상" desc="자립준비청년·한부모·농어촌처럼 특정 대상 정책을 더 정확히 맞추는 기준이에요">
                   <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : "repeat(5, 1fr)", gap: 10 }}>
                     {TARGET_TYPE_OPTIONS.map((value) => {
                       const active = targetTypes.includes(value);
@@ -1705,7 +1694,7 @@ export default function MyPage() {
                     ) : (
                       <div style={{ textAlign: "center", padding: "32px 0 20px", color: INK3 }}>
                         <div style={{ fontSize: 16, fontWeight: 700, color: INK, marginBottom: 6 }}>도착한 알림이 아직 없어요</div>
-                        <div style={{ fontSize: 13 }}>추천 digest가 생성되면 이곳에서 다시 확인할 수 있어요</div>
+                        <div style={{ fontSize: 13 }}>추천 알림이 생성되면 이곳에서 다시 확인할 수 있어요</div>
                       </div>
                     )}
                   </SectionCard>
@@ -1713,27 +1702,27 @@ export default function MyPage() {
                   <SectionCard title="수신 채널" desc="알림 자체를 켜고, 채널별로 어디까지 받을지 따로 정할 수 있어요">
                     <NotiRow
                       title="알림 받기"
-                      desc="추천 digest 생성과 채널별 발송을 전체적으로 켜거나 끕니다"
+                      desc="추천 요약 알림 생성과 채널별 발송을 전체적으로 켜거나 끕니다"
                       on={notifOn}
                       onChange={() => setNotifOn(v => !v)}
                     />
                     <NotiRow
                       title="이메일 수신"
-                      desc={`${user?.email || myInfo.email || "이메일"} 으로 추천 digest를 보냅니다`}
+                      desc={`${user?.email || myInfo.email || "이메일"} 으로 추천 요약 알림을 보냅니다`}
                       on={notifEmailOn}
                       onChange={() => setNotifEmailOn(v => !v)}
                       disabled={!notifOn}
                     />
                     <NotiRow
                       title="인앱 알림함 저장"
-                      desc="추천 digest를 마이페이지 알림함과 헤더 bell에서 다시 확인합니다"
+                      desc="추천 요약 알림을 마이페이지 알림함과 헤더 알림에서 다시 확인합니다"
                       on={notifInAppOn}
                       onChange={() => setNotifInAppOn(v => !v)}
                       disabled={!notifOn}
                     />
                     <NotiRow
                       title="브라우저 푸시 수신"
-                      desc="현재 브라우저 연결이 되어 있으면 새 추천 digest를 웹푸시로 받습니다"
+                      desc="현재 브라우저 연결이 되어 있으면 새 추천 요약 알림을 웹푸시로 받습니다"
                       on={notifWebPushOn}
                       onChange={() => setNotifWebPushOn(v => !v)}
                       disabled={!notifOn}

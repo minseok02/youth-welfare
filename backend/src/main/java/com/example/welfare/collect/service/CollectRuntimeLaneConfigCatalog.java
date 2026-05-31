@@ -74,74 +74,74 @@ public class CollectRuntimeLaneConfigCatalog {
         return switch (laneKey) {
             case "YOUTH" -> List.of(
                     schedulerEntry(),
-                    new ConfigEntrySpec("List pacing", millis(listRequestIntervalMs)),
-                    new ConfigEntrySpec("Retry", retrySummary(listRetryMaxAttempts, listRetryBaseBackoffMs)),
+                    new ConfigEntrySpec("목록 요청 간격", millis(listRequestIntervalMs)),
+                    new ConfigEntrySpec("재시도", retrySummary(listRetryMaxAttempts, listRetryBaseBackoffMs)),
                     lockGuardEntry()
             );
             case "BOKJIRO_CENTRAL" -> List.of(
                     schedulerEntry(),
-                    new ConfigEntrySpec("Budget", itemsPerRun(listMaxItemsPerRun)),
-                    new ConfigEntrySpec("List pacing", millis(listRequestIntervalMs)),
-                    new ConfigEntrySpec("429 guard", rateLimitSummary(listMaxConsecutiveRateLimitHits, listRateLimitCooldownMs)),
-                    new ConfigEntrySpec("Retry", retrySummary(listRetryMaxAttempts, listRetryBaseBackoffMs)),
+                    new ConfigEntrySpec("실행 한도", itemsPerRun(listMaxItemsPerRun)),
+                    new ConfigEntrySpec("목록 요청 간격", millis(listRequestIntervalMs)),
+                    new ConfigEntrySpec("요청 제한 보호", rateLimitSummary(listMaxConsecutiveRateLimitHits, listRateLimitCooldownMs)),
+                    new ConfigEntrySpec("재시도", retrySummary(listRetryMaxAttempts, listRetryBaseBackoffMs)),
                     lockGuardEntry()
             );
             case "BOKJIRO_LOCAL" -> List.of(
                     schedulerEntry(),
-                    new ConfigEntrySpec("Budget", itemsPerRun(listMaxItemsPerRun)),
-                    new ConfigEntrySpec("List pacing", millis(listRequestIntervalMs)),
-                    new ConfigEntrySpec("429 guard", rateLimitSummary(listMaxConsecutiveRateLimitHits, listRateLimitCooldownMs)),
-                    new ConfigEntrySpec("Open circuit", millis(listLocalRateLimitOpenCircuitMs)),
-                    new ConfigEntrySpec("Retry", retrySummary(listRetryMaxAttempts, listRetryBaseBackoffMs)),
+                    new ConfigEntrySpec("실행 한도", itemsPerRun(listMaxItemsPerRun)),
+                    new ConfigEntrySpec("목록 요청 간격", millis(listRequestIntervalMs)),
+                    new ConfigEntrySpec("요청 제한 보호", rateLimitSummary(listMaxConsecutiveRateLimitHits, listRateLimitCooldownMs)),
+                    new ConfigEntrySpec("회로 열림 유지 시간", millis(listLocalRateLimitOpenCircuitMs)),
+                    new ConfigEntrySpec("재시도", retrySummary(listRetryMaxAttempts, listRetryBaseBackoffMs)),
                     lockGuardEntry()
             );
             case "BOKJIRO_DETAIL" -> List.of(
                     schedulerEntry(),
-                    new ConfigEntrySpec("Budget", "central " + callsPerRun(detailCentralMaxCallsPerRun)
-                            + " / local " + callsPerRun(detailLocalMaxCallsPerRun)),
-                    new ConfigEntrySpec("Detail pacing", millis(detailRequestIntervalMs)),
-                    new ConfigEntrySpec("429 abort", consecutiveHits(detailMaxConsecutiveRateLimitHits)),
-                    new ConfigEntrySpec("Retry", retrySummary(detailRetryMaxAttempts, detailRetryBaseBackoffMs)),
+                    new ConfigEntrySpec("실행 한도", "중앙 " + callsPerRun(detailCentralMaxCallsPerRun)
+                            + " / 지자체 " + callsPerRun(detailLocalMaxCallsPerRun)),
+                    new ConfigEntrySpec("상세 요청 간격", millis(detailRequestIntervalMs)),
+                    new ConfigEntrySpec("요청 제한 중단 기준", consecutiveHits(detailMaxConsecutiveRateLimitHits)),
+                    new ConfigEntrySpec("재시도", retrySummary(detailRetryMaxAttempts, detailRetryBaseBackoffMs)),
                     lockGuardEntry()
             );
             case "GOV24" -> List.of(
-                    new ConfigEntrySpec("Budget", itemsPerRun(gov24ListMaxItemsPerRun)),
-                    new ConfigEntrySpec("List pacing", millis(listRequestIntervalMs)),
-                    new ConfigEntrySpec("Retry", retrySummary(listRetryMaxAttempts, listRetryBaseBackoffMs)),
+                    new ConfigEntrySpec("실행 한도", itemsPerRun(gov24ListMaxItemsPerRun)),
+                    new ConfigEntrySpec("목록 요청 간격", millis(listRequestIntervalMs)),
+                    new ConfigEntrySpec("재시도", retrySummary(listRetryMaxAttempts, listRetryBaseBackoffMs)),
                     lockGuardEntry()
             );
             case "GOV24_DETAIL" -> List.of(
-                    new ConfigEntrySpec("Budget", callsPerRun(gov24DetailMaxCallsPerRun)),
-                    new ConfigEntrySpec("Detail pacing", millis(detailRequestIntervalMs)),
-                    new ConfigEntrySpec("Retry", retrySummary(detailRetryMaxAttempts, detailRetryBaseBackoffMs)),
+                    new ConfigEntrySpec("실행 한도", callsPerRun(gov24DetailMaxCallsPerRun)),
+                    new ConfigEntrySpec("상세 요청 간격", millis(detailRequestIntervalMs)),
+                    new ConfigEntrySpec("재시도", retrySummary(detailRetryMaxAttempts, detailRetryBaseBackoffMs)),
                     lockGuardEntry()
             );
             case "GOV24_SUPPORT_CONDITIONS" -> List.of(
-                    new ConfigEntrySpec("Budget", callsPerRun(gov24SupportConditionsMaxCallsPerRun)),
-                    new ConfigEntrySpec("Detail pacing", millis(detailRequestIntervalMs)),
-                    new ConfigEntrySpec("Retry", retrySummary(detailRetryMaxAttempts, detailRetryBaseBackoffMs)),
+                    new ConfigEntrySpec("실행 한도", callsPerRun(gov24SupportConditionsMaxCallsPerRun)),
+                    new ConfigEntrySpec("상세 요청 간격", millis(detailRequestIntervalMs)),
+                    new ConfigEntrySpec("재시도", retrySummary(detailRetryMaxAttempts, detailRetryBaseBackoffMs)),
                     lockGuardEntry()
             );
             case CollectRuntimeLaneCatalog.YOUTH_DETAILS_LANE_KEY -> List.of(
-                    new ConfigEntrySpec("Budget", "missing detail rows only"),
-                    new ConfigEntrySpec("Detail pacing", millis(youthDetailRequestIntervalMs)),
+                    new ConfigEntrySpec("실행 한도", "상세 정보가 없는 항목만"),
+                    new ConfigEntrySpec("상세 요청 간격", millis(youthDetailRequestIntervalMs)),
                     lockGuardEntry()
             );
             case "BOKJIRO_DETAIL_GAP_FILL" -> List.of(
-                    new ConfigEntrySpec("Budget", "operator supplied rounds/maxCallsPerRound"),
-                    new ConfigEntrySpec("Per-source cap", "central " + callsPerRun(detailCentralMaxCallsPerRun)
-                            + " / local " + callsPerRun(detailLocalMaxCallsPerRun)),
-                    new ConfigEntrySpec("Detail pacing", millis(detailRequestIntervalMs)),
-                    new ConfigEntrySpec("429 abort", consecutiveHits(detailMaxConsecutiveRateLimitHits)),
-                    new ConfigEntrySpec("Retry", retrySummary(detailRetryMaxAttempts, detailRetryBaseBackoffMs)),
+                    new ConfigEntrySpec("실행 한도", "관리자가 지정한 회차와 회차별 호출 수"),
+                    new ConfigEntrySpec("출처별 한도", "중앙 " + callsPerRun(detailCentralMaxCallsPerRun)
+                            + " / 지자체 " + callsPerRun(detailLocalMaxCallsPerRun)),
+                    new ConfigEntrySpec("상세 요청 간격", millis(detailRequestIntervalMs)),
+                    new ConfigEntrySpec("요청 제한 중단 기준", consecutiveHits(detailMaxConsecutiveRateLimitHits)),
+                    new ConfigEntrySpec("재시도", retrySummary(detailRetryMaxAttempts, detailRetryBaseBackoffMs)),
                     lockGuardEntry()
             );
             case "BOKJIRO_DETAIL_REFRESH" -> List.of(
-                    new ConfigEntrySpec("Budget", "central " + callsPerRun(detailCentralMaxCallsPerRun)
-                            + " / local " + callsPerRun(detailLocalMaxCallsPerRun)),
-                    new ConfigEntrySpec("Detail pacing", millis(detailRequestIntervalMs)),
-                    new ConfigEntrySpec("429 abort", consecutiveHits(detailMaxConsecutiveRateLimitHits)),
-                    new ConfigEntrySpec("Retry", retrySummary(detailRetryMaxAttempts, detailRetryBaseBackoffMs)),
+                    new ConfigEntrySpec("실행 한도", "중앙 " + callsPerRun(detailCentralMaxCallsPerRun)
+                            + " / 지자체 " + callsPerRun(detailLocalMaxCallsPerRun)),
+                    new ConfigEntrySpec("상세 요청 간격", millis(detailRequestIntervalMs)),
+                    new ConfigEntrySpec("요청 제한 중단 기준", consecutiveHits(detailMaxConsecutiveRateLimitHits)),
+                    new ConfigEntrySpec("재시도", retrySummary(detailRetryMaxAttempts, detailRetryBaseBackoffMs)),
                     lockGuardEntry()
             );
             default -> List.of(lockGuardEntry());
@@ -150,36 +150,36 @@ public class CollectRuntimeLaneConfigCatalog {
 
     private ConfigEntrySpec schedulerEntry() {
         return new ConfigEntrySpec(
-                "Scheduler",
+                "자동 실행 일정",
                 CollectBatchService.SCHEDULE_CRON + " @ " + CollectBatchService.SCHEDULE_ZONE
         );
     }
 
     private ConfigEntrySpec lockGuardEntry() {
         return new ConfigEntrySpec(
-                "Lock guard",
-                "lease " + lockLeaseMinutes + "m / heartbeat " + lockHeartbeatSeconds + "s"
+                "중복 실행 방지",
+                "잠금 " + lockLeaseMinutes + "분 / 상태 확인 " + lockHeartbeatSeconds + "초"
         );
     }
 
     private String retrySummary(int maxAttempts, long baseBackoffMs) {
-        return maxAttempts + " attempts / " + millis(baseBackoffMs) + " backoff";
+        return maxAttempts + "회 시도 / " + millis(baseBackoffMs) + " 대기";
     }
 
     private String rateLimitSummary(int maxHits, long cooldownMs) {
-        return maxHits + "x 429 / cooldown " + millis(cooldownMs);
+        return maxHits + "회 요청 제한 / " + millis(cooldownMs) + " 후 재개";
     }
 
     private String consecutiveHits(int maxHits) {
-        return maxHits + " consecutive hits";
+        return maxHits + "회 연속";
     }
 
     private String itemsPerRun(int count) {
-        return "max " + count + " items/run";
+        return "최대 " + count + "건/회";
     }
 
     private String callsPerRun(int count) {
-        return "max " + count + " calls/run";
+        return "최대 " + count + "회 호출/회";
     }
 
     private String millis(long value) {

@@ -245,7 +245,7 @@ export default function AlertsPage() {
           <div>
             <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em", color: INK, marginBottom: 6 }}>알림함</div>
             <div style={{ fontSize: 13, color: INK3 }}>
-              추천 digest와 마감 임박 알림을 앱 안에서 다시 확인할 수 있어요.
+              추천 요약 알림과 마감 임박 알림을 앱 안에서 다시 확인할 수 있어요.
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -464,7 +464,7 @@ export default function AlertsPage() {
               <div style={{ fontSize: 13 }}>
                 {alerts.length > 0
                   ? "읽지 않은 알림 필터나 종류 필터를 다시 조정해보세요."
-                  : "추천 digest나 마감 임박 알림이 생성되면 이곳에서 다시 확인할 수 있어요."}
+                  : "추천 요약 알림이나 마감 임박 알림이 생성되면 이곳에서 다시 확인할 수 있어요."}
               </div>
             </div>
           )}
