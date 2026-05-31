@@ -55,7 +55,8 @@ class RealtimeAiGatewayTest {
         assertThat(withSeed)
                 .containsEntry("model", "gpt-4o-mini")
                 .containsEntry("seed", 4242L)
-                .containsEntry("temperature", 0.3);
+                .containsEntry("temperature", 0.3)
+                .containsEntry("max_tokens", 450);
         assertThat(withoutSeed)
                 .containsEntry("model", "gpt-4o-mini")
                 .doesNotContainKey("seed");
@@ -138,8 +139,8 @@ class RealtimeAiGatewayTest {
 
         assertThat(prompt)
                 .contains("[평가할 정책 목록 — 아래 2개를 반드시 모두 평가]")
-                .contains("[응답 형식] 누락 없이 전체 2개 평가")
-                .contains("\"results\": [{\"service_id\": 숫자, \"score\": 0~100정수, \"reason\": \"사용자 특성 기준 1문장 이유\"}]");
+                .contains("[응답 형식] 누락 없이 전체 2개 평가, reason은 20자 이내")
+                .contains("\"results\": [{\"service_id\": 숫자, \"score\": 0~100정수, \"reason\": \"20자 이내 이유\"}]");
     }
 
     @Test
