@@ -58,7 +58,7 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
     @Value("${recommend.ai.force-rule-only:false}")
     private boolean forceRuleOnly;
 
-    private static final int AI_TOP_N = 15; // 상위 N건만 AI 호출 (비용 절감 + 누락 방지)
+    private static final int AI_TOP_N = 8; // 상위 N건만 AI 호출 (비용 절감 + 응답시간 단축)
 
     @Override
     public List<ScoredCandidate> score(String clusterId, List<ScoredCandidate> candidates, RecommendationUserSnapshot user) {
