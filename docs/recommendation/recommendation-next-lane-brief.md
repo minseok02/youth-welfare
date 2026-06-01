@@ -29,15 +29,15 @@
 
 현재 이 brief를 읽는 기본 전제는:
 
-- 지금 current local 결정은 full latest batch review gate `DEFERRED_NON_REAL_LEADER_SIGNAL` 과 recent-window supplemental reading `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE` 를 같이 읽는 상태
-- 현재 review gate interpretation class는 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
-- 현재 review gate operating mode는 `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW`
-- recent-window는 현재 `RECENT_WINDOW_POLICY_CANDIDATE` 이지만, promotion status는 아직 `REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW`
-- 즉 이 문서는 “지금 당장 reopen 한다”가 아니라, **reopen 하게 된다면 어떤 lane이 먼저인가**를 정리한 문서입니다.
+- `reopen-precheck` 는 real-user readiness까지 같이 읽습니다.
+- `latest-status-export` 단독 helper는 baseline/drift helper라 readiness를 반영하지 못해 `WAIT_FOR_REAL_USER_TRAFFIC` 로 보일 수 있습니다.
+- 따라서 reopen 판단은 `latest-overview + real-user readiness` 를 같이 읽는 precheck 결과를 기준으로 합니다.
+- `2026-06-01` local recheck 기준 precheck는 `READY_FOR_REOPEN_DECISION` 이고, 권장 lane은 여전히 `lane 1. local 신호 구조화` 입니다.
+- 즉 이 문서는 gate 확인 뒤 **무엇을 먼저 다시 열지** 를 정리한 문서입니다.
 
 ## 현재 권장 결론
 
-`2026-05-18` 기준으로 recommendation 을 다시 열면,
+`2026-06-01` 기준으로 recommendation 을 다시 열면,
 첫 reopen lane 은 아래로 둡니다.
 
 1. `lane 1. local 신호 구조화`
@@ -53,10 +53,13 @@
 현재 evidence 는 대체로 아래를 말합니다.
 
 1. 새 재현 가능한 recommendation bugfix는 이미 닫혔다.
-2. 인천 local 후보는 retrieval 자체에서 빠지던 경계가 이미 줄었다.
-3. `2736` 류 후보는 이제 retrieval 안에는 들어오지만,
-   경쟁 후보보다 direct `interest/theme/benefit` 신호가 약하게 읽힌다.
-4. 따라서 남은 문제는 “추천이 고장났다”보다
+2. 현재 local 데이터셋은 `BOKJIRO_LOCAL` 이 없고 `GOV24/YOUTH` 중심입니다.
+3. `GOV24` 인천 청년 후보는 `service_regions` 없이 제목/설명에만 지역 신호가 있어
+   기존 region ordering 에서는 `NATIONWIDE` 처럼 밀릴 수 있었습니다.
+4. Gov24 시도 텍스트 매칭을 bounded region tier로 읽으면 target family는 retrieval 안으로 들어옵니다.
+5. fresh persisted batch에서도 target family는 `PRESENT_IN_SAVED_BATCH` 로 남고,
+   saved AI score도 0점이 아니라 positive score로 남습니다.
+6. 따라서 남은 문제는 “추천이 고장났다”보다
    “local 청년 정책군 신호를 더 구조화하고 싶은가”에 가깝다.
 
 즉 현재 병목은
@@ -78,7 +81,7 @@
 
 즉 아래 질문부터 먼저 푸는 편이 맞습니다.
 
-- `2736` 류 local 청년 정책군에
+- Gov24/YOUTH local 청년 정책군에
   `interest/theme`, 지역 적합성, direct benefit signal 을 더 줄 것인가
 
 이걸 풀기 전에 바로

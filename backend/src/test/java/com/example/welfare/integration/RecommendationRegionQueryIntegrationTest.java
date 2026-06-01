@@ -298,6 +298,45 @@ class RecommendationRegionQueryIntegrationTest {
     }
 
     @Test
+    @DisplayName("지역코드 추천 후보는 service_regions가 없는 Gov24도 시도 텍스트가 맞으면 지역 후보로 먼저 노출한다")
+    void findCandidatesWithRegionCodePrioritizesGov24SidoTextMatchWithoutServiceRegion() {
+        WelfareService gov24TextMatch = saveServiceWithTitle(
+                "gov24-region-text-match",
+                WelfareService.SourceType.GOV24,
+                "인천 청년 자격증 응시료 지원",
+                "인천광역시 거주 청년 지원",
+                true,
+                "일자리"
+        );
+        WelfareService exactRegionYouth = saveService(
+                "region-exact-after-gov24-text",
+                WelfareService.SourceType.YOUTH,
+                true,
+                "일자리"
+        );
+
+        serviceRegionRepository.save(ServiceRegion.builder()
+                .service(exactRegionYouth)
+                .regionCode("28110")
+                .sidoName("인천광역시")
+                .sggName("중구")
+                .build());
+
+        List<WelfareService> results = welfareServiceRepository.findCandidatesWithRegionCode(
+                25,
+                5,
+                "28110",
+                "인천광역시",
+                PageRequest.of(0, 20)
+        );
+
+        assertThat(results).extracting(WelfareService::getId)
+                .contains(gov24TextMatch.getId(), exactRegionYouth.getId());
+        assertThat(indexOf(results, gov24TextMatch))
+                .isLessThan(indexOf(results, exactRegionYouth));
+    }
+
+    @Test
     @DisplayName("지역코드 최신 추천 후보도 전국 정책과 매칭 지역 정책만 포함하고 중복 반환하지 않는다")
     void findLatestCandidatesWithRegionCodeIncludesNationwideAndMatchingLocalWithoutDuplicates() {
         WelfareService nationwide = saveService("latest-nationwide");
@@ -502,6 +541,45 @@ class RecommendationRegionQueryIntegrationTest {
     }
 
     @Test
+    @DisplayName("지역코드 최신 추천 후보도 service_regions가 없는 Gov24 시도 텍스트 매칭을 먼저 노출한다")
+    void findLatestCandidatesWithRegionCodePrioritizesGov24SidoTextMatchWithoutServiceRegion() {
+        WelfareService gov24TextMatch = saveServiceWithTitle(
+                "latest-gov24-region-text-match",
+                WelfareService.SourceType.GOV24,
+                "인천 청년도약기지",
+                "인천광역시 청년 취업 지원",
+                true,
+                "일자리"
+        );
+        WelfareService exactRegionYouth = saveService(
+                "latest-region-exact-after-gov24-text",
+                WelfareService.SourceType.YOUTH,
+                true,
+                "일자리"
+        );
+
+        serviceRegionRepository.save(ServiceRegion.builder()
+                .service(exactRegionYouth)
+                .regionCode("28110")
+                .sidoName("인천광역시")
+                .sggName("중구")
+                .build());
+
+        List<WelfareService> results = welfareServiceRepository.findLatestCandidatesWithRegionCode(
+                25,
+                5,
+                "28110",
+                "인천광역시",
+                PageRequest.of(0, 20)
+        );
+
+        assertThat(results).extracting(WelfareService::getId)
+                .contains(gov24TextMatch.getId(), exactRegionYouth.getId());
+        assertThat(indexOf(results, gov24TextMatch))
+                .isLessThan(indexOf(results, exactRegionYouth));
+    }
+
+    @Test
     @DisplayName("시도 추천 후보는 전국 정책과 같은 시도 정책만 포함한다")
     void findCandidatesWithSidoIncludesNationwideAndMatchingLocalWithoutDuplicates() {
         WelfareService nationwide = saveService("sido-nationwide");
@@ -641,11 +719,27 @@ class RecommendationRegionQueryIntegrationTest {
                                        WelfareService.SourceType sourceType,
                                        boolean searchYouthRelevant,
                                        String unifiedCategory) {
+        return saveServiceWithTitle(
+                label,
+                sourceType,
+                "지역 추천 테스트 정책 " + label,
+                "지역 추천 테스트",
+                searchYouthRelevant,
+                unifiedCategory
+        );
+    }
+
+    private WelfareService saveServiceWithTitle(String label,
+                                                WelfareService.SourceType sourceType,
+                                                String title,
+                                                String description,
+                                                boolean searchYouthRelevant,
+                                                String unifiedCategory) {
         return welfareServiceRepository.save(WelfareService.builder()
                 .sourceType(sourceType)
                 .sourceId(TEST_SOURCE_PREFIX + UUID.randomUUID().toString().substring(0, 8))
-                .title("지역 추천 테스트 정책 " + label)
-                .description("지역 추천 테스트")
+                .title(title + " " + label)
+                .description(description)
                 .status(WelfareService.ServiceStatus.ACTIVE)
                 .minAge(19)
                 .maxAge(34)

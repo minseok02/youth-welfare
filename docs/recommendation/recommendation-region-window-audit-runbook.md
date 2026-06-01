@@ -34,7 +34,8 @@ bash deploy/smoke/run-local-recommendation-region-window-audit.sh
 기본값:
 
 - `TARGET_SERVICE_IDS_CSV` 를 비우면 current latest batch user context에서
-  region-matched `BOKJIRO_LOCAL` 청년/생활지원 family를 자동 선택
+  region-matched local 청년/생활지원 family를 자동 선택
+  (`BOKJIRO_LOCAL` 이 있으면 우선 사용하고, 현재 Gov24 중심 데이터셋처럼 없으면 `GOV24/YOUTH` 지역 청년 후보를 사용)
 - `TOP_COMPETITOR_LIMIT=3`
 - `BASE_FETCH_SIZE=150`
 - `LATEST_FETCH_SIZE=20`
