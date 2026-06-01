@@ -751,6 +751,7 @@ smoke_resolve_recommendation_local_target_family_ids_csv() {
   local user_key="$1"
   local limit="${2:-5}"
   local exclude_top_saved_limit="${3:-10}"
+  local allow_historical_fallback="${ALLOW_RECOMMENDATION_HISTORICAL_TARGET_FAMILY_FALLBACK:-false}"
   local quoted_user_key
   local result=""
 
@@ -931,6 +932,94 @@ smoke_resolve_recommendation_local_target_family_ids_csv() {
   fi
 
   if [[ -z "${result}" ]]; then
+    result="$(smoke_db_query "
+      with user_ctx as (
+        select age, income_level, region_code, sido
+        from user_profiles
+        where user_key = ${quoted_user_key}
+      ),
+      latest_batch as (
+        select max(recommended_at) as recommended_at
+        from user_recommendations
+        where user_key = ${quoted_user_key}
+      ),
+      top_saved as (
+        select ur.service_id
+        from user_recommendations ur
+        join latest_batch lb
+          on lb.recommended_at = ur.recommended_at
+        where ur.user_key = ${quoted_user_key}
+        order by ur.final_score desc, ur.id asc
+        limit ${exclude_top_saved_limit}
+      ),
+      ranked_candidates as (
+        select distinct
+               ws.id as service_id,
+               case
+                 when ws.source_type = 'GOV24' then 0
+                 when ws.source_type = 'YOUTH' then 1
+                 else 2
+               end as source_priority,
+               case when coalesce(ws.title, '') like '%청년%' then 0 else 1 end as title_priority,
+               case
+                 when coalesce(ws.unified_category, '') in ('주거', '금융·생활지원', '교육·직업훈련', '일자리') then 0
+                 when coalesce(ws.unified_category, '') in ('가족·돌봄', '문화·여가') then 1
+                 else 2
+               end as category_priority,
+               coalesce(ws.last_modified_at, ws.registered_at, ws.created_at) as sort_ts
+        from user_ctx uc
+        join welfare_services ws
+          on ws.source_type in ('GOV24', 'YOUTH')
+         and ws.status in ('ACTIVE', 'UPCOMING')
+         and (ws.min_age is null or ws.min_age <= uc.age)
+         and (ws.max_age is null or ws.max_age >= uc.age)
+         and (
+              (ws.min_income is null and ws.max_income is null)
+              or (ws.min_income = 0 and ws.max_income = 0)
+              or (
+                  (ws.min_income is null or ws.min_income <= uc.income_level)
+                  and (ws.max_income is null or ws.max_income >= uc.income_level)
+              )
+         )
+         and ws.search_youth_relevant is true
+         and coalesce(ws.unified_category, '') <> '기타'
+        left join service_regions sr
+          on sr.service_id = ws.id
+        where not exists (
+              select 1
+              from top_saved ts
+              where ts.service_id = ws.id
+            )
+          and (
+              coalesce(ws.title, '') like '%청년%'
+              or coalesce(ws.life_stage, '') like '%청년%'
+              or exists (
+                  select 1
+                  from service_tags st
+                  where st.service_id = ws.id
+                    and st.tag_type = 'LIFE_STAGE'
+                    and st.tag_value like '%청년%'
+              )
+          )
+          and (
+              (uc.region_code is not null and sr.region_code = uc.region_code)
+              or (uc.sido is not null and sr.sido_name = uc.sido)
+              or (uc.sido is not null and coalesce(ws.title, '') like '%' || replace(replace(replace(uc.sido, '광역시', ''), '특별시', ''), '특별자치시', '') || '%')
+              or (uc.sido is not null and coalesce(ws.description, '') like '%' || uc.sido || '%')
+              or (uc.sido is not null and coalesce(ws.description, '') like '%' || replace(replace(replace(uc.sido, '광역시', ''), '특별시', ''), '특별자치시', '') || '%')
+          )
+      )
+      select coalesce(string_agg(service_id::text, ',' order by source_priority, category_priority, title_priority, sort_ts desc, service_id desc), '')
+      from (
+        select service_id, source_priority, category_priority, title_priority, sort_ts
+        from ranked_candidates
+        order by source_priority, category_priority, title_priority, sort_ts desc, service_id desc
+        limit ${limit}
+      ) picked;
+    ")"
+  fi
+
+  if [[ -z "${result}" && "${allow_historical_fallback}" == "true" ]]; then
     result="$(smoke_recommendation_historical_target_family_csv)"
   fi
 

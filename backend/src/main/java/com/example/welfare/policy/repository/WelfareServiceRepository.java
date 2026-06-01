@@ -111,12 +111,22 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         WHERE sr4s.service = ws
                           AND sr4s.sidoName = :sidoName
                      ) THEN 1
+                WHEN ws.sourceType = 'GOV24'
+                     AND :sidoName IS NOT NULL
+                     AND ws.searchYouthRelevant = true
+                     AND ws.unifiedCategory <> '기타'
+                     AND (
+                        ws.title LIKE CONCAT('%', :sidoName, '%')
+                        OR ws.description LIKE CONCAT('%', :sidoName, '%')
+                        OR ws.title LIKE CONCAT('%', REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(:sidoName, '특별자치도', ''), '특별자치시', ''), '광역시', ''), '특별시', ''), '도', ''), '%')
+                        OR ws.description LIKE CONCAT('%', REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(:sidoName, '특별자치도', ''), '특별자치시', ''), '광역시', ''), '특별시', ''), '도', ''), '%')
+                     ) THEN 2
                 WHEN EXISTS (
                         SELECT sr4.id FROM ServiceRegion sr4
                         WHERE sr4.service = ws
                           AND sr4.regionCode = :regionCode
-                     ) THEN 2
-                ELSE 3
+                     ) THEN 3
+                ELSE 4
               END ASC,
               CASE
                 WHEN ws.sourceType = 'BOKJIRO_LOCAL'
@@ -215,7 +225,17 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         WHERE sr4.service = ws
                           AND sr4.sidoName = :sidoName
                      ) THEN 1
-                ELSE 2
+                WHEN ws.sourceType = 'GOV24'
+                     AND :sidoName IS NOT NULL
+                     AND ws.searchYouthRelevant = true
+                     AND ws.unifiedCategory <> '기타'
+                     AND (
+                        ws.title LIKE CONCAT('%', :sidoName, '%')
+                        OR ws.description LIKE CONCAT('%', :sidoName, '%')
+                        OR ws.title LIKE CONCAT('%', REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(:sidoName, '특별자치도', ''), '특별자치시', ''), '광역시', ''), '특별시', ''), '도', ''), '%')
+                        OR ws.description LIKE CONCAT('%', REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(:sidoName, '특별자치도', ''), '특별자치시', ''), '광역시', ''), '특별시', ''), '도', ''), '%')
+                     ) THEN 2
+                ELSE 3
               END ASC,
               CASE
                 WHEN ws.sourceType = 'BOKJIRO_LOCAL'
@@ -328,12 +348,22 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         WHERE sr4s.service = ws
                           AND sr4s.sidoName = :sidoName
                      ) THEN 1
+                WHEN ws.sourceType = 'GOV24'
+                     AND :sidoName IS NOT NULL
+                     AND ws.searchYouthRelevant = true
+                     AND ws.unifiedCategory <> '기타'
+                     AND (
+                        ws.title LIKE CONCAT('%', :sidoName, '%')
+                        OR ws.description LIKE CONCAT('%', :sidoName, '%')
+                        OR ws.title LIKE CONCAT('%', REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(:sidoName, '특별자치도', ''), '특별자치시', ''), '광역시', ''), '특별시', ''), '도', ''), '%')
+                        OR ws.description LIKE CONCAT('%', REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(:sidoName, '특별자치도', ''), '특별자치시', ''), '광역시', ''), '특별시', ''), '도', ''), '%')
+                     ) THEN 2
                 WHEN EXISTS (
                         SELECT sr4.id FROM ServiceRegion sr4
                         WHERE sr4.service = ws
                           AND sr4.regionCode = :regionCode
-                     ) THEN 2
-                ELSE 3
+                     ) THEN 3
+                ELSE 4
               END ASC,
               CASE
                 WHEN ws.sourceType = 'BOKJIRO_LOCAL'
@@ -432,7 +462,17 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         WHERE sr4.service = ws
                           AND sr4.sidoName = :sidoName
                      ) THEN 1
-                ELSE 2
+                WHEN ws.sourceType = 'GOV24'
+                     AND :sidoName IS NOT NULL
+                     AND ws.searchYouthRelevant = true
+                     AND ws.unifiedCategory <> '기타'
+                     AND (
+                        ws.title LIKE CONCAT('%', :sidoName, '%')
+                        OR ws.description LIKE CONCAT('%', :sidoName, '%')
+                        OR ws.title LIKE CONCAT('%', REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(:sidoName, '특별자치도', ''), '특별자치시', ''), '광역시', ''), '특별시', ''), '도', ''), '%')
+                        OR ws.description LIKE CONCAT('%', REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(:sidoName, '특별자치도', ''), '특별자치시', ''), '광역시', ''), '특별시', ''), '도', ''), '%')
+                     ) THEN 2
+                ELSE 3
               END ASC,
               CASE
                 WHEN ws.sourceType = 'BOKJIRO_LOCAL'
