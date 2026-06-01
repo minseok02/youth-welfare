@@ -78,7 +78,7 @@ fi
 
 smoke_print_step "gov24 sidecar backfill"
 BACKFILL_STATUS="$(
-  smoke_http_status POST "${APP_BASE_URL}/api/admin/collect/gov24-sidecars-backfill?scope=all&limitPerSource=0" "${BACKFILL_RESPONSE}" \
+  smoke_http_status POST "${APP_BASE_URL}/api/admin/collect/gov24-sidecars-backfill?scope=list&missingOnly=true&limitPerSource=0" "${BACKFILL_RESPONSE}" \
     -H "Authorization: Bearer ${ADMIN_TOKEN}"
 )"
 smoke_assert_status 200 "${BACKFILL_STATUS}" "gov24 sidecar backfill" "${BACKFILL_RESPONSE}"

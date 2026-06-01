@@ -2142,6 +2142,62 @@ class AdminSecurityWebMvcTest {
     }
 
     @Test
+    @DisplayName("GOV24 sidecar backfill API는 limitPerSource=0을 전체 처리 값으로 전달한다")
+    void adminEndpointAllowsGov24SidecarBackfillUnlimited() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(normalizedPolicySidecarBackfillService.backfillGov24ListSidecars(0))
+                .willReturn(new NormalizedPolicySidecarBackfillService.BackfillResult(10_945, 10_945, 0, 0));
+        given(normalizedPolicySidecarBackfillService.backfillGov24SupportConditionSidecars(0))
+                .willReturn(new NormalizedPolicySidecarBackfillService.BackfillResult(10_945, 10_945, 0, 0));
+
+        mockMvc.perform(post("/api/admin/collect/gov24-sidecars-backfill")
+                        .param("scope", "all")
+                        .param("limitPerSource", "0")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.scope").value("gov24-all"))
+                .andExpect(jsonPath("$.data.limitPerSource").value(0))
+                .andExpect(jsonPath("$.data.scannedCount").value(21_890))
+                .andExpect(jsonPath("$.data.upsertedCount").value(21_890))
+                .andExpect(jsonPath("$.data.missingServiceCount").value(0))
+                .andExpect(jsonPath("$.data.failedCount").value(0));
+
+        then(normalizedPolicySidecarBackfillService).should().backfillGov24ListSidecars(0);
+        then(normalizedPolicySidecarBackfillService).should().backfillGov24SupportConditionSidecars(0);
+    }
+
+    @Test
+    @DisplayName("GOV24 sidecar backfill API는 누락된 list summary slot만 보강할 수 있다")
+    void adminEndpointAllowsGov24MissingListSidecarBackfill() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(normalizedPolicySidecarBackfillService.backfillGov24MissingListSidecars(0))
+                .willReturn(new NormalizedPolicySidecarBackfillService.BackfillResult(128, 128, 0, 0));
+
+        mockMvc.perform(post("/api/admin/collect/gov24-sidecars-backfill")
+                        .param("scope", "list")
+                        .param("missingOnly", "true")
+                        .param("limitPerSource", "0")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.scope").value("gov24-list-missing"))
+                .andExpect(jsonPath("$.data.limitPerSource").value(0))
+                .andExpect(jsonPath("$.data.scannedCount").value(128))
+                .andExpect(jsonPath("$.data.upsertedCount").value(128))
+                .andExpect(jsonPath("$.data.missingServiceCount").value(0))
+                .andExpect(jsonPath("$.data.failedCount").value(0));
+
+        then(normalizedPolicySidecarBackfillService).should().backfillGov24MissingListSidecars(0);
+    }
+
+    @Test
     @DisplayName("지원하지 않는 backfill scope는 400을 반환한다")
     void adminEndpointRejectsUnknownBackfillScope() throws Exception {
         mockAuthenticatedToken("admin-token", List.of(
