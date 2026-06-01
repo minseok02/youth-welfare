@@ -24,6 +24,12 @@ import java.util.Map;
 @Service
 public class NormalizedPolicySidecarBackfillService {
 
+    private static final List<String> GOV24_LIST_SUMMARY_SLOT_KEYS = List.of(
+            CanonicalTaxonomySummarySlots.SLOT_GOV24_SERVICE_FIELD,
+            CanonicalTaxonomySummarySlots.SLOT_GOV24_USER_TYPE,
+            CanonicalTaxonomySummarySlots.SLOT_GOV24_BENEFIT_TYPE
+    );
+
     private final NormalizedPolicySidecarBackfillReadRepository normalizedPolicySidecarBackfillReadRepository;
     private final WelfareServiceMapper welfareServiceMapper;
     private final CollectPolicyAggregateApplyService collectPolicyAggregateApplyService;
@@ -52,6 +58,15 @@ public class NormalizedPolicySidecarBackfillService {
     @Transactional
     public BackfillResult backfillGov24ListSidecars(int limitPerSource) {
         return backfillListSidecars(List.of(WelfareService.SourceType.GOV24), limitPerSource);
+    }
+
+    @Transactional
+    public BackfillResult backfillGov24MissingListSidecars(int limitPerSource) {
+        return backfillListSourceMissingSummarySlots(
+                WelfareService.SourceType.GOV24,
+                limitPerSource,
+                GOV24_LIST_SUMMARY_SLOT_KEYS
+        );
     }
 
     @Transactional
@@ -95,6 +110,30 @@ public class NormalizedPolicySidecarBackfillService {
                         limitPerSource
                 );
 
+        return backfillListTargets(capability, targets);
+    }
+
+    private BackfillResult backfillListSourceMissingSummarySlots(WelfareService.SourceType sourceType,
+                                                                 int limitPerSource,
+                                                                 List<String> requiredSummarySlotKeys) {
+        SidecarBackfillCapability capability = backfillCapabilities.get(sourceType);
+        if (capability == null || !capability.supportsList()) {
+            return BackfillResult.empty();
+        }
+
+        List<NormalizedPolicySidecarBackfillTarget> targets = normalizedPolicySidecarBackfillReadRepository
+                .findTargetsMissingSummarySlotsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
+                        sourceType,
+                        RawApiPayload.ApiCategory.LIST,
+                        requiredSummarySlotKeys,
+                        limitPerSource
+                );
+
+        return backfillListTargets(capability, targets);
+    }
+
+    private BackfillResult backfillListTargets(SidecarBackfillCapability capability,
+                                               List<NormalizedPolicySidecarBackfillTarget> targets) {
         int scanned = 0;
         int upserted = 0;
         int missingService = 0;
