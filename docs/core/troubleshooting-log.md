@@ -6698,7 +6698,7 @@ admin API와 latest artifact에
 
 ## 982) 추천 refresh 는 `execution lock` 만으로는 비용성 abuse를 못 막는다
 - 문제: [RecommendationExecutionGuard.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/RecommendationExecutionGuard.java:1) 는 userKey 기준 lock으로 "동시에 두 번" 실행되는 것만 막는다. 하지만 `/api/recommendations/refresh?personal=true` 는 [RecommendationGenerationService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/RecommendationGenerationService.java:1) 에서 refresh cache를 즉시 비우고 retrieval/rule/AI/rerank/save를 다시 태우므로, 사용자가 순차적으로 짧은 간격으로 여러 번 누르면 lock이 풀릴 때마다 비싼 파이프라인이 계속 돈다.
-- 해결: 새 [RecommendationRefreshRateLimitService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/RecommendationRefreshRateLimitService.java:1) 를 추가해 userKey 기준 Redis TTL 키를 두고, `personal=true` 는 도입 당시 기본 `1회 / 600초`(2026-06-01 현재 `5회 / 600초`), `personal=false` 는 기본 `3회 / 60초` 로 제한했다. 검사는 generation service 초입, 즉 execution lock 전에 수행하고 초과 시 새 429 코드 `R004` 를 반환한다.
+- 해결: 새 [RecommendationRefreshRateLimitService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/RecommendationRefreshRateLimitService.java:1) 를 추가해 userKey 기준 Redis TTL 키를 두고, `personal=true` 는 도입 당시 기본 `1회 / 600초`(2026-06-01 현재 `3회 / 600초`), `personal=false` 는 기본 `3회 / 60초` 로 제한했다. 검사는 generation service 초입, 즉 execution lock 전에 수행하고 초과 시 새 429 코드 `R004` 를 반환한다.
 - 이유: 이 경계에서 필요한 것은 "동시성 제어"가 아니라 "짧은 시간 반복 강제 재실행 제어"다. lock과 rate limit은 역할이 다르며, 둘을 함께 써야 AI/추천 비용성 API를 현실적으로 보호할 수 있다.
 
 ## 983) 외부 URL은 "문자열 정리"만으로는 부족하고 scheme allowlist를 명시해야 한다

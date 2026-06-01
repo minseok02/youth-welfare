@@ -23,7 +23,7 @@ public class RecommendationRefreshRateLimitService {
 
     public RecommendationRefreshRateLimitService(
             RedisTemplate<String, String> redisTemplate,
-            @Value("${recommend.rate-limit.personal-refresh.max-requests:5}") int personalMaxRequests,
+            @Value("${recommend.rate-limit.personal-refresh.max-requests:3}") int personalMaxRequests,
             @Value("${recommend.rate-limit.personal-refresh.window-seconds:600}") long personalWindowSeconds,
             @Value("${recommend.rate-limit.shared-refresh.max-requests:3}") int sharedMaxRequests,
             @Value("${recommend.rate-limit.shared-refresh.window-seconds:60}") long sharedWindowSeconds
