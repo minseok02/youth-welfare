@@ -246,7 +246,7 @@ class RecommendationFlowIntegrationTest {
     }
 
     @Test
-    @DisplayName("personal 추천 refresh 는 10분 내 5회를 초과하면 429와 R004를 반환한다")
+    @DisplayName("personal 추천 refresh 는 10분 내 3회를 초과하면 429와 R004를 반환한다")
     void personalRefreshIsRateLimitedPerUser() throws Exception {
         User user = userRepository.save(User.builder()
                 .email(TEST_EMAIL_PREFIX + UUID.randomUUID() + "@example.com")
@@ -291,7 +291,7 @@ class RecommendationFlowIntegrationTest {
 
         String accessToken = jwtUtil.generateAccessToken(userKey, user.getId());
 
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 3; i++) {
             mockMvc.perform(post("/api/recommendations/refresh")
                             .param("personal", "true")
                             .header("Authorization", "Bearer " + accessToken))
