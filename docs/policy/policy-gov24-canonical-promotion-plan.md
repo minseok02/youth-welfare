@@ -46,13 +46,12 @@
 - 즉 이번 active lane은 “공식 code를 더 기다렸다가 code-first 로 가는 트랙”이 아니라,
   **공개 공식 문서상 string label로만 존재하는 값을 내부 canonical term으로 어디까지 승격할지 정하는 트랙**이다.
 
-이번 단계에서 여전히 열지 않는 것은:
+2026-06-01 closeout 이후에도 계속 열지 않는 것은:
 
-1. `GOV24_SERVICE_FIELD / USER_TYPE / BENEFIT_TYPE` stable code SQL
-2. `service_facts` 로의 직접 승격
-3. recommendation matcher hard condition / AI prompt 소비
-4. `YOUTH_MID` bridge
-5. `supportConditions` 사업체/업종/창업 상태 full-scope 승격
+1. 외부 공식 codebook 기반 재수입
+2. raw 조합값 전체의 hard eligibility fact 승격
+3. `service_facts` 기반 recommendation hard gate
+4. AI prompt hard condition 입력
 
 ## 왜 지금 이 경계가 맞는가
 
@@ -192,24 +191,28 @@ canonical term은 additive multi-term 으로만 봅니다.
 - `supportConditions` 가 이미 Gov24 fact 축을 담당하고 있다.
 - `service_facts` 로 열면 recommendation matcher가 오용할 가능성이 크다.
 
-## 5. public/filter/scoring 소비는 계속 보류한다
+## 5. public/filter/scoring 소비 경계
 
-이번 승격은 internal canonical 정리일 뿐입니다.
+이번 승격은 internal canonical 정리에서 시작했지만,
+2026-06-01 기준 public filter, bounded scoring, priority bucket bridge까지 열었습니다.
 
 즉 아래는 계속 열지 않습니다.
 
-- recommendation scoring
-- matcher hard condition
-- AI prompt 추가 입력
+- raw 조합값 전체 기반 matcher hard condition
+- `service_facts` 기반 recommendation hard gate
+- AI prompt hard condition 입력
 
-이번 단계의 소비처는 우선:
+현재 소비처는:
 
 - canonical summary 정리
 - admin facet/read-model 안정화
+- public filter
+- bounded scoring
+- priority bucket bridge
 
-까지만 봅니다.
+입니다.
 
-예외적으로 `2026-05-31` 기준 아래 bounded public filter는 열었다.
+`2026-05-31` 기준 아래 bounded public filter는 열었다.
 
 - `/api/policies`
 - `/api/policies/search`
@@ -236,14 +239,24 @@ canonical term은 additive multi-term 으로만 봅니다.
 4. canonical summary/read-model/admin facet 를 새 term group 기준으로 읽게 정리
 5. raw exact label summary는 그대로 유지
 
+## 현재 닫힌 범위
+
+2026-06-01 기준 아래는 구현/검증까지 닫혔습니다.
+
+1. `GOV24_SERVICE_FIELD / GOV24_USER_TYPE_TOKEN / GOV24_BENEFIT_TYPE_TOKEN` internal code seed
+2. 기존 taxonomy term code backfill
+3. `GOV24_SERVICE_FIELD` summary/legacy code backfill
+4. `GOV24_SUPPORT_CONDITION` business/industry/startup/no-op runtime fact 승격
+5. `Gov24 -> YOUTH_MID` bridge
+6. recommendation priority bucket bridge
+
 ## 계속 deferred 로 둘 범위
 
 아래는 이번 lane 이후에도 deferred 유지입니다.
 
-1. `GOV24_*` stable code SQL
-2. `GOV24_SUPPORT_CONDITION` full-scope business/industry/startup code 승격
-3. `Gov24 -> YOUTH_MID` 연결
-4. recommendation matcher hard condition / ranking hard gate 소비
+1. 외부 공식 stable codebook 기반 재수입
+2. raw 조합값 전체를 hard eligibility fact로 승격
+3. `service_facts` 를 통한 recommendation hard gate
 
 ## reopen 완료 판정
 
@@ -259,10 +272,10 @@ canonical term은 additive multi-term 으로만 봅니다.
 - `GOV24_SERVICE_FIELD` exact-label term 우선 read-model 경계가 코드와 테스트에 반영됨
 - admin diagnostics / admin facet / recommendation response / policy summary/detail/ranking / bookmark / AI prompt가 같은 exact label truth를 읽음
 - `CanonicalRecommendationReadModelIntegrationTest` 도 로컬 PostgreSQL/Redis runtime에서 다시 통과함
-- `Gov24` taxonomy term 저장도 stable code FK가 아니라 label-first term 경계에 맞게 `code_set_key=null` 로 정리됨
+- `Gov24` taxonomy term 저장은 label-first term 경계를 유지하되 internal code를 함께 갖도록 정리됨
 
 즉 이 문서의 다음 단계는 “이 설계가 맞는지”를 계속 탐색하는 것이 아니라,
-현 경계를 closeout truth로 유지하면서 future reopen 범위를 `service_facts/public filter/scoring` 쪽 deferred 판단으로 제한하는 것이다.
+현 경계를 closeout truth로 유지하면서 future reopen 범위를 외부 codebook 재수입 또는 hard eligibility 승격 판단으로 제한하는 것이다.
 
 ## 요약
 
@@ -270,4 +283,4 @@ canonical term은 additive multi-term 으로만 봅니다.
 2. `서비스분야` 는 exact-label canonical term, `사용자구분/지원유형` 은 allowlist token term 으로 본다.
 3. 이번 승격 저장층은 `service_taxonomy_terms` 이고, `service_facts` 는 열지 않는다.
 4. raw exact label summary는 계속 유지한다.
-5. recommendation scoring은 현재 `RuleScoringService` 의 bounded soft additive bonus까지만 열려 있고, matcher hard condition과 `service_facts` 승격은 계속 deferred 다.
+5. recommendation은 bounded soft additive scoring과 priority bucket bridge까지 열렸고, `service_facts` 기반 hard gate는 계속 deferred 다.

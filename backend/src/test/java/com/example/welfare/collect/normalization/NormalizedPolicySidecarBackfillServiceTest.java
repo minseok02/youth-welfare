@@ -21,6 +21,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -296,5 +297,64 @@ class NormalizedPolicySidecarBackfillServiceTest {
                 .containsEntry("GOV24_SERVICE_FIELD", "주거")
                 .containsEntry("GOV24_USER_TYPE", "개인")
                 .containsEntry("GOV24_BENEFIT_TYPE", "현금");
+    }
+
+    @Test
+    @DisplayName("Gov24 support raw payload를 읽어 사업체/업종/창업 조건 facts를 다시 생성한다")
+    void backfillGov24SupportConditionSidecars() throws Exception {
+        Map<String, Object> payload = Map.of(
+                "서비스ID", "GOV24-SUPPORT-1",
+                "서비스명", "소상공인 제조업 창업 지원",
+                "conditions", Map.of(
+                        "JA1101", "Y",
+                        "JA1202", 1,
+                        "JA2101", true,
+                        "JA2203", "Y"
+                )
+        );
+        RawApiPayload raw = RawApiPayload.builder()
+                .sourceType(WelfareService.SourceType.GOV24)
+                .sourceId("GOV24-SUPPORT-1")
+                .apiCategory(RawApiPayload.ApiCategory.SUPPORT)
+                .payloadJson(objectMapper.writeValueAsString(payload))
+                .payloadHash("hash")
+                .fetchedAt(LocalDateTime.now())
+                .build();
+
+        WelfareService saved = WelfareService.builder()
+                .id(202L)
+                .sourceType(WelfareService.SourceType.GOV24)
+                .sourceId("GOV24-SUPPORT-1")
+                .title("소상공인 제조업 창업 지원")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+
+        given(normalizedPolicySidecarBackfillReadRepository.findTargetsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
+                WelfareService.SourceType.GOV24,
+                RawApiPayload.ApiCategory.SUPPORT,
+                10
+        )).willReturn(List.of(new NormalizedPolicySidecarBackfillTarget(raw, saved)));
+
+        NormalizedPolicySidecarBackfillService.BackfillResult result = service.backfillGov24SupportConditionSidecars(10);
+
+        assertThat(result.scannedCount()).isEqualTo(1);
+        assertThat(result.upsertedCount()).isEqualTo(1);
+        assertThat(result.missingServiceCount()).isZero();
+        assertThat(result.failedCount()).isZero();
+
+        ArgumentCaptor<NormalizedPolicyAggregate> aggregateCaptor = ArgumentCaptor.forClass(NormalizedPolicyAggregate.class);
+        verify(collectPolicyAggregateApplyService).replaceFactCodeSet(
+                eq(saved),
+                eq("GOV24_SUPPORT_CONDITION"),
+                aggregateCaptor.capture()
+        );
+        assertThat(aggregateCaptor.getValue().facts())
+                .extracting(NormalizedPolicyAggregate.Fact::factMergeKey)
+                .containsExactlyInAnyOrder(
+                        "GOV24_BUSINESS_STAGE:JA1101",
+                        "GOV24_INDUSTRY:JA1202",
+                        "GOV24_BUSINESS_TYPE:JA2101",
+                        "GOV24_INDUSTRY:JA2203"
+                );
     }
 }

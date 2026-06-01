@@ -26,6 +26,8 @@ class Gov24NormalizationSupportTest {
                         NormalizedPolicyAggregate.TaxonomyTerm::termLabel,
                         NormalizedPolicyAggregate.TaxonomyTerm::sourceField)
                 .contains(
+                        tuple("YOUTH_MAJOR", "주거", "serviceField"),
+                        tuple("YOUTH_MID", "주택 및 거주지", "serviceField"),
                         tuple("GOV24_SERVICE_FIELD", "주거·자립", "serviceField"),
                         tuple("GOV24_USER_TYPE_TOKEN", "개인", "userType"),
                         tuple("GOV24_USER_TYPE_TOKEN", "가구", "userType"),

@@ -29,24 +29,54 @@ section "coverage"
 coverage_row="$(query "
 WITH totals AS (
   SELECT
-    (SELECT COUNT(*) FROM welfare_services WHERE source_type = 'GOV24') AS total_services,
+    (SELECT COUNT(*)
+       FROM welfare_services ws
+      WHERE ws.source_type = 'GOV24'
+        AND EXISTS (
+            SELECT 1
+            FROM raw_api_payloads rap
+            WHERE rap.source_type = ws.source_type
+              AND rap.source_id = ws.source_id
+              AND rap.api_category = 'LIST'
+        )) AS total_services,
     (SELECT COUNT(*)
        FROM welfare_service_details wsd
        JOIN welfare_services ws ON ws.id = wsd.service_id
-      WHERE ws.source_type = 'GOV24') AS detail_rows,
+      WHERE ws.source_type = 'GOV24'
+        AND EXISTS (
+            SELECT 1
+            FROM raw_api_payloads rap
+            WHERE rap.source_type = ws.source_type
+              AND rap.source_id = ws.source_id
+              AND rap.api_category = 'LIST'
+        )) AS detail_rows,
     (SELECT COUNT(*)
        FROM raw_api_payloads
       WHERE source_type = 'GOV24'
         AND api_category = 'SUPPORT') AS support_raw,
     (SELECT COUNT(*)
        FROM service_facts sf
-       JOIN welfare_services ws ON ws.id = sf.service_id
+      JOIN welfare_services ws ON ws.id = sf.service_id
       WHERE ws.source_type = 'GOV24'
+        AND EXISTS (
+            SELECT 1
+            FROM raw_api_payloads rap
+            WHERE rap.source_type = ws.source_type
+              AND rap.source_id = ws.source_id
+              AND rap.api_category = 'LIST'
+        )
         AND sf.fact_code_set_key = 'GOV24_SUPPORT_CONDITION') AS support_fact_rows,
     (SELECT COUNT(DISTINCT sf.service_id)
        FROM service_facts sf
-       JOIN welfare_services ws ON ws.id = sf.service_id
+      JOIN welfare_services ws ON ws.id = sf.service_id
       WHERE ws.source_type = 'GOV24'
+        AND EXISTS (
+            SELECT 1
+            FROM raw_api_payloads rap
+            WHERE rap.source_type = ws.source_type
+              AND rap.source_id = ws.source_id
+              AND rap.api_category = 'LIST'
+        )
         AND sf.fact_code_set_key = 'GOV24_SUPPORT_CONDITION') AS support_fact_services
 )
 SELECT
@@ -91,17 +121,29 @@ WITH mapped_codes AS (
   SELECT unnest(ARRAY[
     'JA0101','JA0102',
     'JA0201','JA0202','JA0203','JA0204','JA0205',
-    'JA0317','JA0318','JA0319','JA0320',
+    'JA0313','JA0314','JA0315','JA0316',
+    'JA0317','JA0318','JA0319','JA0320','JA0322',
     'JA0326','JA0327',
     'JA0328','JA0329','JA0330',
-    'JA0401','JA0402','JA0403','JA0404',
-    'JA0411','JA0412','JA0413','JA0414'
+    'JA0401','JA0402','JA0403','JA0404','JA0410',
+    'JA0411','JA0412','JA0413','JA0414',
+    'JA1101','JA1102','JA1103',
+    'JA1201','JA1202','JA1299',
+    'JA2101','JA2102','JA2103',
+    'JA2201','JA2202','JA2203','JA2299'
   ]) AS code
 ),
 missing_services AS (
   SELECT ws.id, ws.source_id
   FROM welfare_services ws
   WHERE ws.source_type = 'GOV24'
+    AND EXISTS (
+      SELECT 1
+      FROM raw_api_payloads list_rap
+      WHERE list_rap.source_type = ws.source_type
+        AND list_rap.source_id = ws.source_id
+        AND list_rap.api_category = 'LIST'
+    )
     AND NOT EXISTS (
       SELECT 1
       FROM service_facts sf
@@ -166,7 +208,14 @@ SELECT
   COUNT(*) FILTER (WHERE NULLIF(wsd.selection_criteria, '') IS NOT NULL)
 FROM welfare_service_details wsd
 JOIN welfare_services ws ON ws.id = wsd.service_id
-WHERE ws.source_type = 'GOV24';
+WHERE ws.source_type = 'GOV24'
+  AND EXISTS (
+    SELECT 1
+    FROM raw_api_payloads rap
+    WHERE rap.source_type = ws.source_type
+      AND rap.source_id = ws.source_id
+      AND rap.api_category = 'LIST'
+  );
 ")"
 IFS=$'\t' read -r target_detail_count contact_list_count related_law_count form_files_count homepage_url_count selection_criteria_count <<<"$detail_fill_row"
 metric "gov24_detail_target_detail_count" "$target_detail_count"
@@ -182,11 +231,16 @@ WITH mapped_codes AS (
   SELECT unnest(ARRAY[
     'JA0101','JA0102',
     'JA0201','JA0202','JA0203','JA0204','JA0205',
-    'JA0317','JA0318','JA0319','JA0320',
+    'JA0313','JA0314','JA0315','JA0316',
+    'JA0317','JA0318','JA0319','JA0320','JA0322',
     'JA0326','JA0327',
     'JA0328','JA0329','JA0330',
-    'JA0401','JA0402','JA0403','JA0404',
-    'JA0411','JA0412','JA0413','JA0414'
+    'JA0401','JA0402','JA0403','JA0404','JA0410',
+    'JA0411','JA0412','JA0413','JA0414',
+    'JA1101','JA1102','JA1103',
+    'JA1201','JA1202','JA1299',
+    'JA2101','JA2102','JA2103',
+    'JA2201','JA2202','JA2203','JA2299'
   ]) AS code
 )
 SELECT
@@ -221,6 +275,13 @@ LEFT JOIN raw_api_payloads rap
  AND rap.source_type = ws.source_type
  AND rap.api_category = 'SUPPORT'
 WHERE ws.source_type = 'GOV24'
+  AND EXISTS (
+    SELECT 1
+    FROM raw_api_payloads list_rap
+    WHERE list_rap.source_type = ws.source_type
+      AND list_rap.source_id = ws.source_id
+      AND list_rap.api_category = 'LIST'
+  )
   AND NOT EXISTS (
     SELECT 1
     FROM service_facts sf
@@ -238,17 +299,29 @@ WITH mapped_codes AS (
     'JA0101','JA0102',
     'JA0110','JA0111',
     'JA0201','JA0202','JA0203','JA0204','JA0205',
-    'JA0317','JA0318','JA0319','JA0320',
+    'JA0313','JA0314','JA0315','JA0316',
+    'JA0317','JA0318','JA0319','JA0320','JA0322',
     'JA0326','JA0327',
     'JA0328','JA0329','JA0330',
-    'JA0401','JA0402','JA0403','JA0404',
-    'JA0411','JA0412','JA0413','JA0414'
+    'JA0401','JA0402','JA0403','JA0404','JA0410',
+    'JA0411','JA0412','JA0413','JA0414',
+    'JA1101','JA1102','JA1103',
+    'JA1201','JA1202','JA1299',
+    'JA2101','JA2102','JA2103',
+    'JA2201','JA2202','JA2203','JA2299'
   ]) AS code
 ),
 missing_services AS (
   SELECT ws.id, ws.source_id
   FROM welfare_services ws
   WHERE ws.source_type = 'GOV24'
+    AND EXISTS (
+      SELECT 1
+      FROM raw_api_payloads list_rap
+      WHERE list_rap.source_type = ws.source_type
+        AND list_rap.source_id = ws.source_id
+        AND list_rap.api_category = 'LIST'
+    )
     AND NOT EXISTS (
       SELECT 1
       FROM service_facts sf

@@ -1,6 +1,7 @@
 package com.example.welfare.collect.normalization;
 
 import com.example.welfare.collect.support.NormalizationKeySupport;
+import com.example.welfare.collect.support.Gov24TaxonomyCodeSupport;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
 import java.util.List;
@@ -14,10 +15,11 @@ public final class ServiceTaxonomyLegacySummaryBridge {
                     "youthMidCode",
                     "youthMidLabel"
             ),
-            LegacySummaryBinding.labelOnly(
+            new LegacySummaryBinding(
                     CanonicalTaxonomySummarySlots.SLOT_GOV24_SERVICE_FIELD,
                     "gov24ServiceFieldCode",
-                    "gov24ServiceFieldLabel"
+                    "gov24ServiceFieldLabel",
+                    raw -> new SummaryValue(Gov24TaxonomyCodeSupport.serviceFieldCode(raw), raw)
             ),
             LegacySummaryBinding.labelOnly(
                     CanonicalTaxonomySummarySlots.SLOT_GOV24_USER_TYPE,

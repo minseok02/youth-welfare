@@ -9,9 +9,12 @@ APP_HEALTH_URL="${APP_HEALTH_URL:-${APP_BASE_URL}/actuator/health}"
 HEALTH_RETRY_COUNT="${HEALTH_RETRY_COUNT:-60}"
 
 smoke_resolve_admin_credentials "${ROOT_DIR}"
+smoke_resolve_admin_access_token "${ROOT_DIR}"
 
 : "${ADMIN_EMAIL:?ADMIN_EMAIL is empty; export ADMIN_EMAIL or set /tmp/youth-welfare-admin-smoke-email}"
-: "${ADMIN_PASSWORD:?ADMIN_PASSWORD is empty; export ADMIN_PASSWORD or set /tmp/youth-welfare-admin-smoke-password}"
+if [[ -z "${ADMIN_ACCESS_TOKEN:-}" ]]; then
+  : "${ADMIN_PASSWORD:?ADMIN_PASSWORD is empty; export ADMIN_PASSWORD or set /tmp/youth-welfare-admin-smoke-password}"
+fi
 
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "${TMP_DIR}"' EXIT
@@ -33,24 +36,35 @@ from (
     on sts.service_id = ws.id
    and sts.slot_key in ('GOV24_SERVICE_FIELD','GOV24_USER_TYPE','GOV24_BENEFIT_TYPE')
   where ws.source_type = 'GOV24'
+    and exists (
+      select 1
+      from raw_api_payloads rap
+      where rap.source_type = ws.source_type
+        and rap.source_id = ws.source_id
+        and rap.api_category = 'LIST'
+    )
   group by ws.id
   having count(distinct sts.slot_key) < 3
 ) gaps;
 ")"
 
-smoke_print_step "admin login (${ADMIN_EMAIL})"
-LOGIN_STATUS="$(
-  smoke_http_status POST "${APP_BASE_URL}/api/auth/login" "${LOGIN_RESPONSE}" \
-    -H 'Content-Type: application/json' \
-    --data-binary @- <<JSON
+if [[ -n "${ADMIN_ACCESS_TOKEN:-}" ]]; then
+  smoke_print_step "admin token reuse (${ADMIN_EMAIL})"
+  ADMIN_TOKEN="${ADMIN_ACCESS_TOKEN}"
+else
+  smoke_print_step "admin login (${ADMIN_EMAIL})"
+  LOGIN_STATUS="$(
+    smoke_http_status POST "${APP_BASE_URL}/api/auth/login" "${LOGIN_RESPONSE}" \
+      -H 'Content-Type: application/json' \
+      --data-binary @- <<JSON
 {
   "email": "${ADMIN_EMAIL}",
   "password": "${ADMIN_PASSWORD}"
 }
 JSON
-)"
-smoke_assert_status 200 "${LOGIN_STATUS}" "admin login" "${LOGIN_RESPONSE}"
-ADMIN_TOKEN="$(python3 - "${LOGIN_RESPONSE}" <<'PY'
+  )"
+  smoke_assert_status 200 "${LOGIN_STATUS}" "admin login" "${LOGIN_RESPONSE}"
+  ADMIN_TOKEN="$(python3 - "${LOGIN_RESPONSE}" <<'PY'
 import json
 import sys
 
@@ -59,11 +73,12 @@ with open(sys.argv[1], "r", encoding="utf-8") as fp:
 
 print(payload["data"]["accessToken"])
 PY
-)"
+  )"
+fi
 
 smoke_print_step "gov24 sidecar backfill"
 BACKFILL_STATUS="$(
-  smoke_http_status POST "${APP_BASE_URL}/api/admin/collect/gov24-sidecars-backfill?limitPerSource=0" "${BACKFILL_RESPONSE}" \
+  smoke_http_status POST "${APP_BASE_URL}/api/admin/collect/gov24-sidecars-backfill?scope=all&limitPerSource=0" "${BACKFILL_RESPONSE}" \
     -H "Authorization: Bearer ${ADMIN_TOKEN}"
 )"
 smoke_assert_status 200 "${BACKFILL_STATUS}" "gov24 sidecar backfill" "${BACKFILL_RESPONSE}"
@@ -77,6 +92,13 @@ from (
     on sts.service_id = ws.id
    and sts.slot_key in ('GOV24_SERVICE_FIELD','GOV24_USER_TYPE','GOV24_BENEFIT_TYPE')
   where ws.source_type = 'GOV24'
+    and exists (
+      select 1
+      from raw_api_payloads rap
+      where rap.source_type = ws.source_type
+        and rap.source_id = ws.source_id
+        and rap.api_category = 'LIST'
+    )
   group by ws.id
   having count(distinct sts.slot_key) < 3
 ) gaps;
@@ -97,6 +119,13 @@ if (( after_missing != 0 )); then
     on sts.service_id = ws.id
    and sts.slot_key in ('GOV24_SERVICE_FIELD','GOV24_USER_TYPE','GOV24_BENEFIT_TYPE')
   where ws.source_type = 'GOV24'
+    and exists (
+      select 1
+      from raw_api_payloads rap
+      where rap.source_type = ws.source_type
+        and rap.source_id = ws.source_id
+        and rap.api_category = 'LIST'
+    )
   group by ws.id, ws.source_id
   having count(distinct sts.slot_key) < 3
   order by ws.id;

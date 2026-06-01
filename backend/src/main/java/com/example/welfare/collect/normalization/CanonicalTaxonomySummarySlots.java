@@ -1,6 +1,7 @@
 package com.example.welfare.collect.normalization;
 
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate.TaxonomySummary;
+import com.example.welfare.collect.support.Gov24TaxonomyCodeSupport;
 import com.example.welfare.collect.support.NormalizationKeySupport;
 
 import java.util.ArrayList;
@@ -69,6 +70,12 @@ public final class CanonicalTaxonomySummarySlots {
                 yield new SummarySlot(slotKey, slotKey, normalizeBlankCode(summary.code()), summary.label());
             }
             case SLOT_PROVISION_METHOD -> new SummarySlot(slotKey, null, "", label);
+            case SLOT_GOV24_SERVICE_FIELD -> new SummarySlot(
+                    slotKey,
+                    slotKey,
+                    normalizeBlankCode(Gov24TaxonomyCodeSupport.serviceFieldCode(label)),
+                    label
+            );
             default -> new SummarySlot(slotKey, slotKey, "", label);
         };
     }

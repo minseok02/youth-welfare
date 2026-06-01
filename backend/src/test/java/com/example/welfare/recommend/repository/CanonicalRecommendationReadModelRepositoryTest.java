@@ -306,13 +306,14 @@ class CanonicalRecommendationReadModelRepositoryTest {
         assertThat(projection.gov24ServiceFieldLabel()).isEqualTo("주거·자립");
         assertThat(projection.gov24UserTypeTokens()).containsExactly("개인");
         assertThat(projection.gov24BenefitTypeTokens()).containsExactly("현금(융자)");
-        assertThat(projection.gov24UserTypeLabel()).isEqualTo("legacy-user");
-        assertThat(projection.gov24BenefitTypeLabel()).isEqualTo("legacy-benefit");
+        assertThat(projection.gov24UserTypeLabel()).isEqualTo("개인");
+        assertThat(projection.gov24BenefitTypeLabel()).isEqualTo("현금(융자)");
+        assertThat(projection.priorityBuckets()).contains("HOUSING", "FINANCE");
     }
 
     @Test
-    @DisplayName("Gov24 canonical term은 recommendation projection에서 youth major/mid bridge를 자동으로 열지 않는다")
-    void findByServiceIds_doesNotAutoBridgeGov24TermsToYouthMid() {
+    @DisplayName("Gov24 canonical term은 recommendation projection에서 youth major/mid bridge도 연다")
+    void findByServiceIds_autoBridgesGov24TermsToYouthMid() {
         Map<String, Object> baseRow = new LinkedHashMap<>();
         baseRow.put("service_id", 7801L);
         baseRow.put("source_type", "GOV24");
@@ -365,7 +366,10 @@ class CanonicalRecommendationReadModelRepositoryTest {
         assertThat(projection.gov24ServiceFieldLabel()).isEqualTo("주거·자립");
         assertThat(projection.gov24UserTypeTokens()).containsExactly("개인");
         assertThat(projection.gov24BenefitTypeTokens()).containsExactly("현금(융자)");
-        assertThat(projection.youthMajorLabel()).isNull();
-        assertThat(projection.youthMidLabel()).isNull();
+        assertThat(projection.gov24UserTypeLabel()).isEqualTo("개인");
+        assertThat(projection.gov24BenefitTypeLabel()).isEqualTo("현금(융자)");
+        assertThat(projection.priorityBuckets()).contains("HOUSING", "FINANCE");
+        assertThat(projection.youthMajorLabel()).isEqualTo("주거");
+        assertThat(projection.youthMidLabel()).isEqualTo("주택 및 거주지");
     }
 }

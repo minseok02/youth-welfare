@@ -1,6 +1,7 @@
 package com.example.welfare.recommend.repository;
 
 import com.example.welfare.collect.support.Gov24LabelTokenSupport;
+import com.example.welfare.collect.support.Gov24TaxonomyCodeSupport;
 import com.example.welfare.collect.support.YouthOfficialCodeSupport;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.policy.support.CompatCategorySupport;
@@ -367,9 +368,13 @@ public class CanonicalRecommendationReadModelRepository {
                     if (gov24ServiceFieldTermLabel == null || gov24ServiceFieldTermLabel.isBlank()) {
                         gov24ServiceFieldTermLabel = termLabel;
                     }
+                    addPriorityBucket(RecommendationProjectionHeuristicSupport.gov24ServiceFieldPriorityBucket(termLabel));
                 }
                 case "GOV24_USER_TYPE_TOKEN" -> gov24UserTypeTokens.add(termLabel);
-                case "GOV24_BENEFIT_TYPE_TOKEN" -> gov24BenefitTypeTokens.add(termLabel);
+                case "GOV24_BENEFIT_TYPE_TOKEN" -> {
+                    gov24BenefitTypeTokens.add(termLabel);
+                    addPriorityBucket(RecommendationProjectionHeuristicSupport.gov24BenefitTypePriorityBucket(termLabel));
+                }
                 case "TARGET_GROUP" -> {
                     targetGroupsRaw.add(termLabel);
                     if (RecommendationProjectionHeuristicSupport.isBeneficiaryDetailTerm(termLabel, sourceField)) {
@@ -409,6 +414,11 @@ public class CanonicalRecommendationReadModelRepository {
                 youthIncomeConditionTypeCode = factCode;
                 youthIncomeConditionTypeLabel = textValue;
             }
+            if ("GOV24_SUPPORT_CONDITION".equals(factCodeSetKey)
+                    && factMergeKey != null
+                    && factMergeKey.startsWith("GOV24_BUSINESS_STAGE:")) {
+                addPriorityBucket("JOB");
+            }
         }
 
         private String preferredCodeCsv(String rawValue, String factCode) {
@@ -419,20 +429,36 @@ public class CanonicalRecommendationReadModelRepository {
             RecommendationProjectionHeuristicSupport.collectSpecialTargetBuckets(specialTargetBuckets, title);
             RecommendationProjectionHeuristicSupport.collectSpecialTargetBuckets(specialTargetBuckets, summary);
             addPriorityBucket(compatPriorityBucket);
+            List<String> resolvedGov24UserTypeTokens = resolveGov24UserTypeTokens();
+            List<String> resolvedGov24BenefitTypeTokens = resolveGov24BenefitTypeTokens();
+            String resolvedGov24ServiceFieldLabel = resolveGov24ServiceFieldLabel();
+            String resolvedGov24BenefitTypeLabel = resolveGov24TokenLabel(resolvedGov24BenefitTypeTokens, gov24BenefitTypeLabel);
+            Gov24TaxonomyCodeSupport.YouthBridge youthBridge = Gov24TaxonomyCodeSupport.youthBridge(
+                    resolvedGov24ServiceFieldLabel,
+                    resolvedGov24BenefitTypeLabel,
+                    title,
+                    summary
+            );
+            String resolvedYouthMajorLabel = firstNonBlank(youthMajorLabel, youthBridge.youthMajorLabel());
+            String resolvedYouthMidLabel = firstNonBlank(youthMidLabel, youthBridge.youthMidLabel());
+            addPriorityBucket(RecommendationProjectionHeuristicSupport.gov24ServiceFieldPriorityBucket(resolvedGov24ServiceFieldLabel));
+            resolvedGov24BenefitTypeTokens.stream()
+                    .map(RecommendationProjectionHeuristicSupport::gov24BenefitTypePriorityBucket)
+                    .forEach(this::addPriorityBucket);
             return RecommendationCandidateProjection.builder()
                     .serviceId(serviceId)
                     .sourceType(sourceType)
                     .unifiedCategoryCompat(unifiedCategoryCompat)
                     .compatCategoryCode(compatCategoryCode)
                     .compatPriorityBucket(compatPriorityBucket)
-                    .youthMajorLabel(youthMajorLabel)
-                    .youthMidLabel(youthMidLabel)
+                    .youthMajorLabel(resolvedYouthMajorLabel)
+                    .youthMidLabel(resolvedYouthMidLabel)
                     .provisionMethodLabel(provisionMethodLabel)
-                    .gov24ServiceFieldLabel(resolveGov24ServiceFieldLabel())
-                    .gov24UserTypeLabel(gov24UserTypeLabel)
-                    .gov24BenefitTypeLabel(gov24BenefitTypeLabel)
-                    .gov24UserTypeTokens(resolveGov24UserTypeTokens())
-                    .gov24BenefitTypeTokens(resolveGov24BenefitTypeTokens())
+                    .gov24ServiceFieldLabel(resolvedGov24ServiceFieldLabel)
+                    .gov24UserTypeLabel(resolveGov24TokenLabel(resolvedGov24UserTypeTokens, gov24UserTypeLabel))
+                    .gov24BenefitTypeLabel(resolvedGov24BenefitTypeLabel)
+                    .gov24UserTypeTokens(resolvedGov24UserTypeTokens)
+                    .gov24BenefitTypeTokens(resolvedGov24BenefitTypeTokens)
                     .youthEmploymentRequirementCodes(List.copyOf(youthEmploymentRequirementCodes))
                     .youthEmploymentRequirementLabels(List.copyOf(youthEmploymentRequirementLabels))
                     .youthEducationRequirementCodes(List.copyOf(youthEducationRequirementCodes))
@@ -500,10 +526,24 @@ public class CanonicalRecommendationReadModelRepository {
             return Gov24LabelTokenSupport.benefitTypeTokens(gov24BenefitTypeLabel);
         }
 
+        private String resolveGov24TokenLabel(List<String> tokens, String fallbackLabel) {
+            if (tokens != null && !tokens.isEmpty()) {
+                return String.join("||", tokens);
+            }
+            return fallbackLabel;
+        }
+
         private void addPriorityBucket(String priorityBucket) {
             if (priorityBucket != null) {
                 priorityBuckets.add(priorityBucket);
             }
+        }
+
+        private String firstNonBlank(String first, String second) {
+            if (first != null && !first.isBlank()) {
+                return first;
+            }
+            return second;
         }
 
     }

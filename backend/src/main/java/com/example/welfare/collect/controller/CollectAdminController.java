@@ -152,20 +152,29 @@ public class CollectAdminController {
 
     @PostMapping("/gov24-sidecars-backfill")
     public ResponseEntity<ApiResponse<SidecarBackfillResponse>> backfillGov24Sidecars(
+            @RequestParam(defaultValue = "list") String scope,
             @RequestParam(defaultValue = "0") int limitPerSource
     ) {
         int effectiveLimitPerSource = normalizeLimitPerSource(limitPerSource);
-        NormalizedPolicySidecarBackfillService.BackfillResult result =
-                normalizedPolicySidecarBackfillService.backfillGov24ListSidecars(effectiveLimitPerSource);
+        String normalizedScope = scope.toLowerCase(Locale.ROOT);
+        NormalizedPolicySidecarBackfillService.BackfillResult result = switch (normalizedScope) {
+            case "list" -> normalizedPolicySidecarBackfillService.backfillGov24ListSidecars(effectiveLimitPerSource);
+            case "support", "support-conditions" ->
+                    normalizedPolicySidecarBackfillService.backfillGov24SupportConditionSidecars(effectiveLimitPerSource);
+            case "all" -> normalizedPolicySidecarBackfillService.backfillGov24ListSidecars(effectiveLimitPerSource)
+                    .plus(normalizedPolicySidecarBackfillService.backfillGov24SupportConditionSidecars(effectiveLimitPerSource));
+            default -> throw new CustomException(ErrorCode.INVALID_INPUT);
+        };
 
-        log.info("[Admin] Gov24 sidecar backfill 수동 트리거 limitPerSource={} scanned={} upserted={} missing={} failed={}",
+        log.info("[Admin] Gov24 sidecar backfill 수동 트리거 scope={} limitPerSource={} scanned={} upserted={} missing={} failed={}",
+                normalizedScope,
                 effectiveLimitPerSource,
                 result.scannedCount(),
                 result.upsertedCount(),
                 result.missingServiceCount(),
                 result.failedCount());
         return ResponseEntity.ok(ApiResponse.success(new SidecarBackfillResponse(
-                "gov24-list",
+                "gov24-" + normalizedScope,
                 effectiveLimitPerSource,
                 result.scannedCount(),
                 result.upsertedCount(),

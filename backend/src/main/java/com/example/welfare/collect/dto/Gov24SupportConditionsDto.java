@@ -43,6 +43,16 @@ public class Gov24SupportConditionsDto {
 
         private final Map<String, Object> conditions = new LinkedHashMap<>();
 
+        public static Item fromRawPayload(String serviceId, String serviceName, Map<String, Object> conditions) {
+            Item item = new Item();
+            item.serviceId = serviceId;
+            item.serviceName = serviceName;
+            if (conditions != null) {
+                item.conditions.putAll(conditions);
+            }
+            return item;
+        }
+
         @JsonAnySetter
         void putCondition(String key, Object value) {
             if ("서비스ID".equals(key) || "서비스명".equals(key)) {

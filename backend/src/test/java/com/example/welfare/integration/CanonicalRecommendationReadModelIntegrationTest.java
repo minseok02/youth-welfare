@@ -397,11 +397,17 @@ class CanonicalRecommendationReadModelIntegrationTest {
                 canonicalRecommendationReadModelRepository.findByServiceIds(List.of(canonicalService.getId(), fallbackService.getId()));
 
         assertThat(projections.get(canonicalService.getId()).gov24ServiceFieldLabel()).isEqualTo("주거·자립");
+        assertThat(projections.get(canonicalService.getId()).gov24UserTypeLabel()).isEqualTo("개인");
+        assertThat(projections.get(canonicalService.getId()).gov24BenefitTypeLabel()).isEqualTo("현금(감면)||의료지원");
         assertThat(projections.get(canonicalService.getId()).gov24UserTypeTokens()).containsExactly("개인");
         assertThat(projections.get(canonicalService.getId()).gov24BenefitTypeTokens()).containsExactly("현금(감면)", "의료지원");
+        assertThat(projections.get(canonicalService.getId()).priorityBuckets()).contains("HOUSING", "FINANCE");
         assertThat(projections.get(fallbackService.getId()).gov24ServiceFieldLabel()).isEqualTo("생활안정");
+        assertThat(projections.get(fallbackService.getId()).gov24UserTypeLabel()).isEqualTo("소상공인||법인/시설/단체");
+        assertThat(projections.get(fallbackService.getId()).gov24BenefitTypeLabel()).isEqualTo("현금(융자)||상담/법률지원");
         assertThat(projections.get(fallbackService.getId()).gov24UserTypeTokens()).containsExactly("소상공인", "법인/시설/단체");
         assertThat(projections.get(fallbackService.getId()).gov24BenefitTypeTokens()).containsExactly("현금(융자)", "상담/법률지원");
+        assertThat(projections.get(fallbackService.getId()).priorityBuckets()).contains("FINANCE");
     }
 
     private void insertSummarySlot(Long serviceId, String slotKey, String slotLabel) {

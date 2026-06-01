@@ -30,6 +30,9 @@
 2. `Gov24 sourceId detail` self-heal
 3. collect/backfill residual closeout
 4. admin/read-model/presentation 경계
+5. supportConditions full-scope runtime fact gap
+6. `Gov24 -> YOUTH_MID` / priority bucket bridge
+7. internal taxonomy code seed/backfill
 
 즉 지금 남은 것은 구현 누락보다 **새 목표 승인 여부** 입니다.
 
@@ -44,11 +47,10 @@
 
 ## reopen 허용 조건
 
-아래 셋 중 하나가 **명시적으로 승인** 됐을 때만 reopen 합니다.
+아래 둘 중 하나가 **명시적으로 승인** 됐을 때만 reopen 합니다.
 
-1. stable import/backfill
-2. public filter/scoring 소비
-3. `supportConditions` full-scope business/industry/startup 승격
+1. 외부 공식 stable codebook 기반 import/backfill
+2. raw 조합값 전체를 hard eligibility fact로 승격
 
 반대로 아래만으로는 reopen 하지 않습니다.
 
@@ -75,23 +77,19 @@ bash deploy/smoke/run-local-active-baseline-suite.sh
 
 다음 중 하나만 선택합니다.
 
-1. `stable import/backfill`
-2. `public filter/scoring`
-3. `supportConditions full-scope`
+1. `external stable codebook import/backfill`
+2. `raw combination hard eligibility`
 
 한 번에 둘 이상 열면 현재 문서/검증 기준이 무너집니다.
 
 ### 3. 목표별로 문서를 고른다
 
-- `stable import/backfill`
+- `external stable codebook import/backfill`
   - [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)
   - [policy-gov24-canonical-promotion-plan.md](./policy-gov24-canonical-promotion-plan.md)
-- `public filter/scoring`
+- `raw combination hard eligibility`
   - [policy-gov24-canonical-promotion-plan.md](./policy-gov24-canonical-promotion-plan.md)
   - recommendation/product 문서군
-- `supportConditions full-scope`
-  - [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)
-  - history request/codebook 문서군
 
 ### 4. reopen 범위를 명시한다
 
@@ -107,11 +105,9 @@ bash deploy/smoke/run-local-active-baseline-suite.sh
 
 현재 checklist 기준으로는 아래를 자동으로 열지 않습니다.
 
-1. `GOV24_*` stable code SQL
-2. `service_facts` 직접 승격
-3. matcher hard condition 직접 연결
-4. `service_facts` 를 통한 recommendation hard gate
-5. `YOUTH_MID` bridge
+1. 외부 공식 codebook 재수입
+2. raw 조합값 전체의 `service_facts` 직접 승격
+3. `service_facts` 를 통한 recommendation hard gate
 
 ## 요약
 

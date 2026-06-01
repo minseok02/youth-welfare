@@ -35,6 +35,7 @@ class CanonicalTaxonomySummarySlotsTest {
         assertThat(slots.slot(CanonicalTaxonomySummarySlots.SLOT_YOUTH_MAJOR).slotCode()).isEqualTo("HOUSING");
         assertThat(slots.slot(CanonicalTaxonomySummarySlots.SLOT_YOUTH_MAJOR).codeSetKey()).isEqualTo("YOUTH_MAJOR");
         assertThat(slots.slot(CanonicalTaxonomySummarySlots.SLOT_YOUTH_MID).slotCode()).isEmpty();
+        assertThat(slots.slot(CanonicalTaxonomySummarySlots.SLOT_GOV24_SERVICE_FIELD).slotCode()).isEqualTo("LIFE_STABILITY");
         assertThat(slots.slot(CanonicalTaxonomySummarySlots.SLOT_PROVISION_METHOD).codeSetKey()).isNull();
     }
 }

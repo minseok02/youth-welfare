@@ -53,6 +53,57 @@ public class WelfareServiceMapper {
             "온라인", "인터넷", "홈페이지", "웹", "모바일", "앱", "신청페이지", "누리집"
     };
     private static final Pattern URL_PATTERN = Pattern.compile("https?://[^\\s\"'<>]+|www\\.[^\\s\"'<>]+");
+    private static final List<Gov24SupportConditionDefinition> GOV24_SUPPORT_CONDITION_DEFINITIONS = List.of(
+            new Gov24SupportConditionDefinition("JA0101", "GENDER", "남성", "GOV24_GENDER:MALE"),
+            new Gov24SupportConditionDefinition("JA0102", "GENDER", "여성", "GOV24_GENDER:FEMALE"),
+
+            new Gov24SupportConditionDefinition("JA0201", "INCOME", "중위소득 0~50%", "GOV24_INCOME:JA0201"),
+            new Gov24SupportConditionDefinition("JA0202", "INCOME", "중위소득 51~75%", "GOV24_INCOME:JA0202"),
+            new Gov24SupportConditionDefinition("JA0203", "INCOME", "중위소득 76~100%", "GOV24_INCOME:JA0203"),
+            new Gov24SupportConditionDefinition("JA0204", "INCOME", "중위소득 101~200%", "GOV24_INCOME:JA0204"),
+            new Gov24SupportConditionDefinition("JA0205", "INCOME", "중위소득 200% 초과", "GOV24_INCOME:JA0205"),
+
+            new Gov24SupportConditionDefinition("JA0313", "INDUSTRY_WORKER", "농업인", "GOV24_INDUSTRY_WORKER:JA0313"),
+            new Gov24SupportConditionDefinition("JA0314", "INDUSTRY_WORKER", "어업인", "GOV24_INDUSTRY_WORKER:JA0314"),
+            new Gov24SupportConditionDefinition("JA0315", "INDUSTRY_WORKER", "축산업인", "GOV24_INDUSTRY_WORKER:JA0315"),
+            new Gov24SupportConditionDefinition("JA0316", "INDUSTRY_WORKER", "임업인", "GOV24_INDUSTRY_WORKER:JA0316"),
+            new Gov24SupportConditionDefinition("JA0317", "EDUCATION", "초등학생", "GOV24_EDUCATION:JA0317"),
+            new Gov24SupportConditionDefinition("JA0318", "EDUCATION", "중학생", "GOV24_EDUCATION:JA0318"),
+            new Gov24SupportConditionDefinition("JA0319", "EDUCATION", "고등학생", "GOV24_EDUCATION:JA0319"),
+            new Gov24SupportConditionDefinition("JA0320", "EDUCATION", "대학생/대학원생", "GOV24_EDUCATION:JA0320"),
+            new Gov24SupportConditionDefinition("JA0322", "NO_OP", "해당사항없음", "GOV24_NO_OP:JA0322"),
+
+            new Gov24SupportConditionDefinition("JA0326", "EMPLOYMENT", "근로자/직장인", "GOV24_EMPLOYMENT:JA0326"),
+            new Gov24SupportConditionDefinition("JA0327", "EMPLOYMENT", "구직자/실업자", "GOV24_EMPLOYMENT:JA0327"),
+            new Gov24SupportConditionDefinition("JA0328", "SPECIAL_GROUP", "장애인", "GOV24_SPECIAL:JA0328"),
+            new Gov24SupportConditionDefinition("JA0329", "SPECIAL_GROUP", "국가보훈대상자", "GOV24_SPECIAL:JA0329"),
+            new Gov24SupportConditionDefinition("JA0330", "SPECIAL_GROUP", "질병/질환자", "GOV24_SPECIAL:JA0330"),
+
+            new Gov24SupportConditionDefinition("JA0401", "HOUSEHOLD", "다문화가족", "GOV24_HOUSEHOLD:JA0401"),
+            new Gov24SupportConditionDefinition("JA0402", "HOUSEHOLD", "북한이탈주민", "GOV24_HOUSEHOLD:JA0402"),
+            new Gov24SupportConditionDefinition("JA0403", "HOUSEHOLD", "한부모가정/조손가정", "GOV24_HOUSEHOLD:JA0403"),
+            new Gov24SupportConditionDefinition("JA0404", "HOUSEHOLD", "1인가구", "GOV24_HOUSEHOLD:JA0404"),
+            new Gov24SupportConditionDefinition("JA0410", "NO_OP", "해당사항없음", "GOV24_NO_OP:JA0410"),
+            new Gov24SupportConditionDefinition("JA0411", "HOUSEHOLD", "다자녀가구", "GOV24_HOUSEHOLD:JA0411"),
+            new Gov24SupportConditionDefinition("JA0412", "HOUSEHOLD", "무주택세대", "GOV24_HOUSEHOLD:JA0412"),
+            new Gov24SupportConditionDefinition("JA0413", "HOUSEHOLD", "신규전입", "GOV24_HOUSEHOLD:JA0413"),
+            new Gov24SupportConditionDefinition("JA0414", "HOUSEHOLD", "확대가족", "GOV24_HOUSEHOLD:JA0414"),
+
+            new Gov24SupportConditionDefinition("JA1101", "BUSINESS_STAGE", "예비창업자", "GOV24_BUSINESS_STAGE:JA1101"),
+            new Gov24SupportConditionDefinition("JA1102", "BUSINESS_STAGE", "영업중", "GOV24_BUSINESS_STAGE:JA1102"),
+            new Gov24SupportConditionDefinition("JA1103", "BUSINESS_STAGE", "생계곤란/폐업예정자", "GOV24_BUSINESS_STAGE:JA1103"),
+            new Gov24SupportConditionDefinition("JA1201", "INDUSTRY", "음식업", "GOV24_INDUSTRY:JA1201"),
+            new Gov24SupportConditionDefinition("JA1202", "INDUSTRY", "제조업", "GOV24_INDUSTRY:JA1202"),
+            new Gov24SupportConditionDefinition("JA1299", "INDUSTRY", "기타업종", "GOV24_INDUSTRY:JA1299"),
+
+            new Gov24SupportConditionDefinition("JA2101", "BUSINESS_TYPE", "중소기업", "GOV24_BUSINESS_TYPE:JA2101"),
+            new Gov24SupportConditionDefinition("JA2102", "BUSINESS_TYPE", "사회복지시설", "GOV24_BUSINESS_TYPE:JA2102"),
+            new Gov24SupportConditionDefinition("JA2103", "BUSINESS_TYPE", "기관/단체", "GOV24_BUSINESS_TYPE:JA2103"),
+            new Gov24SupportConditionDefinition("JA2201", "INDUSTRY", "제조업", "GOV24_INDUSTRY:JA2201"),
+            new Gov24SupportConditionDefinition("JA2202", "INDUSTRY", "농업, 임업 및 어업", "GOV24_INDUSTRY:JA2202"),
+            new Gov24SupportConditionDefinition("JA2203", "INDUSTRY", "정보통신업", "GOV24_INDUSTRY:JA2203"),
+            new Gov24SupportConditionDefinition("JA2299", "INDUSTRY", "기타업종", "GOV24_INDUSTRY:JA2299")
+    );
     // ===== 온통청년 =====
 
     public WelfareService fromYouth(YouthApiDto.Item item) {
@@ -1028,35 +1079,9 @@ public class WelfareServiceMapper {
                     .build());
         }
 
-        gov24FlagFact(facts, conditions, "JA0101", "GENDER", "남성", "GOV24_GENDER:MALE");
-        gov24FlagFact(facts, conditions, "JA0102", "GENDER", "여성", "GOV24_GENDER:FEMALE");
-
-        gov24FlagFact(facts, conditions, "JA0201", "INCOME", "중위소득 0~50%", "GOV24_INCOME:JA0201");
-        gov24FlagFact(facts, conditions, "JA0202", "INCOME", "중위소득 51~75%", "GOV24_INCOME:JA0202");
-        gov24FlagFact(facts, conditions, "JA0203", "INCOME", "중위소득 76~100%", "GOV24_INCOME:JA0203");
-        gov24FlagFact(facts, conditions, "JA0204", "INCOME", "중위소득 101~200%", "GOV24_INCOME:JA0204");
-        gov24FlagFact(facts, conditions, "JA0205", "INCOME", "중위소득 200% 초과", "GOV24_INCOME:JA0205");
-
-        gov24FlagFact(facts, conditions, "JA0317", "EDUCATION", "초등학생", "GOV24_EDUCATION:JA0317");
-        gov24FlagFact(facts, conditions, "JA0318", "EDUCATION", "중학생", "GOV24_EDUCATION:JA0318");
-        gov24FlagFact(facts, conditions, "JA0319", "EDUCATION", "고등학생", "GOV24_EDUCATION:JA0319");
-        gov24FlagFact(facts, conditions, "JA0320", "EDUCATION", "대학생/대학원생", "GOV24_EDUCATION:JA0320");
-
-        gov24FlagFact(facts, conditions, "JA0326", "EMPLOYMENT", "근로자/직장인", "GOV24_EMPLOYMENT:JA0326");
-        gov24FlagFact(facts, conditions, "JA0327", "EMPLOYMENT", "구직자/실업자", "GOV24_EMPLOYMENT:JA0327");
-
-        gov24FlagFact(facts, conditions, "JA0401", "HOUSEHOLD", "다문화가족", "GOV24_HOUSEHOLD:JA0401");
-        gov24FlagFact(facts, conditions, "JA0402", "HOUSEHOLD", "북한이탈주민", "GOV24_HOUSEHOLD:JA0402");
-        gov24FlagFact(facts, conditions, "JA0403", "HOUSEHOLD", "한부모가정/조손가정", "GOV24_HOUSEHOLD:JA0403");
-        gov24FlagFact(facts, conditions, "JA0404", "HOUSEHOLD", "1인가구", "GOV24_HOUSEHOLD:JA0404");
-        gov24FlagFact(facts, conditions, "JA0411", "HOUSEHOLD", "다자녀가구", "GOV24_HOUSEHOLD:JA0411");
-        gov24FlagFact(facts, conditions, "JA0412", "HOUSEHOLD", "무주택세대", "GOV24_HOUSEHOLD:JA0412");
-        gov24FlagFact(facts, conditions, "JA0413", "HOUSEHOLD", "신규전입", "GOV24_HOUSEHOLD:JA0413");
-        gov24FlagFact(facts, conditions, "JA0414", "HOUSEHOLD", "확대가족", "GOV24_HOUSEHOLD:JA0414");
-
-        gov24FlagFact(facts, conditions, "JA0328", "SPECIAL_GROUP", "장애인", "GOV24_SPECIAL:JA0328");
-        gov24FlagFact(facts, conditions, "JA0329", "SPECIAL_GROUP", "국가보훈대상자", "GOV24_SPECIAL:JA0329");
-        gov24FlagFact(facts, conditions, "JA0330", "SPECIAL_GROUP", "질병/질환자", "GOV24_SPECIAL:JA0330");
+        for (Gov24SupportConditionDefinition definition : GOV24_SUPPORT_CONDITION_DEFINITIONS) {
+            gov24FlagFact(facts, conditions, definition);
+        }
 
         return facts;
     }
@@ -1111,28 +1136,25 @@ public class WelfareServiceMapper {
 
     private void gov24FlagFact(List<NormalizedPolicyAggregate.Fact> facts,
                                Map<String, Object> conditions,
-                               String code,
-                               String factGroup,
-                               String label,
-                               String mergeKey) {
-        Object raw = conditions.get(code);
+                               Gov24SupportConditionDefinition definition) {
+        Object raw = conditions.get(definition.code());
         if (!isEnabledSupportCondition(raw)) {
             return;
         }
         facts.add(NormalizedPolicyAggregate.Fact.builder()
-                .factGroup(factGroup)
+                .factGroup(definition.factGroup())
                 .factCodeSetKey("GOV24_SUPPORT_CONDITION")
-                .factCode(code)
-                .factMergeKey(mergeKey)
-                .factLabel(label)
+                .factCode(definition.code())
+                .factMergeKey(definition.mergeKey())
+                .factLabel(definition.label())
                 .operator(NormalizedPolicyAggregate.Operator.FLAG)
                 .valueType(NormalizedPolicyAggregate.ValueType.BOOLEAN)
                 .boolValue(Boolean.TRUE)
-                .sourceField(code)
+                .sourceField(definition.code())
                 .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
                 .confidence(BigDecimal.ONE)
                 .rawValue(String.valueOf(raw))
-                .evidenceText(label)
+                .evidenceText(definition.label())
                 .build());
     }
 
@@ -1191,6 +1213,14 @@ public class WelfareServiceMapper {
             String sourceField,
             String label,
             double confidence
+    ) {
+    }
+
+    private record Gov24SupportConditionDefinition(
+            String code,
+            String factGroup,
+            String label,
+            String mergeKey
     ) {
     }
 
