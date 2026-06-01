@@ -31,7 +31,7 @@ class RecommendationRefreshRateLimitServiceTest {
 
     @BeforeEach
     void setUp() {
-        recommendationRefreshRateLimitService = new RecommendationRefreshRateLimitService(redisTemplate, 1, 600, 3, 60);
+        recommendationRefreshRateLimitService = new RecommendationRefreshRateLimitService(redisTemplate, 5, 600, 3, 60);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
     }
 
@@ -59,7 +59,7 @@ class RecommendationRefreshRateLimitServiceTest {
     @Test
     @DisplayName("personal refresh 제한을 초과하면 429 추천 refresh rate limit 오류를 반환한다")
     void checkRefreshLimitThrowsWhenPersonalLimitExceeded() {
-        when(valueOperations.increment("recommend:rate-limit:refresh:personal:user-key-1")).thenReturn(2L);
+        when(valueOperations.increment("recommend:rate-limit:refresh:personal:user-key-1")).thenReturn(6L);
         when(redisTemplate.getExpire("recommend:rate-limit:refresh:personal:user-key-1")).thenReturn(120L);
 
         assertThatThrownBy(() -> recommendationRefreshRateLimitService.checkRefreshLimit("user-key-1", true))

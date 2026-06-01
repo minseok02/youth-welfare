@@ -6,6 +6,7 @@ import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.gateway.AiRecommendationGateway;
+import com.example.welfare.recommend.repository.RecommendationPersistenceCommandRepository;
 import com.example.welfare.recommend.repository.RecommendationLogRepository;
 import com.example.welfare.recommend.repository.UserRecommendationRepository;
 import com.example.welfare.user.entity.PriorityOption;
@@ -91,6 +92,9 @@ class RecommendationFlowIntegrationTest {
     private RecommendationLogRepository recommendationLogRepository;
 
     @Autowired
+    private RecommendationPersistenceCommandRepository recommendationPersistenceCommandRepository;
+
+    @Autowired
     private UserCoreSyncService userCoreSyncService;
 
     @MockBean
@@ -108,7 +112,7 @@ class RecommendationFlowIntegrationTest {
                 user -> user.getEmail() != null && user.getEmail().startsWith(TEST_EMAIL_PREFIX),
                 userKey -> {
                     recommendationLogRepository.deleteAll(recommendationLogRepository.findByUserKey(userKey));
-                    userRecommendationRepository.deleteAll(userRecommendationRepository.findByUserKey(userKey));
+                    recommendationPersistenceCommandRepository.replaceAllForUser(userKey, List.of());
                     authUserRepository.findByUserKey(userKey).ifPresent(authUserRepository::delete);
                     userProfileRepository.findByUserKey(userKey).ifPresent(userProfileRepository::delete);
                     userPiiReadWriteRepository.deleteByUserKey(userKey);
@@ -242,7 +246,7 @@ class RecommendationFlowIntegrationTest {
     }
 
     @Test
-    @DisplayName("personal 추천 refresh 는 짧은 시간 재요청 시 429와 R004를 반환한다")
+    @DisplayName("personal 추천 refresh 는 10분 내 5회를 초과하면 429와 R004를 반환한다")
     void personalRefreshIsRateLimitedPerUser() throws Exception {
         User user = userRepository.save(User.builder()
                 .email(TEST_EMAIL_PREFIX + UUID.randomUUID() + "@example.com")
@@ -287,11 +291,13 @@ class RecommendationFlowIntegrationTest {
 
         String accessToken = jwtUtil.generateAccessToken(userKey, user.getId());
 
-        mockMvc.perform(post("/api/recommendations/refresh")
-                        .param("personal", "true")
-                        .header("Authorization", "Bearer " + accessToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true));
+        for (int i = 0; i < 5; i++) {
+            mockMvc.perform(post("/api/recommendations/refresh")
+                            .param("personal", "true")
+                            .header("Authorization", "Bearer " + accessToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true));
+        }
 
         mockMvc.perform(post("/api/recommendations/refresh")
                         .param("personal", "true")

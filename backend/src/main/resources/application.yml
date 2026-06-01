@@ -231,6 +231,13 @@ collect:
 
 recommend:
   refresh-cache-ttl-minutes: ${RECOMMEND_REFRESH_CACHE_TTL_MINUTES:15}
+  rate-limit:
+    personal-refresh:
+      max-requests: ${RECOMMEND_RATE_LIMIT_PERSONAL_REFRESH_MAX_REQUESTS:5}
+      window-seconds: ${RECOMMEND_RATE_LIMIT_PERSONAL_REFRESH_WINDOW_SECONDS:600}
+    shared-refresh:
+      max-requests: ${RECOMMEND_RATE_LIMIT_SHARED_REFRESH_MAX_REQUESTS:3}
+      window-seconds: ${RECOMMEND_RATE_LIMIT_SHARED_REFRESH_WINDOW_SECONDS:60}
 
 notification:
   web-push:

@@ -70,6 +70,22 @@ app:
         maximum-pool-size: 1
         minimum-idle: 0
         read-only: true
+    recommendation-review-gate-command:
+      url: ${INTEGRATION_RECOMMENDATION_REVIEW_GATE_COMMAND_DB_URL:jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable}
+      username: ${INTEGRATION_RECOMMENDATION_REVIEW_GATE_COMMAND_DB_USERNAME:recommendation_review_gate_command_rw}
+      password: ${INTEGRATION_RECOMMENDATION_REVIEW_GATE_COMMAND_DB_PASSWORD:welfare1234!}
+      driver-class-name: org.postgresql.Driver
+      hikari:
+        maximum-pool-size: 1
+        minimum-idle: 0
+    recommendation-persistence-command:
+      url: ${INTEGRATION_RECOMMENDATION_PERSISTENCE_COMMAND_DB_URL:jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable}
+      username: ${INTEGRATION_RECOMMENDATION_PERSISTENCE_COMMAND_DB_USERNAME:recommendation_persistence_command_rw}
+      password: ${INTEGRATION_RECOMMENDATION_PERSISTENCE_COMMAND_DB_PASSWORD:welfare1234!}
+      driver-class-name: org.postgresql.Driver
+      hikari:
+        maximum-pool-size: 1
+        minimum-idle: 0
     chat-session-cleanup:
       url: ${INTEGRATION_CHAT_SESSION_CLEANUP_DB_URL:jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable}
       username: ${INTEGRATION_CHAT_SESSION_CLEANUP_DB_USERNAME:chat_session_cleanup_rw}
