@@ -37,8 +37,8 @@
 이 문서가 열었던 local lane은 이미 closeout truth로 닫힌 상태입니다.
 현재 [phase-plan.md](../phase-plan.md) 과 코드 기준 practical next action은
 `Gov24 canonical promotion` 을 새로 구현하는 것이 아니라,
-이미 닫힌 label-first canonical 경계를 유지하면서
-stable code/import-backfill 또는 public/scoring 확장 같은 **reopen 조건이 생길 때만 다시 여는 것**입니다.
+이미 닫힌 label-first canonical, public/scoring, priority bridge 경계를 유지하면서
+외부 공식 codebook 재수입 또는 raw hard eligibility 같은 **reopen 조건이 생길 때만 다시 여는 것**입니다.
 
 즉 current live action은 policy 구현 reopen이 아니라 recommendation 관찰 유지입니다. policy/Gov24는 새 승인 목표가 생기기 전까지 close/deferred 상태를 유지하는 편이 맞습니다.
 
@@ -198,5 +198,5 @@ blocked SQL 과 deferred Gov24 business-code 승격보다 먼저
 | 항목 | 지금 안 하는 이유 | 다시 열 조건 |
 |---|---|---|
 | recommendation 제품 판단 | bug closeout은 끝났고, 남은 것은 local 청년 정책 신호를 더 강하게 넣을지에 대한 제품/모델링 선택이다. | 새 재현 버그가 생기거나, local 청년 정책 노출 강화가 명시 목표로 승인될 때 |
-| `Gov24` canonical promotion | `supportConditions` 는 partial runtime fact가 active 이고, `serviceField/userType/benefitType` raw inventory와 1차 내부 매핑 초안도 정리됐다. label-first canonical 경계와 public discovery filter는 이미 local closeout 됐고, recommendation scoring도 bounded soft additive bonus까지만 열렸다. 현재 practical next action은 새 구현이 아니라 matcher hard condition / stable code / service_facts 같은 더 큰 reopen 경계를 유지하는 것이다. | stable code/import-backfill, matcher hard condition, full-scope supportConditions 확장이 실제 목표로 승인될 때 |
+| `Gov24` canonical promotion | `supportConditions` full-scope runtime fact, `Gov24 -> YOUTH_MID` bridge, priority bucket bridge, internal code seed/backfill까지 local closeout 됐다. 현재 practical next action은 새 구현이 아니라 외부 공식 codebook 재수입 또는 raw 조합값 hard eligibility 승격 같은 더 큰 reopen 경계를 유지하는 것이다. | 외부 공식 codebook import/backfill 또는 raw 조합값 hard eligibility 승격이 실제 목표로 승인될 때 |
 | infra/server 확장 | 서버 reality는 확인됐지만, 현재 main track은 bounded runtime 기준선 유지와 drift 정리다. | 배포/운영 절차 고도화가 별도 active 목표로 승격될 때 |

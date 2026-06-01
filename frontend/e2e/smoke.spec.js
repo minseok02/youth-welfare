@@ -409,7 +409,7 @@ test("admin dashboard는 recommendation overview와 triage 섹션을 함께 보�
   await loginFromProtectedRoute(page, "/admin/dashboard", adminCredentials);
 
   await expect(page.getByText("운영 추천 대시보드")).toBeVisible();
-  await expect(page.locator("#admin-recommendation-overview").getByText("추천 검토 게이트", { exact: true }).first()).toBeVisible();
+  await expect(page.locator("#admin-recommendation-overview").getByText("추천 검토 상태", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("수집 실패 상세 로딩 중")).toHaveCount(0);
   await expect(page.getByText("수집 실패 상세", { exact: true })).toBeVisible();
   await expect(page.getByText("최근 0건 검색 키워드", { exact: true })).toBeVisible();
@@ -444,7 +444,7 @@ test("admin dashboard breakdown 실패 시 recommendation hero는 유지되고 �
 
   await expect(page.getByText("추천 상세 진단 로딩 중")).toHaveCount(0);
   await expect(page.getByText("운영 추천 대시보드")).toBeVisible();
-  await expect(page.locator("#admin-recommendation-overview").getByText("추천 검토 게이트", { exact: true }).first()).toBeVisible();
+  await expect(page.locator("#admin-recommendation-overview").getByText("추천 검토 상태", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("일부 섹션만 불러오지 못했습니다.")).toBeVisible();
   await expect(page.getByText("추천 상세 진단 로드 실패")).toBeVisible();
   await expect(page.getByText("breakdown forced failure")).toBeVisible();

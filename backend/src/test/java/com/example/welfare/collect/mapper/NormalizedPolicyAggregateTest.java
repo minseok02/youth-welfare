@@ -167,6 +167,8 @@ class NormalizedPolicyAggregateTest {
                 .extracting(NormalizedPolicyAggregate.TaxonomyTerm::termGroup,
                         NormalizedPolicyAggregate.TaxonomyTerm::termLabel)
                 .contains(
+                        tuple("YOUTH_MAJOR", "주거"),
+                        tuple("YOUTH_MID", "주택 및 거주지"),
                         tuple("GOV24_SERVICE_FIELD", "주거·자립"),
                         tuple("GOV24_USER_TYPE_TOKEN", "개인"),
                         tuple("GOV24_USER_TYPE_TOKEN", "가구"),

@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -49,6 +50,27 @@ public final class RecommendationProjectionHeuristicSupport {
             "노년",
             "임신",
             "출산"
+    );
+    private static final Map<String, String> GOV24_SERVICE_FIELD_PRIORITY_BUCKETS = Map.of(
+            "주거·자립", "HOUSING",
+            "고용·창업", "JOB",
+            "보육·교육", "EDUCATION",
+            "생활안정", "FINANCE",
+            "문화·환경", "CULTURE",
+            "보호·돌봄", "FAMILY",
+            "임신·출산", "FAMILY"
+    );
+    private static final Map<String, String> GOV24_BENEFIT_TYPE_PRIORITY_BUCKETS = Map.ofEntries(
+            Map.entry("현금", "FINANCE"),
+            Map.entry("현금(감면)", "FINANCE"),
+            Map.entry("현금(보험)", "FINANCE"),
+            Map.entry("현금(융자)", "FINANCE"),
+            Map.entry("현금(장학금)", "EDUCATION"),
+            Map.entry("기타(교육)", "EDUCATION"),
+            Map.entry("서비스(일자리)", "JOB"),
+            Map.entry("기술지원", "JOB"),
+            Map.entry("문화/여가지원", "CULTURE"),
+            Map.entry("서비스(돌봄)", "FAMILY")
     );
 
     private RecommendationProjectionHeuristicSupport() {
@@ -125,6 +147,14 @@ public final class RecommendationProjectionHeuristicSupport {
 
     public static boolean educationPriorityBoostEligible(String compatCategoryCode, String youthMajorLabel) {
         return CompatCategorySupport.isOtherCompatCode(compatCategoryCode) && "교육".equals(youthMajorLabel);
+    }
+
+    public static String gov24ServiceFieldPriorityBucket(String serviceFieldLabel) {
+        return serviceFieldLabel == null ? null : GOV24_SERVICE_FIELD_PRIORITY_BUCKETS.get(serviceFieldLabel);
+    }
+
+    public static String gov24BenefitTypePriorityBucket(String benefitTypeToken) {
+        return benefitTypeToken == null ? null : GOV24_BENEFIT_TYPE_PRIORITY_BUCKETS.get(benefitTypeToken);
     }
 
     private static List<String> audienceTextSignals(String title,

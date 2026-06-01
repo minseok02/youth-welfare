@@ -55,6 +55,31 @@ const decodeHtml = (text) => {
   return text.replace(/&[a-zA-Z0-9#]+;/g, (e) => HTML_ENTITIES[e] ?? e);
 };
 
+const splitMultiValue = (value) => {
+  const normalized = typeof value === "string" ? value.trim() : "";
+  if (!normalized) return [];
+  const seen = new Set();
+  return normalized
+    .split("||")
+    .map((part) => part.trim())
+    .filter((part) => {
+      if (!part || seen.has(part)) return false;
+      seen.add(part);
+      return true;
+    });
+};
+
+const formatMultiValueText = (value, separator = " · ") => {
+  const parts = splitMultiValue(value);
+  return parts.length > 0 ? parts.join(separator) : null;
+};
+
+const decodeDisplayText = (text) => {
+  const decoded = decodeHtml(text);
+  if (typeof decoded !== "string") return decoded;
+  return decoded.replace(/\s*\|\|\s*/g, " · ");
+};
+
 const normalizeSafeExternalUrl = (value) => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -117,20 +142,27 @@ const joinMetaParts = (parts, separator = " · ") => {
     .join(separator);
 };
 
-const resolveGov24FallbackLabel = (primaryLabel, candidates, allowedTokens) => {
+const splitGov24MultiLabel = (label) => {
+  return splitMultiValue(label);
+};
+
+const resolveGov24FallbackLabels = (primaryLabel, candidates, allowedTokens) => {
   const normalizedPrimary = typeof primaryLabel === "string" ? primaryLabel.trim() : "";
-  if (normalizedPrimary) return normalizedPrimary;
+  if (normalizedPrimary) return splitGov24MultiLabel(normalizedPrimary);
 
   const allowed = new Set(allowedTokens);
+  const labels = [];
   for (const candidate of candidates) {
     const normalizedCandidate = typeof candidate === "string" ? candidate.trim() : "";
-    if (allowed.has(normalizedCandidate)) {
-      return normalizedCandidate;
+    if (allowed.has(normalizedCandidate) && !labels.includes(normalizedCandidate)) {
+      labels.push(normalizedCandidate);
     }
   }
 
-  return null;
+  return labels;
 };
+
+const formatGov24LabelText = (labels) => labels.length > 0 ? labels.join(" · ") : null;
 
 const formatSource = (sourceType) => {
   if (sourceType === "YOUTH") return "온통청년";
@@ -421,7 +453,7 @@ export default function PolicyDetailPage() {
     if (!policy?.tags?.length) return [];
     const seen = new Set();
     return policy.tags
-      .map(tag => tag?.tagValue?.trim())
+      .flatMap(tag => splitMultiValue(tag?.tagValue))
       .filter(v => {
         if (!v || seen.has(v)) return false;
         if (/^[A-Z0-9_]+$/.test(v)) return false;
@@ -430,34 +462,42 @@ export default function PolicyDetailPage() {
       });
   }, [policy?.tags]);
 
-  const gov24UserTypeDisplayLabel = useMemo(() => {
-    if (policy?.sourceType !== "GOV24") return null;
-    return resolveGov24FallbackLabel(
+  const gov24UserTypeDisplayLabels = useMemo(() => {
+    if (policy?.sourceType !== "GOV24") return [];
+    return resolveGov24FallbackLabels(
       policy?.gov24UserTypeLabel,
       visibleTags,
       GOV24_USER_TYPE_TOKENS
     );
   }, [policy?.gov24UserTypeLabel, policy?.sourceType, visibleTags]);
+  const gov24UserTypeDisplayText = useMemo(
+    () => formatGov24LabelText(gov24UserTypeDisplayLabels),
+    [gov24UserTypeDisplayLabels]
+  );
 
-  const gov24BenefitTypeDisplayLabel = useMemo(() => {
-    if (policy?.sourceType !== "GOV24") return null;
-    return resolveGov24FallbackLabel(
+  const gov24BenefitTypeDisplayLabels = useMemo(() => {
+    if (policy?.sourceType !== "GOV24") return [];
+    return resolveGov24FallbackLabels(
       policy?.gov24BenefitTypeLabel,
       [policy?.provisionType, ...visibleTags],
       GOV24_BENEFIT_TYPE_TOKENS
     );
   }, [policy?.gov24BenefitTypeLabel, policy?.provisionType, policy?.sourceType, visibleTags]);
+  const gov24BenefitTypeDisplayText = useMemo(
+    () => formatGov24LabelText(gov24BenefitTypeDisplayLabels),
+    [gov24BenefitTypeDisplayLabels]
+  );
 
   const gov24MetaTags = useMemo(() => {
     if (policy?.sourceType !== "GOV24") return [];
     return [
       policy?.gov24ServiceFieldLabel && `분야 ${policy.gov24ServiceFieldLabel}`,
-      gov24UserTypeDisplayLabel && `대상 ${gov24UserTypeDisplayLabel}`,
-      gov24BenefitTypeDisplayLabel && `유형 ${gov24BenefitTypeDisplayLabel}`,
+      ...gov24UserTypeDisplayLabels.map((label) => `대상 ${label}`),
+      ...gov24BenefitTypeDisplayLabels.map((label) => `유형 ${label}`),
     ].filter(Boolean);
   }, [
-    gov24BenefitTypeDisplayLabel,
-    gov24UserTypeDisplayLabel,
+    gov24BenefitTypeDisplayLabels,
+    gov24UserTypeDisplayLabels,
     policy?.sourceType,
     policy?.gov24ServiceFieldLabel,
   ]);
@@ -540,7 +580,7 @@ export default function PolicyDetailPage() {
       ageRange,
       incomeRange,
       policy.lifeStage,
-      gov24UserTypeDisplayLabel,
+      gov24UserTypeDisplayText,
     ]) || NO_DATA;
     const categorySummary = joinMetaParts([
       policy.youthMajorLabel,
@@ -549,13 +589,13 @@ export default function PolicyDetailPage() {
       policy.unifiedCategory,
     ]) || NO_DATA;
     const supportSummary = joinMetaParts([
-      policy.provisionType,
+      formatMultiValueText(policy.provisionType),
       policy.supportCycle,
-      gov24BenefitTypeDisplayLabel,
+      gov24BenefitTypeDisplayText,
     ]) || NO_DATA;
     const applyPathSummary = joinMetaParts([
-      policy.applyMethodName,
-      policy.provisionMethodLabel,
+      formatMultiValueText(policy.applyMethodName),
+      formatMultiValueText(policy.provisionMethodLabel),
       policy.isOnlineApply ? "온라인 신청 가능" : null,
     ]) || NO_DATA;
     const orgSummary = joinMetaParts([
@@ -574,24 +614,27 @@ export default function PolicyDetailPage() {
       { ico: "📅", label: "신청기간", value: period },
       { ico: "🎯", label: "키워드", value: visibleTags.slice(0, 4).join(" · ") || NO_DATA },
     ];
-  }, [gov24BenefitTypeDisplayLabel, gov24UserTypeDisplayLabel, policy, regionText, visibleTags]);
+  }, [gov24BenefitTypeDisplayText, gov24UserTypeDisplayText, policy, regionText, visibleTags]);
 
   const quickHighlights = useMemo(() => {
     if (!policy) return [];
 
-    return [
+    return [...new Set([
       formatAgeRange(policy.minAge, policy.maxAge),
       formatIncomeRange(policy.minIncome, policy.maxIncome),
       policy.lifeStage,
       regionText,
       policy.youthMajorLabel,
       policy.youthMidLabel,
-      policy.provisionType,
+      policy.gov24ServiceFieldLabel,
+      gov24UserTypeDisplayText,
+      formatMultiValueText(policy.provisionType),
+      gov24BenefitTypeDisplayText,
       policy.supportCycle,
-      policy.provisionMethodLabel,
+      formatMultiValueText(policy.provisionMethodLabel),
       policy.isOnlineApply ? "온라인 신청 가능" : null,
-    ].filter(Boolean);
-  }, [policy, regionText]);
+    ].filter(Boolean))];
+  }, [gov24BenefitTypeDisplayText, gov24UserTypeDisplayText, policy, regionText]);
 
   const handleBookmark = async () => {
     if (!isLoggedIn) {
@@ -681,12 +724,18 @@ export default function PolicyDetailPage() {
 
   const gov24DiscoveryTargets = useMemo(() => ({
     serviceField: createGov24DiscoveryTarget("gov24ServiceField", policy?.gov24ServiceFieldLabel),
-    userType: createGov24DiscoveryTarget("gov24UserType", gov24UserTypeDisplayLabel),
-    benefitType: createGov24DiscoveryTarget("gov24BenefitType", gov24BenefitTypeDisplayLabel),
+    userType: Object.fromEntries(gov24UserTypeDisplayLabels.map((label) => [
+      label,
+      createGov24DiscoveryTarget("gov24UserType", label),
+    ])),
+    benefitType: Object.fromEntries(gov24BenefitTypeDisplayLabels.map((label) => [
+      label,
+      createGov24DiscoveryTarget("gov24BenefitType", label),
+    ])),
   }), [
     policy?.gov24ServiceFieldLabel,
-    gov24BenefitTypeDisplayLabel,
-    gov24UserTypeDisplayLabel,
+    gov24BenefitTypeDisplayLabels,
+    gov24UserTypeDisplayLabels,
   ]);
 
   const navigateToGov24Discovery = (target) => {
@@ -856,28 +905,30 @@ export default function PolicyDetailPage() {
                         분야 {policy.gov24ServiceFieldLabel}
                       </Tag>
                     )}
-                    {gov24UserTypeDisplayLabel && (
+                    {gov24UserTypeDisplayLabels.map((label) => (
                       <Tag
+                        key={`gov24-user-${label}`}
                         bg="#eef7f1"
                         color="#166534"
                         border="#bbf7d0"
-                        onClick={() => navigateToGov24Discovery(gov24DiscoveryTargets.userType)}
+                        onClick={() => navigateToGov24Discovery(gov24DiscoveryTargets.userType[label])}
                         title="같은 Gov24 사용자구분 정책 보기"
                       >
-                        대상 {gov24UserTypeDisplayLabel}
+                        대상 {label}
                       </Tag>
-                    )}
-                    {gov24BenefitTypeDisplayLabel && (
+                    ))}
+                    {gov24BenefitTypeDisplayLabels.map((label) => (
                       <Tag
+                        key={`gov24-benefit-${label}`}
                         bg="#eef7f1"
                         color="#166534"
                         border="#bbf7d0"
-                        onClick={() => navigateToGov24Discovery(gov24DiscoveryTargets.benefitType)}
+                        onClick={() => navigateToGov24Discovery(gov24DiscoveryTargets.benefitType[label])}
                         title="같은 Gov24 지원유형 정책 보기"
                       >
-                        유형 {gov24BenefitTypeDisplayLabel}
+                        유형 {label}
                       </Tag>
-                    )}
+                    ))}
                   </div>
                 )}
               </header>
@@ -929,13 +980,13 @@ export default function PolicyDetailPage() {
 
               <ContentSection id="intro" title="정책 소개">
                 <p style={{ whiteSpace: "pre-line", margin: 0 }}>
-                  {decodeHtml(policy.description) || `정책 소개 정보가 없습니다. ${NO_DATA}`}
+                  {decodeDisplayText(policy.description) || `정책 소개 정보가 없습니다. ${NO_DATA}`}
                 </p>
               </ContentSection>
 
               <ContentSection id="support" title="지원 내용">
                 <p style={{ whiteSpace: "pre-line", margin: 0 }}>
-                  {decodeHtml(policy.supportDetail || policy.supportContent) || `지원 내용 정보가 없습니다. ${NO_DATA}`}
+                  {decodeDisplayText(policy.supportDetail || policy.supportContent) || `지원 내용 정보가 없습니다. ${NO_DATA}`}
                 </p>
               </ContentSection>
 
@@ -948,16 +999,17 @@ export default function PolicyDetailPage() {
                     <Tag bg={WHITE} border={LINE}>소득 {formatIncomeRange(policy.minIncome, policy.maxIncome).replace("소득 ", "")}</Tag>
                   )}
                   {policy.lifeStage && <Tag bg={WHITE} border={LINE}>{policy.lifeStage}</Tag>}
-                  {gov24UserTypeDisplayLabel && (
+                  {gov24UserTypeDisplayLabels.map((label) => (
                     <Tag
+                      key={`target-gov24-user-${label}`}
                       bg={WHITE}
                       border={LINE}
-                      onClick={() => navigateToGov24Discovery(gov24DiscoveryTargets.userType)}
+                      onClick={() => navigateToGov24Discovery(gov24DiscoveryTargets.userType[label])}
                       title="같은 Gov24 사용자구분 정책 보기"
                     >
-                      {gov24UserTypeDisplayLabel}
+                      {label}
                     </Tag>
-                  )}
+                  ))}
                   {regionText && <Tag bg={WHITE} border={LINE}>{regionText}</Tag>}
                 </div>
                 {youthOfficialFactRows.length > 0 && (
@@ -992,26 +1044,30 @@ export default function PolicyDetailPage() {
                   </div>
                 )}
                 <p style={{ whiteSpace: "pre-line", margin: 0 }}>
-                  {decodeHtml(policy.targetDetail) || `신청 대상 정보가 없습니다. ${NO_DATA}`}
+                  {decodeDisplayText(policy.targetDetail) || `신청 대상 정보가 없습니다. ${NO_DATA}`}
                 </p>
               </ContentSection>
 
               {policy.selectionCriteria && (
                 <ContentSection id="criteria" title="선정 기준">
                   <p style={{ whiteSpace: "pre-line", margin: 0 }}>
-                    {decodeHtml(policy.selectionCriteria)}
+                    {decodeDisplayText(policy.selectionCriteria)}
                   </p>
                 </ContentSection>
               )}
 
               <ContentSection id="method" title="신청 방법">
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
-                  {policy.applyMethodName && <Tag bg={WHITE} border={LINE}>{policy.applyMethodName}</Tag>}
-                  {policy.provisionMethodLabel && <Tag bg={WHITE} border={LINE}>{policy.provisionMethodLabel}</Tag>}
+                  {[...new Set([
+                    ...splitMultiValue(policy.applyMethodName),
+                    ...splitMultiValue(policy.provisionMethodLabel),
+                  ])].map((label) => (
+                    <Tag key={`method-${label}`} bg={WHITE} border={LINE}>{label}</Tag>
+                  ))}
                   {policy.isOnlineApply && <Tag bg={WHITE} border={LINE}>온라인 신청 가능</Tag>}
                 </div>
                 <p style={{ whiteSpace: "pre-line", margin: 0 }}>
-                  {decodeHtml(policy.applyMethodDetail || policy.applyMethodName) || `신청 방법 정보가 없습니다. ${NO_DATA}`}
+                  {decodeDisplayText(policy.applyMethodDetail || policy.applyMethodName) || `신청 방법 정보가 없습니다. ${NO_DATA}`}
                 </p>
               </ContentSection>
 
@@ -1085,7 +1141,7 @@ export default function PolicyDetailPage() {
                           관련 법령
                         </div>
                         <p style={{ whiteSpace: "pre-line", margin: 0 }}>
-                          {decodeHtml(policy.relatedLaw)}
+                          {decodeDisplayText(policy.relatedLaw)}
                         </p>
                       </div>
                     )}
@@ -1095,7 +1151,7 @@ export default function PolicyDetailPage() {
                           제출 서류
                         </div>
                         <p style={{ whiteSpace: "pre-line", margin: 0 }}>
-                          {decodeHtml(policy.formFiles)}
+                          {decodeDisplayText(policy.formFiles)}
                         </p>
                       </div>
                     )}

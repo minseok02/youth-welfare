@@ -127,8 +127,13 @@ const GOV24_BENEFIT_TYPES = [
   "민원",
   "봉사/기부",
 ];
+const GOV24_BADGE_LIMIT = 4;
 
 const SORT_MAP = { relevance: "RELEVANCE", views: "VIEWS", latest: "LATEST", deadline: "DEADLINE" };
+const STATUS_FILTER_MAP = { "신청가능": "ACTIVE_ONLY", "마감": "EXPIRED_ONLY", "전부표기": "ALL" };
+const STATUS_FILTER_LABEL_BY_API = Object.fromEntries(
+  Object.entries(STATUS_FILTER_MAP).map(([label, apiValue]) => [apiValue, label])
+);
 
 const FALLBACK_TRENDING = ["월세 지원", "국민취업제도", "도약계좌", "창업캠프", "자격증 응시료", "대학생 생활안정"];
 const TRENDING_LIMIT = 6;
@@ -188,6 +193,7 @@ const mapPolicySummary = (policy) => ({
   registeredAt: policy.registeredAt ?? null,
   lastModifiedAt: policy.lastModifiedAt ?? null,
   youthOfficialBadges: buildYouthOfficialBadges(policy),
+  gov24Badges: buildGov24Badges(policy),
 });
 
 const YOUTH_OFFICIAL_SUPPRESSED = new Set(["제한없음", "무관"]);
@@ -202,6 +208,54 @@ const uniqueNonBlank = (values) => {
       return true;
     });
 };
+
+const splitGov24MultiLabel = (label) => uniqueNonBlank(
+  typeof label === "string" ? label.split("||") : []
+);
+
+const normalizeGov24OptionParam = (value, options) => {
+  if (!value) return "전체";
+  const trimmed = value.trim();
+  return options.includes(trimmed) ? trimmed : "전체";
+};
+
+const buildGov24Badges = (policy) => {
+  if (policy?.sourceType !== "GOV24") return [];
+
+  const badges = [
+    policy?.gov24ServiceFieldLabel && `분야 ${policy.gov24ServiceFieldLabel}`,
+    ...splitGov24MultiLabel(policy?.gov24UserTypeLabel).map((label) => `대상 ${label}`),
+    ...splitGov24MultiLabel(policy?.gov24BenefitTypeLabel).map((label) => `유형 ${label}`),
+  ].filter(Boolean);
+
+  return [...new Set(badges)].slice(0, GOV24_BADGE_LIMIT);
+};
+
+function PolicyMetaBadges({ badges }) {
+  if (!badges?.length) return null;
+  return (
+    <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+      {badges.map((badge) => (
+        <span
+          key={badge}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            padding: "3px 9px",
+            borderRadius: 99,
+            fontSize: 11,
+            fontWeight: 700,
+            color: AI,
+            background: "white",
+            border: `1px solid ${LINE}`,
+          }}
+        >
+          {badge}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 const buildYouthOfficialBadges = (policy) => {
   if (policy?.sourceType !== "YOUTH") return [];
@@ -242,6 +296,12 @@ const normalizeSourceTypeParam = (rawSourceType) => {
 const serializeSourceTypeParam = (sourceLabel) => {
   if (!sourceLabel || sourceLabel === "전체") return null;
   return SOURCE_TYPE_MAP[sourceLabel] ?? null;
+};
+
+const normalizeStatusFilterParam = (rawStatusFilter, fallback) => {
+  if (!rawStatusFilter?.trim()) return fallback;
+  const trimmed = rawStatusFilter.trim();
+  return STATUS_FILTER_MAP[trimmed] ? trimmed : (STATUS_FILTER_LABEL_BY_API[trimmed] ?? fallback);
 };
 
 const ddayStyle = (dday) => {
@@ -311,28 +371,7 @@ function PolicyRow({ p, onNavigate, onBookmark }) {
         <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.55, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical" }}>
           {p.summary}
         </div>
-        {p.youthOfficialBadges?.length > 0 && (
-          <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
-            {p.youthOfficialBadges.map((badge) => (
-              <span
-                key={badge}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  padding: "3px 9px",
-                  borderRadius: 99,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: AI,
-                  background: "white",
-                  border: `1px solid ${LINE}`,
-                }}
-              >
-                {badge}
-              </span>
-            ))}
-          </div>
-        )}
+        <PolicyMetaBadges badges={p.youthOfficialBadges?.length ? p.youthOfficialBadges : p.gov24Badges} />
         <div style={{ display: "flex", gap: 14, marginTop: 10, fontSize: 12, color: INK3, flexWrap: "wrap" }}>
           {p.sourceTypeLabel && <span>출처 {p.sourceTypeLabel}</span>}
           {p.orgName && <span>🏢 {p.orgName}</span>}
@@ -373,28 +412,7 @@ function PolicyCard({ p, onNavigate, onBookmark }) {
       </div>
       <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.4, color: INK, marginBottom: 6 }}>{p.title}</div>
       <div style={{ fontSize: 12, color: INK2, lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{p.summary}</div>
-      {p.youthOfficialBadges?.length > 0 && (
-        <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
-          {p.youthOfficialBadges.map((badge) => (
-            <span
-              key={badge}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                padding: "3px 9px",
-                borderRadius: 99,
-                fontSize: 11,
-                fontWeight: 700,
-                color: AI,
-                background: "white",
-                border: `1px solid ${LINE}`,
-              }}
-            >
-              {badge}
-            </span>
-          ))}
-        </div>
-      )}
+      <PolicyMetaBadges badges={p.youthOfficialBadges?.length ? p.youthOfficialBadges : p.gov24Badges} />
       <div style={{ display: "flex", gap: 10, marginTop: 8, fontSize: 12, color: INK3, flexWrap: "wrap" }}>
         {p.sourceTypeLabel && <span>출처 {p.sourceTypeLabel}</span>}
         {p.source && <span>🏢 {p.source}</span>}
@@ -420,10 +438,18 @@ export default function PoliciesPage() {
   const [income, setIncome] = useState(searchParams.get("income") || "전체");
   const [targetGroup, setTargetGroup] = useState(searchParams.get("targetGroup") || "");
   const [sourceType, setSourceType] = useState(normalizeSourceTypeParam(searchParams.get("sourceType")));
-  const [gov24ServiceField, setGov24ServiceField] = useState(searchParams.get("gov24ServiceField") || "전체");
-  const [gov24UserType, setGov24UserType] = useState(searchParams.get("gov24UserType") || "전체");
-  const [gov24BenefitType, setGov24BenefitType] = useState(searchParams.get("gov24BenefitType") || "전체");
-  const [statusFilter, setStatusFilter] = useState(searchParams.get("statusFilter") || defaultStatusFilter);
+  const [gov24ServiceField, setGov24ServiceField] = useState(
+    normalizeGov24OptionParam(searchParams.get("gov24ServiceField"), GOV24_SERVICE_FIELDS)
+  );
+  const [gov24UserType, setGov24UserType] = useState(
+    normalizeGov24OptionParam(searchParams.get("gov24UserType"), GOV24_USER_TYPES)
+  );
+  const [gov24BenefitType, setGov24BenefitType] = useState(
+    normalizeGov24OptionParam(searchParams.get("gov24BenefitType"), GOV24_BENEFIT_TYPES)
+  );
+  const [statusFilter, setStatusFilter] = useState(
+    normalizeStatusFilterParam(searchParams.get("statusFilter"), defaultStatusFilter)
+  );
   const [sort, setSort] = useState(resolveInitialSort(searchParams.get("search") || "", searchParams.get("sort")));
   const [pageSize, setPageSize] = useState(Number(searchParams.get("pageSize")) || 10);
   const [cols, setCols] = useState(1);
@@ -492,10 +518,10 @@ export default function PoliciesPage() {
     const nextIncome = searchParams.get("income") || "전체";
     const nextTargetGroup = searchParams.get("targetGroup") || "";
     const nextSourceType = normalizeSourceTypeParam(searchParams.get("sourceType"));
-    const nextGov24ServiceField = searchParams.get("gov24ServiceField") || "전체";
-    const nextGov24UserType = searchParams.get("gov24UserType") || "전체";
-    const nextGov24BenefitType = searchParams.get("gov24BenefitType") || "전체";
-    const nextStatusFilter = searchParams.get("statusFilter") || defaultStatusFilter;
+    const nextGov24ServiceField = normalizeGov24OptionParam(searchParams.get("gov24ServiceField"), GOV24_SERVICE_FIELDS);
+    const nextGov24UserType = normalizeGov24OptionParam(searchParams.get("gov24UserType"), GOV24_USER_TYPES);
+    const nextGov24BenefitType = normalizeGov24OptionParam(searchParams.get("gov24BenefitType"), GOV24_BENEFIT_TYPES);
+    const nextStatusFilter = normalizeStatusFilterParam(searchParams.get("statusFilter"), defaultStatusFilter);
     const nextSort = resolveInitialSort(nextSearch, searchParams.get("sort"));
     const nextPageSize = Number(searchParams.get("pageSize")) || 10;
     const nextPage = Number(searchParams.get("page")) || 1;
@@ -626,7 +652,6 @@ export default function PoliciesPage() {
           page: page - 1,
           size: pageSize,
         };
-        const STATUS_FILTER_MAP = { "신청가능": "ACTIVE_ONLY", "마감": "EXPIRED_ONLY", "전부표기": "ALL" };
         const apiStatusFilter = STATUS_FILTER_MAP[statusFilter] ?? "ACTIVE_ONLY";
 
         const endpoint = appliedSearch.trim() ? "/api/policies/search" : "/api/policies";

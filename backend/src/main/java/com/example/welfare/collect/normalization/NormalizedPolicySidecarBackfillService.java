@@ -1,12 +1,15 @@
 package com.example.welfare.collect.normalization;
 
 import com.example.welfare.collect.entity.RawApiPayload;
+import com.example.welfare.collect.dto.Gov24SupportConditionsDto;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.repository.NormalizedPolicySidecarBackfillReadRepository;
 import com.example.welfare.collect.repository.NormalizedPolicySidecarBackfillTarget;
 import com.example.welfare.collect.service.CollectPolicyAggregateApplyService;
 import com.example.welfare.collect.support.CollectSourceRegistry;
 import com.example.welfare.policy.entity.WelfareService;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -49,6 +52,11 @@ public class NormalizedPolicySidecarBackfillService {
     @Transactional
     public BackfillResult backfillGov24ListSidecars(int limitPerSource) {
         return backfillListSidecars(List.of(WelfareService.SourceType.GOV24), limitPerSource);
+    }
+
+    @Transactional
+    public BackfillResult backfillGov24SupportConditionSidecars(int limitPerSource) {
+        return backfillGov24SupportConditionSource(limitPerSource);
     }
 
     @Transactional
@@ -154,6 +162,63 @@ public class NormalizedPolicySidecarBackfillService {
         }
 
         return new BackfillResult(scanned, upserted, missingService, failed);
+    }
+
+    private BackfillResult backfillGov24SupportConditionSource(int limitPerSource) {
+        List<NormalizedPolicySidecarBackfillTarget> targets = normalizedPolicySidecarBackfillReadRepository
+                .findTargetsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
+                        WelfareService.SourceType.GOV24,
+                        RawApiPayload.ApiCategory.SUPPORT,
+                        limitPerSource
+                );
+
+        int scanned = 0;
+        int upserted = 0;
+        int missingService = 0;
+        int failed = 0;
+
+        for (NormalizedPolicySidecarBackfillTarget target : targets) {
+            scanned++;
+            RawApiPayload raw = target.rawApiPayload();
+            WelfareService service = target.matchedService();
+            if (service == null) {
+                missingService++;
+                continue;
+            }
+
+            try {
+                Gov24SupportConditionsDto.Item payload = parseGov24SupportConditionsRaw(raw);
+                NormalizedPolicyAggregate aggregate = welfareServiceMapper.toGov24SupportConditionsAggregate(service, payload);
+                collectPolicyAggregateApplyService.replaceFactCodeSet(service, "GOV24_SUPPORT_CONDITION", aggregate);
+                upserted++;
+            } catch (Exception e) {
+                failed++;
+                log.warn("[NormalizedPolicySidecarBackfillService] Gov24 support backfill 실패 sourceId={} err={}",
+                        raw.getSourceId(), e.getMessage());
+            }
+        }
+
+        return new BackfillResult(scanned, upserted, missingService, failed);
+    }
+
+    private Gov24SupportConditionsDto.Item parseGov24SupportConditionsRaw(RawApiPayload raw) throws Exception {
+        JsonNode root = objectMapper.readTree(raw.getPayloadJson());
+        JsonNode conditionsNode = root.path("conditions");
+        Map<String, Object> conditions = conditionsNode.isObject()
+                ? objectMapper.convertValue(conditionsNode, new TypeReference<>() {})
+                : Map.of();
+        return Gov24SupportConditionsDto.Item.fromRawPayload(
+                textOrNull(root.get("서비스ID")),
+                textOrNull(root.get("서비스명")),
+                conditions
+        );
+    }
+
+    private String textOrNull(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        return node.asText();
     }
 
     private List<WelfareService.SourceType> configuredSourceTypes(java.util.function.Predicate<SidecarBackfillCapability> predicate) {

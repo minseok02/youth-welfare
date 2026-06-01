@@ -37,7 +37,7 @@ class ServiceTaxonomyLegacySummaryBridgeTest {
         assertThat(params.getValue("youthMajorLabel")).isEqualTo("복지문화");
         assertThat(params.getValue("youthMidCode")).isNull();
         assertThat(params.getValue("youthMidLabel")).isEqualTo("재직자");
-        assertThat(params.getValue("gov24ServiceFieldCode")).isNull();
+        assertThat(params.getValue("gov24ServiceFieldCode")).isEqualTo("LIFE_STABILITY");
         assertThat(params.getValue("gov24ServiceFieldLabel")).isEqualTo("생활안정");
         assertThat(params.getValue("gov24UserTypeCode")).isNull();
         assertThat(params.getValue("gov24UserTypeLabel")).isEqualTo("청년");

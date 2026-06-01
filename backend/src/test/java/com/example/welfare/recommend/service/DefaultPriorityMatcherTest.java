@@ -80,8 +80,8 @@ class DefaultPriorityMatcherTest {
     }
 
     @Test
-    @DisplayName("Gov24 taxonomy projection만으로는 matcher hard condition을 열지 않는다")
-    void gov24TaxonomyProjectionDoesNotOpenMatcherHardCondition() {
+    @DisplayName("Gov24 read-model priority bucket이 있으면 matcher hard condition을 연다")
+    void gov24ReadModelPriorityBucketOpensMatcherHardCondition() {
         WelfareService service = WelfareService.builder()
                 .id(4L)
                 .sourceType(WelfareService.SourceType.GOV24)
@@ -96,10 +96,11 @@ class DefaultPriorityMatcherTest {
                 .gov24ServiceFieldLabel("주거·자립")
                 .gov24UserTypeTokens(java.util.List.of("개인", "가구"))
                 .gov24BenefitTypeTokens(java.util.List.of("현금"))
+                .priorityBuckets(Set.of("HOUSING", "FINANCE"))
                 .build();
 
-        assertThat(matcher.matches(priority("HOUSING"), service, projection)).isFalse();
-        assertThat(matcher.matches(priority("FINANCE"), service, projection)).isFalse();
+        assertThat(matcher.matches(priority("HOUSING"), service, projection)).isTrue();
+        assertThat(matcher.matches(priority("FINANCE"), service, projection)).isTrue();
     }
 
     private PriorityPreference priority(String code) {
