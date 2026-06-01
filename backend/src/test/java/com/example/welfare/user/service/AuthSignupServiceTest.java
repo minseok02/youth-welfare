@@ -67,8 +67,8 @@ class AuthSignupServiceTest {
     }
 
     @Test
-    @DisplayName("회원가입은 이미 존재하는 이메일이어도 동일 성공으로 끝내고 저장을 시도하지 않는다")
-    void signupIgnoresDuplicateEmail() {
+    @DisplayName("회원가입은 이미 존재하는 이메일이면 중복 이메일 오류로 거절한다")
+    void signupRejectsDuplicateEmail() {
         SignupRequest request = new SignupRequest();
         ReflectionTestUtils.setField(request, "email", "user@example.com");
         ReflectionTestUtils.setField(request, "password", "password123!");
@@ -76,15 +76,18 @@ class AuthSignupServiceTest {
         given(emailVerificationService.isVerified("user@example.com")).willReturn(true);
         given(authIdentityReadService.existsByEmail("user@example.com")).willReturn(true);
 
-        authSignupService.signup(request);
+        assertThatThrownBy(() -> authSignupService.signup(request))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.DUPLICATE_EMAIL);
 
         then(userRegistrationService).should(never()).register(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString());
         then(passwordEncoder).shouldHaveNoInteractions();
     }
 
     @Test
-    @DisplayName("회원가입 저장 중 중복 제약이 발생해도 최종적으로 동일 성공으로 끝낸다")
-    void signupIgnoresDuplicateRace() {
+    @DisplayName("회원가입 저장 중 중복 제약이 발생하고 이메일이 존재하면 중복 이메일 오류로 거절한다")
+    void signupRejectsDuplicateRace() {
         SignupRequest request = new SignupRequest();
         ReflectionTestUtils.setField(request, "email", "user@example.com");
         ReflectionTestUtils.setField(request, "password", "password123!");
@@ -97,7 +100,10 @@ class AuthSignupServiceTest {
                 .given(userRegistrationService)
                 .register(request, "encoded-password");
 
-        authSignupService.signup(request);
+        assertThatThrownBy(() -> authSignupService.signup(request))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.DUPLICATE_EMAIL);
 
         then(userRegistrationService).should().register(request, "encoded-password");
     }
