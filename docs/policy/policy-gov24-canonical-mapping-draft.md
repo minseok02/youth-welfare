@@ -5,6 +5,7 @@
 관련 문서:
 
 - [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)
+- [policy-gov24-benefit-type-grouping-draft.md](./policy-gov24-benefit-type-grouping-draft.md)
 - [policy-gov24-runtime-audit-runbook.md](./policy-gov24-runtime-audit-runbook.md)
 - [policy-gov24-support-unmapped-inventory.md](./policy-gov24-support-unmapped-inventory.md)
 - [policy-normalization-current-state.md](./policy-normalization-current-state.md)
@@ -274,6 +275,10 @@ base token inventory는 현재 `4개` 로 고정 가능합니다.
 ### 규칙 B. internal 해석은 `||` token split 기준으로 본다
 
 base token inventory는 현재 `20개` 로 고정 가능합니다.
+
+상위 UX grouping이나 사용자 제공 대표 샘플 기준의 QA 참고표는
+[policy-gov24-benefit-type-grouping-draft.md](./policy-gov24-benefit-type-grouping-draft.md) 를 따릅니다.
+다만 이 문서는 seed source가 아니며, 아래 `20`개 token inventory를 대체하지 않습니다.
 
 1차 token inventory:
 

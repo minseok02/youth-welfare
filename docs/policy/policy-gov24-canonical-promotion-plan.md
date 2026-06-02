@@ -5,6 +5,7 @@
 관련 문서:
 
 - [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)
+- [policy-gov24-benefit-type-grouping-draft.md](./policy-gov24-benefit-type-grouping-draft.md)
 - [policy-gov24-canonical-mapping-draft.md](./policy-gov24-canonical-mapping-draft.md)
 - [policy-gov24-runtime-audit-runbook.md](./policy-gov24-runtime-audit-runbook.md)
 - [policy-normalization-current-state.md](./policy-normalization-current-state.md)
@@ -148,6 +149,9 @@ canonical term은 additive multi-term 으로만 봅니다.
 ### `지원유형`
 
 승격 대상 token은 현재 `20개` allowlist 입니다.
+UX grouping이나 대표 서비스 QA sample은
+[policy-gov24-benefit-type-grouping-draft.md](./policy-gov24-benefit-type-grouping-draft.md) 를 참고하되,
+canonical term seed는 아래 token allowlist를 유지합니다.
 
 - `현금`
 - `현물`
