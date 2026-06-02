@@ -113,14 +113,17 @@ curl -sS -X POST "http://127.0.0.1:8082/api/admin/collect/gov24-sidecars-backfil
 
 - Gov24 LIST 수집 row: `10954`
 - region backfill: `scanned=10954`, `upserted=10954`, `missing=0`, `failed=0`
-- 2026-06-02 latest acceptance 재측정: suite step `11395ms`, HTTP endpoint metric `8235ms`,
-  `regions=33837`
-- 최종 region coverage: `9794/10954 = 89.41%`
-- 최종 region row: `33837`
-- regionless service: `1160`
-- regionless local-agency service: `470`
+- 2026-06-02 latest acceptance 재측정: suite step `9432ms`, HTTP endpoint metric `6295ms`,
+  `regions=33010`
+- 최종 region coverage: `9814/10954 = 89.59%`
+- 최종 region row: `33010`
+- regionless service: `1140`
+- regionless local-agency broad audit metric: `450`
 - 남은 미추론 상위 기관은 `대한법률구조공단`, `기술보증기금`, `한국전력공사`,
   `소상공인시장진흥공단`, `한국장학재단` 등 공공기관 중심입니다.
+- regionless sample follow-up에서 지방 계열 true residual은 `3`건으로 분리했습니다.
+  `고성교육재단`은 지명 중복으로 안전하지 않고, `(재)한국전통문화전당`은 기관/본문에서
+  명확한 지역 신호가 없으며, `온라인 신청 시연 테스트(운영)`은 테스트성 row라 자동 추론하지 않습니다.
 
 회귀 확인은 아래 smoke로 봅니다.
 

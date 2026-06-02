@@ -380,6 +380,19 @@ public final class RegionCodeUtil {
 
         Map<String, RegionName> result = new LinkedHashMap<>();
         String haystack = agencyName.trim();
+        for (Map.Entry<String, String> entry : UNIQUE_SGG_CODE_MAP.entrySet()) {
+            if (haystack.contains(entry.getKey())) {
+                putRegion(result, entry.getValue());
+            }
+        }
+        for (Map.Entry<String, String> entry : UNIQUE_SGG_STEM_CODE_MAP.entrySet()) {
+            if (haystack.contains(entry.getKey())) {
+                putRegion(result, entry.getValue());
+            }
+        }
+        if (!result.isEmpty()) {
+            return List.copyOf(result.values());
+        }
         for (Map.Entry<String, String> alias : SIDO_ALIAS_MAP.entrySet()) {
             if (haystack.contains(alias.getKey())) {
                 addAllSidoRegions(result, alias.getValue());

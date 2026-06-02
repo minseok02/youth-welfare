@@ -374,6 +374,26 @@ class WelfareServiceMapperTest {
     }
 
     @Test
+    void regionsFromGov24_extractsLocalAgencyStemEvenWithNationwideContestText() throws Exception {
+        Gov24ServiceListDto.Item item = new Gov24ServiceListDto.Item();
+        setField(item, "serviceId", "G006B");
+        setField(item, "serviceName", "특기 장학금 지원");
+        setField(item, "servicePurposeSummary", "전국 또는 광역 단위 대회 입상자 지원");
+        setField(item, "managingOrganizationName", "재단법인의왕시인재육성재단");
+        setField(item, "managingOrganizationType", "지방출자_출연기관");
+
+        WelfareService service = mapper.fromGov24(item);
+
+        assertThat(mapper.regionsFromGov24(item, service))
+                .singleElement()
+                .satisfies(region -> {
+                    assertThat(region.getRegionCode()).isEqualTo("41430");
+                    assertThat(region.getSidoName()).isEqualTo("경기도");
+                    assertThat(region.getSggName()).isEqualTo("의왕시");
+                });
+    }
+
+    @Test
     void regionsFromGov24_doesNotExpandBareSidoForPublicAgencyTypes() throws Exception {
         Gov24ServiceListDto.Item item = new Gov24ServiceListDto.Item();
         setField(item, "serviceId", "G007");

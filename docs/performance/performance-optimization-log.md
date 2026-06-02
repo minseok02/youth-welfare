@@ -429,12 +429,15 @@ Observed server Docker runtime deltas:
 
 - Gov24 region backfill endpoint: minutes-level previous server Docker observation -> `duration_ms=10258`
 - service log: `scanned=10954`, `upserted=10954`, `missing=0`, `failed=0`, `regions=33837`, `elapsedMs=9933`
-- region coverage stayed stable: `9794 / 10954 = 89.41%`
+- initial post-change region coverage before the later regionless follow-up: `9794 / 10954 = 89.41%`
 - Gov24 detail collect with strict embedding fallback returned `200`, `requested=1 saved=1 skipped=0 failed=0`
 - embedding fallback log stayed warning-only: `batch embedding refresh skipped serviceCount=1`
 - education smoke: fresh batch `32`, top2 `GOV24:2`, Gov24 top10 rows `10`
 - Gov24 acceptance suite: `passed`, `8` steps, `suite_duration_ms=52002`
 - latest server Docker acceptance summary: `tmp/gov24-acceptance-suite/latest-gov24-acceptance-summary.txt`
+- follow-up regionless audit with local-agency SGG/stem inference stayed seconds-level:
+  region suite step `9432ms`, endpoint metric `6295ms`, coverage `9814 / 10954 = 89.59%`,
+  region rows `33010`, full acceptance suite `58439ms`
 
 Interpretation:
 
@@ -519,4 +522,5 @@ Interpretation:
 | 2026-05-30 | `731f5f2c2e6f58a61ba5b7d89ff20ce6e36990f3` | `7b53d637395aa6c5978a633bc25477f30fd38c9f` | Search | public policy search TTL cache | baseline `p95 481.0ms`, wrapper `p95 340.9ms` | baseline `p95 33.5ms`, wrapper `p95 20.3ms` | `-447.5ms`, `-320.6ms` | improvement accepted |
 | 2026-05-30 | `7b53d637395aa6c5978a633bc25477f30fd38c9f` | `1e62b24dde6405980d9aba8161559c29574a5a6f` | Current Priority | recent `active_baseline` reuse | recent baseline rerun required every time | `active_baseline_reused=true`, `reuse_age_seconds=17`, `reuse_ttl_seconds=900` | duplicate rerun avoided | improvement accepted |
 | 2026-06-02 | server dirty worktree | server dirty worktree | Gov24 Backfill | lightweight projection + bulk region replace | minutes-level server Docker observation | endpoint `10.258s`, service `9.933s` for `10954` rows; acceptance suite `52.002s` | minutes -> seconds | accepted on current server Docker runtime |
+| 2026-06-02 | server dirty worktree | server dirty worktree | Gov24 Region Quality | local-agency SGG/stem inference follow-up | `9794/10954` coverage, `1160` regionless | `9814/10954` coverage, `1140` regionless; region step `9.432s`, suite `58.439s` | `+20` services inferred | accepted on current server Docker runtime |
 | 2026-06-02 | server dirty worktree | server dirty worktree | Gov24 Sidecar | lightweight missing-list projection + batch taxonomy write | sidecar step `308.290s`, suite `368.329s` | sidecar step `15.377s`, suite `74.226s` for `10954` refill | `-292.913s`, `-294.103s` | accepted on current server Docker runtime |
