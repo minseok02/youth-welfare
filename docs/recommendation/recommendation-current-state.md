@@ -27,17 +27,21 @@
 
 ## 현재 판단
 
-`2026-05-29` 서버 기준 recommendation 트랙의 현재 상태는 **bug closeout + 관찰 유지 + 제품 판단 deferred** 입니다.
+`2026-06-01` 서버 기준 recommendation 트랙의 현재 상태는 **real-user gate ready + reopen decision ready + lane 1 local/Gov24 signal boundary closeout** 입니다.
 
-현재 운영 source of truth는 `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-recommendation-reopen-precheck.sh` 기준
+현재 운영 source of truth는 `run-local-recommendation-reopen-precheck.sh`, `run-local-recommendation-observation-suite.sh`, `run-local-current-priority-suite.sh` 를 같이 읽습니다. 최근 current priority suite 기준 결론은 아래입니다.
 
-- `reopen_precheck_status=KEEP_OBSERVING`
-- `reopen_precheck_reason=WAIT_FOR_REAL_USER_TRAFFIC`
-- `next_action=bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh`
+- `current_priority_suite=passed`
+- `decision_class=REOPEN_DECISION_READY`
+- `reopen_allowed=true`
+- `recommended_cadence=immediate`
+- `dashboard_real_user_gate=READY_REAL_USER_TRAFFIC`
+- `breakdown_real_user_cohort_gate=READY_REAL_USER_COHORT`
+- `recommendation_review_gate=READY_NO_PRIORITY_DOMINANT_REVIEW`
 
-입니다. 즉 지금 단계의 다음 액션은 recommendation 코드를 다시 여는 것이 아니라, `REAL_USER` traffic/leader signal이 더 쌓일 때까지 baseline 유지와 latest overview 관찰을 계속하는 것입니다.
+주의할 점은 `latest-status-export` 단독 결과가 baseline helper 범위 때문에 `WAIT_FOR_REAL_USER_TRAFFIC` 로 보일 수 있다는 것입니다. reopen 판단은 latest export 하나가 아니라 overview + real-user precheck + current priority suite 를 같이 본 값으로 확정합니다.
 
-daily operator entrypoint는 [recommendation-observation-runbook.md](./recommendation-observation-runbook.md) 와 `bash deploy/smoke/run-local-recommendation-observation-suite.sh` 입니다. 이제 observation suite는 `summary/json` 외에 `latest-recommendation-observation-note.md` 도 남겨, “왜 아직 reopen이 아닌가”를 사람 말로 바로 handoff 할 수 있습니다.
+daily operator entrypoint는 [recommendation-observation-runbook.md](./recommendation-observation-runbook.md) 와 `bash deploy/smoke/run-local-recommendation-observation-suite.sh` 입니다. observation suite는 `summary/json` 외에 `latest-recommendation-observation-note.md` 도 남겨, 현재 reopen 가능 여부와 다음 행동을 사람 말로 바로 handoff 할 수 있습니다.
 
 즉 지금까지 닫힌 것은 아래입니다.
 
@@ -48,14 +52,16 @@ daily operator entrypoint는 [recommendation-observation-runbook.md](./recommend
 - `GET/POST /api/recommendations` 응답 순서와 persisted rank 불일치 여부
 - diagnostics `rerankCurrent*` 와 saved batch `latestSaved*` 차이가 버그인지, pre-AI trace와 persisted AI 결과 차이인지 여부
 - `2736` 이 왜 낮은지에 대한 원인 분석
+- 현재 DB에 `BOKJIRO_LOCAL=0` 인 상태에서 local target resolver가 stale historical family로 내려가던 문제
+- `GOV24/YOUTH` 인천 target family(`10350,4891,4817,10354,10348`)가 `service_regions` 부재 때문에 `NATIONWIDE` 로만 읽혀 SQL/saved batch 밖으로 밀리던 문제
 
 반대로 아직 열지 않은 것은 아래입니다.
 
-- `2736` 같은 local 청년 정책을 더 올릴지 여부
+- `2736` 또는 `10350/4891/4817/10354/10348` 같은 local/Gov24 청년 정책을 더 위로 올릴지 여부
 - local 정책에 `interest/theme`, 지역 적합성, direct benefit signal을 더 강하게 구조화할지 여부
 - source/category balancing 또는 AI prompt/input 강화를 제품적으로 할지 여부
 
-즉 현재 남은 것은 구현 결함보다 **local 청년 정책을 더 적극적으로 밀고 싶은지에 대한 제품/모델링 선택** 입니다.
+`2026-06-01` Gov24 local lane 재검증 결과 target family 는 더 이상 retrieval miss 로 보지 않습니다. `run-local-recommendation-signal-gap-audit.sh` 기준 `10350/4891/4817/10354/10348` 은 모두 `PRESENT_IN_SAVED_BATCH` 로 들어왔고, saved rank 는 `22~32`, AI score 는 `50~90` 범위입니다. 이 값은 결함 closeout 증거입니다. 특정 family를 더 위로 올릴지에 대한 제품/모델링 선택은 Gov24 전체 제품/운영면이 더 완성된 뒤로 deferred 합니다.
 
 이 선택을 실제로 다시 열 때는 [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md) 기준으로
 `local 신호 구조화 -> diversity/balancing -> direct tuning` 순서를 먼저 고릅니다.
@@ -72,13 +78,13 @@ daily operator entrypoint는 [recommendation-observation-runbook.md](./recommend
 
 ## 다시 열 조건
 
-다음 중 하나가 생길 때만 recommendation 트랙을 다시 여는 편이 맞습니다.
+reopen gate 자체는 `2026-06-01` 기준 열려 있습니다. 다만 지금 immediate next 는 특정 정책 family 랭킹 보정이 아닙니다. 특정 family 승격 판단은 Gov24 전체 제품/운영면이 더 완성된 뒤에만 다시 봅니다.
 
 1. 운영 `REAL_USER` 기준으로 새로운 rank mismatch, click mismatch, cache mismatch, diagnostics mismatch 같은 **재현 가능한 버그** 가 다시 보일 때
 2. 운영 지표상 local 청년 정책 노출이 제품 기대보다 약하다는 **명시적 제품 목표** 가 생길 때
-3. `2736` 류 local 정책의 `interest/theme` 또는 지역 적합성 신호를 더 구조화하자는 **구체적 모델링 과제** 가 승인될 때
+3. `2736` 또는 Gov24 인천 target family 류 local 정책의 `interest/theme`, 지역 적합성, source/category balancing 을 더 구조화하자는 **구체적 모델링 과제** 가 승인될 때
 
-그 전까지는 이 트랙을 direct weight tuning이나 ad-hoc score patch로 reopen 하지 않습니다.
+그 전까지는 이 트랙을 global source bonus, direct weight tuning, ad-hoc score patch로 reopen 하지 않습니다.
 
 ## 현재 추천 파이프라인
 
@@ -104,6 +110,7 @@ daily operator entrypoint는 [recommendation-observation-runbook.md](./recommend
 - 지역
 - 소득
 - `regionCode` / `sido` 가 있으면 해당 지역과 직접 매칭되는 `BOKJIRO_LOCAL` 후보를 전국 정책보다 먼저 읽음
+- `service_regions` 가 비어 있는 `GOV24/YOUTH` 후보라도 제목/설명에 현재 `sido` 텍스트가 있고 `unifiedCategory!=기타` 인 경우, generic nationwide 후보보다 앞서는 bounded local text tier 로 읽음
 
 주의:
 
@@ -214,7 +221,7 @@ daily operator entrypoint는 [recommendation-observation-runbook.md](./recommend
 
 수동 정합보다 편한 경로가 필요하면 `AUTO_REFRESH_STATUS_JSON_IF_STALE=true` 로 `latest-status`, `latest-gate` 를 실행할 수 있습니다. 이 경우 stale JSON이면 `latest-status-export` 를 먼저 다시 태운 뒤 fresh latest JSON 기준으로 값을 읽습니다.
 
-daily operator entrypoint로는 `run-local-recommendation-observation-suite.sh` 를 먼저 쓰고, 세부 해석이 필요할 때 `run-local-recommendation-ai-exclusion-latest-overview.sh` 를 여는 편이 맞습니다. observation suite는 reopen precheck를 감싸 `KEEP_OBSERVING / WAIT_FOR_REAL_USER_TRAFFIC` 같은 current action을 compact summary로 고정합니다. latest overview는 latest export를 먼저 갱신한 뒤 `latest-status`, 기본 `latest-gate`, strict `latest-gate` 를 순서대로 보여 주므로, 더 깊은 상태와 다음 행동을 한 번에 다시 읽을 수 있습니다.
+daily operator entrypoint로는 `run-local-recommendation-observation-suite.sh` 를 먼저 쓰고, 세부 해석이 필요할 때 `run-local-recommendation-ai-exclusion-latest-overview.sh` 를 여는 편이 맞습니다. observation suite는 reopen precheck를 감싸 current action을 compact summary로 고정합니다. `2026-06-01` 기준 current priority 는 `REOPEN_DECISION_READY` 이며, `KEEP_OBSERVING / WAIT_FOR_REAL_USER_TRAFFIC` 류 값은 readiness 포함 전 baseline/helper snapshot으로만 읽습니다. latest overview는 latest export를 먼저 갱신한 뒤 `latest-status`, 기본 `latest-gate`, strict `latest-gate` 를 순서대로 보여 주므로, 더 깊은 상태와 다음 행동을 한 번에 다시 읽을 수 있습니다.
 
 이 overview wrapper는 이제 `tmp/recommendation-ai-exclusion-latest-overview/<ts>/latest-overview-summary.txt`, `latest-overview-note.md`, `latest-overview.json` 과 `latest` symlink도 같이 남깁니다. 즉 daily 확인 뒤에는 stdout만 보지 않고 compact summary, 사람용 note, machine-readable JSON 중 필요한 artifact를 바로 handoff 기준으로 써도 됩니다. 같은 artifact에는 `review_gate_context` 도 포함돼, full latest batch primary gate(`MIXED_BATCH_NON_REAL_DOMINANCE_WITH_NO_REAL_USER_PATH`)와 recent-window supplemental reading(`RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`), 그리고 `historical_example_dominance_detected=true` 까지 한 번에 같이 읽을 수 있습니다.
 

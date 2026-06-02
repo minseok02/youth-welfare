@@ -30,12 +30,13 @@
 2. `userType` public filter
 3. `benefitType` public filter
 4. detail page `Gov24` tag -> filtered discovery bridge
-5. recommendation soft additive scoring
-6. recommendation priority bucket bridge
-7. `Gov24 -> YOUTH_MID` bridge
-8. `supportConditions` full-scope business/industry/startup fact 승격
-9. `Gov24` 3축 stable internal code seed/backfill
-10. `JA0322`, `JA0410` no-op support condition fact 보존
+5. broad keyword public search first-page discovery balance
+6. recommendation soft additive scoring
+7. recommendation priority bucket bridge
+8. `Gov24 -> YOUTH_MID` bridge
+9. `supportConditions` full-scope business/industry/startup fact 승격
+10. `Gov24` 3축 stable internal code seed/backfill
+11. `JA0322`, `JA0410` no-op support condition fact 보존
 
 계속 deferred 인 범위:
 
@@ -63,6 +64,13 @@
 
 운영 데이터처럼 detail API의 `gov24UserTypeLabel`, `gov24BenefitTypeLabel` 이 비어 있는 경우에도,
 현재 프런트는 managed token 범위 안에서만 `tags` / `provisionType` fallback 을 써서 같은 discovery chip 을 유지합니다.
+
+2026-06-02 기준으로 필터가 없는 넓은 키워드 검색의 첫 페이지 발견성도 bounded 하게 보정했습니다.
+조건은 `keyword` 토큰이 있고, 첫 페이지(`offset=0`), `RELEVANCE` 정렬, `pageSize>=10`,
+`sourceType` 및 Gov24 3축 필터가 모두 없는 경우로 제한합니다.
+이때 repository는 후보 window를 최대 100건까지 넓혀 읽고, 첫 페이지에 `GOV24` 가 하나도 없지만
+window 안에는 `GOV24` 후보가 있으면 첫 `GOV24` 후보 1건을 첫 페이지 중간부에 삽입합니다.
+명시 Gov24 필터, 출처 필터, 페이지네이션 후속 페이지, 최신순/마감순 정렬에는 적용하지 않습니다.
 
 ### 2. recommendation scoring
 
@@ -155,6 +163,7 @@ hard eligibility fact로 올리지는 않습니다.
 ## 요약
 
 1. `Gov24` public filter 3축은 이미 운영 반영까지 닫혔습니다.
-2. recommendation scoring도 bounded soft additive bonus까지는 열렸습니다.
-3. `supportConditions` full-scope business/industry/startup/no-op fact gap은 해소했습니다.
-4. 현재 남은 것은 외부 공식 codebook이 생겼을 때의 재수입 여부입니다.
+2. 넓은 키워드 검색 첫 페이지에서도 Gov24 후보가 candidate window 안에 있으면 완전히 묻히지 않게 했습니다.
+3. recommendation scoring도 bounded soft additive bonus까지는 열렸습니다.
+4. `supportConditions` full-scope business/industry/startup/no-op fact gap은 해소했습니다.
+5. 현재 남은 것은 외부 공식 codebook이 생겼을 때의 재수입 여부입니다.

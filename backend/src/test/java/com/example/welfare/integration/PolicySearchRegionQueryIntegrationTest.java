@@ -155,6 +155,42 @@ class PolicySearchRegionQueryIntegrationTest {
     }
 
     @Test
+    @DisplayName("넓은 키워드 검색 첫 페이지는 Gov24 후보가 candidate window에 있으면 발견성을 보존한다")
+    void broadKeywordSearchKeepsGov24VisibleOnFirstPage() {
+        String token = "itsearch" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        WelfareService gov24 = saveSearchService("gov24-discovery", token, WelfareService.SourceType.GOV24);
+        for (int i = 0; i < 12; i += 1) {
+            saveSearchService("youth-dominant-" + i, token, WelfareService.SourceType.YOUTH);
+        }
+
+        Page<WelfareService> result = welfareServiceReadRepository.search(
+                new PolicySearchReadCondition(
+                        token,
+                        null,
+                        "ACTIVE_ONLY",
+                        TEST_CATEGORY,
+                        null,
+                        null,
+                        null,
+                        null,
+                        "RELEVANCE",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null
+                ),
+                PageRequest.of(0, 10)
+        );
+
+        assertThat(result.getTotalElements()).isEqualTo(13);
+        assertThat(result.getContent()).hasSize(10);
+        assertThat(result.getContent())
+                .extracting(WelfareService::getId)
+                .contains(gov24.getId());
+    }
+
+    @Test
     @DisplayName("시도 전용 지역 검색은 전국 정책과 같은 시도 정책을 반환한다")
     void searchWithSidoOnlyReturnsOnlyMatchingPolicies() {
         String token = "itsearch" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
@@ -201,8 +237,12 @@ class PolicySearchRegionQueryIntegrationTest {
     }
 
     private WelfareService saveSearchService(String label, String token) {
+        return saveSearchService(label, token, WelfareService.SourceType.YOUTH);
+    }
+
+    private WelfareService saveSearchService(String label, String token, WelfareService.SourceType sourceType) {
         return welfareServiceRepository.saveAndFlush(WelfareService.builder()
-                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceType(sourceType)
                 .sourceId(TEST_SOURCE_PREFIX + UUID.randomUUID().toString().substring(0, 8))
                 .title("정책 " + label + " " + token)
                 .description(token + " 설명")

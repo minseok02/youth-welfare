@@ -216,10 +216,12 @@ collect 이후 저장되는 축은 아래입니다.
 ### 1-1. admin 수동 파라미터는 운영 상한 안에서만 허용
 
 - `collect/{sourceKey}?maxCallsPerRun=` 는 `1..5000`
-- `bokjiro-sidecars-backfill`, `gov24-sidecars-backfill`, `reference-urls/rebuild` 의 `limitPerSource=0` 은 무제한이 아니라 capped default `1000`
-- `limitPerSource` 명시값은 `1..1000`
+- `bokjiro-sidecars-backfill`, `gov24-sidecars-backfill` 의 `limitPerSource=0` 은 sidecar backfill 경로에서 그대로 `0` 으로 보존하고, repository/service 계층에서는 `0 이하 = unlimited` 로 읽는다.
+- `gov24-sidecars-backfill` 은 `scope=list&missingOnly=true` 를 지원한다. 이 경로는 Gov24 list raw payload 중 필수 summary slot 이 없는 row만 다시 태우며, 전체 재처리보다 우선 사용하는 missing-only repair lane 이다.
+- `reference-urls/rebuild` 의 `limitPerSource=0` 은 무제한이 아니라 capped default `1000`
+- `limitPerSource` 양수 명시값은 `1..1000`
 - `bokjiro-details-gap-fill` 의 `rounds` 는 `1..10`, `maxCallsPerRound` 는 `1..1000`
-- 즉 current-state 기준 `0 = unlimited` 라고 읽으면 안 된다.
+- 즉 current-state 기준 `0 = unlimited` 계약은 sidecar backfill 에만 명시적으로 열려 있고, reference-url rebuild 같은 다른 admin repair endpoint 로 일반화하면 안 된다.
 
 ### 2. 부분 성공 허용
 

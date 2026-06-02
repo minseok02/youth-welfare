@@ -8,15 +8,17 @@
 다시 열기로 결정한다면,
 **무엇부터 여는 편이 맞는지** 를 한 장으로 고정하는 brief 입니다.
 
-현재 기준 권장안은:
+현재 기준 recommendation 내부 권장안은:
 
 - `lane 1. local 신호 구조화`
 
 입니다.
 
-즉 다음 recommendation reopen 은
+즉 recommendation 을 다시 열 때의 내부 우선순위는
 `diversity/balancing` 이나 `direct tuning` 보다 먼저
 **local 청년 정책군의 direct signal 구조화** 로 시작하는 편이 맞습니다.
+
+다만 `2026-06-01` 이후 immediate product priority 는 특정 Gov24 정책군 랭킹이 아닙니다. 이 문서는 recommendation 트랙을 나중에 다시 열 때의 내부 순서를 고정한 deferred brief 로 읽고, 현재 Gov24 작업은 전체 데이터/분류/표면/운영 품질을 먼저 봅니다.
 
 같이 보면 좋은 문서:
 
@@ -32,19 +34,20 @@
 - `reopen-precheck` 는 real-user readiness까지 같이 읽습니다.
 - `latest-status-export` 단독 helper는 baseline/drift helper라 readiness를 반영하지 못해 `WAIT_FOR_REAL_USER_TRAFFIC` 로 보일 수 있습니다.
 - 따라서 reopen 판단은 `latest-overview + real-user readiness` 를 같이 읽는 precheck 결과를 기준으로 합니다.
-- `2026-06-01` local recheck 기준 precheck는 `READY_FOR_REOPEN_DECISION` 이고, 권장 lane은 여전히 `lane 1. local 신호 구조화` 입니다.
-- 즉 이 문서는 gate 확인 뒤 **무엇을 먼저 다시 열지** 를 정리한 문서입니다.
+- `2026-06-01` local recheck 기준 precheck는 `READY_FOR_REOPEN_DECISION` 입니다.
+- 권장 lane은 recommendation 트랙을 실제로 다시 열 때 여전히 `lane 1. local 신호 구조화` 이지만, 이것은 immediate Gov24 전체 작업보다 뒤에 둡니다.
+- 즉 이 문서는 gate 확인 뒤 **나중에 recommendation 을 다시 열면 무엇부터 볼지** 를 정리한 deferred 문서입니다.
 
 ## 현재 권장 결론
 
-`2026-06-01` 기준으로 recommendation 을 다시 열면,
+`2026-06-01` 기준으로 recommendation 을 나중에 다시 열면,
 첫 reopen lane 은 아래로 둡니다.
 
 1. `lane 1. local 신호 구조화`
 2. 그다음 필요하면 `lane 2. diversity/balancing`
 3. `lane 3. direct ranking/weight/prompt tuning` 은 마지막
 
-즉 current recommendation next lane 은
+즉 deferred recommendation next lane 은
 **global tuning 이 아니라 local signal structuring** 입니다.
 그리고 이 판단은 raw gate 값만 보고 내리는 것이 아니라, `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` / `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 운영 클래스 안에서 무엇을 먼저 다시 열지 정하는 것으로 읽는 편이 맞습니다.
 
@@ -108,7 +111,7 @@
 
 ## 현재 대상으로 보는 정책군
 
-현재 권장 해석은 source 전체가 아니라 **정책군 단위** 입니다.
+현재 권장 해석은 source 전체가 아니라 **정책군 단위** 입니다. 다만 이 섹션은 immediate execution target 이 아니라, Gov24 전체면을 먼저 닫은 뒤 recommendation 을 다시 열 때 참고할 deferred scope 입니다.
 
 ### 1. 인천 지역 청년 일자리/생활지원 계열
 

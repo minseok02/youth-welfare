@@ -184,7 +184,10 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
 
         MapSqlParameterSource params = policyParams(condition, keyword);
         SearchSqlParts sqlParts = buildPolicySearchSql(condition);
-        params.addValue("limit", pageable.getPageSize(), Types.INTEGER);
+        boolean applyGov24DiscoveryBalance = shouldApplyGov24DiscoveryBalance(condition, pageable);
+        int pageSize = pageable.getPageSize();
+        int queryLimit = applyGov24DiscoveryBalance ? discoveryBalanceQueryLimit(pageSize) : pageSize;
+        params.addValue("limit", queryLimit, Types.INTEGER);
         params.addValue("offset", pageable.getOffset(), Types.BIGINT);
         List<SearchPageRow> rows = namedParameterJdbcTemplate.query(
                 sqlParts.selectSql(),
@@ -201,7 +204,11 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
                 .map(SearchPageRow::id)
                 .toList();
         long total = rows.get(0).totalCount();
-        return new PageImpl<>(loadOrderedServices(ids), pageable, total);
+        List<WelfareService> services = loadOrderedServices(ids);
+        if (applyGov24DiscoveryBalance) {
+            services = applyGov24DiscoveryBalance(services, pageSize);
+        }
+        return new PageImpl<>(services, pageable, total);
     }
 
     @Override
@@ -391,6 +398,60 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
                 .map(byId::get)
                 .filter(Objects::nonNull)
                 .toList();
+    }
+
+    private boolean shouldApplyGov24DiscoveryBalance(PolicySearchReadCondition condition, Pageable pageable) {
+        String sort = condition.sort() == null ? "RELEVANCE" : condition.sort();
+        return !SearchKeywordSupport.extractTokens(condition.keyword()).isEmpty()
+                && pageable.getOffset() == 0
+                && pageable.getPageSize() >= 10
+                && "RELEVANCE".equals(sort)
+                && condition.sourceType() == null
+                && condition.gov24ServiceField() == null
+                && condition.gov24UserType() == null
+                && condition.gov24BenefitType() == null;
+    }
+
+    private int discoveryBalanceQueryLimit(int pageSize) {
+        return Math.min(100, Math.max(pageSize * 5, pageSize + 20));
+    }
+
+    private List<WelfareService> applyGov24DiscoveryBalance(List<WelfareService> candidates, int pageSize) {
+        if (candidates.size() <= pageSize) {
+            return candidates;
+        }
+        List<WelfareService> firstPage = candidates.subList(0, pageSize);
+        boolean alreadyHasGov24 = firstPage.stream()
+                .anyMatch(service -> service.getSourceType() == WelfareService.SourceType.GOV24);
+        if (alreadyHasGov24) {
+            return List.copyOf(firstPage);
+        }
+        WelfareService firstGov24 = candidates.stream()
+                .filter(service -> service.getSourceType() == WelfareService.SourceType.GOV24)
+                .findFirst()
+                .orElse(null);
+        if (firstGov24 == null) {
+            return List.copyOf(firstPage);
+        }
+
+        int insertIndex = Math.min(pageSize - 1, Math.max(4, pageSize / 3));
+        List<WelfareService> balanced = new ArrayList<>(pageSize);
+        for (WelfareService service : candidates) {
+            if (Objects.equals(service.getId(), firstGov24.getId())) {
+                continue;
+            }
+            if (balanced.size() == insertIndex) {
+                balanced.add(firstGov24);
+            }
+            if (balanced.size() >= pageSize) {
+                break;
+            }
+            balanced.add(service);
+        }
+        if (balanced.size() < pageSize && balanced.stream().noneMatch(service -> Objects.equals(service.getId(), firstGov24.getId()))) {
+            balanced.add(firstGov24);
+        }
+        return balanced.size() > pageSize ? balanced.subList(0, pageSize) : balanced;
     }
 
     private record SearchSqlParts(String selectSql) {
