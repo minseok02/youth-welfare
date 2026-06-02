@@ -1,5 +1,6 @@
 import axios from "axios";
 import { useAuthStore } from "../store/authStore";
+import { useNetworkStore } from "../store/networkStore";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim() || "";
 const REFRESH_PATH = "/api/auth/refresh";
@@ -32,8 +33,15 @@ const processQueue = (error, token = null) => {
 };
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    useNetworkStore.getState().setServerDown(false);
+    return response;
+  },
   async (error) => {
+    const isCanceled = error.name === "CanceledError" || error.code === "ERR_CANCELED";
+    if (!isCanceled && !error.response) {
+      useNetworkStore.getState().setServerDown(true);
+    }
     const originalRequest = error.config;
     const requestUrl = originalRequest?.url ?? "";
     const isRefreshRequest = requestUrl.includes(REFRESH_PATH);

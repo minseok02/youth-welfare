@@ -102,10 +102,7 @@ function HeroNonLogin({ totalPolicies, deadlineCount, firstDeadlinePolicy, secon
 
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.2fr 1fr", gap: isMobile ? 0 : 40, alignItems: "center", position: "relative", zIndex: 1 }}>
         <div>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.15)", padding: "6px 14px", borderRadius: 99, fontSize: 13, fontWeight: 600 }}>
-            안녕하세요, 청년님
-          </span>
-          <h1 style={{ fontSize: isMobile ? 28 : 40, fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.2, margin: "16px 0 14px", color: "white" }}>
+          <h1 style={{ fontSize: isMobile ? 28 : 40, fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.2, margin: "0 0 14px", color: "white" }}>
             나에게 딱 맞는<br />
             <span style={{ background: "linear-gradient(180deg, transparent 65%, rgba(255,255,255,0.25) 65%)", padding: "0 4px" }}>
               청년 복지정책
@@ -118,7 +115,7 @@ function HeroNonLogin({ totalPolicies, deadlineCount, firstDeadlinePolicy, secon
           </p>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button
-              onClick={() => navigate("/signup", { state: authState })}
+              onClick={() => navigate("/login", { state: authState })}
               style={{ padding: "14px 22px", background: "white", color: A7, border: 0, borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.12)" }}
             >
               맞춤 추천 받기 →
@@ -190,50 +187,103 @@ function HeroNonLogin({ totalPolicies, deadlineCount, firstDeadlinePolicy, secon
   );
 }
 
-function HeroLoggedIn({ user, navigate, onRefresh, onPersonalRefresh, refreshingRec, personalRefreshing, totalPolicies }) {
+function HeroLoggedIn({ user, navigate, onRefresh, onPersonalRefresh, refreshingRec, personalRefreshing, totalPolicies, deadlineCount, firstDeadlinePolicy, secondDeadlinePolicy }) {
   const isMobile = useMediaQuery("(max-width: 1199px)");
   return (
     <section style={{
       background: "linear-gradient(135deg, #1e3a8a 0%, #2563eb 55%, #3b82f6 100%)",
-      borderRadius: 28, padding: isMobile ? "24px 20px" : "36px 48px", color: "white", marginTop: 24,
+      borderRadius: 28, padding: isMobile ? "28px 20px" : "48px 56px", color: "white", marginTop: 24,
       position: "relative", overflow: "hidden",
     }}>
-      <div style={{ position: "absolute", right: -60, top: -60, width: 220, height: 220, borderRadius: "50%", background: "rgba(255,255,255,0.08)", pointerEvents: "none" }} />
-      <div style={{ position: "relative", zIndex: 1, display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr auto", gap: isMobile ? 16 : 32, alignItems: "center" }}>
+      <div style={{ position: "absolute", right: -80, top: -80, width: 280, height: 280, borderRadius: "50%", background: "rgba(255,255,255,0.08)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", right: 120, bottom: -100, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
+
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.2fr 1fr", gap: isMobile ? 0 : 40, alignItems: "center", position: "relative", zIndex: 1 }}>
         <div>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.15)", padding: "6px 14px", borderRadius: 99, fontSize: 13, fontWeight: 600 }}>
             {user?.name ? `${user.name}님, 안녕하세요!` : "안녕하세요!"}
           </span>
-          <div style={{ fontSize: 28, fontWeight: 800, marginTop: 14, lineHeight: 1.3, letterSpacing: "-0.02em" }}>
-            저희가 선별한 맞춤 정책을<br />확인해보세요
-          </div>
+          <h1 style={{ fontSize: isMobile ? 28 : 40, fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.2, margin: "16px 0 14px", color: "white" }}>
+            저희가 선별한<br />
+            <span style={{ background: "linear-gradient(180deg, transparent 65%, rgba(255,255,255,0.25) 65%)", padding: "0 4px" }}>
+              맞춤 정책
+            </span>을<br />
+            확인해보세요
+          </h1>
           <div style={{ display: "flex", gap: 10, marginTop: 20, flexWrap: "wrap" }}>
             <button
               onClick={onPersonalRefresh}
               disabled={personalRefreshing || refreshingRec}
-              style={{ padding: "12px 20px", background: "white", color: A7, border: 0, borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 12px rgba(0,0,0,0.12)", opacity: (personalRefreshing || refreshingRec) ? 0.7 : 1 }}
+              style={{ padding: "14px 22px", background: "white", color: A7, border: 0, borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.12)", opacity: (personalRefreshing || refreshingRec) ? 0.7 : 1 }}
             >
-              {personalRefreshing ? "분석 중..." : "맞춤 재추천"}
+              {personalRefreshing ? "분석 중..." : "맞춤 재추천 →"}
             </button>
             <button
               onClick={onRefresh}
               disabled={refreshingRec || personalRefreshing}
-              style={{ padding: "12px 20px", background: "rgba(255,255,255,0.15)", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer", opacity: (refreshingRec || personalRefreshing) ? 0.7 : 1 }}
+              style={{ padding: "14px 22px", background: "rgba(255,255,255,0.12)", color: "white", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer", opacity: (refreshingRec || personalRefreshing) ? 0.7 : 1 }}
             >
               {refreshingRec ? "갱신 중..." : "새로고침"}
             </button>
             <button
               onClick={() => navigate("/policies")}
-              style={{ padding: "12px 20px", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 12, fontSize: 14, fontWeight: 500, cursor: "pointer" }}
+              style={{ padding: "14px 22px", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 12, fontSize: 14, fontWeight: 500, cursor: "pointer" }}
             >
-              전체 정책 →
+              전체 둘러보기
             </button>
           </div>
+          <div style={{ display: "flex", gap: isMobile ? 16 : 24, marginTop: 28, fontSize: 13 }}>
+            <div>
+              <div style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800 }}>{totalPolicies > 0 ? totalPolicies.toLocaleString() : "—"}</div>
+              <div style={{ opacity: 0.7, fontSize: 12, marginTop: 2 }}>전체 정책</div>
+            </div>
+            <div style={{ width: 1, background: "rgba(255,255,255,0.2)" }} />
+            <div>
+              <div style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800 }}>{deadlineCount > 0 ? `${deadlineCount}건` : "—"}</div>
+              <div style={{ opacity: 0.7, fontSize: 12, marginTop: 2 }}>이번 주 마감</div>
+            </div>
+            <div style={{ width: 1, background: "rgba(255,255,255,0.2)" }} />
+            <div>
+              <div style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800 }}>무료</div>
+              <div style={{ opacity: 0.7, fontSize: 12, marginTop: 2 }}>AI 추천 서비스</div>
+            </div>
+          </div>
         </div>
-        {totalPolicies > 0 && (
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 36, fontWeight: 800, lineHeight: 1 }}>{totalPolicies.toLocaleString()}</div>
-            <div style={{ fontSize: 13, opacity: 0.7, marginTop: 4 }}>전체 정책</div>
+
+        {!isMobile && (
+          <div style={{ position: "relative", height: 270 }}>
+            {firstDeadlinePolicy && (
+              <div style={{ position: "absolute", right: 30, top: 8, width: 190, background: "white", borderRadius: 14, padding: 16, color: INK, boxShadow: "0 12px 32px rgba(0,0,0,0.18)", transform: "rotate(-3deg)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Tag style={{ background: "#fef2f2", color: WARN }}>마감임박</Tag>
+                  <span style={{ fontSize: 18, fontWeight: 800, color: WARN }}>{firstDeadlinePolicy.dday}</span>
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, marginTop: 10, lineHeight: 1.3, letterSpacing: "-0.01em" }}>
+                  {firstDeadlinePolicy.title}
+                </div>
+                {firstDeadlinePolicy.source && (
+                  <div style={{ fontSize: 11, color: INK3, marginTop: 5 }}>{firstDeadlinePolicy.source}</div>
+                )}
+              </div>
+            )}
+            {secondDeadlinePolicy && (
+              <div style={{ position: "absolute", right: 0, top: 140, width: 200, background: "white", borderRadius: 14, padding: 16, color: INK, boxShadow: "0 12px 32px rgba(0,0,0,0.22)", transform: "rotate(2.5deg)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Tag style={{ background: AS, color: AI }}>{secondDeadlinePolicy.category}</Tag>
+                  <span style={{ fontSize: 14, fontWeight: 800, color: WARN }}>{secondDeadlinePolicy.dday}</span>
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, marginTop: 10, letterSpacing: "-0.01em", lineHeight: 1.3 }}>
+                  {secondDeadlinePolicy.title}
+                </div>
+                {secondDeadlinePolicy.source && (
+                  <div style={{ fontSize: 11, color: INK3, marginTop: 4 }}>{secondDeadlinePolicy.source}</div>
+                )}
+                <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #f3f4f6", display: "flex", alignItems: "center", gap: 4 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", flexShrink: 0 }} />
+                  <span style={{ fontSize: 10, color: INK3, fontWeight: 600 }}>실시간 업데이트</span>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -549,6 +599,7 @@ export default function MainPage() {
   // AI 추천 (로그인)
   const [recommendations, setRecommendations] = useState([]);
   const [loadingRec, setLoadingRec] = useState(false);
+  const [recError, setRecError] = useState(false);
   const [refreshingRec, setRefreshingRec] = useState(false);
   const [personalRefreshing, setPersonalRefreshing] = useState(false);
 
@@ -601,9 +652,15 @@ export default function MainPage() {
         }
       });
     setLoadingRec(true);
+    setRecError(false);
     api.get("/api/recommendations", { params: { size: 6 }, signal: controller.signal })
       .then(({ data }) => setRecommendations((data.data ?? []).map(mapRec)))
-      .catch((err) => { if (err.name !== "CanceledError" && err.code !== "ERR_CANCELED") showToast("추천 정책을 불러오지 못했습니다", "error"); })
+      .catch((err) => {
+        if (err.name !== "CanceledError" && err.code !== "ERR_CANCELED") {
+          setRecError(true);
+          showToast("추천 정책을 불러오지 못했습니다", "error");
+        }
+      })
       .finally(() => { if (!controller.signal.aborted) setLoadingRec(false); });
     return () => controller.abort();
   }, [isLoggedIn, setUser, showToast]);
@@ -689,6 +746,7 @@ export default function MainPage() {
     try {
       const { data } = await api.post("/api/recommendations/refresh");
       setRecommendations((data.data ?? []).map(mapRec));
+      setRecError(false);
       showToast("추천을 새로 불러왔습니다", "success");
     } catch { showToast("추천 갱신에 실패했습니다", "error"); }
     finally { setRefreshingRec(false); }
@@ -704,6 +762,7 @@ export default function MainPage() {
     try {
       const { data } = await api.post("/api/recommendations/refresh?personal=true");
       setRecommendations((data.data ?? []).map(mapRec));
+      setRecError(false);
       showToast("개인 맞춤 추천을 새로 받았습니다", "success");
     } catch { showToast("재추천에 실패했습니다", "error"); }
     finally { setPersonalRefreshing(false); }
@@ -739,6 +798,9 @@ export default function MainPage() {
             refreshingRec={refreshingRec}
             personalRefreshing={personalRefreshing}
             totalPolicies={totalPolicies}
+            deadlineCount={deadlinePolicies.length}
+            firstDeadlinePolicy={deadlinePolicies[0]}
+            secondDeadlinePolicy={deadlinePolicies[1]}
           />
         ) : (
           <HeroNonLogin
@@ -792,11 +854,22 @@ export default function MainPage() {
             ) : (
               <div style={{ textAlign: "center", padding: "48px 24px", background: "white", borderRadius: 16, border: `1px solid ${LINE}` }}>
                 <div style={{ marginTop: 12, fontSize: 15, color: INK2 }}>
-                  {user?.hasPriorities
-                    ? "추천 정책을 불러오는 중 문제가 생겼어요"
-                    : "마이페이지에서 우선순위를 설정하면 맞춤 추천을 받을 수 있어요"}
+                  {recError
+                    ? "추천 정책을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
+                    : user?.hasPriorities
+                      ? "아직 추천 정책이 없어요. 맞춤 재추천 버튼을 눌러보세요."
+                      : "마이페이지에서 우선순위를 설정하면 맞춤 추천을 받을 수 있어요"}
                 </div>
-                {!user?.hasPriorities && (
+                {(recError || user?.hasPriorities) && !recError && (
+                  <button
+                    onClick={handlePersonalRefresh}
+                    disabled={personalRefreshing}
+                    style={{ marginTop: 14, padding: "10px 20px", background: A, color: "white", border: 0, borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer", opacity: personalRefreshing ? 0.7 : 1 }}
+                  >
+                    {personalRefreshing ? "분석 중..." : "맞춤 재추천 받기 →"}
+                  </button>
+                )}
+                {!user?.hasPriorities && !recError && (
                   <button
                     onClick={() => navigate("/mypage?tab=1")}
                     style={{ marginTop: 14, padding: "10px 20px", background: A, color: "white", border: 0, borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer" }}

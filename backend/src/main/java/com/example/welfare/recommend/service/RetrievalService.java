@@ -58,6 +58,7 @@ public class RetrievalService {
                 age,
                 incomeLevel,
                 user.sido(),
+                user.sgg(),
                 normalizeRegionCode(user.regionCode()),
                 resolveBaseFetchSize(user),
                 M * 4

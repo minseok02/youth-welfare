@@ -126,6 +126,7 @@ public class PolicyExplorationService {
                     condition.incomeLevel(),
                     condition.regionCode().trim(),
                     condition.sido(),
+                    condition.sgg(),
                     PageRequest.of(0, condition.baseFetchSize())
             );
         }
@@ -152,6 +153,7 @@ public class PolicyExplorationService {
                     condition.incomeLevel(),
                     condition.regionCode().trim(),
                     condition.sido(),
+                    condition.sgg(),
                     PageRequest.of(0, condition.latestFetchSize())
             );
         }

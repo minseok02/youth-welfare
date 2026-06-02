@@ -90,6 +90,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                                   AND sr2.sidoName = :sidoName
                                   AND ws.searchYouthRelevant = true
                                   AND ws.unifiedCategory <> '기타'
+                                  AND (:sggName IS NULL OR sr2.sggName IS NULL OR sr2.sggName = :sggName)
                               )
                           )
                     )
@@ -110,6 +111,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         SELECT sr4s.id FROM ServiceRegion sr4s
                         WHERE sr4s.service = ws
                           AND sr4s.sidoName = :sidoName
+                          AND (:sggName IS NULL OR sr4s.sggName IS NULL OR sr4s.sggName = :sggName)
                      ) THEN 1
                 WHEN ws.sourceType = 'GOV24'
                      AND :sidoName IS NOT NULL
@@ -150,6 +152,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         SELECT sr6s.id FROM ServiceRegion sr6s
                         WHERE sr6s.service = ws
                           AND sr6s.sidoName = :sidoName
+                          AND (:sggName IS NULL OR sr6s.sggName IS NULL OR sr6s.sggName = :sggName)
                      ) THEN 2
                 ELSE 3
               END ASC,
@@ -175,6 +178,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         SELECT sr8s.id FROM ServiceRegion sr8s
                         WHERE sr8s.service = ws
                           AND sr8s.sidoName = :sidoName
+                          AND (:sggName IS NULL OR sr8s.sggName IS NULL OR sr8s.sggName = :sggName)
                      ) THEN 2
                 ELSE 3
               END ASC,
@@ -185,6 +189,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                                                       @Param("incomeLevel") int incomeLevel,
                                                       @Param("regionCode") String regionCode,
                                                       @Param("sidoName") String sidoName,
+                                                      @Param("sggName") String sggName,
                                                       Pageable pageable);
 
     // 시도 필터 포함 추천 후보
@@ -327,6 +332,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                                   AND sr2.sidoName = :sidoName
                                   AND ws.searchYouthRelevant = true
                                   AND ws.unifiedCategory <> '기타'
+                                  AND (:sggName IS NULL OR sr2.sggName IS NULL OR sr2.sggName = :sggName)
                               )
                           )
                     )
@@ -347,6 +353,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         SELECT sr4s.id FROM ServiceRegion sr4s
                         WHERE sr4s.service = ws
                           AND sr4s.sidoName = :sidoName
+                          AND (:sggName IS NULL OR sr4s.sggName IS NULL OR sr4s.sggName = :sggName)
                      ) THEN 1
                 WHEN ws.sourceType = 'GOV24'
                      AND :sidoName IS NOT NULL
@@ -387,6 +394,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         SELECT sr6s.id FROM ServiceRegion sr6s
                         WHERE sr6s.service = ws
                           AND sr6s.sidoName = :sidoName
+                          AND (:sggName IS NULL OR sr6s.sggName IS NULL OR sr6s.sggName = :sggName)
                      ) THEN 2
                 ELSE 3
               END ASC,
@@ -412,6 +420,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         SELECT sr8s.id FROM ServiceRegion sr8s
                         WHERE sr8s.service = ws
                           AND sr8s.sidoName = :sidoName
+                          AND (:sggName IS NULL OR sr8s.sggName IS NULL OR sr8s.sggName = :sggName)
                      ) THEN 2
                 ELSE 3
               END ASC,
@@ -422,6 +431,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                                                             @Param("incomeLevel") int incomeLevel,
                                                             @Param("regionCode") String regionCode,
                                                             @Param("sidoName") String sidoName,
+                                                            @Param("sggName") String sggName,
                                                             Pageable pageable);
 
     // 시도 필터 포함 추천 후보 조회(최신순): 신규 정책 M건 강제 포함용

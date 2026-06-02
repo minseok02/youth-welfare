@@ -18,6 +18,7 @@ public interface UserRecommendationRepository extends JpaRepository<UserRecommen
             SELECT ur FROM UserRecommendation ur
             JOIN FETCH ur.service
             WHERE ur.userKey = :userKey
+              AND ur.service.status IN ('ACTIVE', 'UPCOMING')
               AND ur.recommendedAt = (
                     SELECT MAX(ur2.recommendedAt)
                     FROM UserRecommendation ur2
@@ -51,11 +52,12 @@ public interface UserRecommendationRepository extends JpaRepository<UserRecommen
             """)
     List<UserRecommendation> findLatestByUserKeyOrderByFinalScoreDesc(@Param("userKey") String userKey);
 
-    // 사용자 추천 목록 — 최종점수 내림차순
+    // 사용자 추천 목록 — 최종점수 내림차순 (CLOSED 정책 제외)
     @Query("""
             SELECT ur FROM UserRecommendation ur
             JOIN FETCH ur.service
             WHERE ur.userKey = :userKey
+              AND ur.service.status IN ('ACTIVE', 'UPCOMING')
               AND ur.recommendedAt = (
                     SELECT MAX(ur2.recommendedAt)
                     FROM UserRecommendation ur2
