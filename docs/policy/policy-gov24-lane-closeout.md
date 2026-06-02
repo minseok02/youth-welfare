@@ -113,7 +113,7 @@ curl -sS -X POST "http://127.0.0.1:8082/api/admin/collect/gov24-sidecars-backfil
 
 - Gov24 LIST 수집 row: `10954`
 - region backfill: `scanned=10954`, `upserted=10954`, `missing=0`, `failed=0`
-- 2026-06-02 latest acceptance 재측정: suite step `8876ms`, HTTP endpoint metric `5675ms`,
+- 2026-06-02 latest acceptance 재측정: suite step `7839ms`, HTTP endpoint metric `4708ms`,
   `regions=33010`
 - 최종 region coverage: `9814/10954 = 89.59%`
 - 최종 region row: `33010`
@@ -162,8 +162,13 @@ raw 조합값 전체를 eligibility hard gate로 승격한 것은 아닙니다.
 
 2026-06-02 server Docker `run-local-gov24-housing-signal-smoke.sh` 기준 fresh recommendation batch는
 `44`건 전부 Gov24였고, top2 source distribution은 `GOV24:2`, top10 Gov24 row는 `10`건입니다.
-이어 `run-local-gov24-recommend-surface-audit.sh` 와 `run-local-gov24-recommend-score-audit.sh` 에서
-top10 source distribution `GOV24:10`, top2 평균 rule/final score `61.00/0.55240` 으로 확인했습니다.
+이어 `run-local-gov24-recommend-surface-audit.sh` 와 `run-local-gov24-recommend-score-audit.sh` 는
+latest batch cohort를 `GOV24_EDUCATION_SIGNAL:2,GOV24_HOUSING_SIGNAL:2,GOV24_SURFACE_AUDIT:1`
+로 분리해 출력합니다.
+현재 top1/top2/top10 Gov24 share는 모두 `100.00%` 이고, top10 source distribution은
+5개 Gov24 smoke user 기준 `GOV24:50` 입니다.
+같은 서버에서 `run-local-gov24-surface-audit.sh` 도 통과했고, `keyword=청년` 검색,
+`sourceType=GOV24` 필터 검색, 기본 목록, Gov24 상세, 추천 top10 모두 Gov24 surface를 정상 반환했습니다.
 2026-06-02 server Docker `run-local-gov24-education-signal-smoke.sh` 기준 교육축 fresh batch는 `32`건 전부
 Gov24였고, top2는 `청년 학자금대출 장기연체자 학자금상환 지원`, `화성시 학생 장학금 지원` 입니다.
 같은 서버의 signal 포함 acceptance suite는 `10` steps 모두 통과했고 `suite_duration_ms=71712` 입니다.

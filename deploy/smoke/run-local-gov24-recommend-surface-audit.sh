@@ -13,6 +13,13 @@ with latest as (
 ranked as (
   select
     ur.user_key,
+    case
+      when u.email like 'gov24.housin.%@%' then 'GOV24_HOUSING_SIGNAL'
+      when u.email like 'gov24.educat.%@%' then 'GOV24_EDUCATION_SIGNAL'
+      when u.email like 'gov24.surfac.%@%' then 'GOV24_SURFACE_AUDIT'
+      when u.email like 'gov24.%@%' then 'GOV24_OTHER_SMOKE'
+      else 'OTHER'
+    end as user_cohort,
     row_number() over (
       partition by ur.user_key
       order by ur.final_score desc, ur.id asc
@@ -25,23 +32,51 @@ ranked as (
   join latest l
     on l.user_key = ur.user_key
    and l.recommended_at = ur.recommended_at
+  join users u
+    on u.user_key = ur.user_key
   join welfare_services ws
     on ws.id = ur.service_id
 ),
 topn as (
   select * from ranked where rec_rank <= 10
 )
-select 'top1_gov24_share_pct', coalesce(round(100.0 * avg(case when source_type = 'GOV24' and rec_rank = 1 then 1.0 else 0.0 end), 2), 0)::text from topn
+select 'latest_batch_user_count', count(distinct user_key)::text from ranked
 union all
-select 'top2_gov24_share_pct', coalesce(round(100.0 * avg(case when source_type = 'GOV24' and rec_rank = 2 then 1.0 else 0.0 end), 2), 0)::text from topn
+select 'latest_batch_user_cohort_distribution',
+       coalesce(string_agg(user_cohort || ':' || cnt, ',' order by user_cohort), '')
+from (
+  select user_cohort, count(distinct user_key) as cnt
+  from ranked
+  group by user_cohort
+) uc
 union all
-select 'top3_gov24_share_pct', coalesce(round(100.0 * avg(case when source_type = 'GOV24' and rec_rank = 3 then 1.0 else 0.0 end), 2), 0)::text from topn
+select 'top1_gov24_share_pct',
+       coalesce(round(100.0 * count(*) filter (where source_type = 'GOV24') / nullif(count(*), 0), 2), 0)::text
+from topn
+where rec_rank = 1
 union all
-select 'top5_gov24_share_pct', coalesce(round(100.0 * avg(case when source_type = 'GOV24' and rec_rank <= 5 then 1.0 else 0.0 end), 2), 0)::text from topn
+select 'top2_gov24_share_pct',
+       coalesce(round(100.0 * count(*) filter (where source_type = 'GOV24') / nullif(count(*), 0), 2), 0)::text
+from topn
+where rec_rank <= 2
 union all
-select 'top10_gov24_share_pct', coalesce(round(100.0 * avg(case when source_type = 'GOV24' then 1.0 else 0.0 end), 2), 0)::text from topn
+select 'top3_gov24_share_pct',
+       coalesce(round(100.0 * count(*) filter (where source_type = 'GOV24') / nullif(count(*), 0), 2), 0)::text
+from topn
+where rec_rank <= 3
+union all
+select 'top5_gov24_share_pct',
+       coalesce(round(100.0 * count(*) filter (where source_type = 'GOV24') / nullif(count(*), 0), 2), 0)::text
+from topn
+where rec_rank <= 5
+union all
+select 'top10_gov24_share_pct',
+       coalesce(round(100.0 * count(*) filter (where source_type = 'GOV24') / nullif(count(*), 0), 2), 0)::text
+from topn
 union all
 select 'top1_gov24_count', count(*)::text from topn where rec_rank = 1 and source_type = 'GOV24'
+union all
+select 'top2_gov24_count', count(*)::text from topn where rec_rank <= 2 and source_type = 'GOV24'
 union all
 select 'top10_gov24_count', count(*)::text from topn where source_type = 'GOV24'
 union all
@@ -60,6 +95,14 @@ from (
   from topn
   group by rec_rank, source_type
 ) rs
+union all
+select 'cohort_source_distribution',
+       string_agg(user_cohort || ':' || source_type || ':' || cnt, ',' order by user_cohort, source_type)
+from (
+  select user_cohort, source_type, count(*) as cnt
+  from topn
+  group by user_cohort, source_type
+) cs
 union all
 select 'gov24_top_services',
        coalesce(string_agg(service_id || ':' || title || ':' || cnt, ' | ' order by cnt desc, service_id), '')

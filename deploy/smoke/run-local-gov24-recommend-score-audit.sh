@@ -13,6 +13,13 @@ with latest as (
 ranked as (
   select
     ur.user_key,
+    case
+      when u.email like 'gov24.housin.%@%' then 'GOV24_HOUSING_SIGNAL'
+      when u.email like 'gov24.educat.%@%' then 'GOV24_EDUCATION_SIGNAL'
+      when u.email like 'gov24.surfac.%@%' then 'GOV24_SURFACE_AUDIT'
+      when u.email like 'gov24.%@%' then 'GOV24_OTHER_SMOKE'
+      else 'OTHER'
+    end as user_cohort,
     row_number() over (
       partition by ur.user_key
       order by ur.final_score desc, ur.id asc
@@ -27,6 +34,8 @@ ranked as (
   join latest l
     on l.user_key = ur.user_key
    and l.recommended_at = ur.recommended_at
+  join users u
+    on u.user_key = ur.user_key
   join welfare_services ws
     on ws.id = ur.service_id
 ),
@@ -36,6 +45,16 @@ top10 as (
 top2 as (
   select * from ranked where rec_rank <= 2
 )
+select 'latest_batch_user_count', count(distinct user_key)::text from ranked
+union all
+select 'latest_batch_user_cohort_distribution',
+       coalesce(string_agg(user_cohort || ':' || cnt, ',' order by user_cohort), '')
+from (
+  select user_cohort, count(distinct user_key) as cnt
+  from ranked
+  group by user_cohort
+) uc
+union all
 select 'top10_source_score_summary',
        coalesce(string_agg(
          source_type || ':' || cnt || ':' || avg_rule || ':' || avg_ai || ':' || avg_final,
@@ -84,6 +103,23 @@ from (
   from top10
   group by rec_rank, source_type
 ) rs
+union all
+select 'cohort_source_score_summary',
+       coalesce(string_agg(
+         user_cohort || ':' || source_type || ':' || cnt || ':' || avg_rule || ':' || avg_ai || ':' || avg_final,
+         ',' order by user_cohort, source_type
+       ), '')
+from (
+  select
+    user_cohort,
+    source_type,
+    count(*) as cnt,
+    coalesce(round(avg(rule_weighted_score), 2), 0)::text as avg_rule,
+    coalesce(round(avg(ai_score), 2), 0)::text as avg_ai,
+    coalesce(round(avg(final_score), 5), 0)::text as avg_final
+  from top10
+  group by user_cohort, source_type
+) cs
 union all
 select 'gov24_top2_services',
        coalesce(string_agg(service_id || ':' || title || ':' || cnt, ' | ' order by cnt desc, service_id), '')
