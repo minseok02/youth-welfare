@@ -633,7 +633,31 @@ public class WelfareServiceMapper {
     }
 
     public List<ServiceRegion> regionsFromGov24(Gov24ServiceListDto.Item item, WelfareService service) {
-        return List.of();
+        List<RegionCodeUtil.RegionName> regions = RegionCodeUtil.inferRegionNamesFromText(
+                        item.getManagingOrganizationName(),
+                        item.getReceptionOrganization(),
+                        item.getDepartmentName(),
+                        item.getServiceName(),
+                        item.getServicePurposeSummary(),
+                        item.getSupportTarget(),
+                        item.getSelectionCriteria(),
+                        item.getSupportContent(),
+                        item.getApplyMethod()
+                );
+        if (regions.isEmpty()) {
+            regions = RegionCodeUtil.inferRegionNamesFromLocalAgency(
+                    item.getManagingOrganizationType(),
+                    item.getManagingOrganizationName()
+            );
+        }
+        return regions.stream()
+                .map(region -> ServiceRegion.builder()
+                        .service(service)
+                        .regionCode(region.regionCode())
+                        .sidoName(region.sidoName())
+                        .sggName(region.sggName())
+                        .build())
+                .toList();
     }
 
     // ===== 공통 유틸 =====

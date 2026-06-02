@@ -16,7 +16,20 @@ public interface NormalizedPolicySidecarBackfillReadRepository {
             int limitPerSource
     );
 
+    List<NormalizedPolicySidecarBackfillRegionTarget> findRegionTargetsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
+            WelfareService.SourceType sourceType,
+            RawApiPayload.ApiCategory apiCategory,
+            int limitPerSource
+    );
+
     List<NormalizedPolicySidecarBackfillTarget> findTargetsMissingSummarySlotsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
+            WelfareService.SourceType sourceType,
+            RawApiPayload.ApiCategory apiCategory,
+            List<String> requiredSummarySlotKeys,
+            int limitPerSource
+    );
+
+    List<NormalizedPolicySidecarBackfillRawTarget> findRawTargetsMissingSummarySlotsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
             WelfareService.SourceType sourceType,
             RawApiPayload.ApiCategory apiCategory,
             List<String> requiredSummarySlotKeys,

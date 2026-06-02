@@ -1,11 +1,17 @@
 package com.example.welfare.collect.normalization;
 
+import com.example.welfare.collect.dto.Gov24ServiceListDto;
 import com.example.welfare.collect.entity.RawApiPayload;
 import com.example.welfare.collect.dto.Gov24SupportConditionsDto;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
+import com.example.welfare.collect.repository.CollectItemRegionCommandRepository;
+import com.example.welfare.collect.repository.DeferredNormalizedPolicySidecarCommandRepository;
 import com.example.welfare.collect.repository.NormalizedPolicySidecarBackfillReadRepository;
+import com.example.welfare.collect.repository.NormalizedPolicySidecarBackfillRawTarget;
+import com.example.welfare.collect.repository.NormalizedPolicySidecarBackfillRegionTarget;
 import com.example.welfare.collect.repository.NormalizedPolicySidecarBackfillTarget;
 import com.example.welfare.collect.service.CollectPolicyAggregateApplyService;
+import com.example.welfare.policy.entity.ServiceRegion;
 import com.example.welfare.collect.support.CollectSourceRegistry;
 import com.example.welfare.policy.entity.WelfareService;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -15,6 +21,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -31,16 +39,22 @@ public class NormalizedPolicySidecarBackfillService {
     );
 
     private final NormalizedPolicySidecarBackfillReadRepository normalizedPolicySidecarBackfillReadRepository;
+    private final CollectItemRegionCommandRepository collectItemRegionCommandRepository;
+    private final DeferredNormalizedPolicySidecarCommandRepository deferredNormalizedPolicySidecarCommandRepository;
     private final WelfareServiceMapper welfareServiceMapper;
     private final CollectPolicyAggregateApplyService collectPolicyAggregateApplyService;
     private final ObjectMapper objectMapper;
     private final Map<WelfareService.SourceType, SidecarBackfillCapability> backfillCapabilities;
 
     public NormalizedPolicySidecarBackfillService(NormalizedPolicySidecarBackfillReadRepository normalizedPolicySidecarBackfillReadRepository,
+                                                  CollectItemRegionCommandRepository collectItemRegionCommandRepository,
+                                                  DeferredNormalizedPolicySidecarCommandRepository deferredNormalizedPolicySidecarCommandRepository,
                                                   WelfareServiceMapper welfareServiceMapper,
                                                   CollectPolicyAggregateApplyService collectPolicyAggregateApplyService,
                                                   ObjectMapper objectMapper) {
         this.normalizedPolicySidecarBackfillReadRepository = normalizedPolicySidecarBackfillReadRepository;
+        this.collectItemRegionCommandRepository = collectItemRegionCommandRepository;
+        this.deferredNormalizedPolicySidecarCommandRepository = deferredNormalizedPolicySidecarCommandRepository;
         this.welfareServiceMapper = welfareServiceMapper;
         this.collectPolicyAggregateApplyService = collectPolicyAggregateApplyService;
         this.objectMapper = objectMapper;
@@ -62,11 +76,103 @@ public class NormalizedPolicySidecarBackfillService {
 
     @Transactional
     public BackfillResult backfillGov24MissingListSidecars(int limitPerSource) {
-        return backfillListSourceMissingSummarySlots(
-                WelfareService.SourceType.GOV24,
-                limitPerSource,
-                GOV24_LIST_SUMMARY_SLOT_KEYS
-        );
+        long startedAt = System.nanoTime();
+        List<NormalizedPolicySidecarBackfillRawTarget> targets = normalizedPolicySidecarBackfillReadRepository
+                .findRawTargetsMissingSummarySlotsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
+                        WelfareService.SourceType.GOV24,
+                        RawApiPayload.ApiCategory.LIST,
+                        GOV24_LIST_SUMMARY_SLOT_KEYS,
+                        limitPerSource
+                );
+
+        int scanned = 0;
+        int missingService = 0;
+        int failed = 0;
+        List<DeferredNormalizedPolicySidecarCommandRepository.TaxonomySidecarBatchEntry> entries =
+                new ArrayList<>(targets.size());
+
+        for (NormalizedPolicySidecarBackfillRawTarget target : targets) {
+            scanned++;
+            if (target.serviceId() == null) {
+                missingService++;
+                continue;
+            }
+
+            try {
+                Gov24ServiceListDto.Item item = objectMapper.readValue(target.payloadJson(), Gov24ServiceListDto.Item.class);
+                entries.add(new DeferredNormalizedPolicySidecarCommandRepository.TaxonomySidecarBatchEntry(
+                        target.serviceId(),
+                        WelfareService.SourceType.GOV24,
+                        welfareServiceMapper.toNormalizedGov24(item)
+                ));
+            } catch (Exception e) {
+                failed++;
+                log.warn("[NormalizedPolicySidecarBackfillService] Gov24 missing list backfill 실패 sourceId={} err={}",
+                        target.sourceId(), e.getMessage());
+            }
+        }
+
+        int upserted = entries.size();
+        try {
+            deferredNormalizedPolicySidecarCommandRepository.replaceTaxonomySidecarsBatch(entries);
+        } catch (Exception e) {
+            failed += entries.size();
+            upserted = 0;
+            log.warn("[NormalizedPolicySidecarBackfillService] Gov24 missing list batch write 실패 entries={} err={}",
+                    entries.size(), e.getMessage());
+        }
+
+        long elapsedMillis = Duration.ofNanos(System.nanoTime() - startedAt).toMillis();
+        log.info("[NormalizedPolicySidecarBackfillService] Gov24 missing list backfill 완료 scanned={} upserted={} missing={} failed={} elapsedMs={}",
+                scanned, upserted, missingService, failed, elapsedMillis);
+        return new BackfillResult(scanned, upserted, missingService, failed);
+    }
+
+    public BackfillResult backfillGov24ListRegions(int limitPerSource) {
+        long startedAt = System.nanoTime();
+        List<NormalizedPolicySidecarBackfillRegionTarget> targets = normalizedPolicySidecarBackfillReadRepository
+                .findRegionTargetsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
+                        WelfareService.SourceType.GOV24,
+                        RawApiPayload.ApiCategory.LIST,
+                        limitPerSource
+                );
+
+        int scanned = 0;
+        int upserted = 0;
+        int missingService = 0;
+        int failed = 0;
+        List<Long> serviceIdsToReplace = new ArrayList<>(targets.size());
+        List<ServiceRegion> regionsToInsert = new ArrayList<>();
+
+        for (NormalizedPolicySidecarBackfillRegionTarget target : targets) {
+            scanned++;
+            if (target.serviceId() == null) {
+                missingService++;
+                continue;
+            }
+
+            try {
+                WelfareService service = WelfareService.builder()
+                        .id(target.serviceId())
+                        .sourceType(WelfareService.SourceType.GOV24)
+                        .sourceId(target.sourceId())
+                        .build();
+                Gov24ServiceListDto.Item item = objectMapper.readValue(target.payloadJson(), Gov24ServiceListDto.Item.class);
+                serviceIdsToReplace.add(target.serviceId());
+                regionsToInsert.addAll(welfareServiceMapper.regionsFromGov24(item, service));
+                upserted++;
+            } catch (Exception e) {
+                failed++;
+                log.warn("[NormalizedPolicySidecarBackfillService] Gov24 region backfill 실패 sourceId={} err={}",
+                        target.sourceId(), e.getMessage());
+            }
+        }
+
+        collectItemRegionCommandRepository.replaceAllBatch(serviceIdsToReplace, regionsToInsert);
+        long elapsedMillis = Duration.ofNanos(System.nanoTime() - startedAt).toMillis();
+        log.info("[NormalizedPolicySidecarBackfillService] Gov24 region backfill 완료 scanned={} upserted={} missing={} failed={} regions={} elapsedMs={}",
+                scanned, upserted, missingService, failed, regionsToInsert.size(), elapsedMillis);
+        return new BackfillResult(scanned, upserted, missingService, failed);
     }
 
     @Transactional

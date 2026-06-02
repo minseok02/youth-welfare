@@ -2,6 +2,7 @@ package com.example.welfare.policy.service;
 
 import com.example.welfare.chat.service.PolicyChunkEmbeddingService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -15,6 +16,7 @@ import java.util.function.Supplier;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PolicyEmbeddingRefreshRequestService {
 
     private static final Object RESOURCE_KEY = new Object();
@@ -77,17 +79,24 @@ public class PolicyEmbeddingRefreshRequestService {
         BatchScope newScope = new BatchScope();
         BATCH_SCOPE.set(newScope);
         try {
-            return supplier.get();
+            T result = supplier.get();
+            refreshBatchScopeSafely(newScope);
+            return result;
         } finally {
-            try {
-                if (!newScope.pendingServiceIds().isEmpty()) {
-                    policyChunkEmbeddingService.refreshEmbeddingsForServiceIds(
-                            new ArrayList<>(newScope.pendingServiceIds())
-                    );
-                }
-            } finally {
-                BATCH_SCOPE.remove();
-            }
+            BATCH_SCOPE.remove();
+        }
+    }
+
+    private void refreshBatchScopeSafely(BatchScope batchScope) {
+        if (batchScope.pendingServiceIds().isEmpty()) {
+            return;
+        }
+        List<Long> serviceIds = new ArrayList<>(batchScope.pendingServiceIds());
+        try {
+            policyChunkEmbeddingService.refreshEmbeddingsForServiceIds(serviceIds);
+        } catch (RuntimeException e) {
+            log.warn("[PolicyEmbeddingRefreshRequestService] batch embedding refresh skipped serviceCount={} err={}",
+                    serviceIds.size(), e.getMessage());
         }
     }
 

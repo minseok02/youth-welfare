@@ -41,6 +41,37 @@ public class NormalizedPolicySidecarBackfillReadRepositoryImpl implements Normal
     }
 
     @Override
+    public List<NormalizedPolicySidecarBackfillRegionTarget> findRegionTargetsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
+            WelfareService.SourceType sourceType,
+            RawApiPayload.ApiCategory apiCategory,
+            int limitPerSource
+    ) {
+        var query = entityManager.createNativeQuery("""
+                SELECT ws.id AS service_id,
+                       rap.source_id,
+                       rap.payload_json
+                FROM raw_api_payloads rap
+                LEFT JOIN welfare_services ws
+                  ON ws.source_type = rap.source_type
+                 AND ws.source_id = rap.source_id
+                WHERE rap.source_type = :sourceType
+                  AND rap.api_category = :apiCategory
+                ORDER BY rap.fetched_at ASC, rap.id ASC
+                """)
+                .setParameter("sourceType", sourceType.name())
+                .setParameter("apiCategory", apiCategory.name());
+        if (limitPerSource > 0) {
+            query.setMaxResults(limitPerSource);
+        }
+
+        @SuppressWarnings("unchecked")
+        List<Object[]> rows = query.getResultList();
+        return rows.stream()
+                .map(this::toRegionTarget)
+                .toList();
+    }
+
+    @Override
     public List<NormalizedPolicySidecarBackfillTarget> findTargetsMissingSummarySlotsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
             WelfareService.SourceType sourceType,
             RawApiPayload.ApiCategory apiCategory,
@@ -92,6 +123,50 @@ public class NormalizedPolicySidecarBackfillReadRepositoryImpl implements Normal
                 .toList();
     }
 
+    @Override
+    public List<NormalizedPolicySidecarBackfillRawTarget> findRawTargetsMissingSummarySlotsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
+            WelfareService.SourceType sourceType,
+            RawApiPayload.ApiCategory apiCategory,
+            List<String> requiredSummarySlotKeys,
+            int limitPerSource
+    ) {
+        if (requiredSummarySlotKeys == null || requiredSummarySlotKeys.isEmpty()) {
+            return List.of();
+        }
+
+        var query = entityManager.createNativeQuery("""
+                SELECT ws.id AS service_id,
+                       rap.source_id,
+                       rap.payload_json
+                FROM raw_api_payloads rap
+                JOIN welfare_services ws
+                  ON ws.source_type = rap.source_type
+                 AND ws.source_id = rap.source_id
+                WHERE rap.source_type = :sourceType
+                  AND rap.api_category = :apiCategory
+                  AND (
+                      SELECT COUNT(DISTINCT sts.slot_key)
+                      FROM service_taxonomy_summary_slots sts
+                      WHERE sts.service_id = ws.id
+                        AND sts.slot_key IN (:slotKeys)
+                  ) < :slotCount
+                ORDER BY rap.fetched_at ASC, rap.id ASC
+                """)
+                .setParameter("sourceType", sourceType.name())
+                .setParameter("apiCategory", apiCategory.name())
+                .setParameter("slotKeys", requiredSummarySlotKeys)
+                .setParameter("slotCount", requiredSummarySlotKeys.size());
+        if (limitPerSource > 0) {
+            query.setMaxResults(limitPerSource);
+        }
+
+        @SuppressWarnings("unchecked")
+        List<Object[]> rows = query.getResultList();
+        return rows.stream()
+                .map(this::toRawTarget)
+                .toList();
+    }
+
     private List<RawApiPayload> limit(List<RawApiPayload> payloads, int limitPerSource) {
         if (limitPerSource <= 0 || payloads.size() <= limitPerSource) {
             return payloads;
@@ -104,6 +179,24 @@ public class NormalizedPolicySidecarBackfillReadRepositoryImpl implements Normal
                 raw,
                 welfareServiceRepository.findBySourceTypeAndSourceId(raw.getSourceType(), raw.getSourceId())
                         .orElse(null)
+        );
+    }
+
+    private NormalizedPolicySidecarBackfillRegionTarget toRegionTarget(Object[] row) {
+        Number serviceId = (Number) row[0];
+        return new NormalizedPolicySidecarBackfillRegionTarget(
+                serviceId == null ? null : serviceId.longValue(),
+                (String) row[1],
+                (String) row[2]
+        );
+    }
+
+    private NormalizedPolicySidecarBackfillRawTarget toRawTarget(Object[] row) {
+        Number serviceId = (Number) row[0];
+        return new NormalizedPolicySidecarBackfillRawTarget(
+                serviceId == null ? null : serviceId.longValue(),
+                (String) row[1],
+                (String) row[2]
         );
     }
 }

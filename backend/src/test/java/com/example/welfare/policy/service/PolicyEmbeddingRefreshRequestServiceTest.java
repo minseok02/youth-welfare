@@ -12,6 +12,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
@@ -87,5 +89,23 @@ class PolicyEmbeddingRefreshRequestServiceTest {
             synchronization.afterCompletion(TransactionSynchronization.STATUS_COMMITTED);
         }
         verifyNoMoreInteractions(policyChunkEmbeddingService);
+    }
+
+    @Test
+    @DisplayName("batch scope 종료 후 임베딩 refresh 실패는 supplier 결과를 깨지 않는다")
+    void batchScopeRefreshFailureDoesNotBreakSupplierResult() {
+        PolicyEmbeddingRefreshRequestService service =
+                new PolicyEmbeddingRefreshRequestService(policyChunkEmbeddingService);
+        doThrow(new IllegalStateException("OpenAI embeddings are unavailable"))
+                .when(policyChunkEmbeddingService)
+                .refreshEmbeddingsForServiceIds(List.of(4L, 9L));
+
+        Integer result = service.runInBatch(() -> {
+            service.request(List.of(4L, 9L));
+            return 7;
+        });
+
+        assertThat(result).isEqualTo(7);
+        verify(policyChunkEmbeddingService).refreshEmbeddingsForServiceIds(List.of(4L, 9L));
     }
 }

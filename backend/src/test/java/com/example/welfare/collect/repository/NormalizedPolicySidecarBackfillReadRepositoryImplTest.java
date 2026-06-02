@@ -4,6 +4,7 @@ import com.example.welfare.collect.entity.RawApiPayload;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.collect.repository.RawApiPayloadRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,6 +26,8 @@ class NormalizedPolicySidecarBackfillReadRepositoryImplTest {
     private RawApiPayloadRepository rawApiPayloadRepository;
     @Mock
     private WelfareServiceRepository welfareServiceRepository;
+    @Mock
+    private EntityManager entityManager;
 
     @InjectMocks
     private NormalizedPolicySidecarBackfillReadRepositoryImpl normalizedPolicySidecarBackfillReadRepository;

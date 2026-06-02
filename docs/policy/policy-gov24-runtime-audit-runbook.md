@@ -44,7 +44,56 @@
   - official `supportConditions` 값은 있지만 현재 fact extractor가 아직 읽지 않는 code-only payload
 - 현재 local audit 기준으로는 남은 gap이 없습니다.
 
+2026-06-02 current server Docker runtime Gov24 acceptance 기준:
+
+- closeout coverage: `gov24_total_services=10954`, `gov24_detail_rows=10954`, `gov24_support_raw=10954`
+- support fact coverage: `gov24_support_fact_rows=194819`, `gov24_support_fact_services=10954`, `gov24_support_missing_fact_services=0`
+- support raw shape: `nested=10954`, `flat=0`
+- region backfill `10954`건: suite step `11395ms`, endpoint metric `8235ms`
+- region coverage: `9794 / 10954 = 89.41%`
+- region rows: `33837`
+- collect embedding boundary: `requested=1`, `saved=1`, `failed=0`, warning count `1`, error count `0`
+- sidecar missing-list refill: `before_missing=10954 -> after_missing=0`, suite step `15377ms`
+- filter axis audit: Gov24 3축 filter count를 DB truth와 API `totalElements` 로 비교
+- 기본 acceptance suite: `passed`, `8` steps, `suite_duration_ms=74226`
+- signal 포함 acceptance suite: `passed`, `10` steps, `suite_duration_ms=71712`
+  - housing signal: `fresh_batch_rows=44`, `gov24_rows=44`, `gov24_top10_rows=10`, `gov24_top2_rows=2`
+  - education signal: `fresh_batch_rows=32`, `gov24_rows=32`, `gov24_top10_rows=10`, `gov24_top2_rows=2`
+- latest artifact: `tmp/gov24-acceptance-suite/latest`
+
 ## 2. 한 번에 보는 기본 명령
+
+```bash
+bash deploy/smoke/run-local-gov24-acceptance-suite.sh
+```
+
+이 wrapper는 현재 서버 Docker runtime에서 accepted 재측정을 반복하는 기본 순서입니다.
+
+기본 포함 단계:
+
+1. `run-local-gov24-region-backfill-smoke.sh`
+2. `run-local-gov24-region-coverage-audit.sh`
+3. `run-local-gov24-collect-embedding-boundary-smoke.sh`
+4. `run-local-gov24-sidecar-backfill-smoke.sh`
+5. `run-local-gov24-quality-audit.sh`
+6. `run-local-gov24-filter-axis-audit.sh`
+7. `run-local-gov24-recommend-surface-audit.sh`
+8. `run-local-gov24-recommend-score-audit.sh`
+
+교육/주거 signal smoke까지 포함하려면 아래처럼 켭니다.
+
+```bash
+RUN_GOV24_SIGNAL_SMOKES=true bash deploy/smoke/run-local-gov24-acceptance-suite.sh
+```
+
+wrapper는 `tmp/gov24-acceptance-suite/latest*` 에 summary/json을 남깁니다.
+
+주의: `run-local-gov24-quality-audit.sh` 는 현재 관측값을 출력하는 audit입니다.
+현재 서버 Docker DB가 LIST 중심으로만 적재된 상태면 `support_raw=0` 같은 낮은 값도 출력될 수 있습니다.
+detail/support closeout 판정에서는 `gov24_total_services/detail_rows/support_raw` 를 같은 규모로 맞춘 뒤
+support fact gap 분해를 읽습니다.
+
+## 3. 품질 audit 단독 명령
 
 ```bash
 bash deploy/smoke/run-local-gov24-quality-audit.sh
@@ -67,7 +116,7 @@ bash deploy/smoke/run-local-gov24-quality-audit.sh
 - `gov24_missing_no_support_raw / all_null / unmapped_only / mapped_signal`
 - nested/flat shape
 
-## 3. 결과 해석 순서
+## 4. 결과 해석 순서
 
 ### A. 먼저 backlog closeout 확인
 
@@ -81,7 +130,7 @@ bash deploy/smoke/run-local-gov24-quality-audit.sh
 
 기대값:
 
-- `gov24_support_nested_shape = 10945`
+- `gov24_support_nested_shape = 10954`
 - `gov24_support_flat_shape = 0`
 
 `flat_shape > 0` 이면 raw shape drift가 다시 생긴 것입니다.
@@ -104,7 +153,7 @@ bash deploy/smoke/run-local-gov24-quality-audit.sh
 - `effective_signal_count > 0` 이고 `mapped_signal_count = 0` 이면, 현재 extractor가 아직 fact로 승격하지 않는 official code-only payload일 가능성이 큽니다.
 - `mapped_signal_count > 0` 인데 fact가 없으면 extractor/fact write anomaly로 봅니다.
 
-## 4. detail/support 재수집 명령
+## 5. detail/support 재수집 명령
 
 ### chunk 재수집
 
@@ -131,7 +180,7 @@ curl -sS -X POST "http://127.0.0.1:8082/api/admin/collect/gov24-support-conditio
 - `maxCallsPerRun` 또는 `sourceId`
 - 최신 `api_sync_logs` 의 `requested/saved/skipped/failed`
 
-## 5. 샘플 감사 기준
+## 6. 샘플 감사 기준
 
 대표 샘플을 볼 때는 아래 순서로 봅니다.
 
@@ -147,7 +196,7 @@ curl -sS -X POST "http://127.0.0.1:8082/api/admin/collect/gov24-support-conditio
 - `effective_signal_count > 0` 이고 `mapped_signal_count = 0` 이면 지금 단계에서는 `unmapped official condition payload` 로 분리합니다.
 - `mapped_signal_count > 0` 인데 fact가 없으면 anomaly로 봅니다.
 
-## 6. 언제 여기서 멈춰야 하나
+## 7. 언제 여기서 멈춰야 하나
 
 - `detail/support raw` 가 이미 `10937` 까지 닫혀 있는데도 계속 같은 재수집을 반복하려는 경우
 - `support fact coverage` 차이를 전부 코드 버그라고 단정하려는 경우
@@ -156,7 +205,7 @@ curl -sS -X POST "http://127.0.0.1:8082/api/admin/collect/gov24-support-conditio
 이 문서의 범위는 runtime audit 입니다.
 hard taxonomy/import-backfill 은 여전히 blocked track 입니다.
 
-## 7. 요약
+## 8. 요약
 
 1. 먼저 `list/detail/support raw` closeout부터 확인합니다.
 2. 그 다음 `support raw shape` 가 nested only인지 봅니다.

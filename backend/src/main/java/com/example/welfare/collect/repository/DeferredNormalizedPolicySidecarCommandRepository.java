@@ -7,9 +7,18 @@ import java.util.List;
 
 public interface DeferredNormalizedPolicySidecarCommandRepository {
 
+    record TaxonomySidecarBatchEntry(
+            Long serviceId,
+            WelfareService.SourceType sourceType,
+            NormalizedPolicyAggregate aggregate
+    ) {
+    }
+
     void upsertTaxonomySummary(WelfareService service, NormalizedPolicyAggregate aggregate);
 
     void replaceTaxonomySummarySlots(WelfareService service, NormalizedPolicyAggregate aggregate);
+
+    void replaceTaxonomySidecarsBatch(List<TaxonomySidecarBatchEntry> entries);
 
     void replaceTaxonomyTerms(Long serviceId,
                               List<NormalizedPolicyAggregate.TaxonomyTerm> taxonomyTerms,

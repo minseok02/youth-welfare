@@ -169,9 +169,11 @@ public class CollectAdminController {
         } else {
             result = switch (normalizedScope) {
                 case "list" -> normalizedPolicySidecarBackfillService.backfillGov24ListSidecars(effectiveLimitPerSource);
+                case "regions" -> normalizedPolicySidecarBackfillService.backfillGov24ListRegions(effectiveLimitPerSource);
                 case "support", "support-conditions" ->
                         normalizedPolicySidecarBackfillService.backfillGov24SupportConditionSidecars(effectiveLimitPerSource);
                 case "all" -> normalizedPolicySidecarBackfillService.backfillGov24ListSidecars(effectiveLimitPerSource)
+                        .plus(normalizedPolicySidecarBackfillService.backfillGov24ListRegions(effectiveLimitPerSource))
                         .plus(normalizedPolicySidecarBackfillService.backfillGov24SupportConditionSidecars(effectiveLimitPerSource));
                 default -> throw new CustomException(ErrorCode.INVALID_INPUT);
             };

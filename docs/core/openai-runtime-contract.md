@@ -117,6 +117,22 @@ active 문서 기준 현재 recommendation 트랙은 [recommendation-current-sta
 
 즉 embedding rebuild 는 **서비스 연속성보다 데이터 무결성 우선** 경로입니다.
 
+### 5. collect batch embedding refresh
+
+구현:
+
+- [PolicyEmbeddingRefreshRequestService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/policy/service/PolicyEmbeddingRefreshRequestService.java:1)
+- [CollectSourceExecutionService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectSourceExecutionService.java:1)
+
+장애 계약:
+
+- 수집 저장 자체는 source별 collect transaction/retry 경계에서 판정
+- batch scope 종료 후 embedding refresh는 저장 후처리
+- strict embedding refresh가 OpenAI unavailable 로 실패하면 warning 으로 기록
+- 이미 성공한 collect 응답을 embedding 후처리 실패 때문에 500으로 바꾸지 않음
+
+즉 collect batch embedding refresh 는 **수집 저장 성공을 보존하는 best-effort 후처리** 입니다.
+
 ## 개인정보 최소화 현재 범위
 
 현재 redaction 범위:
@@ -145,6 +161,9 @@ active 문서 기준 현재 recommendation 트랙은 [recommendation-current-sta
   - [ChatSemanticSearchServiceTest.java](/home/minseok/youth-welfare/backend/src/test/java/com/example/welfare/chat/service/ChatSemanticSearchServiceTest.java:1)
 - embedding strict refresh
   - [PolicyChunkEmbeddingServiceTest.java](/home/minseok/youth-welfare/backend/src/test/java/com/example/welfare/chat/service/PolicyChunkEmbeddingServiceTest.java:1)
+- collect batch embedding refresh
+  - [PolicyEmbeddingRefreshRequestServiceTest.java](/home/minseok/youth-welfare/backend/src/test/java/com/example/welfare/policy/service/PolicyEmbeddingRefreshRequestServiceTest.java:1)
+  - `bash deploy/smoke/run-local-gov24-collect-embedding-boundary-smoke.sh`
 - redactor corpus
   - `SensitiveTextRedactorTest`
 
@@ -158,6 +177,7 @@ active 문서 기준 현재 recommendation 트랙은 [recommendation-current-sta
 - `ChatAiGateway`
 - `OpenAiChatEmbeddingGateway`
 - `PolicyChunkEmbeddingService`
+- `PolicyEmbeddingRefreshRequestService`
 - `SensitiveTextRedactor`
 - `application.yml`
 
@@ -167,3 +187,4 @@ active 문서 기준 현재 recommendation 트랙은 [recommendation-current-sta
 - chat: **grounded answer + fallback 허용**
 - semantic query: **local fallback 허용**
 - embedding rebuild: **local fallback 저장 금지, strict fail**
+- collect batch embedding refresh: **수집 저장 성공 보존, 후처리 실패 warning-only**

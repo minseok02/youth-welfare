@@ -2,6 +2,7 @@ package com.example.welfare.collect.mapper;
 
 import com.example.welfare.collect.dto.BokjiroCentralDto;
 import com.example.welfare.collect.dto.BokjiroLocalDto;
+import com.example.welfare.collect.dto.Gov24ServiceListDto;
 import com.example.welfare.collect.dto.YouthApiDto;
 import com.example.welfare.policy.entity.WelfareService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -267,6 +268,122 @@ class WelfareServiceMapperTest {
             assertThat(fact.rangeMinInt()).isEqualTo(18);
             assertThat(fact.rangeMaxInt()).isEqualTo(39);
         });
+    }
+
+    @Test
+    void regionsFromGov24_extractsSpecificRegionFromAgencyAndText() throws Exception {
+        Gov24ServiceListDto.Item item = new Gov24ServiceListDto.Item();
+        setField(item, "serviceId", "G002");
+        setField(item, "serviceName", "인천광역시 중구 청년 자격증 응시료 지원");
+        setField(item, "servicePurposeSummary", "인천 중구 거주 청년 지원");
+        setField(item, "managingOrganizationName", "인천광역시 중구청");
+
+        WelfareService service = mapper.fromGov24(item);
+
+        assertThat(mapper.regionsFromGov24(item, service))
+                .singleElement()
+                .satisfies(region -> {
+                    assertThat(region.getRegionCode()).isEqualTo("28110");
+                    assertThat(region.getSidoName()).isEqualTo("인천광역시");
+                    assertThat(region.getSggName()).isEqualTo("중구");
+                });
+    }
+
+    @Test
+    void regionsFromGov24_expandsSidoLevelAgencyToAllSidoRegions() throws Exception {
+        Gov24ServiceListDto.Item item = new Gov24ServiceListDto.Item();
+        setField(item, "serviceId", "G003");
+        setField(item, "serviceName", "경기도 청년 복지포인트");
+        setField(item, "servicePurposeSummary", "경기도 거주 청년 지원");
+        setField(item, "managingOrganizationName", "경기도청");
+
+        WelfareService service = mapper.fromGov24(item);
+
+        assertThat(mapper.regionsFromGov24(item, service))
+                .anySatisfy(region -> {
+                    assertThat(region.getRegionCode()).isEqualTo("41110");
+                    assertThat(region.getSidoName()).isEqualTo("경기도");
+                    assertThat(region.getSggName()).isEqualTo("수원시");
+                })
+                .anySatisfy(region -> {
+                    assertThat(region.getRegionCode()).isEqualTo("41270");
+                    assertThat(region.getSidoName()).isEqualTo("경기도");
+                    assertThat(region.getSggName()).isEqualTo("안산시");
+                });
+    }
+
+    @Test
+    void regionsFromGov24_extractsSejongAsSingleRegion() throws Exception {
+        Gov24ServiceListDto.Item item = new Gov24ServiceListDto.Item();
+        setField(item, "serviceId", "G004");
+        setField(item, "serviceName", "세종시 청년 행정인턴");
+        setField(item, "servicePurposeSummary", "세종특별자치시 거주 청년 지원");
+        setField(item, "managingOrganizationName", "세종특별자치시");
+
+        WelfareService service = mapper.fromGov24(item);
+
+        assertThat(mapper.regionsFromGov24(item, service))
+                .singleElement()
+                .satisfies(region -> {
+                    assertThat(region.getRegionCode()).isEqualTo("36110");
+                    assertThat(region.getSidoName()).isEqualTo("세종특별자치시");
+                    assertThat(region.getSggName()).isEqualTo("세종시");
+                });
+    }
+
+    @Test
+    void regionsFromGov24_extractsUniqueSggStemFromAgencyName() throws Exception {
+        Gov24ServiceListDto.Item item = new Gov24ServiceListDto.Item();
+        setField(item, "serviceId", "G005");
+        setField(item, "serviceName", "행복이음 장학금");
+        setField(item, "servicePurposeSummary", "4대 이상이 함께 거주하는 학생 지원");
+        setField(item, "managingOrganizationName", "재단법인안산인재육성재단");
+
+        WelfareService service = mapper.fromGov24(item);
+
+        assertThat(mapper.regionsFromGov24(item, service))
+                .singleElement()
+                .satisfies(region -> {
+                    assertThat(region.getRegionCode()).isEqualTo("41270");
+                    assertThat(region.getSidoName()).isEqualTo("경기도");
+                    assertThat(region.getSggName()).isEqualTo("안산시");
+                });
+    }
+
+    @Test
+    void regionsFromGov24_expandsBareSidoOnlyForLocalAgencyTypes() throws Exception {
+        Gov24ServiceListDto.Item item = new Gov24ServiceListDto.Item();
+        setField(item, "serviceId", "G006");
+        setField(item, "serviceName", "문화예술 지원");
+        setField(item, "managingOrganizationName", "(재)충북문화재단");
+        setField(item, "managingOrganizationType", "지방출자_출연기관");
+
+        WelfareService service = mapper.fromGov24(item);
+
+        assertThat(mapper.regionsFromGov24(item, service))
+                .anySatisfy(region -> {
+                    assertThat(region.getRegionCode()).isEqualTo("43110");
+                    assertThat(region.getSidoName()).isEqualTo("충청북도");
+                    assertThat(region.getSggName()).isEqualTo("청주시");
+                })
+                .anySatisfy(region -> {
+                    assertThat(region.getRegionCode()).isEqualTo("43760");
+                    assertThat(region.getSidoName()).isEqualTo("충청북도");
+                    assertThat(region.getSggName()).isEqualTo("괴산군");
+                });
+    }
+
+    @Test
+    void regionsFromGov24_doesNotExpandBareSidoForPublicAgencyTypes() throws Exception {
+        Gov24ServiceListDto.Item item = new Gov24ServiceListDto.Item();
+        setField(item, "serviceId", "G007");
+        setField(item, "serviceName", "체육 지원");
+        setField(item, "managingOrganizationName", "서울올림픽기념국민체육진흥공단");
+        setField(item, "managingOrganizationType", "공공기관");
+
+        WelfareService service = mapper.fromGov24(item);
+
+        assertThat(mapper.regionsFromGov24(item, service)).isEmpty();
     }
 
     @Test

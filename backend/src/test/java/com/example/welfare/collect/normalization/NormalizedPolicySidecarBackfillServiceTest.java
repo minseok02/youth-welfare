@@ -5,7 +5,11 @@ import com.example.welfare.collect.dto.Gov24ServiceListDto;
 import com.example.welfare.collect.entity.RawApiPayload;
 import com.example.welfare.collect.gateway.BokjiroDetailClient;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
+import com.example.welfare.collect.repository.CollectItemRegionCommandRepository;
+import com.example.welfare.collect.repository.DeferredNormalizedPolicySidecarCommandRepository;
 import com.example.welfare.collect.repository.NormalizedPolicySidecarBackfillReadRepository;
+import com.example.welfare.collect.repository.NormalizedPolicySidecarBackfillRawTarget;
+import com.example.welfare.collect.repository.NormalizedPolicySidecarBackfillRegionTarget;
 import com.example.welfare.collect.repository.NormalizedPolicySidecarBackfillTarget;
 import com.example.welfare.collect.service.CollectPolicyAggregateApplyService;
 import com.example.welfare.policy.entity.WelfareService;
@@ -35,6 +39,10 @@ class NormalizedPolicySidecarBackfillServiceTest {
     @Mock
     private NormalizedPolicySidecarBackfillReadRepository normalizedPolicySidecarBackfillReadRepository;
     @Mock
+    private CollectItemRegionCommandRepository collectItemRegionCommandRepository;
+    @Mock
+    private DeferredNormalizedPolicySidecarCommandRepository deferredNormalizedPolicySidecarCommandRepository;
+    @Mock
     private CollectPolicyAggregateApplyService collectPolicyAggregateApplyService;
 
     private final WelfareServiceMapper welfareServiceMapper = new WelfareServiceMapper();
@@ -46,10 +54,52 @@ class NormalizedPolicySidecarBackfillServiceTest {
     void setUp() {
         service = new NormalizedPolicySidecarBackfillService(
                 normalizedPolicySidecarBackfillReadRepository,
+                collectItemRegionCommandRepository,
+                deferredNormalizedPolicySidecarCommandRepository,
                 welfareServiceMapper,
                 collectPolicyAggregateApplyService,
                 objectMapper
         );
+    }
+
+    @Test
+    @DisplayName("Gov24 list raw payload를 읽어 지역 row를 다시 생성한다")
+    void backfillGov24ListRegions() throws Exception {
+        Gov24ServiceListDto.Item item = new Gov24ServiceListDto.Item();
+        ReflectionTestUtils.setField(item, "serviceId", "GOV24-REGION-1");
+        ReflectionTestUtils.setField(item, "serviceName", "인천광역시 중구 청년 자격증 응시료 지원");
+        ReflectionTestUtils.setField(item, "servicePurposeSummary", "인천 중구 거주 청년 지원");
+        ReflectionTestUtils.setField(item, "managingOrganizationName", "인천광역시 중구청");
+
+        given(normalizedPolicySidecarBackfillReadRepository.findRegionTargetsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
+                WelfareService.SourceType.GOV24,
+                RawApiPayload.ApiCategory.LIST,
+                10
+        )).willReturn(List.of(new NormalizedPolicySidecarBackfillRegionTarget(
+                111L,
+                "GOV24-REGION-1",
+                objectMapper.writeValueAsString(item)
+        )));
+
+        NormalizedPolicySidecarBackfillService.BackfillResult result = service.backfillGov24ListRegions(10);
+
+        assertThat(result.scannedCount()).isEqualTo(1);
+        assertThat(result.upsertedCount()).isEqualTo(1);
+        assertThat(result.missingServiceCount()).isZero();
+        assertThat(result.failedCount()).isZero();
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<com.example.welfare.policy.entity.ServiceRegion>> regionsCaptor =
+                ArgumentCaptor.forClass(List.class);
+        verify(collectItemRegionCommandRepository).replaceAllBatch(eq(List.of(111L)), regionsCaptor.capture());
+        assertThat(regionsCaptor.getValue())
+                .singleElement()
+                .satisfies(region -> {
+                    assertThat(region.getRegionCode()).isEqualTo("28110");
+                    assertThat(region.getSidoName()).isEqualTo("인천광역시");
+                    assertThat(region.getSggName()).isEqualTo("중구");
+                });
+        verify(collectPolicyAggregateApplyService, never()).applySidecarBackfill(any(), any());
     }
 
     @Test
@@ -297,6 +347,53 @@ class NormalizedPolicySidecarBackfillServiceTest {
                 .containsEntry("GOV24_SERVICE_FIELD", "주거")
                 .containsEntry("GOV24_USER_TYPE", "개인")
                 .containsEntry("GOV24_BENEFIT_TYPE", "현금");
+    }
+
+    @Test
+    @DisplayName("Gov24 missing list sidecar는 lightweight target을 batch taxonomy writer로 보낸다")
+    void backfillGov24MissingListSidecarsUsesBatchWriter() throws Exception {
+        Gov24ServiceListDto.Item item = new Gov24ServiceListDto.Item();
+        ReflectionTestUtils.setField(item, "serviceId", "GOV24-MISSING-1");
+        ReflectionTestUtils.setField(item, "serviceName", "청년 임대료 지원");
+        ReflectionTestUtils.setField(item, "servicePurposeSummary", "청년에게 임대료를 지원합니다.");
+        ReflectionTestUtils.setField(item, "serviceField", "주거");
+        ReflectionTestUtils.setField(item, "userType", "개인");
+        ReflectionTestUtils.setField(item, "supportType", "현금");
+
+        given(normalizedPolicySidecarBackfillReadRepository
+                .findRawTargetsMissingSummarySlotsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
+                        eq(WelfareService.SourceType.GOV24),
+                        eq(RawApiPayload.ApiCategory.LIST),
+                        eq(List.of("GOV24_SERVICE_FIELD", "GOV24_USER_TYPE", "GOV24_BENEFIT_TYPE")),
+                        eq(10)
+                )).willReturn(List.of(new NormalizedPolicySidecarBackfillRawTarget(
+                301L,
+                "GOV24-MISSING-1",
+                objectMapper.writeValueAsString(item)
+        )));
+
+        NormalizedPolicySidecarBackfillService.BackfillResult result = service.backfillGov24MissingListSidecars(10);
+
+        assertThat(result.scannedCount()).isEqualTo(1);
+        assertThat(result.upsertedCount()).isEqualTo(1);
+        assertThat(result.missingServiceCount()).isZero();
+        assertThat(result.failedCount()).isZero();
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<DeferredNormalizedPolicySidecarCommandRepository.TaxonomySidecarBatchEntry>> entriesCaptor =
+                ArgumentCaptor.forClass(List.class);
+        verify(deferredNormalizedPolicySidecarCommandRepository).replaceTaxonomySidecarsBatch(entriesCaptor.capture());
+        assertThat(entriesCaptor.getValue())
+                .singleElement()
+                .satisfies(entry -> {
+                    assertThat(entry.serviceId()).isEqualTo(301L);
+                    assertThat(entry.sourceType()).isEqualTo(WelfareService.SourceType.GOV24);
+                    assertThat(entry.aggregate().taxonomy().summaryLabels())
+                            .containsEntry("GOV24_SERVICE_FIELD", "주거")
+                            .containsEntry("GOV24_USER_TYPE", "개인")
+                            .containsEntry("GOV24_BENEFIT_TYPE", "현금");
+                });
+        verify(collectPolicyAggregateApplyService, never()).applySidecarBackfill(any(), any());
     }
 
     @Test

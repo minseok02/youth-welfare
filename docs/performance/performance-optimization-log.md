@@ -1,8 +1,8 @@
 # Performance Optimization Log
 
-Last updated: 2026-05-30
+Last updated: 2026-06-02
 
-This document records what was optimized, which baseline numbers triggered the work, and which server remeasurement is still pending.
+This document records what was optimized, which baseline numbers triggered the work, and whether the follow-up measurement is accepted or still pending.
 
 ## How To Read
 
@@ -377,6 +377,125 @@ Interpretation:
 - remaining performance work is optional follow-up only:
   - extended/load tuning if a new load-specific target is approved
   - bundle-duration budgeting if operator cadence changes
+
+## Closed Batch
+
+### 2026-06-02: Gov24 region backfill read/write path reduction
+
+Current trigger values from current server Docker runtime Gov24 region work:
+
+- `scope=regions&limitPerSource=0` scanned `10954` Gov24 LIST payloads
+- previous implementation hydrated full JPA `RawApiPayload` / `WelfareService` pairs, then did per-service region replacement inside one long transaction
+- server Docker runtime observation before the change was minutes-level runtime with an idle transaction while parsing/writing the full Gov24 set
+
+Implemented changes in this batch:
+
+1. `NormalizedPolicySidecarBackfillReadRepository`
+   - add a lightweight region backfill projection (`serviceId`, `sourceId`, `payloadJson`)
+   - read Gov24 LIST targets with one native join query instead of loading full entities and doing per-row service lookup
+2. `CollectItemRegionCommandRepository`
+   - add `replaceAllBatch(...)`
+   - delete existing `service_regions` for all successfully parsed services in chunks
+   - insert the regenerated region rows with a single JDBC batch path
+3. `PolicyEmbeddingRefreshRequestService`
+   - keep collect batch embedding refresh as post-save best effort
+   - strict embedding failure is logged as a warning and no longer turns a successful collect save into HTTP 500
+
+Server Docker runtime verification for this batch:
+
+```bash
+bash deploy/smoke/run-local-gov24-acceptance-suite.sh
+
+cd backend && ./gradlew test --no-daemon \
+  --tests 'com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillServiceTest' \
+  --tests 'com.example.welfare.collect.repository.CollectItemRegionCommandRepositoryImplTest' \
+  --tests 'com.example.welfare.collect.repository.NormalizedPolicySidecarBackfillReadRepositoryImplTest' \
+  --tests 'com.example.welfare.policy.service.PolicyEmbeddingRefreshRequestServiceTest'
+
+COMPOSE_FILE=docker-compose.yml docker compose build app
+COMPOSE_FILE=docker-compose.yml docker compose up -d app
+
+POST /api/admin/collect/gov24-sidecars-backfill?scope=regions&limitPerSource=0
+bash deploy/smoke/run-local-gov24-region-backfill-smoke.sh
+bash deploy/smoke/run-local-gov24-region-coverage-audit.sh
+POST /api/admin/collect/gov24-details?maxCallsPerRun=1
+bash deploy/smoke/run-local-gov24-collect-embedding-boundary-smoke.sh
+bash deploy/smoke/run-local-gov24-recommend-surface-audit.sh
+bash deploy/smoke/run-local-gov24-recommend-score-audit.sh
+KEEP_ARTIFACTS=true bash deploy/smoke/run-local-gov24-education-signal-smoke.sh
+```
+
+Observed server Docker runtime deltas:
+
+- Gov24 region backfill endpoint: minutes-level previous server Docker observation -> `duration_ms=10258`
+- service log: `scanned=10954`, `upserted=10954`, `missing=0`, `failed=0`, `regions=33837`, `elapsedMs=9933`
+- region coverage stayed stable: `9794 / 10954 = 89.41%`
+- Gov24 detail collect with strict embedding fallback returned `200`, `requested=1 saved=1 skipped=0 failed=0`
+- embedding fallback log stayed warning-only: `batch embedding refresh skipped serviceCount=1`
+- education smoke: fresh batch `32`, top2 `GOV24:2`, Gov24 top10 rows `10`
+- Gov24 acceptance suite: `passed`, `8` steps, `suite_duration_ms=52002`
+- latest server Docker acceptance summary: `tmp/gov24-acceptance-suite/latest-gov24-acceptance-summary.txt`
+
+Interpretation:
+
+- Gov24 region backfill is now a bounded bulk repair path, not a long full-entity replay path
+- collect save success and embedding rebuild health are intentionally separated
+- current server Docker runtime measurement is accepted for this batch; production/RDS parity still depends on the target deployment data shape, especially detail/support backlog state
+
+## Closed Batch
+
+### 2026-06-02: Gov24 missing list sidecar batch write path
+
+Current trigger values from the server Docker Gov24 acceptance suite:
+
+- `gov24-sidecars-backfill?scope=list&missingOnly=true&limitPerSource=0` had to refill `10952` missing summary-slot services
+- the generic sidecar writer took `gov24_sidecar_backfill_duration_ms=308290`
+- the full Gov24 acceptance suite took `suite_duration_ms=368329`
+- runtime observation showed app CPU-bound work while the DB had no long active query
+
+Implemented changes in this batch:
+
+1. `NormalizedPolicySidecarBackfillReadRepository`
+   - add a lightweight missing-summary projection (`serviceId`, `sourceId`, `payloadJson`)
+   - avoid hydrating full raw payload/service entity pairs for Gov24 `missingOnly=list`
+2. `DeferredNormalizedPolicySidecarCommandRepository`
+   - add `replaceTaxonomySidecarsBatch(...)`
+   - batch upsert `service_taxonomies`
+   - chunked delete/batch insert `service_taxonomy_summary_slots`
+   - chunked delete/batch insert `service_taxonomy_terms`
+3. `NormalizedPolicySidecarBackfillService`
+   - route only Gov24 `missingOnly=list` through the batch taxonomy path
+   - leave the general list sidecar replay path on the existing full writer
+
+Server Docker runtime verification for this batch:
+
+```bash
+cd backend && ./gradlew test --no-daemon \
+  --tests 'com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillServiceTest' \
+  --tests 'com.example.welfare.collect.repository.DeferredNormalizedPolicySidecarCommandRepositoryImplTest' \
+  --tests 'com.example.welfare.collect.repository.NormalizedPolicySidecarBackfillReadRepositoryImplTest'
+
+COMPOSE_FILE=docker-compose.yml docker compose build app
+COMPOSE_FILE=docker-compose.yml docker compose up -d app
+
+# controlled measurement: delete Gov24 required summary slots, then refill through the smoke/suite.
+bash deploy/smoke/run-local-gov24-sidecar-backfill-smoke.sh
+KEEP_ARTIFACTS=true bash deploy/smoke/run-local-gov24-acceptance-suite.sh
+```
+
+Observed server Docker runtime deltas:
+
+- sidecar full-fill smoke: `before_missing=10954 -> after_missing=0`
+- service log: `scanned=10954`, `upserted=10954`, `missing=0`, `failed=0`, `elapsedMs=16118`
+- acceptance suite sidecar step: `308290ms -> 15377ms`
+- full Gov24 acceptance suite: `368329ms -> 74226ms`
+- quality audit after refill stayed closed: `detail_rows=10954`, `support_raw=10954`, `support_fact_services=10954`, `support_missing_fact_services=0`
+
+Interpretation:
+
+- Gov24 missing-list sidecar repair is now seconds-level for a full `10954` service refill.
+- The generic full sidecar replay path remains available for non-missing repair, but operator smoke/acceptance no longer pays that cost for summary-slot gaps.
+- Current server Docker runtime measurement is accepted and should replace the previous `308s` sidecar acceptance number.
 ## Comparison Table
 
 | Date | Before HEAD | After HEAD | Area | Change | Before | After | Delta | Decision |
@@ -399,3 +518,5 @@ Interpretation:
 | 2026-05-30 | `10e3bea61cf1bc7812d4264e3a51ed5072f79c66` | `731f5f2c2e6f58a61ba5b7d89ff20ce6e36990f3` | Search DB | runtime `title/keyword` trgm index + API-shape benchmark realignment | historical lowered LIKE seq scan | `policy_search_keyword_api_shape` index scan | contract realigned | accepted |
 | 2026-05-30 | `731f5f2c2e6f58a61ba5b7d89ff20ce6e36990f3` | `7b53d637395aa6c5978a633bc25477f30fd38c9f` | Search | public policy search TTL cache | baseline `p95 481.0ms`, wrapper `p95 340.9ms` | baseline `p95 33.5ms`, wrapper `p95 20.3ms` | `-447.5ms`, `-320.6ms` | improvement accepted |
 | 2026-05-30 | `7b53d637395aa6c5978a633bc25477f30fd38c9f` | `1e62b24dde6405980d9aba8161559c29574a5a6f` | Current Priority | recent `active_baseline` reuse | recent baseline rerun required every time | `active_baseline_reused=true`, `reuse_age_seconds=17`, `reuse_ttl_seconds=900` | duplicate rerun avoided | improvement accepted |
+| 2026-06-02 | server dirty worktree | server dirty worktree | Gov24 Backfill | lightweight projection + bulk region replace | minutes-level server Docker observation | endpoint `10.258s`, service `9.933s` for `10954` rows; acceptance suite `52.002s` | minutes -> seconds | accepted on current server Docker runtime |
+| 2026-06-02 | server dirty worktree | server dirty worktree | Gov24 Sidecar | lightweight missing-list projection + batch taxonomy write | sidecar step `308.290s`, suite `368.329s` | sidecar step `15.377s`, suite `74.226s` for `10954` refill | `-292.913s`, `-294.103s` | accepted on current server Docker runtime |

@@ -7,4 +7,6 @@ import java.util.List;
 public interface CollectItemRegionCommandRepository {
 
     void replaceAll(Long serviceId, List<ServiceRegion> regions);
+
+    void replaceAllBatch(List<Long> serviceIds, List<ServiceRegion> regions);
 }

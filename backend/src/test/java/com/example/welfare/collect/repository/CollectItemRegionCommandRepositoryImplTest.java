@@ -10,6 +10,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ParameterizedPreparedStatementSetter;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import java.util.List;
 
@@ -22,6 +24,8 @@ class CollectItemRegionCommandRepositoryImplTest {
 
     @Mock
     private JdbcTemplate jdbcTemplate;
+    @Mock
+    private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
     @InjectMocks
     private CollectItemRegionCommandRepositoryImpl collectItemRegionCommandRepository;
@@ -54,5 +58,29 @@ class CollectItemRegionCommandRepositoryImplTest {
 
         then(jdbcTemplate).should().update("DELETE FROM service_regions WHERE service_id = ?", 12L);
         then(jdbcTemplate).shouldHaveNoMoreInteractions();
+    }
+
+    @Test
+    @DisplayName("collect item region command repository는 여러 service region을 bulk delete 후 batch insert 한다")
+    void replaceAllBatchDelegates() {
+        ServiceRegion region = ServiceRegion.builder()
+                .service(WelfareService.builder().id(11L).build())
+                .regionCode("11110")
+                .sidoName("서울")
+                .sggName("종로구")
+                .build();
+
+        collectItemRegionCommandRepository.replaceAllBatch(List.of(11L, 11L, 12L), List.of(region));
+
+        then(namedParameterJdbcTemplate).should().update(
+                eq("DELETE FROM service_regions WHERE service_id IN (:serviceIds)"),
+                any(MapSqlParameterSource.class)
+        );
+        then(jdbcTemplate).should().batchUpdate(
+                eq("INSERT INTO service_regions (service_id, region_code, sido_name, sgg_name) VALUES (?, ?, ?, ?)"),
+                eq(List.of(region)),
+                eq(1_000),
+                any(ParameterizedPreparedStatementSetter.class)
+        );
     }
 }

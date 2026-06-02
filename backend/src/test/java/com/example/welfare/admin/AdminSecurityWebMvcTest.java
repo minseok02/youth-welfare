@@ -2150,6 +2150,8 @@ class AdminSecurityWebMvcTest {
         ));
         given(normalizedPolicySidecarBackfillService.backfillGov24ListSidecars(0))
                 .willReturn(new NormalizedPolicySidecarBackfillService.BackfillResult(10_945, 10_945, 0, 0));
+        given(normalizedPolicySidecarBackfillService.backfillGov24ListRegions(0))
+                .willReturn(new NormalizedPolicySidecarBackfillService.BackfillResult(10_945, 10_945, 0, 0));
         given(normalizedPolicySidecarBackfillService.backfillGov24SupportConditionSidecars(0))
                 .willReturn(new NormalizedPolicySidecarBackfillService.BackfillResult(10_945, 10_945, 0, 0));
 
@@ -2161,13 +2163,40 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.scope").value("gov24-all"))
                 .andExpect(jsonPath("$.data.limitPerSource").value(0))
-                .andExpect(jsonPath("$.data.scannedCount").value(21_890))
-                .andExpect(jsonPath("$.data.upsertedCount").value(21_890))
+                .andExpect(jsonPath("$.data.scannedCount").value(32_835))
+                .andExpect(jsonPath("$.data.upsertedCount").value(32_835))
                 .andExpect(jsonPath("$.data.missingServiceCount").value(0))
                 .andExpect(jsonPath("$.data.failedCount").value(0));
 
         then(normalizedPolicySidecarBackfillService).should().backfillGov24ListSidecars(0);
+        then(normalizedPolicySidecarBackfillService).should().backfillGov24ListRegions(0);
         then(normalizedPolicySidecarBackfillService).should().backfillGov24SupportConditionSidecars(0);
+    }
+
+    @Test
+    @DisplayName("GOV24 sidecar backfill API는 list raw 기반 지역 row만 보강할 수 있다")
+    void adminEndpointAllowsGov24RegionBackfill() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(normalizedPolicySidecarBackfillService.backfillGov24ListRegions(0))
+                .willReturn(new NormalizedPolicySidecarBackfillService.BackfillResult(10_945, 8_000, 0, 0));
+
+        mockMvc.perform(post("/api/admin/collect/gov24-sidecars-backfill")
+                        .param("scope", "regions")
+                        .param("limitPerSource", "0")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.scope").value("gov24-regions"))
+                .andExpect(jsonPath("$.data.limitPerSource").value(0))
+                .andExpect(jsonPath("$.data.scannedCount").value(10_945))
+                .andExpect(jsonPath("$.data.upsertedCount").value(8_000))
+                .andExpect(jsonPath("$.data.missingServiceCount").value(0))
+                .andExpect(jsonPath("$.data.failedCount").value(0));
+
+        then(normalizedPolicySidecarBackfillService).should().backfillGov24ListRegions(0);
     }
 
     @Test

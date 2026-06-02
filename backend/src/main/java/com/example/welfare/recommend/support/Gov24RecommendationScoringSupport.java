@@ -12,11 +12,11 @@ import java.util.stream.Collectors;
 
 public final class Gov24RecommendationScoringSupport {
 
-    private static final double SERVICE_FIELD_MATCH_BONUS = 4.0;
-    private static final double BENEFIT_TYPE_MATCH_BONUS = 3.0;
-    private static final double INDIVIDUAL_USER_TYPE_BONUS = 2.0;
-    private static final double HOUSEHOLD_USER_TYPE_BONUS = 1.0;
-    private static final double MAX_TOTAL_BONUS = 6.0;
+    private static final double SERVICE_FIELD_MATCH_BONUS = 7.0;
+    private static final double BENEFIT_TYPE_MATCH_BONUS = 5.0;
+    private static final double INDIVIDUAL_USER_TYPE_BONUS = 3.0;
+    private static final double HOUSEHOLD_USER_TYPE_BONUS = 2.0;
+    private static final double MAX_TOTAL_BONUS = 10.0;
 
     private static final Set<String> CATEGORY_PRIORITY_CODES = Set.of(
             "HOUSING",

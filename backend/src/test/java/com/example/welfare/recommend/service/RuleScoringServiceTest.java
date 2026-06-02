@@ -544,7 +544,7 @@ class RuleScoringServiceTest {
         );
 
         assertThat(findByServiceId(scored, 121L).getRuleBaseScore())
-                .isEqualTo(findByServiceId(scored, 120L).getRuleBaseScore() + 4.0);
+                .isEqualTo(findByServiceId(scored, 120L).getRuleBaseScore() + 7.0);
     }
 
     @Test
@@ -579,7 +579,7 @@ class RuleScoringServiceTest {
         );
 
         assertThat(findByServiceId(scored, 123L).getRuleBaseScore())
-                .isEqualTo(findByServiceId(scored, 122L).getRuleBaseScore() + 3.0);
+                .isEqualTo(findByServiceId(scored, 122L).getRuleBaseScore() + 5.0);
     }
 
     @Test
@@ -616,7 +616,7 @@ class RuleScoringServiceTest {
         );
 
         assertThat(findByServiceId(scored, 125L).getRuleBaseScore())
-                .isEqualTo(findByServiceId(scored, 124L).getRuleBaseScore() + 6.0);
+                .isEqualTo(findByServiceId(scored, 124L).getRuleBaseScore() + 10.0);
     }
 
     private ScoredCandidate findByServiceId(List<ScoredCandidate> scored, Long serviceId) {

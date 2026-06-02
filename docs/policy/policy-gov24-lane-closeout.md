@@ -37,6 +37,7 @@
 9. `supportConditions` full-scope business/industry/startup fact 승격
 10. `Gov24` 3축 stable internal code seed/backfill
 11. `JA0322`, `JA0410` no-op support condition fact 보존
+12. `Gov24` list 텍스트 기반 지역 row 추론
 
 계속 deferred 인 범위:
 
@@ -72,23 +73,98 @@
 window 안에는 `GOV24` 후보가 있으면 첫 `GOV24` 후보 1건을 첫 페이지 중간부에 삽입합니다.
 명시 Gov24 필터, 출처 필터, 페이지네이션 후속 페이지, 최신순/마감순 정렬에는 적용하지 않습니다.
 
-### 2. recommendation scoring
+### 2. region enrichment
+
+`Gov24` 는 원천 응답에 온통청년 같은 명시 지역코드가 없기 때문에,
+현재 수집 단계에서 아래 list text를 함께 읽어 `service_regions` 를 추론합니다.
+
+- 소관기관명
+- 접수기관
+- 부서명
+- 서비스명
+- 서비스목적요약
+- 지원대상
+- 선정기준
+- 지원내용
+- 신청방법
+
+명확한 `시도 + 시군구` 또는 전국 고유 시군구명이 있으면 해당 5자리 행정구역코드를 저장합니다.
+시도 단위 기관명이나 본문 신호만 있으면 해당 시도 전체 행정구역코드로 확장합니다.
+`전국` 신호가 있으면 지역 row를 만들지 않아 기존 전국 노출 계약을 유지합니다.
+추가로 2026-06-02 runtime audit에서 확인된 누락 패턴을 닫기 위해
+`세종특별자치시` 는 단일 region `36110/세종시` 로 저장하고,
+전국 유일 시군구명에서 `시/군/구` 접미사만 빠진 기관명도 추론합니다
+(`재단법인안산인재육성재단` -> `안산시`). 지방 계열 기관유형(`광역시도`, `시군구`,
+`교육청`, `지방공기업`, `지방출자_출연기관`)에서는 기관명에 bare 시도 약칭이 있을 때
+해당 시도 전체로 확장합니다. 공공기관의 bare 시도명은 false positive 위험 때문에 확장하지 않습니다
+(`서울올림픽기념국민체육진흥공단` 은 서울 지역 정책으로 보지 않음).
+
+이 보강은 기존 recommendation retrieval 의 Gov24 제목/설명 text fallback을 대체하지 않고,
+수집된 Gov24 row가 다른 source와 같은 `service_regions` 경로도 탈 수 있게 하는 보완입니다.
+
+이미 저장된 Gov24 row는 외부 API 재호출 없이 아래 경로로 LIST raw payload를 재생해
+지역 row만 교체할 수 있습니다.
+
+```bash
+curl -sS -X POST "http://127.0.0.1:8082/api/admin/collect/gov24-sidecars-backfill?scope=regions&limitPerSource=0"
+```
+
+2026-06-02 current server Docker runtime 결과:
+
+- Gov24 LIST 수집 row: `10954`
+- region backfill: `scanned=10954`, `upserted=10954`, `missing=0`, `failed=0`
+- 2026-06-02 latest acceptance 재측정: suite step `11395ms`, HTTP endpoint metric `8235ms`,
+  `regions=33837`
+- 최종 region coverage: `9794/10954 = 89.41%`
+- 최종 region row: `33837`
+- regionless service: `1160`
+- regionless local-agency service: `470`
+- 남은 미추론 상위 기관은 `대한법률구조공단`, `기술보증기금`, `한국전력공사`,
+  `소상공인시장진흥공단`, `한국장학재단` 등 공공기관 중심입니다.
+
+회귀 확인은 아래 smoke로 봅니다.
+
+```bash
+bash deploy/smoke/run-local-gov24-acceptance-suite.sh
+bash deploy/smoke/run-local-gov24-region-backfill-smoke.sh
+bash deploy/smoke/run-local-gov24-region-coverage-audit.sh
+```
+
+주의: collect batch scope의 embedding refresh는 수집 저장 후처리입니다. local fallback 설정에서
+strict embedding refresh가 `OpenAI embeddings are unavailable` 로 실패해도 수집 응답은 깨지지 않고,
+warning 로그로만 남깁니다. 데이터 무결성을 확인할 때는 LIST/detail/support 저장 count와
+embedding rebuild 상태를 분리해서 봅니다.
+
+```bash
+bash deploy/smoke/run-local-gov24-collect-embedding-boundary-smoke.sh
+```
+
+### 3. recommendation scoring
 
 recommendation 은 이제 `Gov24` taxonomy를 **soft additive bonus** 와
 priority matcher bucket bridge로 소비합니다.
 
-- `serviceField`: small category-aligned bonus
-- `benefitType`: 일부 managed token만 small bonus
-- `userType`: `개인`, `가구` 정도의 tiny audience bonus
+- `serviceField`: category-aligned bounded bonus
+- `benefitType`: 일부 managed token의 bounded bonus
+- `userType`: `개인`, `가구` audience bonus
 
 또한 `주거·자립`, `고용·창업`, `보육·교육`, `생활안정` 같은 `serviceField` 와
 `현금`, `현금(융자)`, `서비스(일자리)`, `서비스(돌봄)` 같은 managed `benefitType` 은
 projection의 `priorityBuckets` 로 연결됩니다.
 
-즉 `Gov24` 값이 추천 hard gate로 승격된 것은 아니지만,
+2026-06-02 기준 additive bonus cap은 `10` 입니다. 즉 `Gov24` 값은 추천에서 더 강하게 소비되지만,
+raw 조합값 전체를 eligibility hard gate로 승격한 것은 아닙니다.
 사용자 우선순위 matcher가 이해하는 bucket에는 공식 taxonomy 기반으로 연결됩니다.
 
-### 3. `supportConditions` fact scope
+2026-06-02 server Docker `run-local-gov24-housing-signal-smoke.sh` 기준 fresh recommendation batch는
+`44`건 전부 Gov24였고, top2 source distribution은 `GOV24:2`, top10 Gov24 row는 `10`건입니다.
+이어 `run-local-gov24-recommend-surface-audit.sh` 와 `run-local-gov24-recommend-score-audit.sh` 에서
+top10 source distribution `GOV24:10`, top2 평균 rule/final score `61.00/0.55240` 으로 확인했습니다.
+2026-06-02 server Docker `run-local-gov24-education-signal-smoke.sh` 기준 교육축 fresh batch는 `32`건 전부
+Gov24였고, top2는 `청년 학자금대출 장기연체자 학자금상환 지원`, `화성시 학생 장학금 지원` 입니다.
+같은 서버의 signal 포함 acceptance suite는 `10` steps 모두 통과했고 `suite_duration_ms=71712` 입니다.
+
+### 4. `supportConditions` fact scope
 
 `GOV24_SUPPORT_CONDITION` runtime fact scope는 개인 eligibility subset에서
 사업체/업종/창업 상태까지 확장했습니다.
@@ -98,10 +174,20 @@ projection의 `priorityBuckets` 로 연결됩니다.
 - 업종: `JA1201`, `JA1202`, `JA1299`, `JA2201~JA2203`, `JA2299`
 - 사업체 유형: `JA2101~JA2103`
 
-2026-06-01 local audit 기준 coverage는 `10945 / 10945` 입니다.
+2026-06-02 current server Docker audit 기준 coverage는 `10954 / 10954` 입니다.
+동일 audit에서 `support_raw=10954`, `support_fact_rows=194819`, `support_missing_fact_services=0`,
+`support_nested_shape=10954`, `support_flat_shape=0` 으로 닫혔습니다.
 `JA0322`, `JA0410` 같은 `해당사항없음` 계열 code는 `NO_OP` fact로 보존합니다.
 
-### 4. `Gov24 -> YOUTH_MID` bridge
+### 4-1. missing list sidecar repair 성능
+
+`gov24-sidecars-backfill?scope=list&missingOnly=true&limitPerSource=0` 은 Gov24 필수 summary slot
+(`GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE`) 이 비어 있는 LIST row만 빠르게 복구합니다.
+2026-06-02 server Docker runtime에서 필수 slot을 의도적으로 비운 뒤 재측정했고,
+`before_missing=10954 -> after_missing=0`, service log `elapsedMs=16118`,
+acceptance suite step `15377ms` 로 확인했습니다. 이전 generic writer 기반 suite 측정은 `308290ms` 였습니다.
+
+### 5. `Gov24 -> YOUTH_MID` bridge
 
 `Gov24` `serviceField` 를 온통청년 대/중분류 label로 연결합니다.
 
@@ -115,7 +201,7 @@ projection의 `priorityBuckets` 로 연결됩니다.
 - `행정·안전` -> `참여권리 / 정책인프라구축`
 - `농림축산어업` -> `일자리 / 재직자`
 
-### 5. stable internal code
+### 6. stable internal code
 
 `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE_TOKEN`, `GOV24_BENEFIT_TYPE_TOKEN` 은
 현재 observed inventory 기준 internal code를 seed하고,
@@ -165,5 +251,6 @@ hard eligibility fact로 올리지는 않습니다.
 1. `Gov24` public filter 3축은 이미 운영 반영까지 닫혔습니다.
 2. 넓은 키워드 검색 첫 페이지에서도 Gov24 후보가 candidate window 안에 있으면 완전히 묻히지 않게 했습니다.
 3. recommendation scoring도 bounded soft additive bonus까지는 열렸습니다.
-4. `supportConditions` full-scope business/industry/startup/no-op fact gap은 해소했습니다.
-5. 현재 남은 것은 외부 공식 codebook이 생겼을 때의 재수입 여부입니다.
+4. Gov24 list text 기반 지역 row 추론도 열어 다른 source와 같은 `service_regions` 경로를 탈 수 있게 했습니다.
+5. `supportConditions` full-scope business/industry/startup/no-op fact gap은 해소했습니다.
+6. 현재 남은 것은 외부 공식 codebook이 생겼을 때의 재수입 여부입니다.

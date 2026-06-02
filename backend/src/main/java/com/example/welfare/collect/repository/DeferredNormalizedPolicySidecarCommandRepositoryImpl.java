@@ -3,6 +3,7 @@ package com.example.welfare.collect.repository;
 import com.example.welfare.collect.normalization.CanonicalTaxonomySummarySlots;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.collect.normalization.ServiceTaxonomyLegacySummaryBridge;
+import com.example.welfare.collect.support.NormalizationKeySupport;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.support.CompatCategorySupport;
 import com.example.welfare.policy.support.WelfareSourceTypeSupport;
@@ -10,15 +11,20 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Repository
 @RequiredArgsConstructor
 public class DeferredNormalizedPolicySidecarCommandRepositoryImpl
         implements DeferredNormalizedPolicySidecarCommandRepository {
+
+    private static final int BATCH_SIZE = 1000;
 
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
@@ -156,6 +162,245 @@ public class DeferredNormalizedPolicySidecarCommandRepositoryImpl
                             .addValue("authority", taxonomy.authority().name())
                             .addValue("confidence", taxonomy.confidence()));
         }
+    }
+
+    @Override
+    public void replaceTaxonomySidecarsBatch(List<TaxonomySidecarBatchEntry> entries) {
+        if (entries == null || entries.isEmpty()) {
+            return;
+        }
+
+        List<TaxonomySidecarBatchEntry> validEntries = entries.stream()
+                .filter(entry -> entry != null
+                        && entry.serviceId() != null
+                        && entry.sourceType() != null
+                        && entry.aggregate() != null
+                        && entry.aggregate().taxonomy() != null)
+                .toList();
+        for (int start = 0; start < validEntries.size(); start += BATCH_SIZE) {
+            List<TaxonomySidecarBatchEntry> chunk =
+                    validEntries.subList(start, Math.min(start + BATCH_SIZE, validEntries.size()));
+            upsertTaxonomySummariesBatch(chunk);
+            replaceTaxonomySummarySlotsBatch(chunk);
+            replaceTaxonomyTermsBatch(chunk);
+        }
+    }
+
+    private void upsertTaxonomySummariesBatch(List<TaxonomySidecarBatchEntry> entries) {
+        SqlParameterSource[] batch = entries.stream()
+                .map(this::buildTaxonomySummaryParams)
+                .toArray(SqlParameterSource[]::new);
+        namedParameterJdbcTemplate.batchUpdate("""
+                INSERT INTO service_taxonomies (
+                    service_id,
+                    primary_source_system,
+                    compat_unified_category_code,
+                    compat_unified_category_label,
+                    youth_major_code,
+                    youth_major_label,
+                    youth_mid_code,
+                    youth_mid_label,
+                    gov24_service_field_code,
+                    gov24_service_field_label,
+                    gov24_user_type_code,
+                    gov24_user_type_label,
+                    gov24_benefit_type_code,
+                    gov24_benefit_type_label,
+                    provision_method_code,
+                    provision_method_label,
+                    authority,
+                    confidence
+                ) VALUES (
+                    :serviceId,
+                    :primarySourceSystem,
+                    :compatUnifiedCategoryCode,
+                    :compatUnifiedCategoryLabel,
+                    :youthMajorCode,
+                    :youthMajorLabel,
+                    :youthMidCode,
+                    :youthMidLabel,
+                    :gov24ServiceFieldCode,
+                    :gov24ServiceFieldLabel,
+                    :gov24UserTypeCode,
+                    :gov24UserTypeLabel,
+                    :gov24BenefitTypeCode,
+                    :gov24BenefitTypeLabel,
+                    :provisionMethodCode,
+                    :provisionMethodLabel,
+                    :authority,
+                    :confidence
+                )
+                ON CONFLICT (service_id) DO UPDATE SET
+                    primary_source_system = EXCLUDED.primary_source_system,
+                    compat_unified_category_code = EXCLUDED.compat_unified_category_code,
+                    compat_unified_category_label = EXCLUDED.compat_unified_category_label,
+                    youth_major_code = EXCLUDED.youth_major_code,
+                    youth_major_label = EXCLUDED.youth_major_label,
+                    youth_mid_code = EXCLUDED.youth_mid_code,
+                    youth_mid_label = EXCLUDED.youth_mid_label,
+                    gov24_service_field_code = EXCLUDED.gov24_service_field_code,
+                    gov24_service_field_label = EXCLUDED.gov24_service_field_label,
+                    gov24_user_type_code = EXCLUDED.gov24_user_type_code,
+                    gov24_user_type_label = EXCLUDED.gov24_user_type_label,
+                    gov24_benefit_type_code = EXCLUDED.gov24_benefit_type_code,
+                    gov24_benefit_type_label = EXCLUDED.gov24_benefit_type_label,
+                    provision_method_code = EXCLUDED.provision_method_code,
+                    provision_method_label = EXCLUDED.provision_method_label,
+                    authority = EXCLUDED.authority,
+                    confidence = EXCLUDED.confidence
+                """, batch);
+    }
+
+    private void replaceTaxonomySummarySlotsBatch(List<TaxonomySidecarBatchEntry> entries) {
+        List<Long> serviceIds = entries.stream()
+                .map(TaxonomySidecarBatchEntry::serviceId)
+                .toList();
+        namedParameterJdbcTemplate.update("""
+                DELETE FROM service_taxonomy_summary_slots
+                WHERE service_id IN (:serviceIds)
+                  AND slot_key IN (:slotKeys)
+                """, new MapSqlParameterSource()
+                .addValue("serviceIds", serviceIds)
+                .addValue("slotKeys", CanonicalTaxonomySummarySlots.managedSlotKeys()));
+
+        List<MapSqlParameterSource> slotParams = new ArrayList<>();
+        for (TaxonomySidecarBatchEntry entry : entries) {
+            NormalizedPolicyAggregate.TaxonomySummary taxonomy = entry.aggregate().taxonomy();
+            CanonicalTaxonomySummarySlots.SummarySlots summarySlots = CanonicalTaxonomySummarySlots.from(taxonomy);
+            for (CanonicalTaxonomySummarySlots.SummarySlot slot : summarySlots.presentSlots()) {
+                slotParams.add(new MapSqlParameterSource()
+                        .addValue("serviceId", entry.serviceId())
+                        .addValue("slotKey", slot.slotKey())
+                        .addValue("codeSetKey", slot.codeSetKey())
+                        .addValue("slotCode", normalizeBlankCode(slot.slotCode()))
+                        .addValue("slotLabel", slot.slotLabel())
+                        .addValue("sourceField", "")
+                        .addValue("authority", taxonomy.authority().name())
+                        .addValue("confidence", taxonomy.confidence()));
+            }
+        }
+        if (slotParams.isEmpty()) {
+            return;
+        }
+
+        namedParameterJdbcTemplate.batchUpdate("""
+                INSERT INTO service_taxonomy_summary_slots (
+                    service_id,
+                    slot_key,
+                    code_set_key,
+                    slot_code,
+                    slot_label,
+                    source_field,
+                    authority,
+                    confidence
+                ) VALUES (
+                    :serviceId,
+                    :slotKey,
+                    :codeSetKey,
+                    :slotCode,
+                    :slotLabel,
+                    :sourceField,
+                    :authority,
+                    :confidence
+                )
+                ON CONFLICT (service_id, slot_key, slot_code, authority) DO UPDATE SET
+                    code_set_key = EXCLUDED.code_set_key,
+                    slot_label = EXCLUDED.slot_label,
+                    source_field = EXCLUDED.source_field,
+                    confidence = EXCLUDED.confidence
+                """, slotParams.toArray(SqlParameterSource[]::new));
+    }
+
+    private void replaceTaxonomyTermsBatch(List<TaxonomySidecarBatchEntry> entries) {
+        List<NormalizedPolicyAggregate.TaxonomyTerm> terms = entries.stream()
+                .flatMap(entry -> entry.aggregate().taxonomyTerms().stream())
+                .toList();
+        if (terms.isEmpty()) {
+            return;
+        }
+
+        Map<String, TermRefreshScope> scopes = new LinkedHashMap<>();
+        for (NormalizedPolicyAggregate.TaxonomyTerm term : terms) {
+            for (String refreshGroup : NormalizationKeySupport.refreshScopeGroups(term.termGroup())) {
+                TermRefreshScope scope = new TermRefreshScope(refreshGroup, normalizeBlankString(term.sourceField()));
+                scopes.put(scope.termGroup() + "\u0000" + scope.sourceField(), scope);
+            }
+        }
+
+        MapSqlParameterSource deleteParams = new MapSqlParameterSource()
+                .addValue("serviceIds", entries.stream().map(TaxonomySidecarBatchEntry::serviceId).toList());
+        List<String> scopeClauses = new ArrayList<>();
+        int scopeIndex = 0;
+        for (TermRefreshScope scope : scopes.values()) {
+            String groupParam = "termGroup" + scopeIndex;
+            String sourceFieldParam = "sourceField" + scopeIndex;
+            scopeClauses.add("(term_group = :" + groupParam + " AND source_field = :" + sourceFieldParam + ")");
+            deleteParams.addValue(groupParam, scope.termGroup());
+            deleteParams.addValue(sourceFieldParam, scope.sourceField());
+            scopeIndex++;
+        }
+
+        namedParameterJdbcTemplate.update("""
+                DELETE FROM service_taxonomy_terms
+                WHERE service_id IN (:serviceIds)
+                  AND (%s)
+                """.formatted(String.join(" OR ", scopeClauses)), deleteParams);
+
+        List<MapSqlParameterSource> termParams = new ArrayList<>();
+        for (TaxonomySidecarBatchEntry entry : entries) {
+            for (NormalizedPolicyAggregate.TaxonomyTerm term : entry.aggregate().taxonomyTerms()) {
+                termParams.add(new MapSqlParameterSource()
+                        .addValue("serviceId", entry.serviceId())
+                        .addValue("termGroup", term.termGroup())
+                        .addValue("codeSetKey", term.codeSetKey())
+                        .addValue("termCode", normalizeBlankCode(term.termCode()))
+                        .addValue("termLabel", term.termLabel())
+                        .addValue("sourceField", normalizeBlankString(term.sourceField()))
+                        .addValue("authority", term.authority().name())
+                        .addValue("sortOrder", term.sortOrder() == null ? 0 : term.sortOrder()));
+            }
+        }
+
+        namedParameterJdbcTemplate.batchUpdate("""
+                INSERT INTO service_taxonomy_terms (
+                    service_id,
+                    term_group,
+                    code_set_key,
+                    term_code,
+                    term_label,
+                    source_field,
+                    authority,
+                    sort_order
+                ) VALUES (
+                    :serviceId,
+                    :termGroup,
+                    :codeSetKey,
+                    :termCode,
+                    :termLabel,
+                    :sourceField,
+                    :authority,
+                    :sortOrder
+                )
+                ON CONFLICT (service_id, term_group, term_code, term_label, authority) DO UPDATE SET
+                    code_set_key = EXCLUDED.code_set_key,
+                    source_field = EXCLUDED.source_field,
+                    sort_order = EXCLUDED.sort_order
+                """, termParams.toArray(SqlParameterSource[]::new));
+    }
+
+    private MapSqlParameterSource buildTaxonomySummaryParams(TaxonomySidecarBatchEntry entry) {
+        NormalizedPolicyAggregate.TaxonomySummary taxonomy = entry.aggregate().taxonomy();
+        CanonicalTaxonomySummarySlots.SummarySlots summarySlots = CanonicalTaxonomySummarySlots.from(taxonomy);
+        return ServiceTaxonomyLegacySummaryBridge.apply(
+                new MapSqlParameterSource()
+                        .addValue("serviceId", entry.serviceId())
+                        .addValue("primarySourceSystem", WelfareSourceTypeSupport.primarySourceSystem(entry.sourceType()))
+                        .addValue("compatUnifiedCategoryCode", CompatCategorySupport.compatCode(taxonomy.compatUnifiedCategory()))
+                        .addValue("compatUnifiedCategoryLabel", taxonomy.compatUnifiedCategory())
+                        .addValue("authority", taxonomy.authority().name())
+                        .addValue("confidence", taxonomy.confidence()),
+                summarySlots
+        );
     }
 
     @Override
@@ -355,5 +600,8 @@ public class DeferredNormalizedPolicySidecarCommandRepositoryImpl
             return value;
         }
         return value.substring(0, maxLength);
+    }
+
+    private record TermRefreshScope(String termGroup, String sourceField) {
     }
 }

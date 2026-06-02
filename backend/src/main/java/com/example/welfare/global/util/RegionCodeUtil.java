@@ -1,7 +1,9 @@
 package com.example.welfare.global.util;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -63,6 +65,26 @@ public final class RegionCodeUtil {
             Map.entry("제주특별자치도", "제주")
     );
 
+    private static final Map<String, String> SIDO_FULL_NAME_MAP = Map.ofEntries(
+            Map.entry("서울", "서울특별시"),
+            Map.entry("부산", "부산광역시"),
+            Map.entry("대구", "대구광역시"),
+            Map.entry("인천", "인천광역시"),
+            Map.entry("광주", "광주광역시"),
+            Map.entry("대전", "대전광역시"),
+            Map.entry("울산", "울산광역시"),
+            Map.entry("세종", "세종특별자치시"),
+            Map.entry("경기", "경기도"),
+            Map.entry("강원", "강원특별자치도"),
+            Map.entry("충북", "충청북도"),
+            Map.entry("충남", "충청남도"),
+            Map.entry("전북", "전북특별자치도"),
+            Map.entry("전남", "전라남도"),
+            Map.entry("경북", "경상북도"),
+            Map.entry("경남", "경상남도"),
+            Map.entry("제주", "제주특별자치도")
+    );
+
     // (시도 단축명 + "/" + 시군구명) → 5자리 행정구역코드
     private static final Map<String, String> SGG_CODE_MAP = Map.ofEntries(
             // 서울
@@ -111,6 +133,8 @@ public final class RegionCodeUtil {
             Map.entry("울산/남구", "31140"), Map.entry("울산/동구", "31170"),
             Map.entry("울산/북구", "31200"), Map.entry("울산/울주군", "31710"),
             Map.entry("울산/중구", "31110"),
+            // 세종
+            Map.entry("세종/세종시", "36110"),
             // 경기
             Map.entry("경기/가평군", "41820"), Map.entry("경기/고양시", "41280"),
             Map.entry("경기/과천시", "41290"), Map.entry("경기/광명시", "41210"),
@@ -202,6 +226,8 @@ public final class RegionCodeUtil {
 
     // 전국에 중복되지 않는 시군구명 → 5자리 코드 (host_org 역매핑용)
     private static final Map<String, String> UNIQUE_SGG_CODE_MAP = buildUniqueSggCodeMap();
+    private static final Map<String, String> UNIQUE_SGG_STEM_CODE_MAP = buildUniqueSggStemCodeMap();
+    private static final Map<String, RegionName> REGION_NAME_BY_CODE = buildRegionNameByCode();
 
     private static Map<String, String> buildUniqueSggCodeMap() {
         Map<String, Integer> nameCount = new HashMap<>();
@@ -217,6 +243,49 @@ public final class RegionCodeUtil {
             }
         }
         return java.util.Collections.unmodifiableMap(result);
+    }
+
+    private static Map<String, String> buildUniqueSggStemCodeMap() {
+        Map<String, Integer> stemCount = new HashMap<>();
+        for (String sgg : UNIQUE_SGG_CODE_MAP.keySet()) {
+            String stem = stripSggSuffix(sgg);
+            if (!stem.isBlank()) {
+                stemCount.merge(stem, 1, Integer::sum);
+            }
+        }
+
+        Map<String, String> result = new LinkedHashMap<>();
+        for (Map.Entry<String, String> entry : UNIQUE_SGG_CODE_MAP.entrySet()) {
+            String stem = stripSggSuffix(entry.getKey());
+            if (stem.length() >= 2 && stemCount.getOrDefault(stem, 0) == 1) {
+                result.put(stem, entry.getValue());
+            }
+        }
+        return Collections.unmodifiableMap(result);
+    }
+
+    private static String stripSggSuffix(String sgg) {
+        if (sgg == null || sgg.length() < 2) {
+            return "";
+        }
+        char last = sgg.charAt(sgg.length() - 1);
+        if (last == '시' || last == '군' || last == '구') {
+            return sgg.substring(0, sgg.length() - 1);
+        }
+        return "";
+    }
+
+    private static Map<String, RegionName> buildRegionNameByCode() {
+        Map<String, RegionName> result = new LinkedHashMap<>();
+        for (Map.Entry<String, String> entry : SGG_CODE_MAP.entrySet()) {
+            String[] parts = entry.getKey().split("/", 2);
+            result.put(entry.getValue(), new RegionName(
+                    entry.getValue(),
+                    SIDO_FULL_NAME_MAP.getOrDefault(parts[0], parts[0]),
+                    parts[1]
+            ));
+        }
+        return Collections.unmodifiableMap(result);
     }
 
     /**
@@ -240,6 +309,127 @@ public final class RegionCodeUtil {
         }
         String trimmed = sido.trim();
         return SIDO_ALIAS_MAP.getOrDefault(trimmed, trimmed);
+    }
+
+    public static String fullSidoName(String sido) {
+        String normalized = normalizeSido(sido);
+        if (normalized == null) {
+            return null;
+        }
+        return SIDO_FULL_NAME_MAP.getOrDefault(normalized, normalized);
+    }
+
+    public static RegionName getRegionName(String regionCode) {
+        if (regionCode == null || regionCode.isBlank()) {
+            return null;
+        }
+        return REGION_NAME_BY_CODE.get(regionCode.trim());
+    }
+
+    public static List<RegionName> inferRegionNamesFromText(String... texts) {
+        String haystack = joinTexts(texts);
+        if (haystack.isBlank() || haystack.contains("전국")) {
+            return List.of();
+        }
+
+        Map<String, RegionName> result = new LinkedHashMap<>();
+        for (Map.Entry<String, String> entry : SGG_CODE_MAP.entrySet()) {
+            String[] parts = entry.getKey().split("/", 2);
+            String shortSido = parts[0];
+            String fullSido = SIDO_FULL_NAME_MAP.getOrDefault(shortSido, shortSido);
+            String sgg = parts[1];
+            if ((haystack.contains(fullSido) || haystack.contains(shortSido)) && haystack.contains(sgg)) {
+                putRegion(result, entry.getValue());
+            }
+        }
+
+        for (Map.Entry<String, String> entry : UNIQUE_SGG_CODE_MAP.entrySet()) {
+            if (haystack.contains(entry.getKey())) {
+                putRegion(result, entry.getValue());
+            }
+        }
+        for (Map.Entry<String, String> entry : UNIQUE_SGG_STEM_CODE_MAP.entrySet()) {
+            if (haystack.contains(entry.getKey())) {
+                putRegion(result, entry.getValue());
+            }
+        }
+
+        if (!result.isEmpty()) {
+            return List.copyOf(result.values());
+        }
+
+        for (String shortSido : SIDO_CODE_MAP.keySet()) {
+            String fullSido = SIDO_FULL_NAME_MAP.getOrDefault(shortSido, shortSido);
+            if (haystack.contains(fullSido) || haystack.contains(shortSido + "시") || haystack.contains(shortSido + "도")) {
+                addAllSidoRegions(result, shortSido);
+            }
+        }
+        for (Map.Entry<String, String> alias : SIDO_ALIAS_MAP.entrySet()) {
+            if (haystack.contains(alias.getKey())) {
+                addAllSidoRegions(result, alias.getValue());
+            }
+        }
+
+        return List.copyOf(result.values());
+    }
+
+    public static List<RegionName> inferRegionNamesFromLocalAgency(String agencyType, String agencyName) {
+        if (!isLocalAgencyType(agencyType) || agencyName == null || agencyName.isBlank()) {
+            return List.of();
+        }
+
+        Map<String, RegionName> result = new LinkedHashMap<>();
+        String haystack = agencyName.trim();
+        for (Map.Entry<String, String> alias : SIDO_ALIAS_MAP.entrySet()) {
+            if (haystack.contains(alias.getKey())) {
+                addAllSidoRegions(result, alias.getValue());
+            }
+        }
+        for (String shortSido : SIDO_CODE_MAP.keySet()) {
+            if (haystack.contains(shortSido)) {
+                addAllSidoRegions(result, shortSido);
+            }
+        }
+        return List.copyOf(result.values());
+    }
+
+    private static boolean isLocalAgencyType(String agencyType) {
+        if (agencyType == null || agencyType.isBlank()) {
+            return false;
+        }
+        return agencyType.contains("광역시도")
+                || agencyType.contains("시군구")
+                || agencyType.contains("교육청")
+                || agencyType.contains("지방공기업")
+                || agencyType.contains("지방출자");
+    }
+
+    private static String joinTexts(String... texts) {
+        if (texts == null || texts.length == 0) {
+            return "";
+        }
+        StringBuilder builder = new StringBuilder();
+        for (String text : texts) {
+            if (text != null && !text.isBlank()) {
+                builder.append(' ').append(text.trim());
+            }
+        }
+        return builder.toString();
+    }
+
+    private static void addAllSidoRegions(Map<String, RegionName> result, String shortSido) {
+        for (Map.Entry<String, String> entry : SGG_CODE_MAP.entrySet()) {
+            if (entry.getKey().startsWith(shortSido + "/")) {
+                putRegion(result, entry.getValue());
+            }
+        }
+    }
+
+    private static void putRegion(Map<String, RegionName> result, String regionCode) {
+        RegionName regionName = getRegionName(regionCode);
+        if (regionName != null) {
+            result.putIfAbsent(regionCode, regionName);
+        }
     }
 
     /**
@@ -301,5 +491,8 @@ public final class RegionCodeUtil {
             return null;
         }
         return SGG_CODE_MAP.get(normalizedSido + "/" + sgg.trim());
+    }
+
+    public record RegionName(String regionCode, String sidoName, String sggName) {
     }
 }
