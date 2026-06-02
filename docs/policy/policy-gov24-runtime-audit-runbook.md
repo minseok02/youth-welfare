@@ -49,13 +49,13 @@
 - closeout coverage: `gov24_total_services=10954`, `gov24_detail_rows=10954`, `gov24_support_raw=10954`
 - support fact coverage: `gov24_support_fact_rows=194819`, `gov24_support_fact_services=10954`, `gov24_support_missing_fact_services=0`
 - support raw shape: `nested=10954`, `flat=0`
-- region backfill `10954`건: latest suite step `9432ms`, endpoint metric `6295ms`
+- region backfill `10954`건: latest suite step `8876ms`, endpoint metric `5675ms`
 - region coverage: `9814 / 10954 = 89.59%`
 - region rows: `33010`
 - collect embedding boundary: `requested=1`, `saved=1`, `failed=0`, warning count `1`, error count `0`
 - sidecar missing-list refill: `before_missing=10954 -> after_missing=0`, suite step `15377ms`
 - filter axis audit: Gov24 3축 filter count를 DB truth와 API `totalElements` 로 비교
-- 기본 acceptance suite: `passed`, `8` steps, `suite_duration_ms=58439`
+- 기본 acceptance suite: `passed`, `8` steps, `suite_duration_ms=55965`
 - signal 포함 acceptance suite: `passed`, `10` steps, `suite_duration_ms=71712`
   - housing signal: `fresh_batch_rows=44`, `gov24_rows=44`, `gov24_top10_rows=10`, `gov24_top2_rows=2`
   - education signal: `fresh_batch_rows=32`, `gov24_rows=32`, `gov24_top10_rows=10`, `gov24_top2_rows=2`
