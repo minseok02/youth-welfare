@@ -1,5 +1,19 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 1060) EC2 재부팅 전 서버 먹통은 RDS 장애가 아니라 로컬 DB/수집 작업과 EC2 디스크 IO 압박을 먼저 의심해야 한다
+- 문제: `2026-06-02 01:23 UTC` 재부팅 뒤 앱은 다시 올라왔지만, 재부팅 전 "서버 문제"의 원인이 RDS인지 EC2인지 불명확했다. 특히 당시 디스크 사용률이 `77%` 로 보였고, 운영은 이미 RDS 전환을 의도하고 있었는데 실제 컨테이너는 local `docker-compose.yml` 의 `db` 서비스를 물고 있었다.
+- 1차 결론: 재부팅 자체는 커널 패닉/OOM/디스크 full 로 인한 자동 크래시가 아니었다. 이전 부트 로그에 `systemd-logind: Power key pressed short.`, `The system will power off now!`, `System is powering down.` 이 찍혔고, Docker/nginx/ssh 도 `SIGTERM` 을 받고 정상 종료됐다. 즉 `2026-06-02 01:23:08 UTC` 종료는 EC2 콘솔/API/ACPI 전원 이벤트처럼 보이는 정상 poweroff 경로다.
+- 실제 이상 구간: 서버가 느려지거나 먹통처럼 보였을 가능성이 큰 구간은 재부팅 직전 00~01시가 아니라 `2026-06-01 18:22~22:26 UTC` 다. `sar` 기준 2코어 EC2에서 load average 가 `85~117` 까지 치솟았고, CPU idle 은 거의 `0%`, `%system` 은 약 `61~63%`, `%iowait` 는 약 `35~36%` 였다. 같은 시간 루트 디스크 `nvme0n1` util 은 `84~92%`, `loop0` util 은 `86~100%` 까지 올라갔다.
+- 메모리/시스템 로그 신호: `systemd-resolved` 와 `systemd-journald` 가 반복해서 `Under memory pressure, flushing caches` 를 남겼고, `systemd-journald.service: Watchdog timeout`, `snapd.service` timeout, DNS lookup failure 도 같은 구간에 보였다. swap 은 없었고 명시적인 OOM kill 은 없었으므로, 프로세스가 죽은 장애라기보다 로컬 IO/커널 pressure 로 시스템 반응성이 무너진 상태로 읽는다.
+- RDS가 직접 원인으로 보이지 않는 이유: RDS 쪽 `api_sync_logs` 에는 해당 시간대 수집 작업 로그가 없었다. 반면 실행 중이던 앱 컨테이너의 runtime env 는 `DB_URL=jdbc:postgresql://db:5432/...` 였고, 컨테이너 label 도 `/home/ubuntu/youth-welfare/docker-compose.yml` 기반이었다. 즉 서버 앱은 RDS가 아니라 EC2 내부 Docker Postgres 를 사용하고 있었다.
+- 가능성이 큰 트리거: bash history 에 `MAX_CALLS=2000` 으로 관리자 수집 API를 반복 호출하는 스크립트가 남아 있었다. 이 스크립트는 `.env.production` 의 RDS를 직접 폴링하면서, 실제 호출은 `APP_BASE_URL=http://127.0.0.1:8082` 의 서버 앱으로 들어가는 구조였다. 당시 앱이 local DB를 물고 있었으므로 "폴링은 RDS, 실제 작업은 local DB" 로 어긋났을 가능성이 있다. 이 경우 작업 완료 감지가 틀어지고 수집/DB IO가 반복되면서 EC2 local Postgres 와 루트 디스크를 압박할 수 있다.
+- 증거 한계: 재부팅 후 운영 전환 과정에서 기존 local DB 볼륨과 이전 app container 로그는 정리됐다. 따라서 어떤 단일 process/query 가 IO를 가장 많이 썼는지는 사후에 확정할 수 없다. 다만 시스템 계측값 기준으로는 "RDS 장애"보다 "EC2 local DB/runtime drift + 대량 수집/IO pressure" 쪽이 훨씬 강한 원인이다.
+- 즉시 조치: `docker compose -f docker-compose.yml down` 후 `APP_ENV_FILE=.env.production docker compose -f docker-compose.prod.yml up -d --build` 로 서버 runtime 을 RDS-backed prod stack 으로 전환했다. `.env` 에 `COMPOSE_FILE=docker-compose.prod.yml`, `APP_ENV_FILE=.env.production` 을 명시해 서버에서 plain `docker compose ...` 를 쳐도 `app + redis` 만 뜨게 했다. local Postgres volume(`youth-welfare_postgres_data`)은 RDS 전환 및 사용자 없음 조건을 확인한 뒤 삭제했다.
+- 현재 확인: 전환 뒤 `docker compose config --services` 는 `redis`, `app` 만 반환한다. `docker ps` 도 `youth-welfare-app`, `youth-welfare-redis` 만 보이고, 앱 health 는 `{"status":"UP"}` 이다. 루트 디스크 사용률은 build cache prune 과 local DB volume 제거 후 `58%` 로 내려갔다.
+- 재발 방지: 서버에서는 local DB 포함 compose 를 기본값으로 쓰지 않는다. 수집/repair script 를 실행하기 전에는 반드시 `docker compose config --services`, app container `DB_URL`, `curl http://127.0.0.1:8082/actuator/health`, RDS `api_sync_logs` 를 같이 확인한다. 특히 `APP_BASE_URL=127.0.0.1:8082` 로 관리자 수집 API를 직접 호출하는 스크립트는 "앱 runtime DB" 와 "폴링 DB" 가 같은지 먼저 검증해야 한다.
+- 다음에 같은 증상이 보이면 먼저 볼 것: `journalctl --list-boots`, `journalctl -b -1 --since ...`, `/var/log/auth.log` 의 `Power key`/`reboot`/`sudo` 흔적, `sar -q`, `sar -u`, `sar -r`, `sar -d -p`, `df -h /`, `docker ps --format`, app container env 의 `DB_URL`, nginx error/access log, RDS `api_sync_logs`. 원인 보존이 필요하면 `docker compose down`, volume 삭제, build cache prune 전에 `docker logs`, `docker inspect`, DB 작업 로그를 먼저 떠야 한다.
+- 이유: 이 장애는 "재부팅 후 앱이 올라왔는가"보다 "서버가 의도한 RDS runtime 으로 떠 있었는가"가 핵심이었다. RDS 전환을 했다고 생각해도 compose 기본값이 local DB를 띄우면 서버는 다시 EC2 local IO 병목에 노출된다. 운영 문서에는 재부팅 원인과 runtime drift 확인을 같은 트러블슈팅 항목으로 묶어 두는 편이 안전하다.
+
 ## 1059) `Gov24` filter를 열어도 detail page tag가 read-only badge로만 남아 있으면 discovery surface가 중간에서 끊긴다
 - 문제: `serviceField`, `userType`, `benefitType` public filter 세 축을 `/policies` 와 API에 열었어도, 상세 페이지에서 보이는 `Gov24` 태그가 단순 badge로만 남아 있으면 사용자는 같은 분류의 다른 정책으로 바로 되돌아갈 수 없다. 이 상태는 “filter는 있는데 detail에서 다시 탐색하는 연결은 없는” 반쯤 열린 discovery surface가 된다.
 - 해결: [PolicyDetailPage.jsx](/home/minseok/youth-welfare/frontend/src/pages/PolicyDetailPage.jsx:1) 의 `Gov24` 태그를 clickable chip으로 바꿔 `serviceField`, `userType`, `benefitType` 각각 `/policies?sourceType=GOV24&...` 로 바로 이동하게 했다. 즉 `분야/대상/유형` badge를 read-only 메타가 아니라 bounded discovery bridge로 승격한다.
@@ -6811,3 +6825,27 @@ admin API와 latest artifact에
 - 문제: `Gov24 serviceField` 다음 bounded step으로 `userType` public filter를 열려면, canonical row는 `GOV24_USER_TYPE_TOKEN` term에서 읽고 legacy row는 raw summary label을 fallback 으로 읽어야 한다. 그런데 이 축은 `serviceField` 처럼 exact raw label 하나로 비교할 수 없고, `개인||가구` 같은 combo label을 additive token으로 해석해야 한다.
 - 해결: `/api/policies`, `/api/policies/search` 에 `gov24UserType` query param을 추가하고 허용값을 managed token `4개(개인/가구/법인·시설·단체/소상공인)` 로 제한했다. 조회 계약은 `service_taxonomy_terms(term_group='GOV24_USER_TYPE_TOKEN')` 우선, term이 없는 legacy row만 `service_taxonomies.gov24_user_type_label` 을 `regexp_split_to_table(..., '||')` 로 분해해 token match 하게 고정했다. 프런트 `/policies` 도 sourceType=`Gov24` 일 때만 `Gov24 사용자구분` filter를 같이 노출한다.
 - 이유: `userType` 은 token 수가 `4개` 로 작아서 `benefitType` 보다 bounded 하고, admin facet/read-model에서도 이미 같은 split semantics를 검증해 둔 축이다. exact-label 비교를 그대로 재사용하면 combo label legacy row를 놓치므로, public filter reopen 범위를 넓히지 않으면서도 fallback semantics만 정확히 맞추는 편이 안전하다.
+
+## 1055) Gov24 sidecar backfill에서 `limitPerSource=0` 을 capped default로 바꾸면 전체 repair smoke가 오히려 누락을 남긴다
+
+- 문제: sidecar backfill controller가 공용 `normalizeLimitPerSource()` 를 쓰면 `limitPerSource=0` 이 `1000` 으로 바뀐다. 그런데 repository/service 계층은 `0 이하 = unlimited` 로 읽고 있었기 때문에, operator가 전체 backfill 의도로 `0` 을 넣어도 실제로는 capped scan 이 되었고 Gov24 sidecar smoke에서 missing slot 이 남았다.
+- 해결: sidecar backfill 전용 normalizer는 `0` 을 보존하게 분리했다. Gov24 쪽은 `scope=list&missingOnly=true` 경로도 추가해 필수 summary slot 이 없는 list row만 다시 태우고, smoke 는 `gov24-sidecars-backfill?scope=list&missingOnly=true&limitPerSource=0` 계약을 사용한다.
+- 이유: full reprocess 는 비싸고 정상 row까지 다시 훑는다. missing-only repair 는 bounded/idempotent 하고, `0` 계약은 endpoint별로 명시해야 공용 admin 파라미터 해석과 충돌하지 않는다.
+
+## 1056) 추천 local target resolver가 `BOKJIRO_LOCAL=0` 데이터셋에서 historical fallback으로 내려가면 stale family를 현재 버그처럼 보게 된다
+
+- 문제: 최신 DB에서 `BOKJIRO_LOCAL` target family가 없는데 helper가 historical fallback(`2736/3257/3281/3575/3714`)을 기본으로 잡으면, signal gap audit 이 전부 `NOT_IN_SQL_RETRIEVAL` 로 나오고 현재 데이터 문제가 아닌 과거 샘플 문제가 현재 retrieval bug 처럼 보인다.
+- 해결: resolver 기본 fallback 을 current `GOV24/YOUTH` local youth family 로 바꿨다. historical fallback 은 `ALLOW_RECOMMENDATION_HISTORICAL_TARGET_FAMILY_FALLBACK=true` 를 명시했을 때만 허용한다.
+- 이유: audit 기본값은 현재 latest user/data 를 따라야 한다. historical sample 은 회귀 비교용으로는 유용하지만, current 운영 판단의 기본 target 으로 쓰면 잘못된 reopen 근거가 된다.
+
+## 1057) Gov24 지역 정책은 `service_regions` 가 없어도 제목/설명에 시도 신호가 있으면 bounded local tier 로 읽어야 한다
+
+- 문제: `10350/4891/4817/10354/10348` 같은 Gov24 인천 청년 정책은 `service_regions` 가 비어 있어 기존 region projection 에서는 `NATIONWIDE` 로만 읽혔다. 이 상태에서는 region-window 에서 base/latest rank 가 수천 단위로 밀리고, saved batch 밖 문제를 retrieval miss 로 보게 된다.
+- 해결: recommendation region/sido query 에 `GOV24 + YOUTH + non-기타 + title/description current sido text match` 조건의 bounded local text tier 를 추가했다. 재검증 후 해당 family 는 모두 `PRESENT_IN_SAVED_BATCH` 로 들어왔고 saved rank `22~32`, AI score `50~90` 으로 확인됐다.
+- 이유: 이건 global Gov24 source bonus 가 아니라 region projection 보정이다. 구조화된 `service_regions` 가 없는 Gov24 raw row 에서도 명시적인 지역 텍스트가 있으면 local 후보로 읽어야 하지만, 그 범위는 youth/non-other/text-match 조건 안에 묶어야 한다.
+
+## 1058) `latest-status-export` 단독값과 reopen precheck/current priority가 다르면 readiness 포함 여부를 먼저 봐야 한다
+
+- 문제: 같은 시점에 `latest-status-export` 는 `WAIT_FOR_REAL_USER_TRAFFIC` 로 보이는데 current priority suite 와 real-user precheck 는 `REOPEN_DECISION_READY` 로 닫히는 상황이 있었다. 이름만 보고 latest export 하나를 source of truth 로 삼으면 reopen 판단을 잘못 막게 된다.
+- 해결: reopen decision 은 latest overview, real-user readiness precheck, current priority suite 를 같이 읽는다. baseline/drift helper 성격의 latest export 단독값은 보조 signal 로만 본다.
+- 이유: 둘 다 "latest" 를 말하지만 포함하는 readiness 범위가 다르다. 운영 판단 문서에는 `decision_class=REOPEN_DECISION_READY`, `reopen_allowed=true`, real-user gate ready 값을 함께 남겨 혼선을 줄인다.
