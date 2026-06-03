@@ -228,10 +228,9 @@ public class ChatBranchCatalog {
             List<String> searchTerms
     ) {
         int matchScore(List<String> questionTokens) {
-            Set<String> tokenSet = Set.copyOf(questionTokens);
             int score = 0;
             for (String token : matchKeywords()) {
-                if (tokenSet.contains(token)) {
+                if (matchesQuestionToken(questionTokens, token)) {
                     score++;
                 }
             }
@@ -239,11 +238,21 @@ public class ChatBranchCatalog {
         }
 
         List<String> matchedKeywords(List<String> questionTokens) {
-            Set<String> tokenSet = Set.copyOf(questionTokens);
             return matchKeywords().stream()
-                    .filter(tokenSet::contains)
+                    .filter(token -> matchesQuestionToken(questionTokens, token))
                     .distinct()
                     .toList();
+        }
+
+        private boolean matchesQuestionToken(List<String> questionTokens, String keyword) {
+            if (!StringUtils.hasText(keyword) || questionTokens == null || questionTokens.isEmpty()) {
+                return false;
+            }
+            String normalizedKeyword = keyword.trim();
+            return questionTokens.stream()
+                    .filter(StringUtils::hasText)
+                    .map(String::trim)
+                    .anyMatch(token -> token.equals(normalizedKeyword) || token.startsWith(normalizedKeyword));
         }
 
         private List<String> matchKeywords() {

@@ -142,7 +142,11 @@ public class ChatConversationService {
         }
 
         List<ChatReferenceResponse> references = resolveReferences(aiResult, fallbackReferences);
-        boolean needsClarification = resolveNeedsClarification(aiResult, references);
+        boolean needsClarification = resolveNeedsClarification(
+                aiResult,
+                references,
+                conversationContext
+        );
         String answer = resolveAnswer(aiResult, references, needsClarification);
         ChatAnswerMode answerMode = resolveAnswerMode(needsClarification);
         chatRetrievalSnapshotService.recordInteractiveTrace(session, content, candidateTrace, needsClarification);
@@ -403,8 +407,18 @@ public class ChatConversationService {
         return fallbackReferences;
     }
 
-    private boolean resolveNeedsClarification(ChatAiResult aiResult, List<ChatReferenceResponse> references) {
+    private boolean resolveNeedsClarification(ChatAiResult aiResult,
+                                              List<ChatReferenceResponse> references,
+                                              ChatConversationContextSupport.ConversationContext conversationContext) {
         if (aiResult != null) {
+            if (aiResult.isNeedsClarification()
+                    && conversationContext != null
+                    && conversationContext.followUp()
+                    && chatBranchCatalog.isHousingBranchKey(conversationContext.effectiveBranchKey())
+                    && !references.isEmpty()
+                    && StringUtils.hasText(aiResult.getAnswer())) {
+                return false;
+            }
             return aiResult.isNeedsClarification();
         }
         return references.isEmpty();

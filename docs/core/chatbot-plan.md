@@ -18,7 +18,13 @@
 - 2026-06-03 기준 `chat_sessions.context_state_json` 에 주거 도메인 한정 구조화 세션 상태를 저장합니다. 현재 저장 범위는 `activeBranchKey`, `anchorQuestion`, `recentTopics`, `recentPolicyTitles/Ids`, `suggestedBranchKeys` 이고, 긴 자연어 요약 전체를 DB에 저장하는 방식은 아직 열지 않았습니다.
 - 로컬 follow-up runtime QA는 [run-local-chat-followup-smoke.sh](/home/minseok/youth-welfare/deploy/smoke/run-local-chat-followup-smoke.sh:1) 로 `첫 질문 -> 후속 질문 -> messages 확인` 경로를 bounded 하게 재검증합니다.
 - 실사용 판단용 follow-up 시나리오 QA는 [run-local-chat-followup-scenario-audit.sh](/home/minseok/youth-welfare/deploy/smoke/run-local-chat-followup-scenario-audit.sh:1) 로 `주거 follow-up`, `branch suggestion 자유 입력`, `혼합 주제`, `일자리 자유 입력`을 묶어 확인합니다.
-- 같은 시나리오 audit 기준으로 주거 한정 구조화 memory 도입 전 결과는 `POLICY_GROUNDED 1 / CLARIFICATION 3 / decision=CONSIDER_LONG_TERM_MEMORY` 였고, 도입 후에는 `POLICY_GROUNDED 3 / CLARIFICATION 1 / decision=HOLD_LONG_TERM_MEMORY` 로 개선됐습니다. 남은 `CLARIFICATION` 1건은 `서울 월세 지원 알려줘 -> 그럼 전세는?` 단일 housing follow-up 입니다.
+- 같은 시나리오 audit 기준으로 주거 한정 구조화 memory 도입 전 결과는 `POLICY_GROUNDED 1 / CLARIFICATION 3 / decision=CONSIDER_LONG_TERM_MEMORY` 였고, 1차 도입 후에는 `POLICY_GROUNDED 3 / CLARIFICATION 1 / decision=HOLD_LONG_TERM_MEMORY` 로 개선됐습니다.
+- 마지막 남은 `서울 월세 지원 알려줘 -> 그럼 전세는?` 케이스는
+  - `전세는` 같은 조사 결합 토큰도 housing branch match에 걸리게 하고,
+  - `월세 -> 전세`처럼 housing leaf branch가 바뀌면 retrieval query에서 이전 월세 topic/policy bias를 비우고,
+  - 주거 follow-up에서 참조 정책과 구체 답변이 있으면 AI clarification flag를 bounded post-processing으로 정규화
+  하는 방식으로 닫았습니다.
+- 최종 시나리오 audit은 `POLICY_GROUNDED 4 / CLARIFICATION 0 / decision=HOLD_LONG_TERM_MEMORY` 입니다.
 - 아직 하지 않은 것은 DB에 별도 저장되는 장기 세션 요약/압축(memory persistence)과 multi-turn 전용 ranking 재학습입니다.
 
 ## 왜 주거만 먼저 붙였는가

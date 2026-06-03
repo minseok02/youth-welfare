@@ -280,7 +280,20 @@ class ChatConversationServiceTest {
     @DisplayName("후속 질문이면 직전 질문과 branch 맥락을 이어서 retrieval한다")
     void sendMessageCarriesPreviousQuestionAndBranchForFollowUp() {
         User user = createUser(1L);
-        ChatSession session = ChatSession.builder().id(10L).userKey("user-key-1").build();
+        ChatSessionContextState sessionState = ChatSessionContextState.builder()
+                .housing(ChatSessionContextState.HousingContext.builder()
+                        .activeBranchKey("housing-cash")
+                        .anchorQuestion("서울 월세 지원 알려줘")
+                        .recentTopics(List.of("월세"))
+                        .recentPolicyTitles(List.of("청년월세 한시 특별지원"))
+                        .recentPolicyIds(List.of(1829L))
+                        .build())
+                .build();
+        ChatSession session = ChatSession.builder()
+                .id(10L)
+                .userKey("user-key-1")
+                .contextStateJson(new ObjectMapper().valueToTree(sessionState).toString())
+                .build();
         SendChatMessageRequest request = new SendChatMessageRequest();
         ReflectionTestUtils.setField(request, "content", "그럼 전세는?");
 
@@ -315,11 +328,11 @@ class ChatConversationServiceTest {
         when(chatRetrievalSnapshotService.findSessionSnapshots(10L)).thenReturn(List.of(snapshot));
 
         ChatPolicyService.CandidateTrace trace = new ChatPolicyService.CandidateTrace(
-                "서울 월세 지원 알려줘\n후속 질문: 그럼 전세는?",
-                "서울 월세 지원 알려줘 전세",
-                "housing-cash",
+                "서울 주거 지원\n현재 관심 갈래: 장기 주거 안정\n후속 질문: 그럼 전세는?",
+                "서울 주거 지원 현재 관심 갈래 장기 주거 안정 후속 질문 그럼 전세는",
+                "housing-stability",
                 "주거",
-                List.of("월세", "주거비", "지원금"),
+                List.of("전세", "임대", "공공임대", "주거 안정"),
                 "MERGED_RESULTS",
                 List.of(),
                 List.of(),
@@ -327,7 +340,11 @@ class ChatConversationServiceTest {
                         ChatPolicyCandidate.builder().serviceId(2451L).title("청년전세임대").description("청년 전세 주거 안정을 지원합니다.").build()
                 )
         );
-        when(chatPolicyService.traceCandidates("서울 월세 지원 알려줘\n후속 질문: 그럼 전세는?", "housing-cash", 3))
+        when(chatPolicyService.traceCandidates(
+                "서울 주거 지원\n현재 관심 갈래: 장기 주거 안정\n후속 질문: 그럼 전세는?",
+                "housing-stability",
+                3
+        ))
                 .thenReturn(trace);
         when(chatGroundingService.loadEvidenceMap(any(List.class)))
                 .thenReturn(Map.of(2451L, "전세 주거 안정을 지원합니다."));
@@ -337,7 +354,11 @@ class ChatConversationServiceTest {
         var response = chatConversationService.sendMessage(1L, 10L, request);
 
         assertThat(response.getAnswerMode()).isEqualTo(ChatAnswerMode.POLICY_GROUNDED);
-        verify(chatPolicyService).traceCandidates("서울 월세 지원 알려줘\n후속 질문: 그럼 전세는?", "housing-cash", 3);
+        verify(chatPolicyService).traceCandidates(
+                "서울 주거 지원\n현재 관심 갈래: 장기 주거 안정\n후속 질문: 그럼 전세는?",
+                "housing-stability",
+                3
+        );
         verify(chatAiGateway).generateAnswer(
                 any(User.class),
                 nullable(String.class),
@@ -347,10 +368,12 @@ class ChatConversationServiceTest {
                 any(Map.class),
                 argThat(value -> value != null
                         && value.contains("직전 사용자 질문: 서울 월세 지원 알려줘")
-                        && value.contains("직전 탐색 방향: 즉시 현금성 지원")
+                        && value.contains("직전 탐색 방향: 장기 주거 안정")
+                        && value.contains("최근 탐색 흐름: 즉시 현금성 지원")
+                        && value.contains("주거 세션 상태: 월세")
                         && value.contains("직전 추천 정책: 청년월세 한시 특별지원"))
         );
-        verify(chatSessionContextStateService).captureHousingAnswer(eq(10L), eq("그럼 전세는?"), eq("housing-cash"), any(List.class));
+        verify(chatSessionContextStateService).captureHousingAnswer(eq(10L), eq("그럼 전세는?"), eq("housing-stability"), any(List.class));
     }
 
     @Test
@@ -454,6 +477,100 @@ class ChatConversationServiceTest {
                         && value.contains("직전 추천 정책: 청년일자리 도약장려금"))
         );
         verify(chatSessionContextStateService).captureHousingAnswer(eq(10L), eq("월세 쪽으로 보여줘"), eq("housing-cash"), any(List.class));
+    }
+
+    @Test
+    @DisplayName("주거 후속 질문에서 정책 근거가 있으면 AI clarification 응답도 grounded로 승격한다")
+    void sendMessagePromotesHousingFollowUpWithReferencesEvenWhenAiRequestsClarification() {
+        User user = createUser(1L);
+        ChatSessionContextState sessionState = ChatSessionContextState.builder()
+                .housing(ChatSessionContextState.HousingContext.builder()
+                        .activeBranchKey("housing-cash")
+                        .anchorQuestion("서울 월세 지원 알려줘")
+                        .recentTopics(List.of("월세"))
+                        .recentPolicyTitles(List.of("청년월세 한시 특별지원"))
+                        .recentPolicyIds(List.of(1829L))
+                        .build())
+                .build();
+        ChatSession session = ChatSession.builder()
+                .id(10L)
+                .userKey("user-key-1")
+                .contextStateJson(new ObjectMapper().valueToTree(sessionState).toString())
+                .build();
+        SendChatMessageRequest request = new SendChatMessageRequest();
+        ReflectionTestUtils.setField(request, "content", "그럼 전세는?");
+
+        ChatMessage previousUserMessage = ChatMessage.builder()
+                .id(100L)
+                .session(session)
+                .role(ChatMessageRole.USER)
+                .content("서울 월세 지원 알려줘")
+                .build();
+        ChatMessage previousAssistantMessage = ChatMessage.builder()
+                .id(101L)
+                .session(session)
+                .role(ChatMessageRole.ASSISTANT)
+                .content("청년월세 한시 특별지원을 먼저 확인해보세요.")
+                .referencesJson("[{\"serviceId\":1829,\"title\":\"청년월세 한시 특별지원\",\"reason\":\"월세 지원\",\"evidence\":\"월세 지원\"}]")
+                .build();
+        ChatRetrievalSnapshot snapshot = ChatRetrievalSnapshot.builder()
+                .id(15L)
+                .snapshotType("INTERACTIVE")
+                .sessionId(10L)
+                .userKey("user-key-1")
+                .question("서울 월세 지원 알려줘")
+                .branchKey("housing-cash")
+                .resultCount(1)
+                .build();
+
+        when(activeUserReadService.getActiveUserContext(1L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
+        when(chatMessageReadRepository.findOwnedSession(10L, "user-key-1")).thenReturn(Optional.of(session));
+        when(chatMessageReadRepository.findRecentMessages(10L, 6))
+                .thenReturn(List.of(previousAssistantMessage, previousUserMessage));
+        when(chatRetrievalSnapshotService.findSessionSnapshots(10L)).thenReturn(List.of(snapshot));
+
+        ChatPolicyService.CandidateTrace trace = new ChatPolicyService.CandidateTrace(
+                "서울 주거 지원\n현재 관심 갈래: 장기 주거 안정\n후속 질문: 그럼 전세는?",
+                "서울 주거 지원 현재 관심 갈래 장기 주거 안정 후속 질문 그럼 전세는",
+                "housing-stability",
+                "주거",
+                List.of("전세", "임대", "공공임대", "주거 안정"),
+                "MERGED_RESULTS",
+                List.of(),
+                List.of(),
+                List.of(
+                        ChatPolicyCandidate.builder().serviceId(6359L).title("국토교통부 전세보증금반환보증 보증료 지원")
+                                .description("전세보증금반환보증 보증료를 지원합니다.").build()
+                )
+        );
+        when(chatPolicyService.traceCandidates(
+                "서울 주거 지원\n현재 관심 갈래: 장기 주거 안정\n후속 질문: 그럼 전세는?",
+                "housing-stability",
+                3
+        )).thenReturn(trace);
+        when(chatGroundingService.loadEvidenceMap(any(List.class)))
+                .thenReturn(Map.of(6359L, "전세보증금반환보증 보증료를 지원합니다."));
+        when(chatAiGateway.generateAnswer(any(User.class), nullable(String.class), anyString(), any(List.class), any(List.class), any(Map.class), anyString()))
+                .thenReturn(ChatAiResult.builder()
+                        .answer("전세에 대한 지원으로는 국토교통부 전세보증금반환보증 보증료 지원이 있습니다.")
+                        .needsClarification(true)
+                        .references(List.of(
+                                ChatReferenceResponse.builder()
+                                        .serviceId(6359L)
+                                        .title("국토교통부 전세보증금반환보증 보증료 지원")
+                                        .reason("전세 관련 지원입니다.")
+                                        .evidence("전세보증금반환보증 보증료를 지원합니다.")
+                                        .build()
+                        ))
+                        .build());
+
+        var response = chatConversationService.sendMessage(1L, 10L, request);
+
+        assertThat(response.getAnswerMode()).isEqualTo(ChatAnswerMode.POLICY_GROUNDED);
+        assertThat(response.isNeedsClarification()).isFalse();
+        assertThat(response.getReferences()).hasSize(1);
+        verify(chatSessionContextStateService).captureHousingAnswer(eq(10L), eq("그럼 전세는?"), eq("housing-stability"), any(List.class));
     }
 
     @Test

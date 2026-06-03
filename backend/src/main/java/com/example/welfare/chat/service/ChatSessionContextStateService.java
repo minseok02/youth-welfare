@@ -60,8 +60,12 @@ public class ChatSessionContextStateService {
                                      String question,
                                      String effectiveBranchKey,
                                      List<ChatReferenceResponse> references) {
+        String inferredHousingBranchKey = chatBranchCatalog.matchHousingQuestion(question)
+                .map(ChatBranchCatalog.BranchDefinition::branchKey)
+                .orElse(null);
         List<String> housingTopics = chatBranchCatalog.extractHousingTopics(question, effectiveBranchKey);
-        boolean housingBranch = chatBranchCatalog.isHousingBranchKey(effectiveBranchKey);
+        boolean housingBranch = chatBranchCatalog.isHousingBranchKey(effectiveBranchKey)
+                || chatBranchCatalog.isHousingBranchKey(inferredHousingBranchKey);
         if (!housingBranch && housingTopics.isEmpty()) {
             return;
         }
@@ -69,8 +73,11 @@ public class ChatSessionContextStateService {
         chatSessionRepository.findById(sessionId).ifPresent(session -> {
             ChatSessionContextState state = readState(session.getContextStateJson());
             ChatSessionContextState.HousingContext housing = ensureHousingContext(state);
-            if (housingBranch) {
-                housing.setActiveBranchKey(effectiveBranchKey);
+            String activeBranchKey = chatBranchCatalog.isHousingBranchKey(effectiveBranchKey)
+                    ? effectiveBranchKey
+                    : inferredHousingBranchKey;
+            if (chatBranchCatalog.isHousingBranchKey(activeBranchKey)) {
+                housing.setActiveBranchKey(activeBranchKey);
             }
             housing.setAnchorQuestion(resolveAnchorQuestion(question, housing.getAnchorQuestion()));
             housing.setRecentTopics(mergeDistinct(housing.getRecentTopics(), housingTopics, MAX_TOPICS));

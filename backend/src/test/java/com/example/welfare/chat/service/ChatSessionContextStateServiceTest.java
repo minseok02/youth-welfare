@@ -93,4 +93,27 @@ class ChatSessionContextStateServiceTest {
         assertThat(state.getHousing().getRecentPolicyTitles()).contains("청년월세 한시 특별지원");
         assertThat(state.getHousing().getRecentPolicyIds()).contains(1829L);
     }
+
+    @Test
+    @DisplayName("명시 branch가 없어도 주거 leaf 질문이면 active branch를 추론 저장한다")
+    void captureHousingAnswerInfersActiveBranchFromQuestion() throws Exception {
+        ChatSession session = ChatSession.builder()
+                .id(10L)
+                .userKey("user-key-1")
+                .build();
+        when(chatSessionRepository.findById(10L)).thenReturn(Optional.of(session));
+
+        chatSessionContextStateService.captureHousingAnswer(
+                10L,
+                "서울 월세 지원 알려줘",
+                null,
+                List.of(
+                        ChatReferenceResponse.builder().serviceId(1829L).title("청년월세 한시 특별지원").build()
+                )
+        );
+
+        ChatSessionContextState state = objectMapper.readValue(session.getContextStateJson(), ChatSessionContextState.class);
+        assertThat(state.getHousing().getActiveBranchKey()).isEqualTo("housing-cash");
+        assertThat(state.getHousing().getRecentTopics()).contains("월세");
+    }
 }

@@ -216,17 +216,23 @@ public class ChatConversationContextSupport {
                                           boolean followUp) {
         if (housingContext != null && chatBranchCatalog.isHousingBranchKey(effectiveBranchKey)) {
             List<String> parts = new ArrayList<>();
-            String anchorQuestion = normalize(housingContext.getAnchorQuestion());
+            boolean branchSwitched = chatBranchCatalog.isHousingBranchKey(housingContext.getActiveBranchKey())
+                    && !Objects.equals(normalize(housingContext.getActiveBranchKey()), normalize(effectiveBranchKey));
+            String anchorQuestion = resolveHousingAnchorQuestion(housingContext, previousUserQuestion, branchSwitched);
             if (StringUtils.hasText(anchorQuestion)) {
                 parts.add(anchorQuestion);
-            } else if (StringUtils.hasText(previousUserQuestion)) {
-                parts.add(previousUserQuestion);
             }
-            if (housingContext.getRecentTopics() != null && !housingContext.getRecentTopics().isEmpty()) {
+            if (!branchSwitched && housingContext.getRecentTopics() != null && !housingContext.getRecentTopics().isEmpty()) {
                 parts.add("주거 관심 맥락: " + String.join(", ", housingContext.getRecentTopics()));
             }
-            if (housingContext.getRecentPolicyTitles() != null && !housingContext.getRecentPolicyTitles().isEmpty()) {
+            if (!branchSwitched && housingContext.getRecentPolicyTitles() != null && !housingContext.getRecentPolicyTitles().isEmpty()) {
                 parts.add("최근 주거 정책: " + String.join(", ", housingContext.getRecentPolicyTitles().stream().limit(3).toList()));
+            }
+            if (branchSwitched) {
+                chatBranchCatalog.findByKey(effectiveBranchKey)
+                        .map(ChatBranchCatalog.BranchDefinition::label)
+                        .filter(StringUtils::hasText)
+                        .ifPresent(label -> parts.add("현재 관심 갈래: " + label));
             }
             parts.add((followUp ? "후속 질문: " : "현재 질문: ") + question);
             return String.join("\n", parts);
@@ -234,6 +240,39 @@ public class ChatConversationContextSupport {
         return followUp && StringUtils.hasText(previousUserQuestion)
                 ? previousUserQuestion + "\n후속 질문: " + question
                 : question;
+    }
+
+    private String resolveHousingAnchorQuestion(ChatSessionContextState.HousingContext housingContext,
+                                                String previousUserQuestion,
+                                                boolean branchSwitched) {
+        String anchorQuestion = normalize(housingContext.getAnchorQuestion());
+        if (!branchSwitched) {
+            if (StringUtils.hasText(anchorQuestion)) {
+                return anchorQuestion;
+            }
+            return StringUtils.hasText(previousUserQuestion) ? previousUserQuestion : null;
+        }
+
+        String sourceQuestion = StringUtils.hasText(anchorQuestion) ? anchorQuestion : previousUserQuestion;
+        List<String> contextTokens = SearchKeywordSupport.extractTokens(sourceQuestion).stream()
+                .filter(token -> !isHousingSpecificToken(token))
+                .filter(token -> !isLowSignalConversationToken(token))
+                .distinct()
+                .toList();
+        if (contextTokens.isEmpty()) {
+            return "주거 지원";
+        }
+        return String.join(" ", contextTokens) + " 주거 지원";
+    }
+
+    private boolean isHousingSpecificToken(String token) {
+        return chatBranchCatalog.matchHousingQuestion(token)
+                .map(branch -> true)
+                .orElseGet(() -> List.of("주거", "집", "거주", "월세", "전세", "임대", "공공임대", "주택", "주거비", "청약", "입주", "모집").contains(token));
+    }
+
+    private boolean isLowSignalConversationToken(String token) {
+        return List.of("지원", "알려줘", "보여줘", "그럼", "그러면", "쪽으로", "현재", "후속", "질문").contains(token);
     }
 
     private String buildConversationSummary(String previousUserQuestion,
