@@ -18,6 +18,7 @@
 - [collect-operation-checklist.md](./collect-operation-checklist.md)
 - [collect-ops.md](./collect-ops.md)
 - [collect-governance-observation-runbook.md](./collect-governance-observation-runbook.md)
+- `Gov24 async collect smoke`: `bash deploy/smoke/run-local-gov24-async-collect-smoke.sh`
 
 ### 같이 보면 좋은 기준 문서
 
@@ -130,5 +131,6 @@
 2. 실제 실행은 [collect-operation-checklist.md](./collect-operation-checklist.md) 기준으로 봅니다.
 3. 운영 해석은 [collect-ops.md](./collect-ops.md) 에 더 자세히 적혀 있습니다.
 4. daily operator 관찰은 [collect-governance-observation-runbook.md](./collect-governance-observation-runbook.md) 를 먼저 봅니다.
-5. collect closeout / quality baseline은 `Gov24 runtime closeout/deferred inventory audit` 과 `policy quality summary` runbook을 먼저 봅니다.
-6. 기록은 [collect-incident-template.md](./collect-incident-template.md) 를 기준으로 남기고, 오래된 전환 로그는 `phase-plan` 을 보조 참고로만 봅니다.
+5. `Gov24` manual list 수집은 이제 동기 endpoint보다 `async trigger/status + run-local-gov24-async-collect-smoke.sh` 를 기본 운영 경로로 봅니다.
+6. collect closeout / quality baseline은 `Gov24 runtime closeout/deferred inventory audit` 과 `policy quality summary` runbook을 먼저 봅니다.
+7. 기록은 [collect-incident-template.md](./collect-incident-template.md) 를 기준으로 남기고, 오래된 전환 로그는 `phase-plan` 을 보조 참고로만 봅니다.

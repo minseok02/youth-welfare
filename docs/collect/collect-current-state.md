@@ -25,6 +25,8 @@ daily operator entrypoint는 [collect-governance-observation-runbook.md](./colle
 
 - `POST /api/admin/collect/all`
 - `POST /api/admin/collect/{sourceKey}`
+- `POST /api/admin/collect/{sourceKey}/async`
+- `GET /api/admin/collect/{sourceKey}/async-status`
 - `POST /api/admin/collect/bokjiro-details-gap-fill`
 - `POST /api/admin/collect/inverted-age-backfill`
 - `POST /api/admin/collect/bokjiro-sidecars-backfill`
@@ -59,6 +61,10 @@ daily operator entrypoint는 [collect-governance-observation-runbook.md](./colle
 - `GOV24`
   - lane type: `SNAPSHOT`
   - 이유: nightly 제외. 수동 실행 시 `serviceList -> detail -> supportConditions` 를 연쇄 실행
+  - 현재 기본 운영 경로는 `POST /api/admin/collect/gov24/async` 와 `GET /api/admin/collect/gov24/async-status` 다.
+  - list collect 자체는 chunked runtime collect로 바뀌었고, 기본값은 `chunkSize=500`, `chunkPauseMs=100` 이다.
+  - `api_sync_logs.metadata_json` 에 `chunkSize/chunkPauseMs/chunkCount/elapsedMs/totalCount/staleDeletedCount` 를 남긴다.
+  - stale cleanup은 각 chunk 중간이 아니라 full run 성공 후 마지막에 `1회`만 실행한다.
 - `GOV24_DETAIL`
   - lane type: `DETAIL`
   - 이유: `maxCallsPerRun`, `sourceId` override 를 두는 budgeted manual lane
@@ -90,6 +96,26 @@ daily operator entrypoint는 [collect-governance-observation-runbook.md](./colle
 
 - snapshot 기준선과 비싼 detail/enrichment/maintenance lane 을 분리해야 quota, app runtime, 운영 triage 비용을 같이 제어할 수 있다.
 - 특히 `Gov24 detail/support`, `YOUTH detail`, `Bokjiro gap-fill/refresh` 는 "매일 반드시 도는 기준선"이 아니라 필요할 때만 태우는 것이 현재 운영 원칙이다.
+- 특히 `Gov24` list snapshot은 chunk 처리로 안정성은 좋아졌지만 full run 자체는 여전히 약 `2분` 내외의 long-running job 이므로, admin UI/운영 smoke에서는 동기 endpoint보다 async trigger/status 경로를 기본으로 읽는다.
+
+## 현재 Gov24 async collect 운영 경계
+
+- trigger:
+  - `POST /api/admin/collect/gov24/async`
+  - 응답: `202 Accepted`
+  - 기대값: `state=QUEUED`, `active=true`
+- status:
+  - `GET /api/admin/collect/gov24/async-status`
+  - 전이: `QUEUED -> RUNNING -> SUCCEEDED/FAILED`
+  - payload에는 latest `api_sync_logs` snapshot과 `metadataJson` 이 같이 포함된다.
+- latest smoke:
+  - `bash deploy/smoke/run-local-gov24-async-collect-smoke.sh`
+  - 최근 local 기준:
+    - trigger wall-clock `18ms`
+    - full async run latest `elapsedMs≈89550`
+    - `chunkCount=22`
+    - `requested=saved=10954`
+    - `failed=0`
 
 ### 현재 lane budget/config summary
 
@@ -119,6 +145,8 @@ daily operator entrypoint는 [collect-governance-observation-runbook.md](./colle
   - budget: `max 20000 items/run`
   - list pacing: `300ms`
   - retry: `3 attempts / 1000ms backoff`
+  - runtime collect chunk: `500`
+  - chunk pause: `100ms`
 - `GOV24_DETAIL`
   - budget: `max 50 calls/run`
   - detail pacing: `300ms`

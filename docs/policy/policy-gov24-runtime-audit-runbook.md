@@ -150,6 +150,42 @@ RUN_GOV24_SIGNAL_SMOKES=true bash deploy/smoke/run-local-gov24-acceptance-suite.
 
 wrapper는 `tmp/gov24-acceptance-suite/latest*` 에 summary/json을 남깁니다.
 
+## 2-1. Gov24 runtime collect 기본 운영 경로
+
+`Gov24` list collect는 이제 chunked runtime collect + async trigger/status를 기본 운영 경계로 읽습니다.
+
+기본값:
+
+- `chunkSize=500`
+- `chunkPauseMs=100`
+- stale cleanup: full run 성공 후 마지막에만 `1회`
+
+운영 기본 명령:
+
+```bash
+bash deploy/smoke/run-local-gov24-async-collect-smoke.sh
+```
+
+이 smoke는 아래를 한 번에 확인합니다.
+
+1. `POST /api/admin/collect/gov24/async` 가 `202 Accepted` 로 빠르게 반환되는지
+2. `GET /api/admin/collect/gov24/async-status` 가 `QUEUED -> RUNNING -> SUCCEEDED` 로 전이하는지
+3. latest `api_sync_logs` 의 `metadata_json` 에
+   - `chunkSize`
+   - `chunkPauseMs`
+   - `chunkCount`
+   - `elapsedMs`
+   - `totalCount`
+   - `staleDeletedCount`
+   가 실제로 남는지
+
+최근 local 기준:
+
+- trigger wall-clock: `18ms`
+- full async run latest DB elapsed: 약 `89.5s`
+- `chunkCount=22`
+- `requested=saved=10954`, `failed=0`
+
 주의: `run-local-gov24-quality-audit.sh` 는 현재 관측값을 출력하는 audit입니다.
 현재 서버 Docker DB가 LIST 중심으로만 적재된 상태면 `support_raw=0` 같은 낮은 값도 출력될 수 있습니다.
 detail/support closeout 판정에서는 `gov24_total_services/detail_rows/support_raw` 를 같은 규모로 맞춘 뒤

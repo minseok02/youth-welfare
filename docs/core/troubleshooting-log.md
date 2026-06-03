@@ -1,5 +1,12 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 1061) Gov24 chunk collect를 넣고도 컨테이너를 재빌드하지 않으면 측정이 여전히 old `fetchAll + AbstractListCollectSourceAdapter` 경로를 읽게 된다
+- 문제: `Gov24CollectSourceAdapter` 를 chunk runtime collect로 바꾸고 실제 `POST /api/admin/collect/gov24` 를 측정했는데, 첫 실측 로그에는 여전히 `[Gov24Client] 수집 완료: 10954건`, `[FieldQuality][GOV24] total=10954`, `[CollectSourceAdapter][GOV24] 저장 완료: 10954건` 같은 old single-shot 패턴만 보였다. `api_sync_logs.metadata_json` 도 비어 있어 새 chunk metadata가 저장되지 않는 것처럼 보였다.
+- 원인: 로컬 app container가 이전 이미지였다. 코드만 바뀐 상태에서 `docker compose up -d --build app` 를 하지 않아, 런타임은 여전히 old `Gov24Client.fetchAll()` + `AbstractListCollectSourceAdapter` 경로를 타고 있었다.
+- 해결: app 이미지를 다시 빌드해 최신 코드를 올린 뒤 같은 collect를 재측정했다. 그 결과 로그가 `chunk=1 page=1 perPage=500 ...`, `chunk=22 currentCount=454 ...`, `stale cleanup ...`, `저장 완료 ... chunkCount=22 elapsedMs=...` 형태로 바뀌었고, full wall-clock과 `api_sync_logs` metadata가 실제 chunk 경로 기준으로 잡혔다.
+- 같이 드러난 2차 문제: `api_sync_logs.metadata_json` 이 JSON이 아니라 `'229061'` 같은 숫자 locator처럼 저장되었다. 이는 `ApiSyncLog.metadataJson` 의 `@Lob + TEXT` 조합이 PostgreSQL에서 text payload 대신 locator 형태로 남는 경계였고, `@Lob` 제거 후 `metadata_json` 이 실제 JSON 문자열로 저장되게 닫았다.
+- 재발 방지: collect/runtime 구조를 바꾼 뒤 실측할 때는 항상 `docker compose up -d --build app`, health 확인, 그리고 로그에 새 signature(`chunk=`, `async-status`, `metadata_json`)가 찍히는지 먼저 본다. DB row만 보고 새 경로가 반영됐다고 가정하면 old 이미지 측정값을 새 구현 결과로 오인할 수 있다.
+
 ## 1060) EC2 재부팅 전 서버 먹통은 RDS 장애가 아니라 로컬 DB/수집 작업과 EC2 디스크 IO 압박을 먼저 의심해야 한다
 - 문제: `2026-06-02 01:23 UTC` 재부팅 뒤 앱은 다시 올라왔지만, 재부팅 전 "서버 문제"의 원인이 RDS인지 EC2인지 불명확했다. 특히 당시 디스크 사용률이 `77%` 로 보였고, 운영은 이미 RDS 전환을 의도하고 있었는데 실제 컨테이너는 local `docker-compose.yml` 의 `db` 서비스를 물고 있었다.
 - 1차 결론: 재부팅 자체는 커널 패닉/OOM/디스크 full 로 인한 자동 크래시가 아니었다. 이전 부트 로그에 `systemd-logind: Power key pressed short.`, `The system will power off now!`, `System is powering down.` 이 찍혔고, Docker/nginx/ssh 도 `SIGTERM` 을 받고 정상 종료됐다. 즉 `2026-06-02 01:23:08 UTC` 종료는 EC2 콘솔/API/ACPI 전원 이벤트처럼 보이는 정상 poweroff 경로다.

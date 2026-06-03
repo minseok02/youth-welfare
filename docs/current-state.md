@@ -30,6 +30,7 @@
 - 정책 문서군 진입점: [policy-docs-index.md](policy/policy-docs-index.md)
 - `Gov24` bounded lane closeout: [policy/policy-gov24-lane-closeout.md](policy/policy-gov24-lane-closeout.md)
 - `Gov24` taxonomy validation smoke: `bash deploy/smoke/run-local-gov24-taxonomy-validation.sh`
+- `Gov24` async collect smoke: `bash deploy/smoke/run-local-gov24-async-collect-smoke.sh`
 - 성능 문서군 진입점: [performance-docs-index.md](performance/performance-docs-index.md)
 - 성능 최적화 변경 로그: [performance-optimization-log.md](performance/performance-optimization-log.md)
 - 공통 로컬 검증 문서군 진입점: [local-validation-docs-index.md](core/local-validation-docs-index.md)
@@ -59,6 +60,7 @@
 - runtime read-only baseline only: `bash deploy/smoke/run-local-ops-baseline-suite.sh`
 - collect governance observation only: `bash deploy/smoke/run-local-collect-governance-observation-suite.sh`
 - collect legacy repair only: `bash deploy/smoke/run-local-collect-legacy-repair-suite.sh`
+- `Gov24` async collect/status only: `bash deploy/smoke/run-local-gov24-async-collect-smoke.sh`
 
 추천을 다시 열지 말지 빠르게 다시 보고 싶으면 아래 wrapper를 먼저 씁니다.
 
