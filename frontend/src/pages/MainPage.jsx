@@ -132,6 +132,7 @@ const LINE = "#e7e9ef";
 const WARN = "#ef4444";
 const OK = "#047857";
 const OK_BG = "#ecfdf5";
+const GUIDE_NUDGE_STORAGE_KEY = "yw-guide-nudge-seen-v1";
 
 const CATEGORY_META = [
   { value: "일자리",        label: "일자리",        emoji: "💼", bg: "#dbeafe" },
@@ -840,6 +841,70 @@ function PriorityPromptBanner({ navigate }) {
   );
 }
 
+function GuidePromptBanner({ source, navigate, onDismiss }) {
+  return (
+    <section style={{
+      marginTop: 16,
+      background: "linear-gradient(135deg, #eef2ff 0%, #ffffff 100%)",
+      border: `1px solid ${LINE}`,
+      borderRadius: 18,
+      padding: "18px 20px",
+      display: "flex",
+      justifyContent: "space-between",
+      gap: 16,
+      alignItems: "center",
+      flexWrap: "wrap",
+    }}>
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 800, color: AI, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+          처음 시작 가이드
+        </div>
+        <div style={{ fontSize: 17, fontWeight: 800, color: INK, marginTop: 6, letterSpacing: "-0.02em" }}>
+          {source === "signup" ? "가입 직후라면 이용가이드부터 보는 편이 빠릅니다" : "처음 로그인했다면 이용가이드부터 보는 편이 빠릅니다"}
+        </div>
+        <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.6 }}>
+          추천, 정책 검색, 챗봇, 북마크, 알림을 어떤 순서로 쓰면 좋은지 한 페이지로 정리해뒀습니다.
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <button
+          onClick={() => navigate("/guide")}
+          style={{
+            padding: "12px 16px",
+            borderRadius: 12,
+            border: "none",
+            background: A,
+            color: "white",
+            fontSize: 14,
+            fontWeight: 700,
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+            boxShadow: "0 8px 24px rgba(37,99,235,0.16)",
+          }}
+        >
+          이용가이드 보기 →
+        </button>
+        <button
+          onClick={onDismiss}
+          style={{
+            padding: "12px 14px",
+            borderRadius: 12,
+            border: `1px solid ${LINE}`,
+            background: WHITE,
+            color: INK2,
+            fontSize: 14,
+            fontWeight: 700,
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          나중에 볼게요
+        </button>
+      </div>
+    </section>
+  );
+}
+
 function Spinner() {
   return (
     <div style={{ display: "flex", justifyContent: "center", padding: "48px 0" }}>
@@ -869,6 +934,7 @@ export default function MainPage() {
   const [teaserPolicies, setTeaserPolicies] = useState({});
   const [deadlinePolicies, setDeadlinePolicies] = useState([]);
   const [recentViewedPolicies, setRecentViewedPolicies] = useState([]);
+  const [guideNudge, setGuideNudge] = useState(null);
 
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
   const showToast = useCallback((msg, severity = "info") => setToast({ open: true, msg, severity }), []);
@@ -901,6 +967,31 @@ export default function MainPage() {
 
     const nextState = { ...(location.state || {}) };
     delete nextState.postLoginRecommendationNudge;
+    navigate(`${location.pathname}${location.search}`, {
+      replace: true,
+      state: Object.keys(nextState).length ? nextState : undefined,
+    });
+  }, [location.pathname, location.search, location.state, navigate, showToast]);
+
+  useEffect(() => {
+    const nudge = location.state?.postLoginGuideNudge;
+    if (!nudge) {
+      return;
+    }
+
+    if (nudge.source === "signup") {
+      showToast("가입이 끝났다면 이용가이드부터 보면 더 빨리 적응할 수 있습니다.", "info");
+    } else {
+      showToast("처음이라면 이용가이드를 먼저 보고 추천과 검색을 시작해보세요.", "info");
+    }
+    setGuideNudge(nudge);
+
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(GUIDE_NUDGE_STORAGE_KEY, new Date().toISOString());
+    }
+
+    const nextState = { ...(location.state || {}) };
+    delete nextState.postLoginGuideNudge;
     navigate(`${location.pathname}${location.search}`, {
       replace: true,
       state: Object.keys(nextState).length ? nextState : undefined,
@@ -1145,6 +1236,13 @@ export default function MainPage() {
             filledCount={standardCodeFilledCount}
             missingLabels={standardCodeMissingLabels}
             navigate={navigate}
+          />
+        )}
+        {isLoggedIn && guideNudge && (
+          <GuidePromptBanner
+            source={guideNudge.source}
+            navigate={navigate}
+            onDismiss={() => setGuideNudge(null)}
           />
         )}
         {isLoggedIn && !user?.hasPriorities && (

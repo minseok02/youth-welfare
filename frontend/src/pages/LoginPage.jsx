@@ -17,6 +17,8 @@ const iCss = (err) => ({
   outline: "none", boxSizing: "border-box", transition: "border-color 0.15s",
 });
 
+const GUIDE_NUDGE_STORAGE_KEY = "yw-guide-nudge-seen-v1";
+
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -122,6 +124,15 @@ export default function LoginPage() {
       const targetPathname = from?.pathname || "/";
       if (targetPathname === "/" && postLoginRecommendationNudge) {
         restoredState.postLoginRecommendationNudge = postLoginRecommendationNudge;
+      }
+      if (
+        targetPathname === "/"
+        && typeof window !== "undefined"
+        && !window.localStorage.getItem(GUIDE_NUDGE_STORAGE_KEY)
+      ) {
+        restoredState.postLoginGuideNudge = {
+          source: location.state?.reason === "signup-complete" ? "signup" : "login",
+        };
       }
       navigate(from?.pathname ? `${from.pathname}${from.search ?? ""}` : "/", {
         replace: true,
