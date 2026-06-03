@@ -60,7 +60,6 @@ public class ApiSyncLog extends BaseTimeEntity {
     @Column(name = "error_message", length = ERROR_MESSAGE_MAX_LENGTH)
     private String errorMessage;
 
-    @Lob
     @Column(name = "metadata_json", columnDefinition = "TEXT")
     private String metadataJson;
 

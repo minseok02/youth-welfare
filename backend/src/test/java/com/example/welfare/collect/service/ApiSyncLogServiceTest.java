@@ -40,7 +40,7 @@ class ApiSyncLogServiceTest {
 
         CollectResult result = apiSyncLogService.runWithLog(
                 "YOUTH",
-                () -> CollectResult.of(10, 8, 2, 0, 0)
+                () -> CollectResult.withMetadata(10, 8, 2, 0, 0, "{\"chunkSize\":500}")
         );
 
         assertThat(result.savedCount()).isEqualTo(8);
@@ -52,6 +52,7 @@ class ApiSyncLogServiceTest {
         assertThat(savedLogs.get(1).getRequestedCount()).isEqualTo(10);
         assertThat(savedLogs.get(1).getSavedCount()).isEqualTo(8);
         assertThat(savedLogs.get(1).getSkippedCount()).isEqualTo(2);
+        assertThat(savedLogs.get(1).getMetadataJson()).isEqualTo("{\"chunkSize\":500}");
         assertThat(savedLogs.get(1).getFinishedAt()).isNotNull();
     }
 
