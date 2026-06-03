@@ -4,6 +4,7 @@ import com.example.welfare.policy.entity.ServiceRegion;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.entity.WelfareServiceDetail;
+import com.example.welfare.policy.support.PolicyRegionLabelSupport;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import lombok.Builder;
 import lombok.Getter;
@@ -94,11 +95,7 @@ public class PolicyDetailResponse {
                                           List<ServiceTag> tags,
                                           boolean bookmarked,
                                           RecommendationCandidateProjection projection) {
-        List<String> regionNames = (regions != null ? regions : List.<ServiceRegion>of()).stream()
-                .map(r -> r.getSidoName() != null
-                        ? r.getSidoName() + (r.getSggName() != null ? " " + r.getSggName() : "")
-                        : r.getRegionCode())
-                .collect(Collectors.toList());
+        List<String> regionNames = PolicyRegionLabelSupport.extractRegionLabels(regions);
 
         List<TagItem> tagItems = (tags != null ? tags : List.<ServiceTag>of()).stream()
                 .map(t -> TagItem.builder()
@@ -106,7 +103,7 @@ public class PolicyDetailResponse {
                         .tagValue(t.getTagValue())
                         .build())
                 .collect(Collectors.toList());
-        String regionLabel = regionNames.isEmpty() ? null : regionNames.get(0);
+        String regionLabel = PolicyRegionLabelSupport.resolvePreferredRegionLabel(ws, regionNames);
 
         return PolicyDetailResponse.builder()
                 .id(ws.getId())

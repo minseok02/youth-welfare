@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -97,6 +98,7 @@ public class PolicySearchService {
         String normalizedGov24ServiceField = normalizeGov24ServiceField(gov24ServiceField);
         String normalizedGov24UserType = normalizeGov24UserType(gov24UserType);
         String normalizedGov24BenefitType = normalizeGov24BenefitType(gov24BenefitType);
+        boolean hasRegionFilter = normalizedSido != null;
 
         Integer incomeMaxWon = resolveIncomeMaxWon(incomeLevel);
         String normalizedTargetGroup = normalizeNullable(targetGroup);
@@ -139,29 +141,36 @@ public class PolicySearchService {
         }
 
         // 지역 분기 및 sido/sgg → regionCode 변환은 WelfareServiceReadRepositoryImpl에서 처리
+        PolicySearchReadCondition condition = new PolicySearchReadCondition(
+                normalizedKeyword,
+                normalizedStatus,
+                normalizedStatusFilter,
+                normalizedCategory,
+                normalizedSourceType,
+                onlineApplyFlag,
+                normalizedSido,
+                normalizedSgg,
+                normalizedSort,
+                incomeMaxWon,
+                normalizedTargetGroup,
+                normalizedGov24ServiceField,
+                normalizedGov24UserType,
+                normalizedGov24BenefitType
+        );
+        int repositoryPageSize = hasRegionFilter ? Math.min(limit * 3, MAX_SEARCH_LIMIT) : limit;
         Page<WelfareService> resultPage = welfareServiceReadRepository.search(
-                new PolicySearchReadCondition(
-                        normalizedKeyword,
-                        normalizedStatus,
-                        normalizedStatusFilter,
-                        normalizedCategory,
-                        normalizedSourceType,
-                        onlineApplyFlag,
-                        normalizedSido,
-                        normalizedSgg,
-                        normalizedSort,
-                        incomeMaxWon,
-                        normalizedTargetGroup,
-                        normalizedGov24ServiceField,
-                        normalizedGov24UserType,
-                        normalizedGov24BenefitType
-                ),
-                PageRequest.of(pageNumber, limit)
+                condition,
+                PageRequest.of(pageNumber, repositoryPageSize)
         );
 
-        List<PolicySummaryResponse> content = policyPresentationReadService
-                .buildSummaryPage(userId, resultPage)
-                .getContent();
+        List<PolicySummaryResponse> content = collectVisibleSearchSummaries(
+                userId,
+                condition,
+                resultPage,
+                pageNumber,
+                limit,
+                repositoryPageSize
+        );
 
         PolicySearchResponse response = PolicySearchResponse.builder()
                 .content(content)
@@ -186,6 +195,64 @@ public class PolicySearchService {
             cachePublicSearch(cacheKey, response);
         }
         return response;
+    }
+
+    private List<PolicySummaryResponse> collectVisibleSearchSummaries(Long userId,
+                                                                      PolicySearchReadCondition condition,
+                                                                      Page<WelfareService> firstPage,
+                                                                      int pageNumber,
+                                                                      int limit,
+                                                                      int repositoryPageSize) {
+        List<PolicySummaryResponse> visible = new ArrayList<>(filterRegionCompatibleSummaries(
+                policyPresentationReadService.buildSummaryPage(userId, firstPage).getContent(),
+                condition.sido(),
+                condition.sgg()
+        ));
+        if (condition.sido() == null) {
+            return visible;
+        }
+        int nextPage = pageNumber + 1;
+        int extraFetchCount = 0;
+        Page<WelfareService> currentPage = firstPage;
+        while (visible.size() < limit && currentPage.hasNext() && extraFetchCount < 2) {
+            currentPage = welfareServiceReadRepository.search(
+                    condition,
+                    PageRequest.of(nextPage, repositoryPageSize)
+            );
+            visible.addAll(filterRegionCompatibleSummaries(
+                    policyPresentationReadService.buildSummaryPage(userId, currentPage).getContent(),
+                    condition.sido(),
+                    condition.sgg()
+            ));
+            nextPage += 1;
+            extraFetchCount += 1;
+        }
+        return visible.size() <= limit ? visible : visible.subList(0, limit);
+    }
+
+    private List<PolicySummaryResponse> filterRegionCompatibleSummaries(List<PolicySummaryResponse> summaries,
+                                                                        String sido,
+                                                                        String sgg) {
+        if (sido == null) {
+            return summaries;
+        }
+        return summaries.stream()
+                .filter(summary -> matchesRequestedRegion(summary, sido, sgg))
+                .toList();
+    }
+
+    private boolean matchesRequestedRegion(PolicySummaryResponse summary, String sido, String sgg) {
+        String regionLabel = normalizeNullable(summary.getRegionLabel());
+        if (regionLabel == null) {
+            return true;
+        }
+        if (!regionLabel.startsWith(sido)) {
+            return false;
+        }
+        if (sgg == null) {
+            return true;
+        }
+        return regionLabel.equals(sido + " " + sgg) || regionLabel.startsWith(sido + " " + sgg + " ");
     }
 
     private PolicySearchResponse getCachedPublicSearch(SearchCacheKey cacheKey) {

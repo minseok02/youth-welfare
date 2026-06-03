@@ -74,8 +74,8 @@ class PolicyPresentationReadServiceTest {
                                 .youthMajorLabel("주거")
                                 .build()
                 ));
-        when(serviceRegionRepository.findFirstRegionLabelByServiceIds(List.of(11L)))
-                .thenReturn(List.<Object[]>of(new Object[]{11L, "서울특별시 강남구"}));
+        when(serviceRegionRepository.findRegionLabelCandidatesByServiceIds(List.of(11L)))
+                .thenReturn(List.<Object[]>of(new Object[]{11L, "서울특별시 강남구", null}));
 
         Page<PolicySummaryResponse> result = service.buildSummaryPage(7L, page);
 
@@ -127,5 +127,81 @@ class PolicyPresentationReadServiceTest {
 
         assertThat(result.bookmarked()).isTrue();
         assertThat(result.projection()).isEqualTo(projection);
+    }
+
+    @Test
+    @DisplayName("summary region label은 기관 힌트와 맞는 지역을 우선하고 Gov24 stray row는 억제한다")
+    void buildSummaryPagePrefersOrganizationRegionHint() {
+        PolicyPresentationReadService service = new PolicyPresentationReadService(
+                recommendationBookmarkReadService,
+                recommendationProjectionReadService,
+                serviceRegionRepository
+        );
+        WelfareService localGov24 = WelfareService.builder()
+                .id(9344L)
+                .sourceType(WelfareService.SourceType.GOV24)
+                .title("청년 월세 지원")
+                .hostOrg("충청북도 옥천군")
+                .operatingOrg("성장정책과")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+        WelfareService centralGov24 = WelfareService.builder()
+                .id(6355L)
+                .sourceType(WelfareService.SourceType.GOV24)
+                .title("청년주택드림 청약통장")
+                .hostOrg("국토교통부")
+                .operatingOrg("주택기금과")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+
+        when(recommendationBookmarkReadService.findBookmarkedServiceIds(null, List.of(localGov24, centralGov24)))
+                .thenReturn(Set.of());
+        when(recommendationProjectionReadService.findCandidateProjectionsByServices(List.of(localGov24, centralGov24)))
+                .thenReturn(Map.of());
+        when(serviceRegionRepository.findRegionLabelCandidatesByServiceIds(List.of(9344L, 6355L)))
+                .thenReturn(List.of(
+                        new Object[]{9344L, "전북특별자치도 무주군", null},
+                        new Object[]{9344L, "충청북도 옥천군", null},
+                        new Object[]{6355L, "전북특별자치도 무주군", null}
+                ));
+
+        List<PolicySummaryResponse> result = service.buildSummaryResponses(null, List.of(localGov24, centralGov24));
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).getRegionLabel()).isEqualTo("충청북도 옥천군");
+        assertThat(result.get(0).getSido()).isEqualTo("충청북도");
+        assertThat(result.get(1).getRegionLabel()).isNull();
+        assertThat(result.get(1).getSido()).isNull();
+    }
+
+    @Test
+    @DisplayName("summary region label은 code-only local row를 행정구역 코드에서 복구한다")
+    void buildSummaryPageResolvesCodeOnlyLocalRegion() {
+        PolicyPresentationReadService service = new PolicyPresentationReadService(
+                recommendationBookmarkReadService,
+                recommendationProjectionReadService,
+                serviceRegionRepository
+        );
+        WelfareService localGov24 = WelfareService.builder()
+                .id(196L)
+                .sourceType(WelfareService.SourceType.GOV24)
+                .title("청년구직자 면접비 지원사업")
+                .hostOrg("경제과")
+                .operatingOrg(null)
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+
+        when(recommendationBookmarkReadService.findBookmarkedServiceIds(null, List.of(localGov24)))
+                .thenReturn(Set.of());
+        when(recommendationProjectionReadService.findCandidateProjectionsByServices(List.of(localGov24)))
+                .thenReturn(Map.of());
+        when(serviceRegionRepository.findRegionLabelCandidatesByServiceIds(List.of(196L)))
+                .thenReturn(List.<Object[]>of(new Object[]{196L, null, "44150"}));
+
+        List<PolicySummaryResponse> result = service.buildSummaryResponses(null, List.of(localGov24));
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getRegionLabel()).isEqualTo("충청남도 공주시");
+        assertThat(result.get(0).getSido()).isEqualTo("충청남도");
     }
 }

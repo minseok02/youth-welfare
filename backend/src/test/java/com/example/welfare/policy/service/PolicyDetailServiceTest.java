@@ -116,4 +116,73 @@ class PolicyDetailServiceTest {
         verify(policyLookupService).getRequiredService(11L);
         verify(policyDetailReadService).getAggregate(11L);
     }
+
+    @Test
+    @DisplayName("정책 상세 region label은 기관 힌트와 맞는 지역을 우선한다")
+    void getDetailPrefersOrganizationRegionHint() {
+        WelfareService service = WelfareService.builder()
+                .id(9344L)
+                .sourceType(WelfareService.SourceType.GOV24)
+                .sourceId("SRC-9344")
+                .title("청년 월세 지원")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .hostOrg("충청북도 옥천군")
+                .operatingOrg("성장정책과")
+                .build();
+        WelfareServiceDetail detail = WelfareServiceDetail.builder()
+                .service(service)
+                .build();
+        ServiceRegion wrong = ServiceRegion.builder()
+                .service(service)
+                .sidoName("전북특별자치도")
+                .sggName("무주군")
+                .build();
+        ServiceRegion correct = ServiceRegion.builder()
+                .service(service)
+                .sidoName("충청북도")
+                .sggName("옥천군")
+                .build();
+
+        given(policyLookupService.getRequiredService(9344L)).willReturn(service);
+        given(policyDetailReadService.getAggregate(9344L))
+                .willReturn(new PolicyDetailReadService.PolicyDetailAggregate(detail, List.of(wrong, correct), List.of()));
+        given(policyPresentationReadService.buildDetailPresentation(null, service))
+                .willReturn(new PolicyPresentationReadService.PolicyDetailPresentation(false, null));
+
+        PolicyDetailResponse response = policyDetailService.getDetail(null, 9344L, false);
+
+        assertEquals("충청북도 옥천군", response.getRegionLabel());
+        assertEquals(List.of("전북특별자치도 무주군", "충청북도 옥천군"), response.getRegions());
+    }
+
+    @Test
+    @DisplayName("정책 상세 region label은 code-only local row를 행정구역 코드에서 복구한다")
+    void getDetailResolvesCodeOnlyLocalRegion() {
+        WelfareService service = WelfareService.builder()
+                .id(196L)
+                .sourceType(WelfareService.SourceType.GOV24)
+                .sourceId("SRC-196")
+                .title("청년구직자 면접비 지원사업")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .hostOrg("경제과")
+                .build();
+        WelfareServiceDetail detail = WelfareServiceDetail.builder()
+                .service(service)
+                .build();
+        ServiceRegion codeOnly = ServiceRegion.builder()
+                .service(service)
+                .regionCode("44150")
+                .build();
+
+        given(policyLookupService.getRequiredService(196L)).willReturn(service);
+        given(policyDetailReadService.getAggregate(196L))
+                .willReturn(new PolicyDetailReadService.PolicyDetailAggregate(detail, List.of(codeOnly), List.of()));
+        given(policyPresentationReadService.buildDetailPresentation(null, service))
+                .willReturn(new PolicyPresentationReadService.PolicyDetailPresentation(false, null));
+
+        PolicyDetailResponse response = policyDetailService.getDetail(null, 196L, false);
+
+        assertEquals("충청남도 공주시", response.getRegionLabel());
+        assertEquals(List.of("충청남도 공주시"), response.getRegions());
+    }
 }

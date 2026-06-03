@@ -180,6 +180,62 @@ class PolicySearchServiceTest {
     }
 
     @Test
+    @DisplayName("지역 필터 검색은 응답 summary regionLabel 기준으로 mismatch row를 후처리 제거한다")
+    void searchWithRegionFilterDropsMismatchedRows() {
+        PolicySearchService service = fixedClockService();
+
+        WelfareService wrongRegion = welfareService(13999L, "경상남도 청년 월세 지원");
+        WelfareService correctRegion = welfareService(6966L, "서울 청년 월세 지원");
+        WelfareService national = welfareService(2591L, "주거안정 월세대출");
+        PageRequest pageRequest = PageRequest.of(0, 9);
+
+        given(welfareServiceReadRepository.search(
+                eq(new PolicySearchReadCondition(
+                        "월세", null, "ACTIVE_ONLY", null, null, null, "서울특별시", null, "RELEVANCE", null, null, null, null, null
+                )),
+                any(PageRequest.class)
+        )).willReturn(new PageImpl<>(List.of(wrongRegion, correctRegion, national), pageRequest, 3));
+        given(policyPresentationReadService.buildSummaryPage(eq(null), any(org.springframework.data.domain.Page.class)))
+                .willReturn(new PageImpl<>(List.of(
+                        PolicySummaryResponse.builder().id(13999L).title("경상남도 청년 월세 지원").regionLabel("경상남도").statusLabel("진행중").build(),
+                        PolicySummaryResponse.builder().id(6966L).title("서울 청년 월세 지원").regionLabel("서울특별시 구로구").statusLabel("진행중").build(),
+                        PolicySummaryResponse.builder().id(2591L).title("주거안정 월세대출").regionLabel(null).statusLabel("진행중").build()
+                ), pageRequest, 3));
+
+        PolicySearchResponse results = service.search(
+                null,
+                "월세",
+                null,
+                null,
+                null,
+                null,
+                null,
+                "서울특별시",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                0,
+                3
+        );
+
+        assertThat(results.getContent()).extracting(PolicySummaryResponse::getId)
+                .containsExactly(6966L, 2591L);
+
+        ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
+        verify(welfareServiceReadRepository).search(
+                eq(new PolicySearchReadCondition(
+                        "월세", null, "ACTIVE_ONLY", null, null, null, "서울특별시", null, "RELEVANCE", null, null, null, null, null
+                )),
+                captor.capture()
+        );
+        assertThat(captor.getValue().getPageSize()).isEqualTo(9);
+    }
+
+    @Test
     @DisplayName("검색은 과도하게 긴 키워드를 거부한다")
     void searchRejectsTooLongKeyword() {
         PolicySearchService service = fixedClockService();

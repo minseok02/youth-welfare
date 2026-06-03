@@ -135,6 +135,9 @@
   - latest artifact: `tmp/policy-quality-observation/latest-policy-quality-observation-summary.txt`, `tmp/policy-quality-observation/latest-policy-quality-observation-note.md`, `tmp/policy-quality-observation/latest-policy-quality-observation.json`
   - `KEEP_ARTIFACTS=false` 기본값에서도 latest summary/json 과 `tmp/policy-quality-observation/latest/` snapshot은 남습니다.
   - search/detail convenience field baseline도 같이 본다. 현재 API read model은 `providerName`, `regionLabel`, `applicationPeriod`, `statusLabel` 을 summary/detail 응답에 직접 내려서, 프론트가 raw field를 다시 조합하지 않아도 핵심 품질 필드를 바로 읽을 수 있다.
+- keyword/region scenario audit: `APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-policy-search-scenario-audit.sh`
+  - `월세/청약/면접비/자격증` 실검색어와 `서울특별시` region filter 샘플을 다시 읽는다.
+  - 현재 최신 기준은 `missing_provider_count=0`, `missing_status_count=0`, `missing_region_for_local_count=0`, `region_filter_mismatch_count=0`, `decision_class=BASELINE_HEALTHY` 이다.
 
 ## 작업 전/후 읽는 법
 

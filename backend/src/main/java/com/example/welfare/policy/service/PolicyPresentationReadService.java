@@ -3,6 +3,7 @@ package com.example.welfare.policy.service;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceRegionRepository;
+import com.example.welfare.policy.support.PolicyRegionLabelSupport;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.service.RecommendationBookmarkReadService;
 import com.example.welfare.recommend.service.RecommendationProjectionReadService;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -77,12 +79,26 @@ public class PolicyPresentationReadService {
     private Map<Long, String> buildRegionLabelMap(List<WelfareService> services) {
         if (services == null || services.isEmpty()) return Map.of();
         List<Long> ids = services.stream().map(WelfareService::getId).toList();
-        return serviceRegionRepository.findFirstRegionLabelByServiceIds(ids).stream()
-                .collect(Collectors.toMap(
+        Map<Long, List<PolicyRegionLabelSupport.RegionCandidate>> candidatesByServiceId =
+                serviceRegionRepository.findRegionLabelCandidatesByServiceIds(ids).stream()
+                .collect(Collectors.groupingBy(
                         row -> ((Number) row[0]).longValue(),
-                        row -> (String) row[1],
-                        (a, b) -> a
+                        Collectors.mapping(
+                                row -> new PolicyRegionLabelSupport.RegionCandidate((String) row[1], (String) row[2]),
+                                Collectors.toList()
+                        )
                 ));
+        Map<Long, String> resolved = new LinkedHashMap<>();
+        for (WelfareService service : services) {
+            resolved.put(
+                    service.getId(),
+                    PolicyRegionLabelSupport.resolvePreferredRegionLabelFromCandidates(
+                            service,
+                            candidatesByServiceId.get(service.getId())
+                    )
+            );
+        }
+        return resolved;
     }
 
     public record PolicyDetailPresentation(

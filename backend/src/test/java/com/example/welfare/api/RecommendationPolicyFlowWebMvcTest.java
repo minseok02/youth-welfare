@@ -168,7 +168,7 @@ class RecommendationPolicyFlowWebMvcTest {
                                 .gov24BenefitTypeLabel("서비스")
                                 .build()
                 ));
-        given(serviceRegionRepository.findFirstRegionLabelByServiceIds(List.of(11L)))
+        given(serviceRegionRepository.findRegionLabelsByServiceIds(List.of(11L)))
                 .willReturn(List.<Object[]>of(new Object[]{11L, "서울특별시"}));
         given(policyRankingService.getRanking(5)).willReturn(List.of(ranking));
         given(policySearchService.search(isNull(), eq("월세"), eq("ACTIVE"), isNull(), eq("HOUSING"), eq("YOUTH"), eq(true), isNull(), isNull(), eq("RELEVANCE"), isNull(), isNull(), isNull(), isNull(), isNull(), eq(0), eq(10)))
@@ -343,7 +343,7 @@ class RecommendationPolicyFlowWebMvcTest {
                                 .gov24BenefitTypeLabel("서비스")
                                 .build()
                 ));
-        given(serviceRegionRepository.findFirstRegionLabelByServiceIds(List.of(11L)))
+        given(serviceRegionRepository.findRegionLabelsByServiceIds(List.of(11L)))
                 .willReturn(List.<Object[]>of(new Object[]{11L, "서울특별시"}));
 
         mockMvc.perform(get("/api/recommendations")

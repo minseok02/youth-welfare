@@ -105,7 +105,7 @@ public class RecommendationController {
                 .map(WelfareService::getId)
                 .distinct()
                 .toList();
-        return serviceRegionRepository.findFirstRegionLabelByServiceIds(serviceIds).stream()
+        return serviceRegionRepository.findRegionLabelsByServiceIds(serviceIds).stream()
                 .collect(Collectors.toMap(
                         row -> ((Number) row[0]).longValue(),
                         row -> {
