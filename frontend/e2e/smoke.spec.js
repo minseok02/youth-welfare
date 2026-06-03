@@ -162,6 +162,29 @@ async function ensurePolicyBookmarkState(request, credentials, policyId, expecte
   expect(bookmarkResponse.ok()).toBeTruthy();
 }
 
+async function mockAlertsApis(page, {
+  alerts = [],
+  unreadCount = 0,
+} = {}) {
+  await page.route("**/api/notifications/me/unread-count", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json; charset=utf-8",
+    body: JSON.stringify({
+      success: true,
+      data: { unreadCount },
+    }),
+  }));
+
+  await page.route("**/api/notifications/me", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json; charset=utf-8",
+    body: JSON.stringify({
+      success: true,
+      data: alerts,
+    }),
+  }));
+}
+
 async function primeAdminDashboardFailureMode(page, mode) {
   await page.addInitScript(([storageKey, failureMode]) => {
     window.localStorage.setItem(storageKey, failureMode);
@@ -402,6 +425,58 @@ test("마이페이지 비밀번호 변경 후 로그인으로 이동하고 재�
   await loginThroughForm(page, userCredentials);
   await expect(page).toHaveURL(/\/mypage\?tab=5$/);
   await expect(page.getByRole("button", { name: "비밀번호 변경" })).toBeVisible();
+});
+
+test("알림함 빈 상태 CTA는 정책 목록과 알림 설정으로 이어진다", async ({ page }) => {
+  await mockAlertsApis(page, { alerts: [], unreadCount: 0 });
+
+  await loginFromProtectedRoute(page, "/alerts", userCredentials);
+  await expect(page).toHaveURL(/\/alerts$/);
+  const emptyStateSection = page.getByText("도착한 알림이 아직 없어요", { exact: true }).locator("..").locator("..");
+  await expect(page.getByText("도착한 알림이 아직 없어요", { exact: true })).toBeVisible();
+
+  await emptyStateSection.getByRole("button", { name: "정책 보러가기", exact: true }).click();
+  await expect(page).toHaveURL(/\/policies$/);
+
+  await page.goto("/alerts");
+  await expect(page.getByText("도착한 알림이 아직 없어요", { exact: true })).toBeVisible();
+  const refreshedEmptyStateSection = page.getByText("도착한 알림이 아직 없어요", { exact: true }).locator("..").locator("..");
+  await refreshedEmptyStateSection.getByRole("button", { name: "알림 설정 열기", exact: true }).click();
+  await expect(page).toHaveURL(/\/mypage\?tab=3$/);
+});
+
+test("알림함에서 unread 알림을 열면 읽음 처리 후 deeplink로 이동한다", async ({ page }) => {
+  let readPatchCount = 0;
+
+  await mockAlertsApis(page, {
+    unreadCount: 1,
+    alerts: [{
+      id: 9001,
+      kind: "RECOMMENDATION_DIGEST",
+      status: "UNREAD",
+      title: "청년 월세 지원 추천이 도착했어요",
+      body: "월세 지원 정책 3건을 확인해보세요.",
+      deeplinkUrl: "/policies/7751",
+      createdAt: "2026-06-03T10:00:00Z",
+    }],
+  });
+
+  await page.route("**/api/notifications/9001/read", async (route) => {
+    readPatchCount += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify({ success: true, data: null }),
+    });
+  });
+
+  await loginFromProtectedRoute(page, "/alerts", userCredentials);
+  await expect(page).toHaveURL(/\/alerts$/);
+  await expect(page.getByText("청년 월세 지원 추천이 도착했어요", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "열기", exact: true }).click();
+
+  expect(readPatchCount).toBe(1);
+  await expect(page).toHaveURL(/\/policies\/7751$/);
 });
 
 test("비로그인 정책 상세 북마크는 로그인 후 bookmark POST가 정확히 1회만 실행된다", async ({ page, request }) => {
