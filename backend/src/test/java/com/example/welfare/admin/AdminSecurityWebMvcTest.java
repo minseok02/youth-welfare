@@ -5,6 +5,7 @@ import com.example.welfare.admin.dashboard.dto.AdminCollectFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardAttentionResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationCandidateDiagnosticResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
+import com.example.welfare.admin.dashboard.dto.AdminPolicyErrorReportResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordClearResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
@@ -23,6 +24,7 @@ import com.example.welfare.admin.dashboard.service.AdminDashboardStandardCodeObs
 import com.example.welfare.admin.dashboard.service.AdminDashboardSummaryService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardUserProfileService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardWrapperObservationService;
+import com.example.welfare.admin.dashboard.service.AdminPolicyErrorReportService;
 import com.example.welfare.collect.controller.CollectAdminController;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillService;
 import com.example.welfare.collect.dto.AsyncCollectStatusResponse;
@@ -159,6 +161,8 @@ class AdminSecurityWebMvcTest {
     @MockitoBean
     private AdminDashboardWrapperObservationService adminDashboardWrapperObservationService;
     @MockitoBean
+    private AdminPolicyErrorReportService adminPolicyErrorReportService;
+    @MockitoBean
     private JwtUtil jwtUtil;
     @MockitoBean
     private JpaMetamodelMappingContext jpaMetamodelMappingContext;
@@ -209,6 +213,24 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data").value("온통청년 수집 완료"));
 
         then(collectAdminService).should().collect(CollectSource.YOUTH);
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 정책 오류 제보 대시보드 API를 호출할 수 있다")
+    void adminEndpointAllowsPolicyErrorReportsDashboard() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(adminPolicyErrorReportService.getRecentReports(5))
+                .willReturn(new AdminPolicyErrorReportResponse(2, List.of()));
+
+        mockMvc.perform(get("/api/admin/dashboard/policy-error-reports")
+                        .param("limit", "5")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.openCount").value(2));
     }
 
     @Test

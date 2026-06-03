@@ -4,11 +4,14 @@ import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.response.ApiResponse;
 import com.example.welfare.global.web.ClientFingerprintService;
 import com.example.welfare.policy.dto.PolicyDetailResponse;
+import com.example.welfare.policy.dto.PolicyErrorReportCreateRequest;
+import com.example.welfare.policy.dto.PolicyErrorReportResponse;
 import com.example.welfare.policy.dto.PolicyRankingResponse;
 import com.example.welfare.policy.dto.PolicySearchResponse;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.service.PolicyBookmarkCommandService;
 import com.example.welfare.policy.service.PolicyDetailService;
+import com.example.welfare.policy.service.PolicyErrorReportCommandService;
 import com.example.welfare.policy.service.PolicyListService;
 import com.example.welfare.policy.service.PolicySearchLogCommand;
 import com.example.welfare.policy.service.PolicySearchLogService;
@@ -38,6 +41,7 @@ public class PolicyController {
     private final PolicyListService policyListService;
     private final PolicyDetailService policyDetailService;
     private final PolicyBookmarkCommandService policyBookmarkCommandService;
+    private final PolicyErrorReportCommandService policyErrorReportCommandService;
     private final PolicyRankingService policyRankingService;
     private final PolicySearchService policySearchService;
     private final PolicySearchKeywordReadService policySearchKeywordReadService;
@@ -184,6 +188,21 @@ public class PolicyController {
             @PathVariable Long id) {
         policyBookmarkCommandService.toggleBookmark(resolveUserId(authenticatedUser), id);
         return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @PostMapping("/{id}/error-reports")
+    public ResponseEntity<ApiResponse<PolicyErrorReportResponse>> submitErrorReport(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @PathVariable Long id,
+            @RequestBody(required = false) PolicyErrorReportCreateRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                policyErrorReportCommandService.submit(
+                        resolveUserId(authenticatedUser),
+                        authenticatedUser != null ? authenticatedUser.userKey() : null,
+                        id,
+                        request
+                )
+        ));
     }
 
     private Long resolveUserId(AuthenticatedUser authenticatedUser) {

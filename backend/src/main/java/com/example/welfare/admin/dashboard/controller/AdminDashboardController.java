@@ -4,6 +4,7 @@ import com.example.welfare.admin.dashboard.dto.AdminCollectFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardAttentionResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationCandidateDiagnosticResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
+import com.example.welfare.admin.dashboard.dto.AdminPolicyErrorReportResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordClearResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordRequest;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordResponse;
@@ -22,6 +23,7 @@ import com.example.welfare.admin.dashboard.service.AdminDashboardStandardCodeObs
 import com.example.welfare.admin.dashboard.service.AdminDashboardSummaryService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardUserProfileService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardWrapperObservationService;
+import com.example.welfare.admin.dashboard.service.AdminPolicyErrorReportService;
 import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
@@ -59,6 +61,7 @@ public class AdminDashboardController {
     private final AdminDashboardUserProfileService adminDashboardUserProfileService;
     private final AdminDashboardStandardCodeObservationService adminDashboardStandardCodeObservationService;
     private final AdminDashboardWrapperObservationService adminDashboardWrapperObservationService;
+    private final AdminPolicyErrorReportService adminPolicyErrorReportService;
     private final AdminRecommendationReviewGatePromotionApprovalRecordService
             adminRecommendationReviewGatePromotionApprovalRecordService;
 
@@ -182,6 +185,20 @@ public class AdminDashboardController {
         log.info("[Admin] dashboard wrapper observation 조회");
         return ResponseEntity.ok(ApiResponse.success(
                 adminDashboardWrapperObservationService.getLatestObservation()
+        ));
+    }
+
+    @GetMapping("/policy-error-reports")
+    public ResponseEntity<ApiResponse<AdminPolicyErrorReportResponse>> getPolicyErrorReports(
+            @RequestParam(name = "limit", required = false)
+            @Min(value = 1, message = "limit는 1 이상이어야 합니다.")
+            @Max(value = 20, message = "limit는 20 이하여야 합니다.")
+            Integer limit
+    ) {
+        validateDashboardLimit(limit);
+        log.info("[Admin] dashboard policy error reports 조회 limit={}", limit);
+        return ResponseEntity.ok(ApiResponse.success(
+                adminPolicyErrorReportService.getRecentReports(limit)
         ));
     }
 

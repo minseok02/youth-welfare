@@ -49,6 +49,14 @@ const GOV24_BENEFIT_TYPE_TOKENS = [
   "민원",
   "봉사/기부",
 ];
+const POLICY_ERROR_REPORT_REASONS = [
+  { value: "REGION_MISMATCH", label: "지역 정보가 다릅니다" },
+  { value: "PERIOD_MISMATCH", label: "신청 기간이 다릅니다" },
+  { value: "ELIGIBILITY_MISMATCH", label: "자격조건 설명이 다릅니다" },
+  { value: "BROKEN_LINK", label: "링크나 원문이 열리지 않습니다" },
+  { value: "DUPLICATE_POLICY", label: "중복 정책 같습니다" },
+  { value: "OTHER", label: "기타" },
+];
 
 const decodeHtml = (text) => {
   if (!text) return text;
@@ -338,6 +346,10 @@ export default function PolicyDetailPage() {
   const [related, setRelated] = useState([]);
   const [activeTab, setActiveTab] = useState("intro");
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportReasonCode, setReportReasonCode] = useState(POLICY_ERROR_REPORT_REASONS[0].value);
+  const [reportNote, setReportNote] = useState("");
+  const [reportSubmitting, setReportSubmitting] = useState(false);
   const bookmarkActionKeyRef = useRef(null);
 
   useEffect(() => {
@@ -662,6 +674,64 @@ export default function PolicyDetailPage() {
       setToast({ open: true, msg: next ? "북마크에 저장했어요" : "북마크를 해제했어요", severity: "success" });
     } catch {
       setToast({ open: true, msg: "북마크 처리에 실패했습니다", severity: "error" });
+    }
+  };
+
+  const handleOpenErrorReport = () => {
+    if (!isLoggedIn) {
+      navigate("/login", {
+        state: {
+          from: {
+            pathname: location.pathname,
+            search: location.search,
+            state: location.state,
+          },
+          reason: "login-required",
+        },
+      });
+      return;
+    }
+    setReportModalOpen(true);
+  };
+
+  const handleCloseErrorReport = () => {
+    if (reportSubmitting) {
+      return;
+    }
+    setReportModalOpen(false);
+  };
+
+  const handleSubmitErrorReport = async () => {
+    if (!reportReasonCode || reportSubmitting) {
+      return;
+    }
+    setReportSubmitting(true);
+    try {
+      await api.post(`/api/policies/${id}/error-reports`, {
+        reasonCode: reportReasonCode,
+        note: reportNote.trim() || null,
+      });
+      setReportModalOpen(false);
+      setReportReasonCode(POLICY_ERROR_REPORT_REASONS[0].value);
+      setReportNote("");
+      setToast({ open: true, msg: "오류 제보가 접수되었습니다. 확인 후 반영하겠습니다.", severity: "success" });
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        navigate("/login", {
+          state: {
+            from: {
+              pathname: location.pathname,
+              search: location.search,
+              state: location.state,
+            },
+            reason: "login-required",
+          },
+        });
+        return;
+      }
+      setToast({ open: true, msg: "오류 제보 접수에 실패했습니다", severity: "error" });
+    } finally {
+      setReportSubmitting(false);
     }
   };
 
@@ -1321,6 +1391,19 @@ export default function PolicyDetailPage() {
                   >
                     {bookmarked ? "★ 북마크됨" : "♡ 북마크에 저장"}
                   </button>
+                  <button
+                    onClick={handleOpenErrorReport}
+                    style={{
+                      padding: "12px 0", fontSize: 13, fontWeight: 600,
+                      background: WHITE,
+                      color: INK2,
+                      border: `1px solid ${LINE}`,
+                      borderRadius: 10, cursor: "pointer",
+                      display: "flex", justifyContent: "center", alignItems: "center", gap: 6,
+                    }}
+                  >
+                    ⚑ 정책 오류 제보
+                  </button>
                 </div>
 
                 <hr style={{ border: 0, borderTop: `1px solid ${LINE}`, margin: "20px 0" }} />
@@ -1393,6 +1476,133 @@ export default function PolicyDetailPage() {
         >
           ←
         </button>
+      )}
+
+      {reportModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1400,
+            background: "rgba(15,23,42,0.52)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+          }}
+          onClick={handleCloseErrorReport}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: 520,
+              background: WHITE,
+              borderRadius: 20,
+              border: `1px solid ${LINE}`,
+              boxShadow: "0 20px 60px rgba(15,23,42,0.20)",
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div style={{ padding: "22px 22px 18px", borderBottom: `1px solid ${LINE}` }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: A7, letterSpacing: "0.05em" }}>
+                POLICY ERROR REPORT
+              </div>
+              <div style={{ marginTop: 8, fontSize: 22, fontWeight: 800, color: INK, letterSpacing: "-0.02em" }}>
+                정책 오류 제보
+              </div>
+              <div style={{ marginTop: 8, fontSize: 13, color: INK2, lineHeight: 1.65 }}>
+                지역, 신청 기간, 자격조건, 링크 문제처럼 실제 정책 정보가 다르게 보이면 제보해주세요.
+              </div>
+            </div>
+            <div style={{ padding: 22, display: "grid", gap: 16 }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: INK2, marginBottom: 8 }}>제보 사유</div>
+                <select
+                  value={reportReasonCode}
+                  onChange={(event) => setReportReasonCode(event.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "12px 14px",
+                    borderRadius: 12,
+                    border: `1px solid ${LINE}`,
+                    background: WHITE,
+                    fontSize: 14,
+                    color: INK,
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  {POLICY_ERROR_REPORT_REASONS.map((reason) => (
+                    <option key={reason.value} value={reason.value}>{reason.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: INK2, marginBottom: 8 }}>추가 설명</div>
+                <textarea
+                  value={reportNote}
+                  onChange={(event) => setReportNote(event.target.value.slice(0, 1000))}
+                  placeholder="예: 본문은 서울인데 실제 링크는 인천 공고로 연결됩니다."
+                  style={{
+                    width: "100%",
+                    minHeight: 120,
+                    resize: "vertical",
+                    padding: "12px 14px",
+                    borderRadius: 12,
+                    border: `1px solid ${LINE}`,
+                    background: WHITE,
+                    fontSize: 14,
+                    color: INK,
+                    outline: "none",
+                    boxSizing: "border-box",
+                    fontFamily: "inherit",
+                    lineHeight: 1.6,
+                  }}
+                />
+                <div style={{ marginTop: 6, fontSize: 12, color: INK3, textAlign: "right" }}>
+                  {reportNote.length}/1000
+                </div>
+              </div>
+            </div>
+            <div style={{ padding: 22, paddingTop: 0, display: "flex", justifyContent: "flex-end", gap: 10, flexWrap: "wrap" }}>
+              <button
+                onClick={handleCloseErrorReport}
+                style={{
+                  padding: "12px 16px",
+                  borderRadius: 12,
+                  border: `1px solid ${LINE}`,
+                  background: WHITE,
+                  color: INK2,
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: reportSubmitting ? "not-allowed" : "pointer",
+                  opacity: reportSubmitting ? 0.7 : 1,
+                }}
+              >
+                취소
+              </button>
+              <button
+                onClick={handleSubmitErrorReport}
+                disabled={reportSubmitting}
+                style={{
+                  padding: "12px 16px",
+                  borderRadius: 12,
+                  border: 0,
+                  background: A,
+                  color: WHITE,
+                  fontSize: 14,
+                  fontWeight: 800,
+                  cursor: reportSubmitting ? "not-allowed" : "pointer",
+                  opacity: reportSubmitting ? 0.75 : 1,
+                }}
+              >
+                {reportSubmitting ? "접수 중..." : "오류 제보 보내기"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <Snackbar
