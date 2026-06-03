@@ -22,6 +22,7 @@
 - [recommendation-real-user-baseline-runbook.md](./recommendation-real-user-baseline-runbook.md)
 - [recommendation-observation-runbook.md](./recommendation-observation-runbook.md)
 - [recommendation-standard-code-coverage-and-observation-closeout.md](./recommendation-standard-code-coverage-and-observation-closeout.md)
+- [recommendation-region-mismatch-repair-runbook.md](./recommendation-region-mismatch-repair-runbook.md)
 - [recommendation-real-user-cohort-library-manifest.md](./recommendation-real-user-cohort-library-manifest.md)
 - [recommendation-real-user-exclusion-readiness-check-runbook.md](./recommendation-real-user-exclusion-readiness-check-runbook.md)
 - [recommendation-review-gate-blocker-audit-runbook.md](./recommendation-review-gate-blocker-audit-runbook.md)
@@ -83,6 +84,8 @@
 - `bash deploy/smoke/run-local-recommendation-signal-gap-audit.sh`
 - `bash deploy/smoke/run-local-recommendation-region-window-audit.sh`
 - `bash deploy/smoke/run-local-recommendation-latest-window-audit.sh`
+- `bash deploy/smoke/run-local-recommendation-region-mismatch-audit.sh`
+- `USER_LIMIT=25 DRY_RUN=false bash deploy/smoke/run-local-recommendation-region-mismatch-repair.sh`
 - `bash deploy/smoke/run-local-recommendation-pipeline-lane-audit.sh`
 - `bash deploy/smoke/run-local-recommendation-saved-batch-gap-audit.sh`
 - `bash deploy/smoke/run-local-recommendation-fresh-saved-gap-audit.sh`

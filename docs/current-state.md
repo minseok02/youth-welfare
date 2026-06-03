@@ -71,6 +71,10 @@
   - latest welfare matrix stdout: `tmp/recommendation-observation/latest/welfare-standard-code-matrix.out`
   - latest adoption audit stdout: `tmp/recommendation-observation/latest/recommendation-standard-code-adoption.out`
   - `KEEP_ARTIFACTS=false` 기본값에서도 latest summary/json 과 `tmp/recommendation-observation/latest/` snapshot은 남습니다.
+- recommendation region mismatch audit: `bash deploy/smoke/run-local-recommendation-region-mismatch-audit.sh`
+- server/RDS recommendation region mismatch audit: `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-recommendation-region-mismatch-audit.sh`
+- bounded recommendation region mismatch repair: `USER_LIMIT=25 DRY_RUN=false bash deploy/smoke/run-local-recommendation-region-mismatch-repair.sh`
+  - current query는 이미 맞는데 old saved batch가 남아 있을 때 쓰는 repair 경로입니다.
 - housing standard code matrix audit: `bash deploy/smoke/run-local-housing-standard-code-matrix-audit.sh`
 - welfare standard code matrix audit: `bash deploy/smoke/run-local-welfare-standard-code-matrix-audit.sh`
 - user profile standard code coverage audit: `bash deploy/smoke/run-local-user-profile-standard-code-coverage-audit.sh`

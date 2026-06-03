@@ -8,6 +8,7 @@
 - [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md)
 - [recommendation-next-lane-brief.md](./recommendation-next-lane-brief.md)
 - [recommendation-standard-code-coverage-and-observation-closeout.md](./recommendation-standard-code-coverage-and-observation-closeout.md)
+- [recommendation-region-mismatch-repair-runbook.md](./recommendation-region-mismatch-repair-runbook.md)
 - [recommendation-pr-review-brief.md](./recommendation-pr-review-brief.md)
 - [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
 - [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
@@ -44,6 +45,7 @@
 
 daily operator entrypoint는 [recommendation-observation-runbook.md](./recommendation-observation-runbook.md) 와 `bash deploy/smoke/run-local-recommendation-observation-suite.sh` 입니다. observation suite는 `summary/json` 외에 `latest-recommendation-observation-note.md` 도 남겨, 현재 reopen 가능 여부와 다음 행동을 사람 말로 바로 handoff 할 수 있습니다.
 표준코드 입력 유도 UX 확장, adoption audit, nightly wrapper까지 포함한 최근 closeout 요약은 [recommendation-standard-code-coverage-and-observation-closeout.md](./recommendation-standard-code-coverage-and-observation-closeout.md) 에 따로 묶어 둡니다.
+지역이 다른 정책이 추천된다는 제보를 다룰 때는 먼저 [recommendation-region-mismatch-repair-runbook.md](./recommendation-region-mismatch-repair-runbook.md) 로 current query bug와 stale saved batch를 구분합니다. 현재 closeout 기준 남은 mismatch는 사실상 old `GOV24` saved batch 잔량으로 읽고, 대응은 `audit -> bounded refresh repair -> re-audit` 순서로 고정합니다.
 
 즉 지금까지 닫힌 것은 아래입니다.
 
