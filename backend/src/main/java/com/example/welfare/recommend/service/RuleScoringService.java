@@ -48,6 +48,7 @@ public class RuleScoringService {
     private static final double PRIORITY_MISMATCH_PENALTY = 10.0;
     private static final double SPECIAL_TARGET_MATCH_BONUS = 12.0;
     private static final double SPECIAL_TARGET_MISMATCH_PENALTY = 8.0;
+    private static final double HOUSING_PROFILE_MATCH_BONUS = 8.0;
 
     private final RecommendationCandidateReadRepository recommendationCandidateReadRepository;
     private final PriorityMatcher priorityMatcher;
@@ -153,6 +154,10 @@ public class RuleScoringService {
 
         // 대상유형 일치: TARGET_GROUP 태그 ↔ 유저 취업상태·가구유형·소득분위
         if (targetGroupMatches(user, tags, projection)) score += 10;
+
+        if (RecommendationMatchingSupport.housingProfileMatches(user, service, tags, projection)) {
+            score += HOUSING_PROFILE_MATCH_BONUS;
+        }
 
         if (priorityMismatch) {
             score -= PRIORITY_MISMATCH_PENALTY;

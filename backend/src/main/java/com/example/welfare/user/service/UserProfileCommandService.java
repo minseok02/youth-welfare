@@ -34,6 +34,7 @@ public class UserProfileCommandService {
     private final UserCoreSyncService userCoreSyncService;
     private final UserPlainPiiReadService userPlainPiiReadService;
     private final RecommendationRefreshCacheService recommendationRefreshCacheService;
+    private final UserProfileStandardCodeValidator userProfileStandardCodeValidator;
 
     @Transactional
     public void updateProfile(Long userId, UpdateProfileRequest request) {
@@ -48,6 +49,25 @@ public class UserProfileCommandService {
         UserPlainPii currentPii = userPlainPiiReadService.resolveCurrent(user, userKey);
         String effectiveName = request.getName() != null ? request.getName() : currentPii.name();
         LocalDate effectiveBirthDate = request.getBirthDate() != null ? request.getBirthDate() : currentPii.birthDate();
+        String effectiveHouseTenureCode = request.getHouseTenureCode() != null
+                ? request.getHouseTenureCode()
+                : user.getHouseTenureCode();
+        String effectiveHousingTypeCode = request.getHousingTypeCode() != null
+                ? request.getHousingTypeCode()
+                : user.getHousingTypeCode();
+        String effectiveBasicLivingRecipientTypeCode = request.getBasicLivingRecipientTypeCode() != null
+                ? request.getBasicLivingRecipientTypeCode()
+                : user.getBasicLivingRecipientTypeCode();
+        String effectiveDisabilityGradeCode = request.getDisabilityGradeCode() != null
+                ? request.getDisabilityGradeCode()
+                : user.getDisabilityGradeCode();
+
+        userProfileStandardCodeValidator.validateProfileCodes(
+                effectiveHouseTenureCode,
+                effectiveHousingTypeCode,
+                effectiveBasicLivingRecipientTypeCode,
+                effectiveDisabilityGradeCode
+        );
 
         user.updateProfile(
                 effectiveSido,
@@ -56,6 +76,10 @@ public class UserProfileCommandService {
                 request.getIncomeLevel() != null ? request.getIncomeLevel() : user.getIncomeLevel(),
                 request.getHouseholdType() != null ? request.getHouseholdType() : user.getHouseholdType(),
                 request.getEmploymentStatus() != null ? request.getEmploymentStatus() : user.getEmploymentStatus(),
+                effectiveHouseTenureCode,
+                effectiveHousingTypeCode,
+                effectiveBasicLivingRecipientTypeCode,
+                effectiveDisabilityGradeCode,
                 request.getDisplayCount() != null ? request.getDisplayCount() : user.getDisplayCount()
         );
 

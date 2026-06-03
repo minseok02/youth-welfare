@@ -23,6 +23,10 @@ public class UpdateProfileRequest {
 
     private String householdType;
     private String employmentStatus;
+    private String houseTenureCode;
+    private String housingTypeCode;
+    private String basicLivingRecipientTypeCode;
+    private String disabilityGradeCode;
     private Boolean notificationYn;
     private Boolean notificationEmailYn;
     private Boolean notificationInAppYn;

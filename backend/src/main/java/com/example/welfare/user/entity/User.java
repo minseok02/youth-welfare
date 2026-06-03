@@ -51,6 +51,14 @@ public class User extends BaseTimeEntity {
 
     private String employmentStatus;
 
+    private String houseTenureCode;
+
+    private String housingTypeCode;
+
+    private String basicLivingRecipientTypeCode;
+
+    private String disabilityGradeCode;
+
     @Column(nullable = false)
     @Builder.Default
     private boolean isActive = true;
@@ -116,13 +124,19 @@ public class User extends BaseTimeEntity {
 
     public void updateProfile(String sido, String sgg,
                                String regionCode, Byte incomeLevel, String householdType,
-                               String employmentStatus, int displayCount) {
+                               String employmentStatus, String houseTenureCode,
+                               String housingTypeCode, String basicLivingRecipientTypeCode,
+                               String disabilityGradeCode, int displayCount) {
         this.sido = sido;
         this.sgg = sgg;
         this.regionCode = regionCode;
         this.incomeLevel = incomeLevel;
         this.householdType = householdType;
         this.employmentStatus = employmentStatus;
+        this.houseTenureCode = houseTenureCode;
+        this.housingTypeCode = housingTypeCode;
+        this.basicLivingRecipientTypeCode = basicLivingRecipientTypeCode;
+        this.disabilityGradeCode = disabilityGradeCode;
         this.displayCount = displayCount;
     }
 
@@ -174,6 +188,10 @@ public class User extends BaseTimeEntity {
         this.incomeLevel = null;
         this.householdType = null;
         this.employmentStatus = null;
+        this.houseTenureCode = null;
+        this.housingTypeCode = null;
+        this.basicLivingRecipientTypeCode = null;
+        this.disabilityGradeCode = null;
         this.notificationYn = false;
         this.notificationEmailYn = false;
         this.notificationInAppYn = false;

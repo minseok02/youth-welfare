@@ -5,7 +5,10 @@ import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -17,6 +20,27 @@ public final class RecommendationMatchingSupport {
     private static final Set<String> SINGLE_PARENT_SIGNALS = Set.of("한부모", "single_parent");
     private static final Set<String> GRANDPARENT_SIGNALS = Set.of("조손", "grandparent");
     private static final Set<String> MULTI_CHILD_SIGNALS = Set.of("다자녀", "multi_child", "large_family");
+    private static final Set<String> HOUSING_ANCHORS = Set.of(
+            "주거", "주택", "월세", "전세", "보증금", "임대", "임차료", "임대료",
+            "기숙사", "아파트", "다가구", "다세대", "단독주택", "연립주택", "공관"
+    );
+    private static final Map<String, Set<String>> HOUSE_TENURE_SIGNALS = Map.of(
+            "1", Set.of("자가"),
+            "2", Set.of("전세", "전월세", "전세임대", "보증금"),
+            "3", Set.of("월세", "전월세", "월세보증금", "임대료", "임차료"),
+            "4", Set.of("임대", "임대주택", "공공임대주택", "매입임대", "전세임대"),
+            "9", Set.of("주거")
+    );
+    private static final Map<String, Set<String>> HOUSING_TYPE_SIGNALS = Map.of(
+            "1", Set.of("단독주택"),
+            "2", Set.of("다중주택"),
+            "3", Set.of("다가구주택", "다가구"),
+            "4", Set.of("아파트"),
+            "5", Set.of("연립주택", "연립"),
+            "6", Set.of("다세대주택", "다세대"),
+            "7", Set.of("기숙사"),
+            "99", Set.of("공관")
+    );
 
     private RecommendationMatchingSupport() {
     }
@@ -50,6 +74,13 @@ public final class RecommendationMatchingSupport {
                 if (val.contains("기초생활") && user.incomeLevel() <= 1) return true;
             }
 
+            if (user.basicLivingRecipientTypeCode() != null && val.contains("기초생활")) {
+                return true;
+            }
+            if (user.disabilityGradeCode() != null && val.contains("장애")) {
+                return true;
+            }
+
             return false;
         });
 
@@ -68,7 +99,8 @@ public final class RecommendationMatchingSupport {
             return false;
         }
 
-        if (projection.beneficiaryTerms().contains("기초생활수급자") && user.incomeLevel() <= 1) {
+        if (projection.beneficiaryTerms().contains("기초생활수급자")
+                && (user.basicLivingRecipientTypeCode() != null || user.incomeLevel() <= 1)) {
             return true;
         }
         return projection.beneficiaryTerms().contains("차상위계층") && user.incomeLevel() <= 3;
@@ -81,6 +113,31 @@ public final class RecommendationMatchingSupport {
                                                RecommendationCandidateProjection projection) {
         return specialAudienceMatchedByTargetTypes(targetTypes, service, tags, projection)
                 || specialAudienceMatchedByUserProfile(user, service, tags, projection);
+    }
+
+    public static boolean housingProfileMatches(RecommendationUserSnapshot user,
+                                                WelfareService service,
+                                                List<ServiceTag> tags,
+                                                RecommendationCandidateProjection projection) {
+        if ((user.houseTenureCode() == null || user.houseTenureCode().isBlank())
+                && (user.housingTypeCode() == null || user.housingTypeCode().isBlank())) {
+            return false;
+        }
+
+        String haystack = buildHousingHaystack(service, tags, projection);
+        if (haystack.isBlank() || HOUSING_ANCHORS.stream().noneMatch(haystack::contains)) {
+            return false;
+        }
+
+        Set<String> houseTenureSignals = user.houseTenureCode() == null
+                ? null
+                : HOUSE_TENURE_SIGNALS.get(user.houseTenureCode());
+        Set<String> housingTypeSignals = user.housingTypeCode() == null
+                ? null
+                : HOUSING_TYPE_SIGNALS.get(user.housingTypeCode());
+
+        return hasMappedSignal(haystack, houseTenureSignals)
+                || hasMappedSignal(haystack, housingTypeSignals);
     }
 
     public static boolean hasSpecialTargetSignal(WelfareService service,
@@ -150,6 +207,17 @@ public final class RecommendationMatchingSupport {
                 return true;
             }
         }
+        if (user.disabilityGradeCode() != null) {
+            if (projection != null
+                    && projection.specialTargetBuckets().contains(RecommendationProjectionHeuristicSupport.SPECIAL_TARGET_DISABILITY)) {
+                return true;
+            }
+            if (RecommendationRuntimeSupport.containsAnySignal(service, tags,
+                    RecommendationProjectionHeuristicSupport.SPECIAL_TARGET_DISABILITY,
+                    "장애인")) {
+                return true;
+            }
+        }
         return false;
     }
 
@@ -160,7 +228,46 @@ public final class RecommendationMatchingSupport {
         return signals.stream().anyMatch(normalizedHousehold::contains);
     }
 
+    private static boolean hasMappedSignal(String haystack, Set<String> signals) {
+        return signals != null && signals.stream()
+                .map(RecommendationMatchingSupport::normalize)
+                .filter(value -> value != null && !value.isBlank())
+                .anyMatch(haystack::contains);
+    }
+
+    private static String buildHousingHaystack(WelfareService service,
+                                               List<ServiceTag> tags,
+                                               RecommendationCandidateProjection projection) {
+        LinkedHashSet<String> texts = new LinkedHashSet<>();
+        if (service != null) {
+            texts.add(service.getTitle());
+            texts.add(service.getDescription());
+            texts.add(service.getSupportContent());
+            texts.add(service.getApplyMethodName());
+            texts.add(service.getUnifiedCategory());
+        }
+        if (projection != null) {
+            texts.add(projection.title());
+            texts.add(projection.summary());
+            texts.add(projection.gov24ServiceFieldLabel());
+            texts.addAll(projection.keywordTags());
+            texts.addAll(projection.interestThemes());
+            texts.addAll(projection.targetGroupsRaw());
+        }
+        if (tags != null && !tags.isEmpty()) {
+            tags.stream()
+                    .map(ServiceTag::getTagValue)
+                    .forEach(texts::add);
+        }
+
+        return texts.stream()
+                .filter(value -> value != null && !value.isBlank())
+                .map(RecommendationMatchingSupport::normalize)
+                .reduce("", (left, right) -> left + " " + right)
+                .trim();
+    }
+
     private static String normalize(String raw) {
-        return raw == null ? null : raw.trim().toLowerCase().replace(" ", "");
+        return raw == null ? null : raw.trim().toLowerCase(Locale.ROOT).replace(" ", "");
     }
 }

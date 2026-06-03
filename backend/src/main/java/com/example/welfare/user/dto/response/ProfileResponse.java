@@ -29,6 +29,10 @@ public class ProfileResponse {
     private String ageBand;
     private String householdType;
     private String employmentStatus;
+    private String houseTenureCode;
+    private String housingTypeCode;
+    private String basicLivingRecipientTypeCode;
+    private String disabilityGradeCode;
     private boolean notificationYn;
     private boolean notificationEmailYn;
     private boolean notificationInAppYn;
@@ -93,6 +97,10 @@ public class ProfileResponse {
                 .ageBand(null)
                 .householdType(user.getHouseholdType())
                 .employmentStatus(user.getEmploymentStatus())
+                .houseTenureCode(user.getHouseTenureCode())
+                .housingTypeCode(user.getHousingTypeCode())
+                .basicLivingRecipientTypeCode(user.getBasicLivingRecipientTypeCode())
+                .disabilityGradeCode(user.getDisabilityGradeCode())
                 .notificationYn(user.isNotificationYn())
                 .notificationEmailYn(user.isNotificationEmailYn())
                 .notificationInAppYn(user.isNotificationInAppYn())
@@ -153,6 +161,10 @@ public class ProfileResponse {
                 .ageBand(profile.getAgeBand())
                 .householdType(profile.getHouseholdType())
                 .employmentStatus(profile.getEmploymentStatus())
+                .houseTenureCode(profile.getHouseTenureCode())
+                .housingTypeCode(profile.getHousingTypeCode())
+                .basicLivingRecipientTypeCode(profile.getBasicLivingRecipientTypeCode())
+                .disabilityGradeCode(profile.getDisabilityGradeCode())
                 .notificationYn(profile.isNotificationYn())
                 .notificationEmailYn(profile.isNotificationEmailYn())
                 .notificationInAppYn(profile.isNotificationInAppYn())

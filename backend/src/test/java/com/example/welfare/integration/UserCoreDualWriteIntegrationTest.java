@@ -114,7 +114,11 @@ class UserCoreDualWriteIntegrationTest {
                                   "sgg": "강남구",
                                   "incomeLevel": 5,
                                   "employmentStatus": "EMPLOYED",
-                                  "householdType": "SINGLE"
+                                  "householdType": "SINGLE",
+                                  "houseTenureCode": "3",
+                                  "housingTypeCode": "4",
+                                  "basicLivingRecipientTypeCode": "1",
+                                  "disabilityGradeCode": "011"
                                 }
                                 """.formatted(email)))
                 .andExpect(status().isOk())
@@ -133,6 +137,10 @@ class UserCoreDualWriteIntegrationTest {
         assertThat(userProfile.getSido()).isEqualTo("서울특별시");
         assertThat(userProfile.getSgg()).isEqualTo("강남구");
         assertThat(userProfile.getIncomeLevel()).isEqualTo((byte) 5);
+        assertThat(userProfile.getHouseTenureCode()).isEqualTo("3");
+        assertThat(userProfile.getHousingTypeCode()).isEqualTo("4");
+        assertThat(userProfile.getBasicLivingRecipientTypeCode()).isEqualTo("1");
+        assertThat(userProfile.getDisabilityGradeCode()).isEqualTo("011");
         assertThat(userProfile.getAgeBand()).isEqualTo(expectedAgeBand(LocalDate.parse("1998-01-10")));
         assertThat(userProfile.isHasName()).isTrue();
         assertThat(userProfile.isHasBirthDate()).isTrue();
@@ -180,6 +188,10 @@ class UserCoreDualWriteIntegrationTest {
                                   "incomeLevel": 7,
                                   "householdType": "MULTI_PERSON",
                                   "employmentStatus": "STUDENT",
+                                  "houseTenureCode": "4",
+                                  "housingTypeCode": "7",
+                                  "basicLivingRecipientTypeCode": "2",
+                                  "disabilityGradeCode": "041",
                                   "notificationYn": true,
                                   "notificationEmailYn": true,
                                   "notificationInAppYn": true,
@@ -202,6 +214,10 @@ class UserCoreDualWriteIntegrationTest {
         assertThat(userProfile.getIncomeLevel()).isEqualTo((byte) 7);
         assertThat(userProfile.getHouseholdType()).isEqualTo("MULTI_PERSON");
         assertThat(userProfile.getEmploymentStatus()).isEqualTo("STUDENT");
+        assertThat(userProfile.getHouseTenureCode()).isEqualTo("4");
+        assertThat(userProfile.getHousingTypeCode()).isEqualTo("7");
+        assertThat(userProfile.getBasicLivingRecipientTypeCode()).isEqualTo("2");
+        assertThat(userProfile.getDisabilityGradeCode()).isEqualTo("041");
         assertThat(userProfile.isNotificationYn()).isTrue();
         assertThat(userProfile.isNotificationEmailYn()).isTrue();
         assertThat(userProfile.isNotificationInAppYn()).isTrue();
@@ -237,7 +253,11 @@ class UserCoreDualWriteIntegrationTest {
                                   "sgg": "강남구",
                                   "incomeLevel": 6,
                                   "employmentStatus": "EMPLOYED",
-                                  "householdType": "SINGLE"
+                                  "householdType": "SINGLE",
+                                  "houseTenureCode": "1",
+                                  "housingTypeCode": "2",
+                                  "basicLivingRecipientTypeCode": "3",
+                                  "disabilityGradeCode": "012"
                                 }
                                 """.formatted(email)))
                 .andExpect(status().isOk());
@@ -249,11 +269,12 @@ class UserCoreDualWriteIntegrationTest {
         jdbcTemplate.update("""
                 update user_profiles
                 set sido = ?, sgg = ?, region_code = ?, income_level = ?, household_type = ?, employment_status = ?,
+                    house_tenure_code = ?, housing_type_code = ?, basic_living_recipient_type_code = ?, disability_grade_code = ?,
                     notification_yn = ?, notification_email_yn = ?, notification_in_app_yn = ?, notification_web_push_yn = ?,
                     notification_period = ?, notification_min_score = ?, display_count = ?
                 where user_key = ?
                 """,
-                "제주특별자치도", "제주시", "50000", 2, "ONE_PERSON", "JOB_SEEKER",
+                "제주특별자치도", "제주시", "50000", 2, "ONE_PERSON", "JOB_SEEKER", "4", "7", "2", "041",
                 true, true, true, false, "DAILY", 0.9, 7, userKey);
         userPiiReadWriteRepository.upsertUserPii(
                 userKey,
@@ -276,6 +297,10 @@ class UserCoreDualWriteIntegrationTest {
                 .andExpect(jsonPath("$.data.incomeLevel").value(2))
                 .andExpect(jsonPath("$.data.householdType").value("ONE_PERSON"))
                 .andExpect(jsonPath("$.data.employmentStatus").value("JOB_SEEKER"))
+                .andExpect(jsonPath("$.data.houseTenureCode").value("4"))
+                .andExpect(jsonPath("$.data.housingTypeCode").value("7"))
+                .andExpect(jsonPath("$.data.basicLivingRecipientTypeCode").value("2"))
+                .andExpect(jsonPath("$.data.disabilityGradeCode").value("041"))
                 .andExpect(jsonPath("$.data.notificationYn").value(true))
                 .andExpect(jsonPath("$.data.notificationEmailYn").value(true))
                 .andExpect(jsonPath("$.data.notificationInAppYn").value(true))

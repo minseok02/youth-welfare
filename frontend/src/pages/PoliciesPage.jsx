@@ -13,6 +13,14 @@ import FloatingNav from "../components/FloatingNav";
 import IncomeCalculatorModal from "../components/IncomeCalculatorModal";
 import api from "../lib/axios";
 import { useAuthStore } from "../store/authStore";
+import {
+  FILTER_REGIONS,
+  formatRegionSelectionLabel,
+  getDistrictOptions,
+  getWardOptions,
+  resolveRegionSelection,
+  resolveSubmittedSgg,
+} from "../lib/regionOptions";
 
 // ── 상수 ──────────────────────────────────────────────────────────────────────
 
@@ -29,32 +37,6 @@ const CATEGORIES = [
   { label: "참여·기회", value: "참여·기회" },
   { label: "분류없음", value: "기타" },
 ];
-
-const REGIONS = [
-  "전체", "서울", "부산", "대구", "인천", "광주", "대전", "울산",
-  "세종", "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주",
-];
-
-const DISTRICT_MAP = {
-  "전체": [],
-  "서울": ["전체","강남구","강동구","강북구","강서구","관악구","광진구","구로구","금천구","노원구","도봉구","동대문구","동작구","마포구","서대문구","서초구","성동구","성북구","송파구","양천구","영등포구","용산구","은평구","종로구","중구","중랑구"],
-  "부산": ["전체","강서구","금정구","기장군","남구","동구","동래구","부산진구","북구","사상구","사하구","서구","수영구","연제구","영도구","중구","해운대구"],
-  "대구": ["전체","남구","달서구","달성군","동구","북구","서구","수성구","중구"],
-  "인천": ["전체","강화군","계양구","남동구","동구","미추홀구","부평구","서구","연수구","옹진군","중구"],
-  "광주": ["전체","광산구","남구","동구","북구","서구"],
-  "대전": ["전체","대덕구","동구","서구","유성구","중구"],
-  "울산": ["전체","남구","동구","북구","울주군","중구"],
-  "세종": [],
-  "경기": ["전체","가평군","고양시","과천시","광명시","광주시","구리시","군포시","김포시","남양주시","동두천시","부천시","성남시","수원시","시흥시","안산시","안양시","양주시","양평군","여주시","연천군","오산시","용인시","의왕시","의정부시","이천시","파주시","평택시","포천시","하남시","화성시"],
-  "강원": ["전체","강릉시","고성군","동해시","삼척시","속초시","양구군","양양군","영월군","원주시","인제군","정선군","철원군","춘천시","태백시","평창군","홍천군","화천군","횡성군"],
-  "충북": ["전체","괴산군","단양군","보은군","영동군","옥천군","음성군","제천시","증평군","진천군","청주시","충주시"],
-  "충남": ["전체","계룡시","공주시","금산군","논산시","당진시","보령시","부여군","서산시","서천군","아산시","예산군","천안시","청양군","태안군","홍성군"],
-  "전북": ["전체","고창군","군산시","김제시","남원시","무주군","부안군","순창군","완주군","익산시","임실군","장수군","전주시","정읍시","진안군"],
-  "전남": ["전체","강진군","고흥군","곡성군","광양시","구례군","나주시","담양군","목포시","무안군","보성군","순천시","신안군","여수시","영광군","영암군","완도군","장성군","장흥군","진도군","함평군","해남군","화순군"],
-  "경북": ["전체","경산시","경주시","고령군","구미시","군위군","김천시","문경시","봉화군","상주시","성주군","안동시","영덕군","영양군","영주시","영천시","예천군","울릉군","울진군","의성군","청도군","청송군","칠곡군","포항시"],
-  "경남": ["전체","거제시","거창군","고성군","김해시","남해군","밀양시","사천시","산청군","양산시","의령군","진주시","창녕군","창원시","통영시","하동군","함안군","함양군","합천군"],
-  "제주": ["전체","서귀포시","제주시"],
-};
 
 const INCOME_ROWS = [
   { value: "1", label: "1~2분위 (하위 20%)" },
@@ -218,6 +200,21 @@ const normalizeGov24OptionParam = (value, options) => {
   const trimmed = value.trim();
   return options.includes(trimmed) ? trimmed : "전체";
 };
+
+const resolveFilterRegionSelection = (region, rawSubRegion, rawWard) => {
+  if (rawWard && rawWard !== "전체") {
+    return {
+      subRegion: rawSubRegion || "전체",
+      ward: rawWard,
+    }
+  }
+
+  const { subRegion, ward } = resolveRegionSelection(region, rawSubRegion);
+  return {
+    subRegion: subRegion || "전체",
+    ward: ward || "전체",
+  }
+}
 
 const buildGov24Badges = (policy) => {
   if (policy?.sourceType !== "GOV24") return [];
@@ -434,7 +431,13 @@ export default function PoliciesPage() {
   const [appliedSearch, setAppliedSearch] = useState(searchParams.get("search") || "");
   const [selectedCat, setSelectedCat] = useState(searchParams.get("category") || "");
   const [region, setRegion] = useState(searchParams.get("region") || "전체");
-  const [subRegion, setSubRegion] = useState(searchParams.get("subRegion") || "전체");
+  const initialRegionSelection = resolveFilterRegionSelection(
+    searchParams.get("region") || "전체",
+    searchParams.get("subRegion") || "전체",
+    searchParams.get("ward") || "전체"
+  );
+  const [subRegion, setSubRegion] = useState(initialRegionSelection.subRegion);
+  const [ward, setWard] = useState(initialRegionSelection.ward);
   const [income, setIncome] = useState(searchParams.get("income") || "전체");
   const [targetGroup, setTargetGroup] = useState(searchParams.get("targetGroup") || "");
   const [sourceType, setSourceType] = useState(normalizeSourceTypeParam(searchParams.get("sourceType")));
@@ -475,6 +478,7 @@ export default function PoliciesPage() {
     selectedCat
     || region !== "전체"
     || subRegion !== "전체"
+    || ward !== "전체"
     || income !== "전체"
     || targetGroup
     || sourceType !== "전체"
@@ -488,6 +492,8 @@ export default function PoliciesPage() {
   const isTablet = viewportWidth < 1100;
   const isMobile = viewportWidth < 760;
   const [filterOpen, setFilterOpen] = useState(false);
+  const districtOptions = getDistrictOptions(region, { includeAll: true });
+  const wardOptions = getWardOptions(region, subRegion, { includeAll: true });
 
   // ── URL 파라미터 동기화 ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -496,6 +502,7 @@ export default function PoliciesPage() {
     if (selectedCat) params.category = selectedCat;
     if (region !== "전체") params.region = region;
     if (subRegion !== "전체") params.subRegion = subRegion;
+    if (ward !== "전체") params.ward = ward;
     if (income !== "전체") params.income = income;
     if (targetGroup) params.targetGroup = targetGroup;
     const sourceTypeParam = serializeSourceTypeParam(sourceType);
@@ -508,13 +515,19 @@ export default function PoliciesPage() {
     if (page !== 1) params.page = String(page);
     if (pageSize !== 10) params.pageSize = String(pageSize);
     setSearchParams(params, { replace: true, state: location.state });
-  }, [appliedSearch, defaultSort, defaultStatusFilter, gov24BenefitType, gov24ServiceField, gov24UserType, income, location.state, page, pageSize, region, selectedCat, setSearchParams, sort, sourceType, statusFilter, subRegion, targetGroup]);
+  }, [appliedSearch, defaultSort, defaultStatusFilter, gov24BenefitType, gov24ServiceField, gov24UserType, income, location.state, page, pageSize, region, selectedCat, setSearchParams, sort, sourceType, statusFilter, subRegion, targetGroup, ward]);
 
   useEffect(() => {
     const nextSearch = searchParams.get("search") || "";
     const nextSelectedCat = searchParams.get("category") || "";
     const nextRegion = searchParams.get("region") || "전체";
-    const nextSubRegion = searchParams.get("subRegion") || "전체";
+    const nextRegionSelection = resolveFilterRegionSelection(
+      nextRegion,
+      searchParams.get("subRegion") || "전체",
+      searchParams.get("ward") || "전체"
+    );
+    const nextSubRegion = nextRegionSelection.subRegion;
+    const nextWard = nextRegionSelection.ward;
     const nextIncome = searchParams.get("income") || "전체";
     const nextTargetGroup = searchParams.get("targetGroup") || "";
     const nextSourceType = normalizeSourceTypeParam(searchParams.get("sourceType"));
@@ -531,6 +544,7 @@ export default function PoliciesPage() {
     setSelectedCat((prev) => (prev === nextSelectedCat ? prev : nextSelectedCat));
     setRegion((prev) => (prev === nextRegion ? prev : nextRegion));
     setSubRegion((prev) => (prev === nextSubRegion ? prev : nextSubRegion));
+    setWard((prev) => (prev === nextWard ? prev : nextWard));
     setIncome((prev) => (prev === nextIncome ? prev : nextIncome));
     setTargetGroup((prev) => (prev === nextTargetGroup ? prev : nextTargetGroup));
     setSourceType((prev) => (prev === nextSourceType ? prev : nextSourceType));
@@ -634,6 +648,7 @@ export default function PoliciesPage() {
   // ── 정책 fetch ───────────────────────────────────────────────────────────────
   useEffect(() => {
     const controller = new AbortController();
+    const selectedSgg = resolveSubmittedSgg(region, subRegion, ward);
     const fetchPolicies = async () => {
       setLoading(true);
       setPoliciesLoaded(false);
@@ -641,7 +656,7 @@ export default function PoliciesPage() {
         const commonParams = {
           category: selectedCat || undefined,
           sido: region === "전체" ? undefined : region,
-          sgg: subRegion === "전체" ? undefined : subRegion,
+          sgg: selectedSgg,
           sourceType: sourceType === "전체" ? undefined : SOURCE_TYPE_MAP[sourceType],
           gov24ServiceField: sourceType === "Gov24" && gov24ServiceField !== "전체" ? gov24ServiceField : undefined,
           gov24UserType: sourceType === "Gov24" && gov24UserType !== "전체" ? gov24UserType : undefined,
@@ -674,7 +689,7 @@ export default function PoliciesPage() {
     };
     fetchPolicies();
     return () => controller.abort();
-  }, [appliedSearch, gov24BenefitType, gov24ServiceField, gov24UserType, isLoggedIn, statusFilter, page, pageSize, region, selectedCat, sort, sourceType, subRegion, income, targetGroup]);
+  }, [appliedSearch, gov24BenefitType, gov24ServiceField, gov24UserType, isLoggedIn, statusFilter, page, pageSize, region, selectedCat, sort, sourceType, subRegion, income, targetGroup, ward]);
 
   // ── 핸들러 ───────────────────────────────────────────────────────────────────
   const handleBookmark = async (id, event) => {
@@ -705,7 +720,7 @@ export default function PoliciesPage() {
   const handleCategorySelect = (val) => { setSelectedCat(val); setPage(1); };
   const handleApplyFilter = () => { setPage(1); };
   const handleResetFilter = () => {
-    setSelectedCat(""); setRegion("전체"); setSubRegion("전체"); setIncome("전체");
+    setSelectedCat(""); setRegion("전체"); setSubRegion("전체"); setWard("전체"); setIncome("전체");
     setTargetGroup(""); setSourceType("전체"); setGov24ServiceField("전체"); setGov24UserType("전체"); setGov24BenefitType("전체"); setStatusFilter(defaultStatusFilter);
     setSort(appliedSearch.trim() ? "relevance" : "latest"); setPage(1);
   };
@@ -718,6 +733,7 @@ export default function PoliciesPage() {
     setSelectedCat("");
     setRegion("전체");
     setSubRegion("전체");
+    setWard("전체");
     setIncome("전체");
     setTargetGroup("");
     setSourceType("전체");
@@ -777,7 +793,7 @@ export default function PoliciesPage() {
   const activeFilters = [
     appliedSearch.trim() && { key: "search", label: `검색어 ${appliedSearch.trim()}`, clear: handleClearSearch },
     selectedCat && { key: "cat", label: CATEGORIES.find(c => c.value === selectedCat)?.label || selectedCat, clear: () => setSelectedCat("") },
-    region !== "전체" && { key: "region", label: subRegion !== "전체" ? `${region} ${subRegion}` : region, clear: () => { setRegion("전체"); setSubRegion("전체"); } },
+    region !== "전체" && { key: "region", label: formatRegionSelectionLabel(region, subRegion, ward), clear: () => { setRegion("전체"); setSubRegion("전체"); setWard("전체"); } },
     income !== "전체" && { key: "income", label: INCOME_ROWS.find(r => r.value === income)?.label, clear: () => setIncome("전체") },
     targetGroup && { key: "tg", label: targetGroup, clear: () => setTargetGroup("") },
     sourceType !== "전체" && { key: "src", label: sourceType, clear: () => setSourceType("전체") },
@@ -1015,18 +1031,27 @@ export default function PoliciesPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <select
                 value={region}
-                onChange={(e) => { setRegion(e.target.value); setSubRegion("전체"); setPage(1); }}
+                onChange={(e) => { setRegion(e.target.value); setSubRegion("전체"); setWard("전체"); setPage(1); }}
                 style={{ width: "100%", padding: "9px 12px", border: `1px solid ${LINE}`, borderRadius: 8, fontSize: 13, background: "white", fontFamily: "inherit", color: INK }}
               >
-                {REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+                {FILTER_REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
               </select>
-              {(DISTRICT_MAP[region]?.length ?? 0) > 0 && (
+              {districtOptions.length > 0 && (
                 <select
                   value={subRegion}
-                  onChange={(e) => { setSubRegion(e.target.value); setPage(1); }}
+                  onChange={(e) => { setSubRegion(e.target.value); setWard("전체"); setPage(1); }}
                   style={{ width: "100%", padding: "9px 12px", border: `1px solid ${LINE}`, borderRadius: 8, fontSize: 13, background: "white", fontFamily: "inherit", color: INK }}
                 >
-                  {DISTRICT_MAP[region].map((d) => <option key={d} value={d}>{d}</option>)}
+                  {districtOptions.map((d) => <option key={d} value={d}>{d}</option>)}
+                </select>
+              )}
+              {wardOptions.length > 0 && (
+                <select
+                  value={ward}
+                  onChange={(e) => { setWard(e.target.value); setPage(1); }}
+                  style={{ width: "100%", padding: "9px 12px", border: `1px solid ${LINE}`, borderRadius: 8, fontSize: 13, background: "white", fontFamily: "inherit", color: INK }}
+                >
+                  {wardOptions.map((value) => <option key={value} value={value}>{value}</option>)}
                 </select>
               )}
             </div>

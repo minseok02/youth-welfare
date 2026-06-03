@@ -220,6 +220,42 @@ class RuleScoringServiceTest {
     }
 
     @Test
+    @DisplayName("주거 표준코드가 맞는 후보는 housing profile bonus를 받는다")
+    void housingProfileMatchAddsBonus() {
+        RecommendationUserSnapshot user = snapshotWithStandardHousingCodes(
+                List.of(),
+                List.of(),
+                (byte) 5,
+                null,
+                null,
+                "3",
+                null
+        );
+
+        WelfareService baseline = welfareService(80_1L, "기본 지원");
+        WelfareService projected = welfareService(80_2L, "전월세 지원");
+
+        when(recommendationCandidateReadRepository.findTagsByServiceIds(anyList())).thenReturn(Map.of());
+
+        List<ScoredCandidate> scored = ruleScoringService.score(
+                new RetrievedRecommendationCandidates(
+                        List.of(baseline, projected),
+                        Map.of(
+                                projected.getId(),
+                                RecommendationCandidateProjection.builder()
+                                        .serviceId(projected.getId())
+                                        .keywordTags(Set.of("월세보증금"))
+                                        .build()
+                        )
+                ),
+                user
+        );
+
+        assertThat(findByServiceId(scored, 80_2L).getRuleBaseScore())
+                .isEqualTo(findByServiceId(scored, 80_1L).getRuleBaseScore() + 8.0);
+    }
+
+    @Test
     @DisplayName("projection 관심사 신호가 있는데 사용자 관심분야와 어긋나면 mismatch penalty를 준다")
     void projectionInterestSignalAppliesMismatchPenalty() {
         RecommendationUserSnapshot user = snapshot(List.of("주거"), List.of(), (byte) 5, null, null);
@@ -690,6 +726,36 @@ class RuleScoringServiceTest {
                 interestFields,
                 targetTypes,
                 priorities
+        );
+    }
+
+    private RecommendationUserSnapshot snapshotWithStandardHousingCodes(List<String> interestFields,
+                                                                        List<String> targetTypes,
+                                                                        Byte incomeLevel,
+                                                                        String householdType,
+                                                                        String employmentStatus,
+                                                                        String houseTenureCode,
+                                                                        String housingTypeCode) {
+        return new RecommendationUserSnapshot(
+                1L,
+                "user-key-1",
+                25,
+                "25_29",
+                "서울특별시",
+                "강남구",
+                "11680",
+                incomeLevel,
+                householdType,
+                employmentStatus,
+                houseTenureCode,
+                housingTypeCode,
+                null,
+                null,
+                10,
+                0.5,
+                interestFields,
+                targetTypes,
+                List.of()
         );
     }
 }

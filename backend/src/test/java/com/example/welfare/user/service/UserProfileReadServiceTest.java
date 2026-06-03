@@ -46,6 +46,10 @@ class UserProfileReadServiceTest {
                 .sido("서울특별시")
                 .sgg("관악구")
                 .ageBand("25-29")
+                .houseTenureCode("3")
+                .housingTypeCode("4")
+                .basicLivingRecipientTypeCode("1")
+                .disabilityGradeCode("011")
                 .notificationYn(true)
                 .notificationEmailYn(true)
                 .notificationInAppYn(true)
@@ -74,6 +78,10 @@ class UserProfileReadServiceTest {
         assertThat(response.getName()).isEqualTo("홍길동");
         assertThat(response.getBirthDate()).isEqualTo(LocalDate.of(1999, 1, 10));
         assertThat(response.getAgeBand()).isEqualTo("25-29");
+        assertThat(response.getHouseTenureCode()).isEqualTo("3");
+        assertThat(response.getHousingTypeCode()).isEqualTo("4");
+        assertThat(response.getBasicLivingRecipientTypeCode()).isEqualTo("1");
+        assertThat(response.getDisabilityGradeCode()).isEqualTo("011");
         assertThat(response.isNotificationYn()).isTrue();
         assertThat(response.isNotificationEmailYn()).isTrue();
         assertThat(response.isNotificationInAppYn()).isTrue();

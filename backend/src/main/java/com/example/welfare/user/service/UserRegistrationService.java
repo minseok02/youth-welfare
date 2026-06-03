@@ -15,10 +15,17 @@ public class UserRegistrationService {
     private final UserRegistrationCommandRepository userRegistrationCommandRepository;
     private final UserCoreSyncService userCoreSyncService;
     private final UserAccountOriginResolver userAccountOriginResolver;
+    private final UserProfileStandardCodeValidator userProfileStandardCodeValidator;
 
     @Transactional
     public void register(SignupRequest request, String encodedPassword) {
         String normalizedEmail = request.getEmail();
+        userProfileStandardCodeValidator.validateProfileCodes(
+                request.getHouseTenureCode(),
+                request.getHousingTypeCode(),
+                request.getBasicLivingRecipientTypeCode(),
+                request.getDisabilityGradeCode()
+        );
         User user = User.builder()
                 .email(UserEmailShadowValue.from(normalizedEmail))
                 .accountOrigin(userAccountOriginResolver.resolve(normalizedEmail))
@@ -28,6 +35,10 @@ public class UserRegistrationService {
                 .incomeLevel(request.getIncomeLevel())
                 .employmentStatus(request.getEmploymentStatus())
                 .householdType(request.getHouseholdType())
+                .houseTenureCode(request.getHouseTenureCode())
+                .housingTypeCode(request.getHousingTypeCode())
+                .basicLivingRecipientTypeCode(request.getBasicLivingRecipientTypeCode())
+                .disabilityGradeCode(request.getDisabilityGradeCode())
                 .build();
 
         userRegistrationCommandRepository.save(user);

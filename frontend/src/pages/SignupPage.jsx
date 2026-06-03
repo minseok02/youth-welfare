@@ -1,7 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Snackbar, Alert, CircularProgress } from "@mui/material";
 import api from "../lib/axios";
+import { fetchProfileStandardCodebookOptions } from "../lib/officialCodebookOptions";
+import {
+  REGIONS,
+  REGION_TO_SIDO,
+  getDistrictOptions,
+  getWardOptions,
+  resolveSubmittedSgg,
+} from "../lib/regionOptions";
 
 const A = "#2563eb", A7 = "#1d4ed8", AS = "#e8efff", AI = "#1e3a8a";
 const BG = "#f7f8fc", WHITE = "#fff";
@@ -31,35 +39,12 @@ const PRIORITY_OPTIONS = [
   { value: "DEADLINE",      label: "마감임박",   ico: "⏰" },
 ];
 
-const REGIONS = ["서울","부산","대구","인천","광주","대전","울산","세종","경기","강원","충북","충남","전북","전남","경북","경남","제주"];
 const HOUSEHOLD_TYPES = ["1인가구", "한부모", "다자녀", "조손", "기타"];
-
-const REGION_TO_SIDO = {
-  "서울": "서울특별시", "부산": "부산광역시", "대구": "대구광역시",
-  "인천": "인천광역시", "광주": "광주광역시", "대전": "대전광역시",
-  "울산": "울산광역시", "세종": "세종특별자치시", "경기": "경기도",
-  "강원": "강원특별자치도", "충북": "충청북도", "충남": "충청남도",
-  "전북": "전북특별자치도", "전남": "전라남도", "경북": "경상북도",
-  "경남": "경상남도", "제주": "제주특별자치도",
-};
-
-const DISTRICT_MAP = {
-  "서울": ["강남구","강동구","강북구","강서구","관악구","광진구","구로구","금천구","노원구","도봉구","동대문구","동작구","마포구","서대문구","서초구","성동구","성북구","송파구","양천구","영등포구","용산구","은평구","종로구","중구","중랑구"],
-  "부산": ["강서구","금정구","기장군","남구","동구","동래구","부산진구","북구","사상구","사하구","서구","수영구","연제구","영도구","중구","해운대구"],
-  "대구": ["남구","달서구","달성군","동구","북구","서구","수성구","중구"],
-  "인천": ["강화군","계양구","남동구","동구","미추홀구","부평구","서구","연수구","옹진군","중구"],
-  "광주": ["광산구","남구","동구","북구","서구"],
-  "대전": ["대덕구","동구","서구","유성구","중구"],
-  "울산": ["남구","동구","북구","울주군","중구"],
-  "경기": ["가평군","고양시","과천시","광명시","광주시","구리시","군포시","김포시","남양주시","동두천시","부천시","성남시","수원시","시흥시","안산시","안성시","안양시","양주시","양평군","여주시","연천군","오산시","용인시","의왕시","의정부시","이천시","파주시","평택시","포천시","하남시","화성시"],
-  "강원": ["강릉시","고성군","동해시","삼척시","속초시","양구군","양양군","영월군","원주시","인제군","정선군","철원군","춘천시","태백시","평창군","홍천군","화천군","횡성군"],
-  "충북": ["괴산군","단양군","보은군","영동군","옥천군","음성군","제천시","증평군","진천군","청주시","충주시"],
-  "충남": ["계룡시","공주시","금산군","논산시","당진시","보령시","부여군","서산시","서천군","아산시","예산군","천안시","청양군","태안군","홍성군"],
-  "전북": ["고창군","군산시","김제시","남원시","무주군","부안군","순창군","완주군","익산시","임실군","장수군","전주시","정읍시","진안군"],
-  "전남": ["강진군","고흥군","곡성군","광양시","구례군","나주시","담양군","목포시","무안군","보성군","순천시","신안군","여수시","영광군","영암군","완도군","장성군","장흥군","진도군","함평군","해남군","화순군"],
-  "경북": ["경산시","경주시","고령군","구미시","군위군","김천시","문경시","봉화군","상주시","성주군","안동시","영덕군","영양군","영주시","영천시","예천군","울릉군","울진군","의성군","청도군","청송군","칠곡군","포항시"],
-  "경남": ["거제시","거창군","고성군","김해시","남해군","밀양시","사천시","산청군","양산시","의령군","진주시","창녕군","창원시","통영시","하동군","함안군","함양군","합천군"],
-  "제주": ["서귀포시","제주시"],
+const EMPTY_PROFILE_CODE_OPTIONS = {
+  houseTenure: [],
+  housingType: [],
+  basicLivingRecipientType: [],
+  disabilityGrade: [],
 };
 
 const iCss = (err) => ({
@@ -117,15 +102,39 @@ export default function SignupPage() {
   const [birthDay, setBirthDay] = useState("");
   const [region, setRegion] = useState("");
   const [subRegion, setSubRegion] = useState("");
+  const [ward, setWard] = useState("");
   const [income, setIncome] = useState("");
   const [employ, setEmploy] = useState("");
   const [householdType, setHouseholdType] = useState("");
+  const [houseTenureCode, setHouseTenureCode] = useState("");
+  const [housingTypeCode, setHousingTypeCode] = useState("");
+  const [basicLivingRecipientTypeCode, setBasicLivingRecipientTypeCode] = useState("");
+  const [disabilityGradeCode, setDisabilityGradeCode] = useState("");
+  const [profileCodeOptions, setProfileCodeOptions] = useState(EMPTY_PROFILE_CODE_OPTIONS);
 
   // Step 3
   const [priorities, setPriorities] = useState([]);
   const [dragIdx, setDragIdx] = useState(null);
 
   const showToast = (msg, severity = "info") => setToast({ open: true, msg, severity });
+
+  useEffect(() => {
+    let active = true;
+    fetchProfileStandardCodebookOptions()
+      .then((options) => {
+        if (active) {
+          setProfileCodeOptions(options);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          showToast("공식 코드 목록을 불러오지 못했습니다", "warning");
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const nameRegex = /^[가-힣]{2,10}$/;
   const emailRegex1 = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -175,14 +184,19 @@ export default function SignupPage() {
   const handleSignup = async () => {
     setLoading(true);
     try {
+      const submittedSgg = resolveSubmittedSgg(region, subRegion, ward);
       await api.post("/api/auth/signup", {
         name, email, password: pw,
         birthDate: `${birthYear}-${String(birthMonth).padStart(2,"0")}-${String(birthDay).padStart(2,"0")}`,
         ...(region && { sido: REGION_TO_SIDO[region] ?? region }),
-        ...(subRegion && { sgg: subRegion }),
+        ...(submittedSgg && { sgg: submittedSgg }),
         ...(income && { incomeLevel: parseInt(income, 10) }),
         ...(householdType && { householdType }),
         ...(employ && { employmentStatus: employ }),
+        ...(houseTenureCode && { houseTenureCode }),
+        ...(housingTypeCode && { housingTypeCode }),
+        ...(basicLivingRecipientTypeCode && { basicLivingRecipientTypeCode }),
+        ...(disabilityGradeCode && { disabilityGradeCode }),
       });
       navigate("/login", {
         replace: true,
@@ -218,6 +232,14 @@ export default function SignupPage() {
     setDragIdx(idx);
   };
   const handleDragEnd = () => setDragIdx(null);
+  const districtOptions = getDistrictOptions(region);
+  const wardOptions = getWardOptions(region, subRegion);
+  const selectedStandardCodeCount = [
+    houseTenureCode,
+    housingTypeCode,
+    basicLivingRecipientTypeCode,
+    disabilityGradeCode,
+  ].filter(Boolean).length;
 
   const btnPrimary = (disabled) => ({
     width: "100%", padding: "13px 0", borderRadius: 10, border: 0,
@@ -369,15 +391,21 @@ export default function SignupPage() {
               </Field>
 
               <Field label="주소">
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                  <select style={selCss(false)} value={region} onChange={e => { setRegion(e.target.value); setSubRegion(""); }}>
+                <div style={{ display: "grid", gridTemplateColumns: wardOptions.length > 0 ? "1fr 1fr 1fr" : "1fr 1fr", gap: 8 }}>
+                  <select style={selCss(false)} value={region} onChange={e => { setRegion(e.target.value); setSubRegion(""); setWard(""); }}>
                     <option value="">시/도 선택</option>
                     {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
                   </select>
-                  <select style={selCss(!DISTRICT_MAP[region])} disabled={!DISTRICT_MAP[region]} value={subRegion} onChange={e => setSubRegion(e.target.value)}>
+                  <select style={selCss(districtOptions.length === 0)} disabled={districtOptions.length === 0} value={subRegion} onChange={e => { setSubRegion(e.target.value); setWard(""); }}>
                     <option value="">시/군/구 선택</option>
-                    {(DISTRICT_MAP[region] || []).map(d => <option key={d} value={d}>{d}</option>)}
+                    {districtOptions.map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
+                  {wardOptions.length > 0 && (
+                    <select style={selCss(false)} value={ward} onChange={e => setWard(e.target.value)}>
+                      <option value="">구 선택</option>
+                      {wardOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+                    </select>
+                  )}
                 </div>
               </Field>
 
@@ -439,6 +467,39 @@ export default function SignupPage() {
                       </button>
                     );
                   })}
+                </div>
+              </Field>
+
+              <Field label="주거 및 생활 여건" hint="선택 입력이지만 주거·복지 자격조건 매칭 정확도를 높여요">
+                <div style={{ padding: "12px 14px", borderRadius: 12, background: "#f8fafc", border: `1px solid ${LINE2}`, fontSize: 12, color: INK2, lineHeight: 1.6 }}>
+                  입력한 표준코드는 회원가입 직후부터 추천 점수에 반영됩니다.
+                  현재 <span style={{ color: AI, fontWeight: 800 }}>{selectedStandardCodeCount}/4개</span> 선택됨
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
+                  <select style={selCss(false)} value={houseTenureCode} onChange={e => setHouseTenureCode(e.target.value)}>
+                    <option value="">주거형태 선택</option>
+                    {profileCodeOptions.houseTenure.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                  <select style={selCss(false)} value={housingTypeCode} onChange={e => setHousingTypeCode(e.target.value)}>
+                    <option value="">주택유형 선택</option>
+                    {profileCodeOptions.housingType.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                  <select style={selCss(false)} value={basicLivingRecipientTypeCode} onChange={e => setBasicLivingRecipientTypeCode(e.target.value)}>
+                    <option value="">기초생활수급권자 선택</option>
+                    {profileCodeOptions.basicLivingRecipientType.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                  <select style={selCss(false)} value={disabilityGradeCode} onChange={e => setDisabilityGradeCode(e.target.value)}>
+                    <option value="">장애등급 선택</option>
+                    {profileCodeOptions.disabilityGrade.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
                 </div>
               </Field>
 

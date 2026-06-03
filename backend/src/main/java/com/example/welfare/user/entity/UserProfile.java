@@ -40,6 +40,14 @@ public class UserProfile extends BaseTimeEntity {
 
     private String employmentStatus;
 
+    private String houseTenureCode;
+
+    private String housingTypeCode;
+
+    private String basicLivingRecipientTypeCode;
+
+    private String disabilityGradeCode;
+
     @Column(nullable = false)
     private boolean notificationYn;
 
@@ -88,6 +96,10 @@ public class UserProfile extends BaseTimeEntity {
         this.incomeLevel = user.getIncomeLevel();
         this.householdType = user.getHouseholdType();
         this.employmentStatus = user.getEmploymentStatus();
+        this.houseTenureCode = user.getHouseTenureCode();
+        this.housingTypeCode = user.getHousingTypeCode();
+        this.basicLivingRecipientTypeCode = user.getBasicLivingRecipientTypeCode();
+        this.disabilityGradeCode = user.getDisabilityGradeCode();
         this.notificationYn = user.isNotificationYn();
         this.notificationEmailYn = user.isNotificationEmailYn();
         this.notificationInAppYn = user.isNotificationInAppYn();

@@ -92,7 +92,9 @@ public class SecurityConfig {
                                 "/api/policies/search/trending",
                                 "/api/policies/search/suggestions",
                                 "/api/policies/ranking",
-                                "/api/policies/{id}"
+                                "/api/policies/{id}",
+                                "/api/reference/official-codes",
+                                "/api/reference/official-codes/**"
                         ).permitAll()
                         // Swagger UI
                         .requestMatchers(

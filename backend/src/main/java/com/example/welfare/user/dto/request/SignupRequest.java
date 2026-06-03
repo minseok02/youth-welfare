@@ -35,4 +35,12 @@ public class SignupRequest {
     private String employmentStatus;
 
     private String householdType;
+
+    private String houseTenureCode;
+
+    private String housingTypeCode;
+
+    private String basicLivingRecipientTypeCode;
+
+    private String disabilityGradeCode;
 }

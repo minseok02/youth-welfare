@@ -27,6 +27,18 @@ class RecommendationMatchingSupportTest {
     }
 
     @Test
+    @DisplayName("beneficiary bucket은 기초생활수급권자 표준 코드가 있으면 소득분위 없이도 매칭한다")
+    void matchesBeneficiaryBucketFromStandardRecipientCode() {
+        RecommendationUserSnapshot user = snapshot((byte) 5, null, null, List.of(), "1", null);
+        RecommendationCandidateProjection projection = RecommendationCandidateProjection.builder()
+                .targetGroupBuckets(Set.of(RecommendationProjectionHeuristicSupport.BENEFICIARY_SUPPORT_BUCKET))
+                .beneficiaryTerms(Set.of("기초생활수급자"))
+                .build();
+
+        assertThat(RecommendationMatchingSupport.beneficiaryBucketMatches(user, projection)).isTrue();
+    }
+
+    @Test
     @DisplayName("special target signal은 projection bucket이 있으면 raw text 없이도 true가 된다")
     void detectsSpecialTargetSignalFromProjection() {
         RecommendationCandidateProjection projection = RecommendationCandidateProjection.builder()
@@ -81,10 +93,85 @@ class RecommendationMatchingSupportTest {
         )).isTrue();
     }
 
+    @Test
+    @DisplayName("special target match는 장애등급 표준 코드가 있으면 장애 bucket과 매칭한다")
+    void matchesSpecialTargetFromDisabilityCode() {
+        RecommendationUserSnapshot user = snapshot((byte) 5, null, null, List.of(), null, "041");
+        RecommendationCandidateProjection projection = RecommendationCandidateProjection.builder()
+                .specialTargetBuckets(Set.of(RecommendationProjectionHeuristicSupport.SPECIAL_TARGET_DISABILITY))
+                .build();
+
+        assertThat(RecommendationMatchingSupport.specialTargetMatches(
+                user,
+                Set.of(),
+                WelfareService.builder().title("일반 지원").build(),
+                List.of(),
+                projection
+        )).isTrue();
+    }
+
+    @Test
+    @DisplayName("주거 프로필은 월세 표준 코드와 월세보증금 키워드를 매칭한다")
+    void matchesHousingProfileFromHouseTenureCode() {
+        RecommendationUserSnapshot user = snapshot((byte) 5, null, null, List.of(), null, null, "3", null);
+        RecommendationCandidateProjection projection = RecommendationCandidateProjection.builder()
+                .keywordTags(Set.of("월세보증금"))
+                .build();
+
+        assertThat(RecommendationMatchingSupport.housingProfileMatches(
+                user,
+                WelfareService.builder().title("청년 전월세 지원").build(),
+                List.of(),
+                projection
+        )).isTrue();
+    }
+
+    @Test
+    @DisplayName("주거 프로필은 기숙사 주택유형 코드와 기숙사 신호를 매칭한다")
+    void matchesHousingProfileFromHousingTypeCode() {
+        RecommendationUserSnapshot user = snapshot((byte) 5, null, null, List.of(), null, null, null, "7");
+
+        assertThat(RecommendationMatchingSupport.housingProfileMatches(
+                user,
+                WelfareService.builder().title("기숙사 입주 지원").build(),
+                List.of(),
+                null
+        )).isTrue();
+    }
+
     private RecommendationUserSnapshot snapshot(Byte incomeLevel,
                                                 String householdType,
                                                 String employmentStatus,
                                                 List<String> targetTypes) {
+        return snapshot(incomeLevel, householdType, employmentStatus, targetTypes, null, null);
+    }
+
+    private RecommendationUserSnapshot snapshot(Byte incomeLevel,
+                                                String householdType,
+                                                String employmentStatus,
+                                                List<String> targetTypes,
+                                                String basicLivingRecipientTypeCode,
+                                                String disabilityGradeCode) {
+        return snapshot(
+                incomeLevel,
+                householdType,
+                employmentStatus,
+                targetTypes,
+                basicLivingRecipientTypeCode,
+                disabilityGradeCode,
+                null,
+                null
+        );
+    }
+
+    private RecommendationUserSnapshot snapshot(Byte incomeLevel,
+                                                String householdType,
+                                                String employmentStatus,
+                                                List<String> targetTypes,
+                                                String basicLivingRecipientTypeCode,
+                                                String disabilityGradeCode,
+                                                String houseTenureCode,
+                                                String housingTypeCode) {
         return new RecommendationUserSnapshot(
                 1L,
                 "user-key",
@@ -96,6 +183,10 @@ class RecommendationMatchingSupportTest {
                 incomeLevel,
                 householdType,
                 employmentStatus,
+                houseTenureCode,
+                housingTypeCode,
+                basicLivingRecipientTypeCode,
+                disabilityGradeCode,
                 3,
                 null,
                 List.of(),

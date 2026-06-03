@@ -580,6 +580,53 @@ function CTASection({ navigate, teaserPolicies, onPolicyNavigate, authState }) {
   );
 }
 
+function StandardCodePromptBanner({ missingCount, filledCount, missingLabels, navigate }) {
+  if (!missingCount) return null;
+  return (
+    <section style={{
+      marginTop: 24,
+      background: "linear-gradient(135deg, #eff6ff 0%, #ffffff 100%)",
+      border: `1px solid ${LINE}`,
+      borderRadius: 20,
+      padding: "20px 22px",
+      display: "flex",
+      justifyContent: "space-between",
+      gap: 16,
+      alignItems: "center",
+      flexWrap: "wrap",
+    }}>
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 800, color: A7, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+          추천 정확도 보강
+        </div>
+        <div style={{ fontSize: 18, fontWeight: 800, color: INK, marginTop: 6, letterSpacing: "-0.02em" }}>
+          주거·복지 표준코드 {filledCount}/4개 입력됨
+        </div>
+        <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.6 }}>
+          아직 비어 있는 항목: {missingLabels.join(", ")}. 채워두면 주거·복지 자격조건 매칭과 맞춤 추천이 더 정확해집니다.
+        </div>
+      </div>
+      <button
+        onClick={() => navigate("/mypage?tab=0")}
+        style={{
+          padding: "13px 18px",
+          borderRadius: 12,
+          border: "none",
+          background: A,
+          color: "white",
+          fontSize: 14,
+          fontWeight: 700,
+          cursor: "pointer",
+          whiteSpace: "nowrap",
+          boxShadow: "0 8px 24px rgba(37,99,235,0.18)",
+        }}
+      >
+        마이페이지에서 채우기 →
+      </button>
+    </section>
+  );
+}
+
 function Spinner() {
   return (
     <div style={{ display: "flex", justifyContent: "center", padding: "48px 0" }}>
@@ -615,6 +662,9 @@ export default function MainPage() {
   const authState = {
     from: location,
   };
+  const standardCodeMissingLabels = user?.missingStandardCodeLabels ?? [];
+  const standardCodeMissingCount = user?.standardCodeMissingCount ?? standardCodeMissingLabels.length;
+  const standardCodeFilledCount = user?.standardCodeFilledCount ?? Math.max(0, 4 - standardCodeMissingCount);
 
   useEffect(() => {
     if (location.state?.reason === "admin-required") {
@@ -640,10 +690,22 @@ export default function MainPage() {
         if (!profile) {
           return;
         }
+        const standardCodeEntries = [
+          { key: "houseTenureCode", label: "주거형태" },
+          { key: "housingTypeCode", label: "주택유형" },
+          { key: "basicLivingRecipientTypeCode", label: "기초생활수급권자" },
+          { key: "disabilityGradeCode", label: "장애등급" },
+        ];
+        const missingLabels = standardCodeEntries
+          .filter((entry) => !profile[entry.key])
+          .map((entry) => entry.label);
         setUser({
           ...(profile.name ? { name: profile.name } : {}),
           ...(profile.email ? { email: profile.email } : {}),
           hasPriorities: Array.isArray(profile.priorities) && profile.priorities.length > 0,
+          standardCodeFilledCount: standardCodeEntries.length - missingLabels.length,
+          standardCodeMissingCount: missingLabels.length,
+          missingStandardCodeLabels: missingLabels,
         });
       })
       .catch((err) => {
@@ -811,6 +873,15 @@ export default function MainPage() {
               navigate={navigate}
               authState={authState}
             />
+        )}
+
+        {isLoggedIn && (
+          <StandardCodePromptBanner
+            missingCount={standardCodeMissingCount}
+            filledCount={standardCodeFilledCount}
+            missingLabels={standardCodeMissingLabels}
+            navigate={navigate}
+          />
         )}
 
         {/* 카테고리 바 */}

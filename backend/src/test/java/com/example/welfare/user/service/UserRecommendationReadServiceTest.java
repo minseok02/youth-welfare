@@ -48,6 +48,10 @@ class UserRecommendationReadServiceTest {
                 .incomeLevel((byte) 3)
                 .householdType("1인가구")
                 .employmentStatus("미취업")
+                .houseTenureCode("3")
+                .housingTypeCode("4")
+                .basicLivingRecipientTypeCode("1")
+                .disabilityGradeCode("011")
                 .displayCount(12)
                 .notificationMinScore(0.7)
                 .build();
@@ -71,5 +75,8 @@ class UserRecommendationReadServiceTest {
         assertThat(snapshot.userKey()).isEqualTo("user-key-7");
         assertThat(snapshot.sido()).isEqualTo("서울특별시");
         assertThat(snapshot.regionCode()).isEqualTo("11620");
+        assertThat(snapshot.houseTenureCode()).isEqualTo("3");
+        assertThat(snapshot.basicLivingRecipientTypeCode()).isEqualTo("1");
+        assertThat(snapshot.disabilityGradeCode()).isEqualTo("011");
     }
 }

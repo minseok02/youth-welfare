@@ -51,10 +51,19 @@ raw baseline 숫자와 full retrieval/category summary가 더 필요할 때만 [
 현재 `gov24ServiceFieldLabel` 은 `GOV24_SERVICE_FIELD` exact-label term 우선,
 `gov24UserTypeTokens`, `gov24BenefitTypeTokens` 는 allowlist token term 우선으로 읽고,
 legacy `service_taxonomies` raw summary는 canonical term이 없는 row에서만 fallback 된다.
-또한 이 term들은 official codebook 기반 hard code가 아니라 공개 Swagger상 string label을 internal canonical term으로 승격한 결과이므로,
-`service_taxonomy_terms.code_set_key` 도 현재 `null` 로 유지한다.
-즉 `Gov24` 3축은 지금 단계에서 `normalization_code_sets` FK에 기대는 stable-code taxonomy가 아니라,
-**raw exact label / allowlist token을 보존하는 label-first taxonomy term** 으로 읽는 편이 맞다.
+또한 이 term들은 public Swagger상 string label을 internal canonical term으로 승격한 결과라는 점은 그대로지만,
+현재 로컬 코드 기준으로는 더 이상 `code_set_key=null` 상태가 truth가 아니다.
+`GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE_TOKEN`, `GOV24_BENEFIT_TYPE_TOKEN` code set과
+현재 live inventory 대응 code row는 이미
+[V2026_06_01_01__seed_gov24_taxonomy_codes.sql](/home/minseok/youth-welfare/backend/src/main/resources/db/migration/V2026_06_01_01__seed_gov24_taxonomy_codes.sql:1)
+에 seed 되어 있고,
+[Gov24TaxonomyCodeSupport.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/support/Gov24TaxonomyCodeSupport.java:1)
+도 같은 inventory를 코드로 들고 있다.
+즉 `Gov24` 3축의 현재 truth는
+**public official codebook은 없지만, current live inventory를 internal stable seed/code map으로 고정한 label-first taxonomy**
+로 읽는 편이 맞다.
+`2026-06-02` live inventory와 seed/code map 일치 검증 artifact는
+`tmp/gov24-taxonomy-validation/latest-gov24-taxonomy-validation.json` 이다.
 따라서 다음 `Gov24` 작업은 자동 reopen 이 아니라,
 [policy-gov24-reopen-checklist.md](./policy-gov24-reopen-checklist.md) 기준으로
 `stable import/backfill`, `recommendation matcher hard condition`, `service_facts 승격`, `supportConditions full-scope` 중

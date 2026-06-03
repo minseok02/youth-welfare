@@ -19,6 +19,17 @@ import {
 } from "../lib/webPush";
 import { performServerLogout } from "../lib/session";
 import { useAuthStore } from "../store/authStore";
+import { fetchProfileStandardCodebookOptions } from "../lib/officialCodebookOptions";
+import {
+  REGIONS,
+  REGION_TO_SIDO,
+  SIDO_TO_REGION,
+  getDistrictOptions,
+  getWardOptions,
+  requiresWardSelection,
+  resolveRegionSelection,
+  resolveSubmittedSgg,
+} from "../lib/regionOptions";
 
 // Design tokens
 const A = "#2563eb", A7 = "#1d4ed8", AS = "#e8efff", AI = "#1e3a8a";
@@ -47,7 +58,6 @@ const PRIORITY_OPTIONS = [
   { value: "DEADLINE",      label: "마감임박",        bg: "#fee2e2" },
 ];
 
-const REGIONS = ["서울","부산","대구","인천","광주","대전","울산","세종","경기","강원","충북","충남","전북","전남","경북","경남","제주"];
 const HOUSEHOLD_TYPES = ["1인가구", "한부모", "다자녀", "조손", "기타"];
 const TARGET_TYPE_OPTIONS = ["농어촌", "자립준비청년", "가족돌봄", "다문화", "북한이탈", "한부모", "조손", "보훈", "장애", "병역"];
 const NOTIFICATION_SCORE_OPTIONS = [
@@ -57,42 +67,11 @@ const NOTIFICATION_SCORE_OPTIONS = [
   { value: 0.9, label: "매우 높은 추천만" },
 ];
 const DISPLAY_COUNT_OPTIONS = [5, 10, 20, 30];
-
-const SIDO_TO_REGION = {
-  "서울특별시": "서울", "부산광역시": "부산", "대구광역시": "대구",
-  "인천광역시": "인천", "광주광역시": "광주", "대전광역시": "대전",
-  "울산광역시": "울산", "세종특별자치시": "세종", "경기도": "경기",
-  "강원특별자치도": "강원", "충청북도": "충북", "충청남도": "충남",
-  "전북특별자치도": "전북", "전라남도": "전남", "경상북도": "경북",
-  "경상남도": "경남", "제주특별자치도": "제주",
-};
-
-const REGION_TO_SIDO = {
-  "서울": "서울특별시", "부산": "부산광역시", "대구": "대구광역시",
-  "인천": "인천광역시", "광주": "광주광역시", "대전": "대전광역시",
-  "울산": "울산광역시", "세종": "세종특별자치시", "경기": "경기도",
-  "강원": "강원특별자치도", "충북": "충청북도", "충남": "충청남도",
-  "전북": "전북특별자치도", "전남": "전라남도", "경북": "경상북도",
-  "경남": "경상남도", "제주": "제주특별자치도",
-};
-
-const DISTRICT_MAP = {
-  "서울": ["강남구","강동구","강북구","강서구","관악구","광진구","구로구","금천구","노원구","도봉구","동대문구","동작구","마포구","서대문구","서초구","성동구","성북구","송파구","양천구","영등포구","용산구","은평구","종로구","중구","중랑구"],
-  "부산": ["강서구","금정구","기장군","남구","동구","동래구","부산진구","북구","사상구","사하구","서구","수영구","연제구","영도구","중구","해운대구"],
-  "대구": ["남구","달서구","달성군","동구","북구","서구","수성구","중구"],
-  "인천": ["강화군","계양구","남동구","동구","미추홀구","부평구","서구","연수구","옹진군","중구"],
-  "광주": ["광산구","남구","동구","북구","서구"],
-  "대전": ["대덕구","동구","서구","유성구","중구"],
-  "울산": ["남구","동구","북구","울주군","중구"],
-  "경기": ["가평군","고양시","과천시","광명시","광주시","구리시","군포시","김포시","남양주시","동두천시","부천시","성남시","수원시","시흥시","안산시","안성시","안양시","양주시","양평군","여주시","연천군","오산시","용인시","의왕시","의정부시","이천시","파주시","평택시","포천시","하남시","화성시"],
-  "강원": ["강릉시","고성군","동해시","삼척시","속초시","양구군","양양군","영월군","원주시","인제군","정선군","철원군","춘천시","태백시","평창군","홍천군","화천군","횡성군"],
-  "충북": ["괴산군","단양군","보은군","영동군","옥천군","음성군","제천시","증평군","진천군","청주시","충주시"],
-  "충남": ["계룡시","공주시","금산군","논산시","당진시","보령시","부여군","서산시","서천군","아산시","예산군","천안시","청양군","태안군","홍성군"],
-  "전북": ["고창군","군산시","김제시","남원시","무주군","부안군","순창군","완주군","익산시","임실군","장수군","전주시","정읍시","진안군"],
-  "전남": ["강진군","고흥군","곡성군","광양시","구례군","나주시","담양군","목포시","무안군","보성군","순천시","신안군","여수시","영광군","영암군","완도군","장성군","장흥군","진도군","함평군","해남군","화순군"],
-  "경북": ["경산시","경주시","고령군","구미시","군위군","김천시","문경시","봉화군","상주시","성주군","안동시","영덕군","영양군","영주시","영천시","예천군","울릉군","울진군","의성군","청도군","청송군","칠곡군","포항시"],
-  "경남": ["거제시","거창군","고성군","김해시","남해군","밀양시","사천시","산청군","양산시","의령군","진주시","창녕군","창원시","통영시","하동군","함안군","함양군","합천군"],
-  "제주": ["서귀포시","제주시"],
+const EMPTY_PROFILE_CODE_OPTIONS = {
+  houseTenure: [],
+  housingType: [],
+  basicLivingRecipientType: [],
+  disabilityGrade: [],
 };
 
 const TAB_IDS = ['info', 'pref', 'bookmark', 'noti', 'filter', 'account'];
@@ -278,6 +257,63 @@ function ProfileBanner({ pct, missing, onComplete }) {
   );
 }
 
+function StandardCodePromptCard({ missing, filledCount, onComplete, editing }) {
+  if (missing.length === 0) {
+    return null;
+  }
+
+  return (
+    <div style={{
+      background: "linear-gradient(135deg, #eff6ff 0%, #ffffff 100%)",
+      border: `1px solid ${LINE}`,
+      borderRadius: 18,
+      padding: 20,
+      marginBottom: 16,
+      display: "grid",
+      gridTemplateColumns: "1fr auto",
+      gap: 16,
+      alignItems: "center",
+    }}>
+      <div>
+        <div style={{ fontSize: 15, fontWeight: 800, color: INK, marginBottom: 6 }}>
+          주거·복지 표준코드를 더 채우면 추천 정확도가 올라갑니다
+        </div>
+        <div style={{ fontSize: 13, color: INK2, marginBottom: 10 }}>
+          현재 {filledCount}/4개 입력됨. 주거형태, 주택유형, 기초생활수급권자, 장애등급은 자격조건 매칭과 점수 보정에 바로 쓰입니다.
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {missing.map((label) => (
+            <span
+              key={label}
+              style={{ fontSize: 12, color: AI, background: WHITE, padding: "4px 10px", borderRadius: 99, fontWeight: 700, border: `1px solid ${LINE}` }}
+            >
+              {label} 미입력
+            </span>
+          ))}
+        </div>
+      </div>
+      <button
+        onClick={onComplete}
+        style={{
+          padding: "12px 18px",
+          borderRadius: 10,
+          border: 0,
+          background: A,
+          color: WHITE,
+          fontSize: 13,
+          fontWeight: 700,
+          cursor: "pointer",
+          whiteSpace: "nowrap",
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = A7; }}
+        onMouseLeave={e => { e.currentTarget.style.background = A; }}
+      >
+        {editing ? "입력 섹션으로 이동" : "지금 입력하기 →"}
+      </button>
+    </div>
+  );
+}
+
 function SidebarNav({ active, onChange, bookmarkCount, alertUnreadCount }) {
   const isMobile = useMediaQuery("(max-width: 1199px)");
 
@@ -363,6 +399,24 @@ export default function MyPage() {
   const [toast, setToast] = useState({ open: false, msg: "", severity: "success" });
   const showToast = useCallback((msg, severity = "success") => setToast({ open: true, msg, severity }), []);
 
+  useEffect(() => {
+    let active = true;
+    fetchProfileStandardCodebookOptions()
+      .then((options) => {
+        if (active) {
+          setProfileCodeOptions(options);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          showToast("공식 코드 목록을 불러오지 못했습니다", "warning");
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [showToast]);
+
   const handleTabChange = useCallback((nextTabId) => {
     const nextTabIndex = resolveTabIndex(nextTabId);
     if (searchParams.get("tab") === nextTabIndex) {
@@ -403,8 +457,11 @@ export default function MyPage() {
   const [myInfo, setMyInfo] = useState({
     name: "", email: user?.email ?? "",
     birthYear: "", birthMonth: "", birthDay: "",
-    region: "", subRegion: "", income: "", employ: "", householdType: "",
+    region: "", subRegion: "", ward: "", income: "", employ: "", householdType: "",
+    houseTenureCode: "", housingTypeCode: "",
+    basicLivingRecipientTypeCode: "", disabilityGradeCode: "",
   });
+  const [profileCodeOptions, setProfileCodeOptions] = useState(EMPTY_PROFILE_CODE_OPTIONS);
   const [profileCompleteness, setProfileCompleteness] = useState(null);
   const [profileAgeBand, setProfileAgeBand] = useState("");
   const [hasPhone, setHasPhone] = useState(false);
@@ -461,12 +518,30 @@ export default function MyPage() {
   const [pwLoading, setPwLoading] = useState(false);
   const [withdrawModal, setWithdrawModal] = useState(false);
   const [withdrawPw, setWithdrawPw] = useState("");
+  const districtOptions = getDistrictOptions(myInfo.region);
+  const wardOptions = getWardOptions(myInfo.region, myInfo.subRegion);
+  const isWardRequired = requiresWardSelection(myInfo.region, myInfo.subRegion);
+  const standardCodeMissingLabels = [
+    !myInfo.houseTenureCode && "주거형태",
+    !myInfo.housingTypeCode && "주택유형",
+    !myInfo.basicLivingRecipientTypeCode && "기초생활수급권자",
+    !myInfo.disabilityGradeCode && "장애등급",
+  ].filter(Boolean);
+  const standardCodeFilledCount = 4 - standardCodeMissingLabels.length;
+  const standardCodeBannerLabel = standardCodeMissingLabels.length > 0
+    ? `주거·복지 표준코드 ${standardCodeFilledCount}/4`
+    : null;
 
   // completion
+  const hasCompleteAddress = Boolean(
+    myInfo.region
+    && myInfo.subRegion
+    && (!isWardRequired || myInfo.ward)
+  );
   const localCompletionScore = [
     myInfo.name ? 20 : 0,
     myInfo.birthYear ? 20 : 0,
-    myInfo.region ? 10 : 0,
+    hasCompleteAddress ? 10 : 0,
     myInfo.income ? 10 : 0,
     myInfo.employ ? 10 : 0,
     myInfo.householdType ? 10 : 0,
@@ -477,20 +552,31 @@ export default function MyPage() {
   const missingLabels = [
     !myInfo.name && "이름",
     !myInfo.birthYear && "생년월일",
-    !myInfo.region && "주소",
+    !hasCompleteAddress && "주소",
     !myInfo.income && "소득수준",
     !myInfo.employ && "취업상태",
     !myInfo.householdType && "가구 형태",
+    standardCodeBannerLabel,
     priorities.length === 0 && "추천 우선순위",
   ].filter(Boolean);
   const nextCompletionTab = (
     !myInfo.name
     || !myInfo.birthYear
-    || !myInfo.region
+    || !hasCompleteAddress
     || !myInfo.income
     || !myInfo.employ
     || !myInfo.householdType
   ) ? "info" : "pref";
+
+  const focusStandardCodeSection = useCallback(() => {
+    setEditing(true);
+    window.setTimeout(() => {
+      document.getElementById("profile-standard-code-section")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 0);
+  }, []);
 
   // ── Data fetch ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -506,17 +592,24 @@ export default function MyPage() {
         const { data } = await api.get("/api/users/me", { signal: controller.signal });
         const p = data.data ?? {};
         const bd = p.birthDate ? p.birthDate.split("-") : ["", "", ""];
+        const region = SIDO_TO_REGION[p.sido] ?? p.sido ?? "";
+        const { subRegion, ward } = resolveRegionSelection(region, p.sgg ?? "");
         setMyInfo({
           name: p.name ?? "",
           email: p.email ?? "",
           birthYear: bd[0] ?? "",
           birthMonth: bd[1] ? String(parseInt(bd[1])) : "",
           birthDay:   bd[2] ? String(parseInt(bd[2])) : "",
-          region:     SIDO_TO_REGION[p.sido] ?? p.sido ?? "",
-          subRegion:  p.sgg ?? "",
+          region,
+          subRegion,
+          ward,
           income:     p.incomeLevel != null ? String(p.incomeLevel) : "",
           employ:     p.employmentStatus ?? "",
           householdType: p.householdType ?? "",
+          houseTenureCode: p.houseTenureCode ?? "",
+          housingTypeCode: p.housingTypeCode ?? "",
+          basicLivingRecipientTypeCode: p.basicLivingRecipientTypeCode ?? "",
+          disabilityGradeCode: p.disabilityGradeCode ?? "",
         });
         setProfileCompleteness(Number.isFinite(p.profileCompleteness) ? p.profileCompleteness : null);
         setProfileAgeBand(p.ageBand ?? "");
@@ -592,18 +685,27 @@ export default function MyPage() {
       const birthDate = myInfo.birthYear && myInfo.birthMonth && myInfo.birthDay
         ? `${myInfo.birthYear}-${String(myInfo.birthMonth).padStart(2,"0")}-${String(myInfo.birthDay).padStart(2,"0")}`
         : undefined;
+      const submittedSgg = resolveSubmittedSgg(myInfo.region, myInfo.subRegion, myInfo.ward);
       await api.put("/api/users/me", {
         name:             myInfo.name || undefined,
         birthDate,
         sido:             myInfo.region ? (REGION_TO_SIDO[myInfo.region] ?? myInfo.region) : undefined,
-        sgg:              myInfo.subRegion || undefined,
+        sgg:              submittedSgg,
         incomeLevel:      myInfo.income ? parseInt(myInfo.income) : undefined,
         householdType:    myInfo.householdType || undefined,
         employmentStatus: myInfo.employ || undefined,
+        houseTenureCode:  myInfo.houseTenureCode || undefined,
+        housingTypeCode:  myInfo.housingTypeCode || undefined,
+        basicLivingRecipientTypeCode: myInfo.basicLivingRecipientTypeCode || undefined,
+        disabilityGradeCode: myInfo.disabilityGradeCode || undefined,
       });
       setProfileCompleteness(localCompletionPct);
       setEditing(false);
-      showToast("저장되었습니다");
+      if (standardCodeMissingLabels.length === 0) {
+        showToast("저장되었습니다. 주거·복지 표준코드 4개가 추천에 반영됩니다");
+      } else {
+        showToast(`저장되었습니다. 주거·복지 표준코드 ${standardCodeFilledCount}/4개 입력됨`);
+      }
     } catch {
       showToast("저장에 실패했습니다", "error");
     } finally {
@@ -1118,15 +1220,21 @@ export default function MyPage() {
                 </SectionCard>
 
                 <SectionCard title="거주지" desc="지자체별 정책 추천에 사용돼요">
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                    <select style={selCss(!editing)} disabled={!editing} value={myInfo.region} onChange={e => setMyInfo({ ...myInfo, region: e.target.value, subRegion: "" })}>
+                  <div style={{ display: "grid", gridTemplateColumns: wardOptions.length > 0 ? "1fr 1fr 1fr" : "1fr 1fr", gap: 12 }}>
+                    <select style={selCss(!editing)} disabled={!editing} value={myInfo.region} onChange={e => setMyInfo({ ...myInfo, region: e.target.value, subRegion: "", ward: "" })}>
                       <option value="">시/도 선택</option>
                       {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
                     </select>
-                    <select style={selCss(!editing || !DISTRICT_MAP[myInfo.region])} disabled={!editing || !DISTRICT_MAP[myInfo.region]} value={myInfo.subRegion} onChange={e => setMyInfo({ ...myInfo, subRegion: e.target.value })}>
+                    <select style={selCss(!editing || districtOptions.length === 0)} disabled={!editing || districtOptions.length === 0} value={myInfo.subRegion} onChange={e => setMyInfo({ ...myInfo, subRegion: e.target.value, ward: "" })}>
                       <option value="">시/군/구 선택</option>
-                      {(DISTRICT_MAP[myInfo.region] || []).map(d => <option key={d} value={d}>{d}</option>)}
+                      {districtOptions.map(d => <option key={d} value={d}>{d}</option>)}
                     </select>
+                    {wardOptions.length > 0 && (
+                      <select style={selCss(!editing)} disabled={!editing} value={myInfo.ward} onChange={e => setMyInfo({ ...myInfo, ward: e.target.value })}>
+                        <option value="">구 선택</option>
+                        {wardOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+                      </select>
+                    )}
                   </div>
                 </SectionCard>
 
@@ -1197,6 +1305,72 @@ export default function MyPage() {
                     })}
                   </div>
                 </SectionCard>
+
+                <StandardCodePromptCard
+                  missing={standardCodeMissingLabels}
+                  filledCount={standardCodeFilledCount}
+                  onComplete={focusStandardCodeSection}
+                  editing={editing}
+                />
+
+                <div id="profile-standard-code-section">
+                <SectionCard title="주거 및 생활 여건" desc="공식 코드북 기준으로 저장되어 주거·복지 자격조건 매칭 정확도를 높여요">
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
+                    <Field label="주거형태">
+                      <select
+                        style={selCss(!editing)}
+                        disabled={!editing}
+                        value={myInfo.houseTenureCode}
+                        onChange={e => setMyInfo({ ...myInfo, houseTenureCode: e.target.value })}
+                      >
+                        <option value="">선택 안 함</option>
+                        {profileCodeOptions.houseTenure.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="주택유형">
+                      <select
+                        style={selCss(!editing)}
+                        disabled={!editing}
+                        value={myInfo.housingTypeCode}
+                        onChange={e => setMyInfo({ ...myInfo, housingTypeCode: e.target.value })}
+                      >
+                        <option value="">선택 안 함</option>
+                        {profileCodeOptions.housingType.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="기초생활수급권자">
+                      <select
+                        style={selCss(!editing)}
+                        disabled={!editing}
+                        value={myInfo.basicLivingRecipientTypeCode}
+                        onChange={e => setMyInfo({ ...myInfo, basicLivingRecipientTypeCode: e.target.value })}
+                      >
+                        <option value="">선택 안 함</option>
+                        {profileCodeOptions.basicLivingRecipientType.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="장애등급">
+                      <select
+                        style={selCss(!editing)}
+                        disabled={!editing}
+                        value={myInfo.disabilityGradeCode}
+                        onChange={e => setMyInfo({ ...myInfo, disabilityGradeCode: e.target.value })}
+                      >
+                        <option value="">선택 안 함</option>
+                        {profileCodeOptions.disabilityGrade.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                    </Field>
+                  </div>
+                </SectionCard>
+                </div>
 
                 <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
                   <button onClick={() => setEditing(!editing)} style={{

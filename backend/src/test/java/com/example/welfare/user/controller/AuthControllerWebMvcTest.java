@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.http.HttpHeaders;
 import org.springframework.test.web.servlet.MockMvc;
@@ -36,23 +36,23 @@ class AuthControllerWebMvcTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private AuthAvailabilityService authAvailabilityService;
-    @MockBean
+    @MockitoBean
     private AuthRateLimitService authRateLimitService;
-    @MockBean
+    @MockitoBean
     private ClientFingerprintService clientFingerprintService;
-    @MockBean
+    @MockitoBean
     private EmailVerificationService emailVerificationService;
-    @MockBean
+    @MockitoBean
     private AuthSignupService authSignupService;
-    @MockBean
+    @MockitoBean
     private AuthLoginService authLoginService;
-    @MockBean
+    @MockitoBean
     private AuthSessionService authSessionService;
-    @MockBean
+    @MockitoBean
     private PasswordResetService passwordResetService;
-    @MockBean
+    @MockitoBean
     private JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @Test
