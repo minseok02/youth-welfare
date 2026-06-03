@@ -6846,6 +6846,16 @@ admin API와 latest artifact에
 
 ## 1058) `latest-status-export` 단독값과 reopen precheck/current priority가 다르면 readiness 포함 여부를 먼저 봐야 한다
 
+## 1059) 지역 추천 오추천은 current query bug와 old saved batch를 분리해서 봐야 같은 수정을 반복하지 않는다
+- 문제: 사용자가 “다른 지역 정책이 추천된다”고 보면 바로 recommendation SQL을 다시 의심하기 쉽다. 하지만 실제 latest saved batch를 다시 읽어보면, current query recompute에서는 이미 빠진 `GOV24` 로컬 정책이 과거 `user_recommendations` 저장 row에만 남아 있는 경우가 있었다. 이 둘을 섞어 읽으면 이미 고친 retrieval/fallback 쿼리를 또 손보게 된다.
+- 해결: current query 쪽은 `BOKJIRO_LOCAL/GOV24` regionless row를 전국 정책처럼 섞지 않게 하고, same-sido fallback도 사용자 `sgg` 가 있을 때는 같은 시군구만 허용하도록 줄였다. 그 다음 별도 lane으로 `run-local-recommendation-region-mismatch-audit.sh`, `run-local-recommendation-region-mismatch-repair.sh`, `recommendation-region-mismatch-repair-runbook.md` 를 추가해 saved batch 잔량을 `audit -> bounded refresh repair -> re-audit` 순서로 다루게 고정했다.
+- 이유: 현재 쿼리 결함과 저장 배치 청소 문제는 대응 수단이 다르다. 전자는 코드 수정, 후자는 bounded refresh repair 이므로 처음부터 분리해 읽는 편이 재발 방지에 맞다.
+
+## 1060) stale saved recommendation repair는 전체 일괄 실행보다 작은 user batch 반복이 더 안전하다
+- 문제: `REGION_MISMATCH` saved row를 없애려고 affected user 전부에 `personal=true refresh` 를 한 번에 태우면 실행 시간이 길고 interactive 작업에서는 중간 상태만 남기기 쉽다. 특히 user별 HTTP refresh를 순차 호출하는 경로는 수백 명 단위에서 turn 시간을 쉽게 넘긴다.
+- 해결: repair 스크립트는 `USER_LIMIT`, `DRY_RUN` 을 기본 인자로 두고 작은 배치 반복을 기본 운영 패턴으로 잡았다. closeout 시점에도 `USER_LIMIT=25~100` 정도의 bounded run을 반복하면서 audit 수치가 `affected_users=481 -> 454`, `mismatch_rows=713 -> 587` 로 줄어드는 것을 확인했다.
+- 이유: 이 lane의 목적은 “빠르게 전부 끝내기”보다 “현재 저장 batch를 안전하게 청소하면서 감소 추세를 확인하는 것”이다. bounded repair가 있으면 서버/RDS에서도 같은 절차를 낮은 리스크로 반복할 수 있다.
+
 - 문제: 같은 시점에 `latest-status-export` 는 `WAIT_FOR_REAL_USER_TRAFFIC` 로 보이는데 current priority suite 와 real-user precheck 는 `REOPEN_DECISION_READY` 로 닫히는 상황이 있었다. 이름만 보고 latest export 하나를 source of truth 로 삼으면 reopen 판단을 잘못 막게 된다.
 - 해결: reopen decision 은 latest overview, real-user readiness precheck, current priority suite 를 같이 읽는다. baseline/drift helper 성격의 latest export 단독값은 보조 signal 로만 본다.
 - 이유: 둘 다 "latest" 를 말하지만 포함하는 readiness 범위가 다르다. 운영 판단 문서에는 `decision_class=REOPEN_DECISION_READY`, `reopen_allowed=true`, real-user gate ready 값을 함께 남겨 혼선을 줄인다.
