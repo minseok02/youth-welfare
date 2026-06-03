@@ -37,30 +37,47 @@ public class ChatConversationContextSupport {
 
     public ConversationContext resolve(String question,
                                        String requestedBranchKey,
+                                       String sessionContextStateJson,
                                        List<ChatMessage> recentMessages,
                                        List<ChatRetrievalSnapshot> recentSnapshots) {
         String normalizedQuestion = normalize(question);
         String previousUserQuestion = findPreviousUserQuestion(normalizedQuestion, recentMessages);
+        ChatSessionContextState sessionContextState = parseSessionContextState(sessionContextStateJson);
+        ChatSessionContextState.HousingContext housingContext = sessionContextState != null
+                ? sessionContextState.getHousing()
+                : null;
         String suggestedBranchKey = findSuggestedBranchMatch(normalizedQuestion, recentSnapshots);
         String inheritedBranchKey = findLatestBranchKey(recentSnapshots);
+        String housingBranchKey = findHousingBranchMatch(normalizedQuestion, housingContext);
         String effectiveBranchKey = StringUtils.hasText(requestedBranchKey)
                 ? requestedBranchKey.trim()
                 : StringUtils.hasText(suggestedBranchKey)
                 ? suggestedBranchKey
+                : StringUtils.hasText(housingBranchKey)
+                ? housingBranchKey
                 : inheritedBranchKey;
 
-        boolean followUp = shouldTreatAsFollowUp(normalizedQuestion, previousUserQuestion, effectiveBranchKey, suggestedBranchKey);
-        String retrievalQuestion = followUp
-                ? previousUserQuestion + "\n후속 질문: " + normalizedQuestion
-                : normalizedQuestion;
+        boolean followUp = shouldTreatAsFollowUp(normalizedQuestion, previousUserQuestion, effectiveBranchKey, suggestedBranchKey, housingContext);
+        String retrievalQuestion = buildRetrievalQuestion(normalizedQuestion, previousUserQuestion, housingContext, effectiveBranchKey, followUp);
 
-        String conversationSummary = buildConversationSummary(previousUserQuestion, effectiveBranchKey, recentMessages, recentSnapshots);
+        String conversationSummary = buildConversationSummary(previousUserQuestion, effectiveBranchKey, recentMessages, recentSnapshots, housingContext);
         return new ConversationContext(
                 retrievalQuestion,
                 effectiveBranchKey,
                 conversationSummary,
                 followUp
         );
+    }
+
+    private ChatSessionContextState parseSessionContextState(String sessionContextStateJson) {
+        if (!StringUtils.hasText(sessionContextStateJson)) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(sessionContextStateJson, ChatSessionContextState.class);
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private String findPreviousUserQuestion(String currentQuestion, List<ChatMessage> recentMessages) {
@@ -92,6 +109,17 @@ public class ChatConversationContextSupport {
         return chatBranchCatalog.matchSuggestedBranchQuestion(question, latestSuggestedBranchKeys)
                 .map(ChatBranchCatalog.BranchDefinition::branchKey)
                 .orElse(null);
+    }
+
+    private String findHousingBranchMatch(String question, ChatSessionContextState.HousingContext housingContext) {
+        if (housingContext == null) {
+            return null;
+        }
+        return chatBranchCatalog.matchHousingQuestion(question)
+                .map(ChatBranchCatalog.BranchDefinition::branchKey)
+                .orElseGet(() -> isShortHousingFollowUp(question, housingContext)
+                        ? normalize(housingContext.getActiveBranchKey())
+                        : null);
     }
 
     private List<String> findLatestSuggestedBranchKeys(List<ChatRetrievalSnapshot> recentSnapshots) {
@@ -133,15 +161,16 @@ public class ChatConversationContextSupport {
     }
 
     private boolean shouldTreatAsFollowUp(String question, String previousUserQuestion, String inheritedBranchKey) {
-        return shouldTreatAsFollowUp(question, previousUserQuestion, inheritedBranchKey, null);
+        return shouldTreatAsFollowUp(question, previousUserQuestion, inheritedBranchKey, null, null);
     }
 
     private boolean shouldTreatAsFollowUp(String question,
                                           String previousUserQuestion,
                                           String inheritedBranchKey,
-                                          String suggestedBranchKey) {
+                                          String suggestedBranchKey,
+                                          ChatSessionContextState.HousingContext housingContext) {
         if (!StringUtils.hasText(question) || !StringUtils.hasText(previousUserQuestion)) {
-            return false;
+            return isShortHousingFollowUp(question, housingContext);
         }
         if (question.length() <= SHORT_FOLLOW_UP_MAX_LENGTH) {
             return true;
@@ -156,6 +185,10 @@ public class ChatConversationContextSupport {
             return true;
         }
 
+        if (isShortHousingFollowUp(question, housingContext)) {
+            return true;
+        }
+
         if (!StringUtils.hasText(inheritedBranchKey)) {
             return false;
         }
@@ -164,10 +197,50 @@ public class ChatConversationContextSupport {
         return question.length() <= BRIEF_FOLLOW_UP_MAX_LENGTH && tokens.size() <= 4;
     }
 
+    private boolean isShortHousingFollowUp(String question, ChatSessionContextState.HousingContext housingContext) {
+        if (housingContext == null || !StringUtils.hasText(housingContext.getActiveBranchKey())) {
+            return false;
+        }
+        if (!chatBranchCatalog.isHousingBranchKey(housingContext.getActiveBranchKey())) {
+            return false;
+        }
+        List<String> housingTopics = chatBranchCatalog.extractHousingTopics(question, null);
+        return question.length() <= BRIEF_FOLLOW_UP_MAX_LENGTH
+                && (!housingTopics.isEmpty() || FOLLOW_UP_MARKERS.stream().anyMatch(question::contains));
+    }
+
+    private String buildRetrievalQuestion(String question,
+                                          String previousUserQuestion,
+                                          ChatSessionContextState.HousingContext housingContext,
+                                          String effectiveBranchKey,
+                                          boolean followUp) {
+        if (housingContext != null && chatBranchCatalog.isHousingBranchKey(effectiveBranchKey)) {
+            List<String> parts = new ArrayList<>();
+            String anchorQuestion = normalize(housingContext.getAnchorQuestion());
+            if (StringUtils.hasText(anchorQuestion)) {
+                parts.add(anchorQuestion);
+            } else if (StringUtils.hasText(previousUserQuestion)) {
+                parts.add(previousUserQuestion);
+            }
+            if (housingContext.getRecentTopics() != null && !housingContext.getRecentTopics().isEmpty()) {
+                parts.add("주거 관심 맥락: " + String.join(", ", housingContext.getRecentTopics()));
+            }
+            if (housingContext.getRecentPolicyTitles() != null && !housingContext.getRecentPolicyTitles().isEmpty()) {
+                parts.add("최근 주거 정책: " + String.join(", ", housingContext.getRecentPolicyTitles().stream().limit(3).toList()));
+            }
+            parts.add((followUp ? "후속 질문: " : "현재 질문: ") + question);
+            return String.join("\n", parts);
+        }
+        return followUp && StringUtils.hasText(previousUserQuestion)
+                ? previousUserQuestion + "\n후속 질문: " + question
+                : question;
+    }
+
     private String buildConversationSummary(String previousUserQuestion,
                                             String inheritedBranchKey,
                                             List<ChatMessage> recentMessages,
-                                            List<ChatRetrievalSnapshot> recentSnapshots) {
+                                            List<ChatRetrievalSnapshot> recentSnapshots,
+                                            ChatSessionContextState.HousingContext housingContext) {
         List<String> lines = new ArrayList<>();
         if (StringUtils.hasText(previousUserQuestion)) {
             lines.add("직전 사용자 질문: " + trimToLength(previousUserQuestion, 120));
@@ -191,6 +264,10 @@ public class ChatConversationContextSupport {
         List<String> recentSuggestedBranches = findRecentSuggestedBranchLabels(recentSnapshots);
         if (!recentSuggestedBranches.isEmpty()) {
             lines.add("최근 제안 갈래: " + String.join(", ", recentSuggestedBranches));
+        }
+
+        if (housingContext != null && housingContext.getRecentTopics() != null && !housingContext.getRecentTopics().isEmpty()) {
+            lines.add("주거 세션 상태: " + String.join(", ", housingContext.getRecentTopics()));
         }
 
         List<String> recentPolicyTitles = findRecentReferencedPolicyTitles(recentMessages);

@@ -15,9 +15,21 @@
 - 2026-06-03 기준 continuity 보강으로 짧은 후속 질문은 `직전 질문 + 직전 branch + 직전 추천 정책` 맥락을 retrieval/AI prompt에 bounded 하게 다시 싣습니다.
 - 2026-06-03 기준 branch suggestion 다음의 자유 입력(`월세 쪽으로`, `청약으로`)도 최근 `branchSuggestionKeysJson` 안에서 leaf branch를 다시 해석해 retrieval branch로 계승합니다.
 - 2026-06-03 기준 prompt에는 `최근 질문 흐름`, `최근 탐색 흐름`, `최근 제안 갈래`, `최근 추천 정책`을 묶은 bounded session summary memory도 같이 실립니다.
+- 2026-06-03 기준 `chat_sessions.context_state_json` 에 주거 도메인 한정 구조화 세션 상태를 저장합니다. 현재 저장 범위는 `activeBranchKey`, `anchorQuestion`, `recentTopics`, `recentPolicyTitles/Ids`, `suggestedBranchKeys` 이고, 긴 자연어 요약 전체를 DB에 저장하는 방식은 아직 열지 않았습니다.
 - 로컬 follow-up runtime QA는 [run-local-chat-followup-smoke.sh](/home/minseok/youth-welfare/deploy/smoke/run-local-chat-followup-smoke.sh:1) 로 `첫 질문 -> 후속 질문 -> messages 확인` 경로를 bounded 하게 재검증합니다.
 - 실사용 판단용 follow-up 시나리오 QA는 [run-local-chat-followup-scenario-audit.sh](/home/minseok/youth-welfare/deploy/smoke/run-local-chat-followup-scenario-audit.sh:1) 로 `주거 follow-up`, `branch suggestion 자유 입력`, `혼합 주제`, `일자리 자유 입력`을 묶어 확인합니다.
+- 같은 시나리오 audit 기준으로 주거 한정 구조화 memory 도입 전 결과는 `POLICY_GROUNDED 1 / CLARIFICATION 3 / decision=CONSIDER_LONG_TERM_MEMORY` 였고, 도입 후에는 `POLICY_GROUNDED 3 / CLARIFICATION 1 / decision=HOLD_LONG_TERM_MEMORY` 로 개선됐습니다. 남은 `CLARIFICATION` 1건은 `서울 월세 지원 알려줘 -> 그럼 전세는?` 단일 housing follow-up 입니다.
 - 아직 하지 않은 것은 DB에 별도 저장되는 장기 세션 요약/압축(memory persistence)과 multi-turn 전용 ranking 재학습입니다.
+
+## 왜 주거만 먼저 붙였는가
+
+- 이번 continuity QA에서 실제로 깨지던 축이 주거 follow-up 이었습니다.
+- `housing-followup`, `housing-branch-freeform`, `mixed-topic-memory` 는 기존 구조에서 마지막 턴이 `CLARIFICATION` 으로 끝났고, 반면 `job-branch-freeform` 은 `POLICY_GROUNDED` 로 유지됐습니다.
+- 그래서 처음부터 전 도메인 long-term memory를 열기보다, 문제 구간이 분명한 `housing-*` branch에만 구조화 state를 먼저 붙였습니다.
+- 이 선택은 구현 범위를 줄이기 위한 임의 축소가 아니라, 시나리오 측정 결과에 따라 memory 오염 범위를 통제하기 위한 의도적 제한입니다.
+- 현재 판단 기준은 이렇습니다.
+  - 주거 한정 state만으로도 `3/4` 시나리오가 grounded 되면 전 도메인 long-term memory는 보류
+  - 그래도 housing follow-up 이 계속 clarification 위주면 그때만 다음 단계 memory를 검토
 
 ## 설계 원칙
 

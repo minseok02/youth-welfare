@@ -130,6 +130,22 @@ public class ChatBranchCatalog {
                 .collect(Collectors.toList());
     }
 
+    public boolean isHousingBranchKey(String branchKey) {
+        return findByKey(branchKey)
+                .map(definition -> definition.topLevelLabel().equals("주거"))
+                .orElse(false);
+    }
+
+    public List<String> filterHousingBranchKeys(List<String> branchKeys) {
+        if (branchKeys == null || branchKeys.isEmpty()) {
+            return List.of();
+        }
+        return branchKeys.stream()
+                .filter(this::isHousingBranchKey)
+                .distinct()
+                .toList();
+    }
+
     public Optional<BranchDefinition> matchSuggestedBranchQuestion(String question, List<String> branchKeys) {
         if (!StringUtils.hasText(question) || branchKeys == null || branchKeys.isEmpty()) {
             return Optional.empty();
@@ -155,6 +171,34 @@ public class ChatBranchCatalog {
             return Optional.empty();
         }
         return Optional.of(scoredBranches.get(0).definition());
+    }
+
+    public Optional<BranchDefinition> matchHousingQuestion(String question) {
+        if (!StringUtils.hasText(question)) {
+            return Optional.empty();
+        }
+        List<String> housingBranchKeys = DEFINITIONS.stream()
+                .filter(definition -> definition.topLevelLabel().equals("주거"))
+                .map(BranchDefinition::branchKey)
+                .toList();
+        return matchSuggestedBranchQuestion(question, housingBranchKeys);
+    }
+
+    public List<String> extractHousingTopics(String question, String branchKey) {
+        if (!StringUtils.hasText(question) && !StringUtils.hasText(branchKey)) {
+            return List.of();
+        }
+        List<String> tokens = SearchKeywordSupport.extractTokens(question);
+        List<String> topics = new ArrayList<>();
+
+        findByKey(branchKey)
+                .filter(definition -> definition.topLevelLabel().equals("주거"))
+                .ifPresent(definition -> topics.addAll(definition.matchedKeywords(tokens)));
+
+        if (topics.isEmpty()) {
+            matchHousingQuestion(question).ifPresent(definition -> topics.addAll(definition.matchedKeywords(tokens)));
+        }
+        return topics.stream().distinct().limit(4).toList();
     }
 
     private Optional<String> detectBroadTopLevel(List<String> tokens) {
@@ -192,6 +236,14 @@ public class ChatBranchCatalog {
                 }
             }
             return score;
+        }
+
+        List<String> matchedKeywords(List<String> questionTokens) {
+            Set<String> tokenSet = Set.copyOf(questionTokens);
+            return matchKeywords().stream()
+                    .filter(tokenSet::contains)
+                    .distinct()
+                    .toList();
         }
 
         private List<String> matchKeywords() {

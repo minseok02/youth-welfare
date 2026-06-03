@@ -54,6 +54,7 @@ public class ChatConversationService {
     private final ChatRateLimitService chatRateLimitService;
     private final ChatMessageCommandService chatMessageCommandService;
     private final ChatRetrievalSnapshotService chatRetrievalSnapshotService;
+    private final ChatSessionContextStateService chatSessionContextStateService;
     private final ChatConversationContextSupport chatConversationContextSupport;
     private final ActiveUserReadService activeUserReadService;
     private final UserProfileRepository userProfileRepository;
@@ -84,12 +85,19 @@ public class ChatConversationService {
         List<ChatMessage> recentMessages = getRecentMessages(session.getId());
         List<ChatRetrievalSnapshot> recentSnapshots = chatRetrievalSnapshotService.findSessionSnapshots(session.getId());
         ChatConversationContextSupport.ConversationContext conversationContext =
-                chatConversationContextSupport.resolve(content, request.getBranchKey(), recentMessages, recentSnapshots);
+                chatConversationContextSupport.resolve(
+                        content,
+                        request.getBranchKey(),
+                        session.getContextStateJson(),
+                        recentMessages,
+                        recentSnapshots
+                );
 
         List<ChatBranchOptionResponse> branchSuggestions =
                 resolveBranchSuggestions(content, conversationContext.effectiveBranchKey());
         if (!branchSuggestions.isEmpty()) {
             chatRetrievalSnapshotService.recordInteractiveBranchSuggestions(session, content, request.getBranchKey(), branchSuggestions);
+            chatSessionContextStateService.captureHousingBranchSuggestions(session.getId(), content, branchSuggestions);
             String answer = buildBranchSuggestionAnswer(branchSuggestions);
             chatMessageCommandService.appendAssistantMessage(
                     session.getId(),
@@ -138,6 +146,12 @@ public class ChatConversationService {
         String answer = resolveAnswer(aiResult, references, needsClarification);
         ChatAnswerMode answerMode = resolveAnswerMode(needsClarification);
         chatRetrievalSnapshotService.recordInteractiveTrace(session, content, candidateTrace, needsClarification);
+        chatSessionContextStateService.captureHousingAnswer(
+                session.getId(),
+                content,
+                conversationContext.effectiveBranchKey(),
+                references
+        );
 
         chatMessageCommandService.appendAssistantMessage(
                 session.getId(),

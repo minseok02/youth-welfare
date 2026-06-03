@@ -31,11 +31,18 @@ public class ChatSession extends BaseTimeEntity {
     @Builder.Default
     private LocalDateTime lastMessageAt = LocalDateTime.now();
 
+    @Column(name = "context_state_json", columnDefinition = "TEXT")
+    private String contextStateJson;
+
     public void updateTitle(String title) {
         this.title = title;
     }
 
     public void updateLastMessageAt(LocalDateTime lastMessageAt) {
         this.lastMessageAt = lastMessageAt;
+    }
+
+    public void updateContextStateJson(String contextStateJson) {
+        this.contextStateJson = contextStateJson;
     }
 }

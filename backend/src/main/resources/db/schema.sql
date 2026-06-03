@@ -718,6 +718,7 @@ CREATE TABLE IF NOT EXISTS chat_sessions (
     user_key        VARCHAR(32) NOT NULL,
     title           VARCHAR(100),
     last_message_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    context_state_json TEXT,
     created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

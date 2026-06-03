@@ -59,6 +59,8 @@ class ChatConversationServiceTest {
     @Mock
     private ChatRetrievalSnapshotService chatRetrievalSnapshotService;
     @Mock
+    private ChatSessionContextStateService chatSessionContextStateService;
+    @Mock
     private ActiveUserReadService activeUserReadService;
     @Mock
     private ChatGroundingService chatGroundingService;
@@ -78,6 +80,7 @@ class ChatConversationServiceTest {
                 chatRateLimitService,
                 chatMessageCommandService,
                 chatRetrievalSnapshotService,
+                chatSessionContextStateService,
                 new ChatConversationContextSupport(new ObjectMapper(), new ChatBranchCatalog()),
                 activeUserReadService,
                 userProfileRepository,
@@ -155,6 +158,7 @@ class ChatConversationServiceTest {
         );
         verify(chatRateLimitService).checkMessageSendLimit(1L);
         verify(chatRetrievalSnapshotService).recordInteractiveTrace(session, "서울 월세 지원 알려줘", trace, false);
+        verify(chatSessionContextStateService).captureHousingAnswer(10L, "서울 월세 지원 알려줘", null, response.getReferences());
     }
 
     @Test
@@ -191,6 +195,7 @@ class ChatConversationServiceTest {
         verify(chatMessageCommandService).appendUserMessage(10L, "조건을 모르겠어", null);
         verify(chatRateLimitService).checkMessageSendLimit(1L);
         verify(chatRetrievalSnapshotService).recordInteractiveTrace(session, "조건을 모르겠어", trace, true);
+        verify(chatSessionContextStateService).captureHousingAnswer(10L, "조건을 모르겠어", null, List.of());
     }
 
     @Test
@@ -245,6 +250,7 @@ class ChatConversationServiceTest {
         );
         verify(chatRateLimitService).checkMessageSendLimit(1L);
         verify(chatRetrievalSnapshotService).recordInteractiveTrace(session, "서울 월세 지원 알려줘", trace, false);
+        verify(chatSessionContextStateService).captureHousingAnswer(10L, "서울 월세 지원 알려줘", null, response.getReferences());
     }
 
     @Test
@@ -267,6 +273,7 @@ class ChatConversationServiceTest {
         verify(chatPolicyService, never()).traceCandidates(any(String.class), isNull(), anyInt());
         verify(chatMessageCommandService).appendAssistantMessage(eq(10L), any(String.class), eq("[]"), eq("[]"), any());
         verify(chatRetrievalSnapshotService).recordInteractiveBranchSuggestions(eq(session), eq("주거 지원"), isNull(), any(List.class));
+        verify(chatSessionContextStateService).captureHousingBranchSuggestions(eq(10L), eq("주거 지원"), any(List.class));
     }
 
     @Test
@@ -343,6 +350,7 @@ class ChatConversationServiceTest {
                         && value.contains("직전 탐색 방향: 즉시 현금성 지원")
                         && value.contains("직전 추천 정책: 청년월세 한시 특별지원"))
         );
+        verify(chatSessionContextStateService).captureHousingAnswer(eq(10L), eq("그럼 전세는?"), eq("housing-cash"), any(List.class));
     }
 
     @Test
@@ -445,6 +453,7 @@ class ChatConversationServiceTest {
                         && value.contains("최근 제안 갈래: 장기 주거 안정, 즉시 현금성 지원, 청약/입주 정보")
                         && value.contains("직전 추천 정책: 청년일자리 도약장려금"))
         );
+        verify(chatSessionContextStateService).captureHousingAnswer(eq(10L), eq("월세 쪽으로 보여줘"), eq("housing-cash"), any(List.class));
     }
 
     @Test
