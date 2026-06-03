@@ -39,8 +39,76 @@ const mapRec = (r) => ({
   sourceTypeLabel: SOURCE_LABEL_BY_TYPE[r.sourceType] || "",
   source: r.hostOrg || r.sido || r.operatingOrg || "",
   aiReason: r.aiReason,
+  aiStatus: r.aiStatus || "",
+  youthMajorLabel: r.youthMajorLabel || "",
+  youthMidLabel: r.youthMidLabel || "",
+  provisionMethodLabel: r.provisionMethodLabel || "",
+  gov24ServiceFieldLabel: r.gov24ServiceFieldLabel || "",
+  gov24UserTypeLabel: r.gov24UserTypeLabel || "",
+  gov24BenefitTypeLabel: r.gov24BenefitTypeLabel || "",
   bookmarked: Boolean(r.isBookmarked),
 });
+
+const nonBlank = (value) => (value || "").trim();
+
+const compactJoin = (values, limit = 2) => {
+  const unique = [];
+  values.forEach((value) => {
+    const trimmed = nonBlank(value);
+    if (!trimmed || unique.includes(trimmed)) {
+      return;
+    }
+    unique.push(trimmed);
+  });
+  return unique.slice(0, limit);
+};
+
+const buildFallbackRecommendationMemo = (rec) => {
+  const supportLabels = compactJoin([
+    rec.youthMidLabel,
+    rec.provisionMethodLabel,
+    rec.gov24BenefitTypeLabel,
+    rec.gov24ServiceFieldLabel,
+    rec.youthMajorLabel,
+    rec.category !== "기타" ? rec.category : "",
+  ]);
+
+  if (supportLabels.length >= 2) {
+    return `${supportLabels[0]} · ${supportLabels[1]} 기준으로 먼저 보여드렸어요.`;
+  }
+  if (supportLabels.length === 1) {
+    return `${supportLabels[0]} 기준으로 먼저 보여드렸어요.`;
+  }
+
+  const audienceLabels = compactJoin([
+    rec.gov24UserTypeLabel,
+    rec.source,
+    rec.sourceTypeLabel ? `${rec.sourceTypeLabel} 정책` : "",
+  ], 1);
+
+  if (audienceLabels.length === 1) {
+    return `${audienceLabels[0]} 분류를 기준으로 먼저 보여드렸어요.`;
+  }
+
+  return "정책 분류와 기본 자격 신호를 기준으로 먼저 보여드렸어요.";
+};
+
+const resolveRecommendationMemo = (rec) => {
+  const aiReason = nonBlank(rec.aiReason);
+  if (aiReason) {
+    return {
+      heading: "추천 메모",
+      body: `"${aiReason}"`,
+      accentColor: A,
+    };
+  }
+
+  return {
+    heading: rec.aiStatus === "NOT_REQUESTED" ? "추천 단서" : "추천 메모",
+    body: buildFallbackRecommendationMemo(rec),
+    accentColor: INK2,
+  };
+};
 
 const mapRecentViewedPolicy = (policy) => ({
   id: policy.id,
@@ -545,6 +613,7 @@ function PopularSection({ teaserPolicies, categoryCounts, navigate, onPolicyNavi
 }
 
 function RecCard({ rec, onPolicyNavigate, onBookmarkToggle }) {
+  const recommendationMemo = resolveRecommendationMemo(rec);
   const isUrgent = rec.dday.startsWith("D-") && parseInt(rec.dday.replace("D-", "")) <= 14;
   const ddayStyle =
     rec.dday === "종료" ? { background: "#f3f4f6", color: INK3 }
@@ -592,7 +661,7 @@ function RecCard({ rec, onPolicyNavigate, onBookmarkToggle }) {
         {rec.sourceTypeLabel && <span>출처 {rec.sourceTypeLabel}</span>}
         {rec.source && <span>{rec.source}</span>}
       </div>
-      {(rec.aiReason || rec.sourceTypeLabel) && (
+      {recommendationMemo && (
         <div style={{
           marginTop: 10,
           padding: "10px 12px",
@@ -600,9 +669,9 @@ function RecCard({ rec, onPolicyNavigate, onBookmarkToggle }) {
           background: "#f8fbff",
           border: "1px solid #dbeafe",
         }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: AI, marginBottom: 4 }}>추천 메모</div>
-          <div style={{ fontSize: 12, lineHeight: 1.55, color: rec.aiReason ? A : INK2 }}>
-            {rec.aiReason ? `"${rec.aiReason}"` : `${rec.sourceTypeLabel} 출처 정책 기준으로 추천했어요.`}
+          <div style={{ fontSize: 11, fontWeight: 800, color: AI, marginBottom: 4 }}>{recommendationMemo.heading}</div>
+          <div style={{ fontSize: 12, lineHeight: 1.55, color: recommendationMemo.accentColor }}>
+            {recommendationMemo.body}
           </div>
         </div>
       )}
