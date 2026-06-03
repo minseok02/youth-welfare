@@ -4,12 +4,14 @@ import HomeIcon from "@mui/icons-material/Home";
 import SearchIcon from "@mui/icons-material/Search";
 import PersonIcon from "@mui/icons-material/Person";
 import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import { useAuthStore } from "../store/authStore";
 import { useUnreadAlertCount } from "../lib/useUnreadAlertCount";
 
 const NAV_ITEMS = [
   { label: "맞춤정책", path: "/", icon: HomeIcon, authRequired: false },
   { label: "정책검색", path: "/policies", icon: SearchIcon, authRequired: false },
+  { label: "가이드", path: "/guide", icon: HelpOutlineIcon, authRequired: false },
   { label: "마이페이지", path: "/mypage", icon: PersonIcon, authRequired: true },
   { label: "AI 챗봇", path: "/chat", icon: ForumOutlinedIcon, authRequired: true },
 ];
@@ -17,6 +19,7 @@ const NAV_ITEMS = [
 function getCurrentValue(pathname) {
   if (pathname === "/") return "/";
   if (pathname.startsWith("/policies")) return "/policies";
+  if (pathname.startsWith("/guide")) return "/guide";
   if (pathname.startsWith("/mypage")) return "/mypage";
   if (pathname.startsWith("/chat")) return "/chat";
   return false;

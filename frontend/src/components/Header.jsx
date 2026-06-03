@@ -275,7 +275,7 @@ export default function Header() {
                   size="small"
                   onClick={() => navigate("/guide")}
                   sx={{
-                    display: { xs: "none", md: "inline-flex" },
+                    display: "inline-flex",
                     fontSize: { xs: 12, sm: 13 },
                     color: "white",
                     bgcolor: "rgba(255,255,255,0.08)",
@@ -285,7 +285,12 @@ export default function Header() {
                     "&:hover": { bgcolor: "rgba(255,255,255,0.14)" },
                   }}
                 >
-                  이용가이드
+                  <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
+                    가이드
+                  </Box>
+                  <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+                    이용가이드
+                  </Box>
                 </Button>
                 <Button
                   variant="outlined"
@@ -315,7 +320,7 @@ export default function Header() {
                   size="small"
                   onClick={() => navigate("/guide")}
                   sx={{
-                    display: { xs: "none", md: "inline-flex" },
+                    display: "inline-flex",
                     fontSize: { xs: 12, sm: 13 },
                     color: "white",
                     bgcolor: "rgba(255,255,255,0.08)",
@@ -325,7 +330,12 @@ export default function Header() {
                     "&:hover": { bgcolor: "rgba(255,255,255,0.14)" },
                   }}
                 >
-                  이용가이드
+                  <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
+                    가이드
+                  </Box>
+                  <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+                    이용가이드
+                  </Box>
                 </Button>
                 <Button
                   variant="contained"
