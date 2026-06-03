@@ -3,7 +3,10 @@ package com.example.welfare.chat.service;
 import com.example.welfare.chat.dto.response.ChatBranchOptionResponse;
 import com.example.welfare.global.util.SearchKeywordSupport;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -123,8 +126,35 @@ public class ChatBranchCatalog {
                         .branchKey(definition.branchKey())
                         .label(definition.label())
                         .guideQuestion(definition.guideQuestion())
-                        .build())
+                .build())
                 .collect(Collectors.toList());
+    }
+
+    public Optional<BranchDefinition> matchSuggestedBranchQuestion(String question, List<String> branchKeys) {
+        if (!StringUtils.hasText(question) || branchKeys == null || branchKeys.isEmpty()) {
+            return Optional.empty();
+        }
+
+        List<String> tokens = SearchKeywordSupport.extractTokens(question);
+        if (tokens.isEmpty()) {
+            return Optional.empty();
+        }
+
+        List<ScoredBranch> scoredBranches = branchKeys.stream()
+                .map(this::findByKey)
+                .flatMap(Optional::stream)
+                .map(definition -> new ScoredBranch(definition, definition.matchScore(tokens)))
+                .filter(scoredBranch -> scoredBranch.score() > 0)
+                .sorted(Comparator.comparingInt(ScoredBranch::score).reversed())
+                .toList();
+
+        if (scoredBranches.isEmpty()) {
+            return Optional.empty();
+        }
+        if (scoredBranches.size() > 1 && scoredBranches.get(0).score() == scoredBranches.get(1).score()) {
+            return Optional.empty();
+        }
+        return Optional.of(scoredBranches.get(0).definition());
     }
 
     private Optional<String> detectBroadTopLevel(List<String> tokens) {
@@ -152,6 +182,34 @@ public class ChatBranchCatalog {
             Set<String> specificTokens,
             String preferredCategory,
             List<String> searchTerms
+    ) {
+        int matchScore(List<String> questionTokens) {
+            Set<String> tokenSet = Set.copyOf(questionTokens);
+            int score = 0;
+            for (String token : matchKeywords()) {
+                if (tokenSet.contains(token)) {
+                    score++;
+                }
+            }
+            return score;
+        }
+
+        private List<String> matchKeywords() {
+            List<String> keywords = new ArrayList<>(specificTokens);
+            keywords.addAll(searchTerms);
+            keywords.addAll(SearchKeywordSupport.extractTokens(label));
+            return keywords.stream()
+                    .filter(StringUtils::hasText)
+                    .map(String::trim)
+                    .filter(token -> !broadTokens.contains(token))
+                    .distinct()
+                    .toList();
+        }
+    }
+
+    private record ScoredBranch(
+            BranchDefinition definition,
+            int score
     ) {
     }
 }

@@ -36,19 +36,23 @@ public class ChatConversationContextSupport {
                                        List<ChatRetrievalSnapshot> recentSnapshots) {
         String normalizedQuestion = normalize(question);
         String previousUserQuestion = findPreviousUserQuestion(normalizedQuestion, recentMessages);
-        String inheritedBranchKey = StringUtils.hasText(requestedBranchKey)
+        String suggestedBranchKey = findSuggestedBranchMatch(normalizedQuestion, recentSnapshots);
+        String inheritedBranchKey = findLatestBranchKey(recentSnapshots);
+        String effectiveBranchKey = StringUtils.hasText(requestedBranchKey)
                 ? requestedBranchKey.trim()
-                : findLatestBranchKey(recentSnapshots);
+                : StringUtils.hasText(suggestedBranchKey)
+                ? suggestedBranchKey
+                : inheritedBranchKey;
 
-        boolean followUp = shouldTreatAsFollowUp(normalizedQuestion, previousUserQuestion, inheritedBranchKey);
+        boolean followUp = shouldTreatAsFollowUp(normalizedQuestion, previousUserQuestion, effectiveBranchKey, suggestedBranchKey);
         String retrievalQuestion = followUp
                 ? previousUserQuestion + "\n후속 질문: " + normalizedQuestion
                 : normalizedQuestion;
 
-        String conversationSummary = buildConversationSummary(previousUserQuestion, inheritedBranchKey, recentMessages);
+        String conversationSummary = buildConversationSummary(previousUserQuestion, effectiveBranchKey, recentMessages);
         return new ConversationContext(
                 retrievalQuestion,
-                inheritedBranchKey,
+                effectiveBranchKey,
                 conversationSummary,
                 followUp
         );
@@ -75,6 +79,41 @@ public class ChatConversationContextSupport {
         return null;
     }
 
+    private String findSuggestedBranchMatch(String question, List<ChatRetrievalSnapshot> recentSnapshots) {
+        List<String> latestSuggestedBranchKeys = findLatestSuggestedBranchKeys(recentSnapshots);
+        if (latestSuggestedBranchKeys.isEmpty()) {
+            return null;
+        }
+        return chatBranchCatalog.matchSuggestedBranchQuestion(question, latestSuggestedBranchKeys)
+                .map(ChatBranchCatalog.BranchDefinition::branchKey)
+                .orElse(null);
+    }
+
+    private List<String> findLatestSuggestedBranchKeys(List<ChatRetrievalSnapshot> recentSnapshots) {
+        if (recentSnapshots == null || recentSnapshots.isEmpty()) {
+            return List.of();
+        }
+        for (int i = recentSnapshots.size() - 1; i >= 0; i--) {
+            String rawBranchSuggestionKeys = recentSnapshots.get(i).getBranchSuggestionKeysJson();
+            if (!StringUtils.hasText(rawBranchSuggestionKeys)) {
+                continue;
+            }
+            try {
+                List<String> branchKeys = objectMapper.readValue(rawBranchSuggestionKeys, new TypeReference<List<String>>() {
+                });
+                if (branchKeys != null && !branchKeys.isEmpty()) {
+                    return branchKeys.stream()
+                            .filter(StringUtils::hasText)
+                            .map(String::trim)
+                            .toList();
+                }
+            } catch (Exception ignored) {
+                // best-effort context extraction only
+            }
+        }
+        return List.of();
+    }
+
     private String findLatestBranchKey(List<ChatRetrievalSnapshot> recentSnapshots) {
         if (recentSnapshots == null || recentSnapshots.isEmpty()) {
             return null;
@@ -89,6 +128,13 @@ public class ChatConversationContextSupport {
     }
 
     private boolean shouldTreatAsFollowUp(String question, String previousUserQuestion, String inheritedBranchKey) {
+        return shouldTreatAsFollowUp(question, previousUserQuestion, inheritedBranchKey, null);
+    }
+
+    private boolean shouldTreatAsFollowUp(String question,
+                                          String previousUserQuestion,
+                                          String inheritedBranchKey,
+                                          String suggestedBranchKey) {
         if (!StringUtils.hasText(question) || !StringUtils.hasText(previousUserQuestion)) {
             return false;
         }
@@ -98,6 +144,10 @@ public class ChatConversationContextSupport {
 
         boolean containsFollowUpMarker = FOLLOW_UP_MARKERS.stream().anyMatch(question::contains);
         if (containsFollowUpMarker && question.length() <= BRIEF_FOLLOW_UP_MAX_LENGTH) {
+            return true;
+        }
+
+        if (StringUtils.hasText(suggestedBranchKey)) {
             return true;
         }
 

@@ -13,6 +13,7 @@
 - 현재는 `/chat` 화면, `chat_sessions/chat_messages` 저장, branch suggestion, retrieval snapshot, grounding evidence, OpenAI JSON 응답 파싱까지 구현돼 있습니다.
 - 챗봇은 로그인 전용이며, 로그아웃/회원탈퇴 시 세션 cleanup 경로도 따로 있습니다.
 - 2026-06-03 기준 continuity 보강으로 짧은 후속 질문은 `직전 질문 + 직전 branch + 직전 추천 정책` 맥락을 retrieval/AI prompt에 bounded 하게 다시 싣습니다.
+- 2026-06-03 기준 branch suggestion 다음의 자유 입력(`월세 쪽으로`, `청약으로`)도 최근 `branchSuggestionKeysJson` 안에서 leaf branch를 다시 해석해 retrieval branch로 계승합니다.
 - 로컬 follow-up runtime QA는 [run-local-chat-followup-smoke.sh](/home/minseok/youth-welfare/deploy/smoke/run-local-chat-followup-smoke.sh:1) 로 `첫 질문 -> 후속 질문 -> messages 확인` 경로를 bounded 하게 재검증합니다.
 - 아직 하지 않은 것은 장기 세션 요약/압축(memory summarization)과 multi-turn 전용 ranking 재학습입니다.
 

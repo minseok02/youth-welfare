@@ -346,6 +346,81 @@ class ChatConversationServiceTest {
     }
 
     @Test
+    @DisplayName("직전 branch suggestion 이후 자유 입력도 suggestion branch로 이어서 retrieval한다")
+    void sendMessageCarriesSuggestedBranchForFreeformFollowUp() {
+        User user = createUser(1L);
+        ChatSession session = ChatSession.builder().id(10L).userKey("user-key-1").build();
+        SendChatMessageRequest request = new SendChatMessageRequest();
+        ReflectionTestUtils.setField(request, "content", "월세 쪽으로 보여줘");
+
+        ChatMessage previousUserMessage = ChatMessage.builder()
+                .id(100L)
+                .session(session)
+                .role(ChatMessageRole.USER)
+                .content("주거 지원")
+                .build();
+        ChatMessage previousAssistantMessage = ChatMessage.builder()
+                .id(101L)
+                .session(session)
+                .role(ChatMessageRole.ASSISTANT)
+                .content("장기 주거 안정, 즉시 현금성 지원, 청약/입주 정보 중에서 어느 방향으로 찾을지 골라주시면 그 기준으로 정책을 좁혀서 보여드리겠습니다.")
+                .build();
+        ChatRetrievalSnapshot snapshot = ChatRetrievalSnapshot.builder()
+                .id(16L)
+                .snapshotType("INTERACTIVE")
+                .sessionId(10L)
+                .userKey("user-key-1")
+                .question("주거 지원")
+                .branchSuggestionKeysJson("[\"housing-stability\",\"housing-cash\",\"housing-subscription\"]")
+                .resultCount(0)
+                .build();
+
+        when(activeUserReadService.getActiveUserContext(1L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
+        when(chatMessageReadRepository.findOwnedSession(10L, "user-key-1")).thenReturn(Optional.of(session));
+        when(chatMessageReadRepository.findRecentMessages(10L, 6))
+                .thenReturn(List.of(previousAssistantMessage, previousUserMessage));
+        when(chatRetrievalSnapshotService.findSessionSnapshots(10L)).thenReturn(List.of(snapshot));
+
+        ChatPolicyService.CandidateTrace trace = new ChatPolicyService.CandidateTrace(
+                "주거 지원\n후속 질문: 월세 쪽으로 보여줘",
+                "주거 월세",
+                "housing-cash",
+                "주거",
+                List.of("월세", "주거비", "지원금"),
+                "MERGED_RESULTS",
+                List.of(),
+                List.of(),
+                List.of(
+                        ChatPolicyCandidate.builder().serviceId(1829L).title("청년월세 한시 특별지원")
+                                .description("청년 월세 부담을 줄이는 정책입니다.").build()
+                )
+        );
+        when(chatPolicyService.traceCandidates("주거 지원\n후속 질문: 월세 쪽으로 보여줘", "housing-cash", 3))
+                .thenReturn(trace);
+        when(chatGroundingService.loadEvidenceMap(any(List.class)))
+                .thenReturn(Map.of(1829L, "월세 부담을 낮추는 지원을 제공합니다."));
+        when(chatAiGateway.generateAnswer(any(User.class), nullable(String.class), anyString(), any(List.class), any(List.class), any(Map.class), anyString()))
+                .thenReturn(null);
+
+        var response = chatConversationService.sendMessage(1L, 10L, request);
+
+        assertThat(response.getAnswerMode()).isEqualTo(ChatAnswerMode.POLICY_GROUNDED);
+        verify(chatPolicyService).traceCandidates("주거 지원\n후속 질문: 월세 쪽으로 보여줘", "housing-cash", 3);
+        verify(chatAiGateway).generateAnswer(
+                any(User.class),
+                nullable(String.class),
+                eq("월세 쪽으로 보여줘"),
+                any(List.class),
+                any(List.class),
+                any(Map.class),
+                argThat(value -> value != null
+                        && value.contains("직전 사용자 질문: 주거 지원")
+                        && value.contains("직전 탐색 방향: 즉시 현금성 지원"))
+        );
+    }
+
+    @Test
     @DisplayName("메시지 재조회는 snapshot 기준으로 branch suggestion 메타를 복원한다")
     void getMessagesRestoresBranchSuggestionMetadata() {
         User user = createUser(1L);
