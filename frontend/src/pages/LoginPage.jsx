@@ -28,6 +28,32 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [toast, setToast] = useState({ open: false, msg: "" });
 
+  const buildPostLoginRecommendationNudge = (profile, effectiveHasPriorities) => {
+    const standardCodeEntries = [
+      { key: "houseTenureCode", label: "주거형태" },
+      { key: "housingTypeCode", label: "주택유형" },
+      { key: "basicLivingRecipientTypeCode", label: "기초생활수급권자" },
+      { key: "disabilityGradeCode", label: "장애등급" },
+    ];
+    const missingLabels = standardCodeEntries
+      .filter((entry) => !profile?.[entry.key])
+      .map((entry) => entry.label);
+
+    if (effectiveHasPriorities && missingLabels.length === 0) {
+      return null;
+    }
+
+    return {
+      kind: !effectiveHasPriorities && missingLabels.length > 0
+        ? "both"
+        : !effectiveHasPriorities
+          ? "priorities"
+          : "standardCodes",
+      filledCount: standardCodeEntries.length - missingLabels.length,
+      missingLabels,
+    };
+  };
+
   useEffect(() => {
     const reason = location.state?.reason;
     const signupEmail = location.state?.email;
@@ -58,13 +84,17 @@ export default function LoginPage() {
       const accessToken = data?.data?.accessToken;
       if (!accessToken) throw new Error("로그인 응답에 accessToken이 없습니다");
       login(accessToken, { email });
+      let profileForNudge = null;
+      let effectiveHasPriorities = false;
       try {
         const profileResponse = await api.get("/api/users/me");
         const profile = profileResponse?.data?.data;
+        profileForNudge = profile;
+        effectiveHasPriorities = Array.isArray(profile?.priorities) && profile.priorities.length > 0;
         login(accessToken, {
           name: profile?.name ?? "",
           email: profile?.email ?? email,
-          hasPriorities: Array.isArray(profile?.priorities) && profile.priorities.length > 0,
+          hasPriorities: effectiveHasPriorities,
         });
       } catch {
         login(accessToken, { email });
@@ -74,6 +104,7 @@ export default function LoginPage() {
         try {
           await api.put("/api/users/me/priorities", { priorityCodes: signupPriorities });
           setUser({ hasPriorities: true });
+          effectiveHasPriorities = true;
         } catch {
           // Priority save is best-effort here; login completion should still continue.
         }
@@ -87,6 +118,11 @@ export default function LoginPage() {
         ...(postLoginAction ? { postLoginAction } : {}),
         ...(chatFrom ? { chatFrom } : {}),
       };
+      const postLoginRecommendationNudge = buildPostLoginRecommendationNudge(profileForNudge, effectiveHasPriorities);
+      const targetPathname = from?.pathname || "/";
+      if (targetPathname === "/" && postLoginRecommendationNudge) {
+        restoredState.postLoginRecommendationNudge = postLoginRecommendationNudge;
+      }
       navigate(from?.pathname ? `${from.pathname}${from.search ?? ""}` : "/", {
         replace: true,
         state: Object.keys(restoredState).length ? restoredState : undefined,

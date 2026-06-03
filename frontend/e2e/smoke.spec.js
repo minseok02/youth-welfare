@@ -445,6 +445,36 @@ test("메인 개인 맞춤 재추천 CTA는 표준코드 공백이 크면 마이
   await expect(page).toHaveURL(/\/mypage\?tab=0$/);
 });
 
+test("로그인 직후 메인에서는 우선순위와 표준코드 공백에 대한 추천 nudge를 한 번 보여준다", async ({ page }) => {
+  await page.route("**/api/users/me", async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify({
+        success: true,
+        data: {
+          name: "테스터",
+          email: userCredentials.email,
+          priorities: [],
+          houseTenureCode: null,
+          housingTypeCode: null,
+          basicLivingRecipientTypeCode: null,
+          disabilityGradeCode: "NONE",
+        },
+      }),
+    });
+  });
+
+  await page.goto("/login");
+  await loginThroughForm(page, userCredentials);
+
+  await expect(page.getByText("로그인되었습니다. 우선순위와 표준코드 1/4 입력 상태를 함께 채우면 추천 품질이 더 빨리 안정됩니다.")).toBeVisible();
+});
+
 test("마이페이지 북마크 탭에서 상세로 갔다가 뒤로오면 tab query가 유지된다", async ({ page, request }) => {
   const policy = await fetchFirstSearchResult(request, "청년");
   await ensurePolicyBookmarked(request, userCredentials, policy.id);

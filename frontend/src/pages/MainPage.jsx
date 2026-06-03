@@ -873,6 +873,28 @@ export default function MainPage() {
     }
   }, [location.state, showToast]);
 
+  useEffect(() => {
+    const nudge = location.state?.postLoginRecommendationNudge;
+    if (!nudge) {
+      return;
+    }
+
+    if (nudge.kind === "both") {
+      showToast(`로그인되었습니다. 우선순위와 표준코드 ${nudge.filledCount}/4 입력 상태를 함께 채우면 추천 품질이 더 빨리 안정됩니다.`, "info");
+    } else if (nudge.kind === "priorities") {
+      showToast("로그인되었습니다. 다음으로 우선순위를 설정하면 추천 품질이 더 안정됩니다.", "info");
+    } else if (nudge.kind === "standardCodes") {
+      showToast(`로그인되었습니다. 표준코드 ${nudge.filledCount}/4 입력 상태입니다. 남은 ${nudge.missingLabels.join(", ")}를 채우면 추천 정확도가 더 올라갑니다.`, "info");
+    }
+
+    const nextState = { ...(location.state || {}) };
+    delete nextState.postLoginRecommendationNudge;
+    navigate(`${location.pathname}${location.search}`, {
+      replace: true,
+      state: Object.keys(nextState).length ? nextState : undefined,
+    });
+  }, [location.pathname, location.search, location.state, navigate, showToast]);
+
   const navigateToPolicyDetail = useCallback((policyId, logId = null) => {
     navigate(`/policies/${policyId}${logId ? `?log_id=${logId}` : ""}`, {
       state: {

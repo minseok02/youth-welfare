@@ -95,6 +95,26 @@ cleanup:
 45 1 * * * NIGHTLY_OPS_HANDOFF_LOG_ROOT=/var/log/youth-welfare/nightly-ops-handoff SUMMARY_RETENTION_DAYS=30 ARTIFACT_RETENTION_DAYS=14 /home/ubuntu/youth-welfare/deploy/smoke/cleanup-nightly-ops-handoff-artifacts.sh >> /var/log/youth-welfare/nightly-ops-handoff/cleanup-cron.log 2>&1
 ```
 
+직접 `crontab -e` 로 붙이지 않고 idempotent block install을 쓰려면:
+
+```bash
+cd /home/ubuntu/youth-welfare
+
+APP_ROOT=/home/ubuntu/youth-welfare \
+ENV_FILE=.env.production \
+SMOKE_DB_MODE=postgres \
+APP_BASE_URL='http://127.0.0.1:8082' \
+FRONTEND_E2E_MODE=deployed-origin \
+FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' \
+bash deploy/smoke/install-nightly-ops-handoff-cron.sh
+```
+
+실제 적용 전 block preview만 볼 때:
+
+```bash
+PRINT_ONLY=true bash deploy/smoke/install-nightly-ops-handoff-cron.sh
+```
+
 ## 로그와 artifact
 
 기본 로그 루트:

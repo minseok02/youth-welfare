@@ -85,6 +85,12 @@ bash deploy/smoke/run-nightly-ops-handoff.sh
 
 cron 등록과 cleanup은 [nightly-ops-handoff-cron-runbook.md](./nightly-ops-handoff-cron-runbook.md) 기준으로 맞춥니다.
 
+직접 등록 대신 idempotent block install이 필요하면 아래를 사용합니다.
+
+```bash
+bash deploy/smoke/install-nightly-ops-handoff-cron.sh
+```
+
 ## 기본 wrapper
 
 ```bash
