@@ -1,5 +1,6 @@
 package com.example.welfare.chat.service;
 
+import com.example.welfare.chat.dto.response.ChatBranchOptionResponse;
 import com.example.welfare.chat.entity.ChatMessage;
 import com.example.welfare.chat.entity.ChatMessageRole;
 import com.example.welfare.chat.entity.ChatRetrievalSnapshot;
@@ -26,6 +27,10 @@ public class ChatConversationContextSupport {
     );
     private static final int SHORT_FOLLOW_UP_MAX_LENGTH = 18;
     private static final int BRIEF_FOLLOW_UP_MAX_LENGTH = 30;
+    private static final int RECENT_QUESTION_SUMMARY_LIMIT = 3;
+    private static final int RECENT_BRANCH_SUMMARY_LIMIT = 2;
+    private static final int RECENT_POLICY_SUMMARY_LIMIT = 4;
+    private static final int RECENT_SUGGESTION_SUMMARY_LIMIT = 3;
 
     private final ObjectMapper objectMapper;
     private final ChatBranchCatalog chatBranchCatalog;
@@ -49,7 +54,7 @@ public class ChatConversationContextSupport {
                 ? previousUserQuestion + "\n후속 질문: " + normalizedQuestion
                 : normalizedQuestion;
 
-        String conversationSummary = buildConversationSummary(previousUserQuestion, effectiveBranchKey, recentMessages);
+        String conversationSummary = buildConversationSummary(previousUserQuestion, effectiveBranchKey, recentMessages, recentSnapshots);
         return new ConversationContext(
                 retrievalQuestion,
                 effectiveBranchKey,
@@ -161,15 +166,31 @@ public class ChatConversationContextSupport {
 
     private String buildConversationSummary(String previousUserQuestion,
                                             String inheritedBranchKey,
-                                            List<ChatMessage> recentMessages) {
+                                            List<ChatMessage> recentMessages,
+                                            List<ChatRetrievalSnapshot> recentSnapshots) {
         List<String> lines = new ArrayList<>();
         if (StringUtils.hasText(previousUserQuestion)) {
             lines.add("직전 사용자 질문: " + trimToLength(previousUserQuestion, 120));
         }
 
+        List<String> recentQuestionFlow = findRecentUserQuestions(recentMessages);
+        if (!recentQuestionFlow.isEmpty()) {
+            lines.add("최근 질문 흐름: " + String.join(" -> ", recentQuestionFlow));
+        }
+
         if (StringUtils.hasText(inheritedBranchKey)) {
             chatBranchCatalog.findByKey(inheritedBranchKey)
                     .ifPresent(branch -> lines.add("직전 탐색 방향: " + branch.label()));
+        }
+
+        List<String> recentBranchFlow = findRecentBranchLabels(recentSnapshots);
+        if (!recentBranchFlow.isEmpty()) {
+            lines.add("최근 탐색 흐름: " + String.join(" -> ", recentBranchFlow));
+        }
+
+        List<String> recentSuggestedBranches = findRecentSuggestedBranchLabels(recentSnapshots);
+        if (!recentSuggestedBranches.isEmpty()) {
+            lines.add("최근 제안 갈래: " + String.join(", ", recentSuggestedBranches));
         }
 
         List<String> recentPolicyTitles = findRecentReferencedPolicyTitles(recentMessages);
@@ -202,7 +223,7 @@ public class ChatConversationContextSupport {
                     if (StringUtils.hasText(title)) {
                         titles.add(title);
                     }
-                    if (titles.size() >= 3) {
+                    if (titles.size() >= RECENT_POLICY_SUMMARY_LIMIT) {
                         return List.copyOf(titles);
                     }
                 }
@@ -211,6 +232,71 @@ public class ChatConversationContextSupport {
             }
         }
         return List.copyOf(titles);
+    }
+
+    private List<String> findRecentUserQuestions(List<ChatMessage> recentMessages) {
+        if (recentMessages == null || recentMessages.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> questions = new ArrayList<>();
+        String lastAdded = null;
+        for (int i = recentMessages.size() - 1; i >= 0; i--) {
+            ChatMessage message = recentMessages.get(i);
+            if (message.getRole() != ChatMessageRole.USER) {
+                continue;
+            }
+            String content = normalize(message.getContent());
+            if (!StringUtils.hasText(content)) {
+                continue;
+            }
+            String trimmed = trimToLength(content, 60);
+            if (Objects.equals(lastAdded, trimmed)) {
+                continue;
+            }
+            questions.add(0, trimmed);
+            lastAdded = trimmed;
+            if (questions.size() >= RECENT_QUESTION_SUMMARY_LIMIT) {
+                break;
+            }
+        }
+        return questions;
+    }
+
+    private List<String> findRecentBranchLabels(List<ChatRetrievalSnapshot> recentSnapshots) {
+        if (recentSnapshots == null || recentSnapshots.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> labels = new ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
+        for (int i = recentSnapshots.size() - 1; i >= 0; i--) {
+            String branchKey = normalize(recentSnapshots.get(i).getBranchKey());
+            if (!StringUtils.hasText(branchKey)) {
+                continue;
+            }
+            chatBranchCatalog.findByKey(branchKey).ifPresent(branch -> {
+                if (seen.add(branch.label()) && labels.size() < RECENT_BRANCH_SUMMARY_LIMIT) {
+                    labels.add(0, branch.label());
+                }
+            });
+            if (labels.size() >= RECENT_BRANCH_SUMMARY_LIMIT) {
+                break;
+            }
+        }
+        return labels;
+    }
+
+    private List<String> findRecentSuggestedBranchLabels(List<ChatRetrievalSnapshot> recentSnapshots) {
+        List<String> branchKeys = findLatestSuggestedBranchKeys(recentSnapshots);
+        if (branchKeys.isEmpty()) {
+            return List.of();
+        }
+        return chatBranchCatalog.toResponsesByKeys(branchKeys).stream()
+                .map(ChatBranchOptionResponse::getLabel)
+                .filter(StringUtils::hasText)
+                .limit(RECENT_SUGGESTION_SUMMARY_LIMIT)
+                .toList();
     }
 
     private String normalize(String value) {

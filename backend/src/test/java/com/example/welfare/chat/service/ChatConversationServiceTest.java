@@ -353,6 +353,19 @@ class ChatConversationServiceTest {
         SendChatMessageRequest request = new SendChatMessageRequest();
         ReflectionTestUtils.setField(request, "content", "월세 쪽으로 보여줘");
 
+        ChatMessage olderUserMessage = ChatMessage.builder()
+                .id(98L)
+                .session(session)
+                .role(ChatMessageRole.USER)
+                .content("취업 지원도 있나")
+                .build();
+        ChatMessage olderAssistantMessage = ChatMessage.builder()
+                .id(99L)
+                .session(session)
+                .role(ChatMessageRole.ASSISTANT)
+                .content("채용/인턴, 훈련/교육, 창업/금융 중에서 어느 방향으로 찾을지 골라주시면 좁혀서 보여드리겠습니다.")
+                .referencesJson("[{\"serviceId\":3001,\"title\":\"청년일자리 도약장려금\",\"reason\":\"취업 지원\",\"evidence\":\"취업 지원\"}]")
+                .build();
         ChatMessage previousUserMessage = ChatMessage.builder()
                 .id(100L)
                 .session(session)
@@ -364,6 +377,16 @@ class ChatConversationServiceTest {
                 .session(session)
                 .role(ChatMessageRole.ASSISTANT)
                 .content("장기 주거 안정, 즉시 현금성 지원, 청약/입주 정보 중에서 어느 방향으로 찾을지 골라주시면 그 기준으로 정책을 좁혀서 보여드리겠습니다.")
+                .build();
+        ChatRetrievalSnapshot olderSnapshot = ChatRetrievalSnapshot.builder()
+                .id(15L)
+                .snapshotType("INTERACTIVE")
+                .sessionId(10L)
+                .userKey("user-key-1")
+                .question("취업 지원도 있나")
+                .branchKey("job-training")
+                .branchSuggestionKeysJson("[\"job-employment\",\"job-training\",\"job-startup\"]")
+                .resultCount(0)
                 .build();
         ChatRetrievalSnapshot snapshot = ChatRetrievalSnapshot.builder()
                 .id(16L)
@@ -379,8 +402,8 @@ class ChatConversationServiceTest {
                 .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
         when(chatMessageReadRepository.findOwnedSession(10L, "user-key-1")).thenReturn(Optional.of(session));
         when(chatMessageReadRepository.findRecentMessages(10L, 6))
-                .thenReturn(List.of(previousAssistantMessage, previousUserMessage));
-        when(chatRetrievalSnapshotService.findSessionSnapshots(10L)).thenReturn(List.of(snapshot));
+                .thenReturn(List.of(previousAssistantMessage, previousUserMessage, olderAssistantMessage, olderUserMessage));
+        when(chatRetrievalSnapshotService.findSessionSnapshots(10L)).thenReturn(List.of(olderSnapshot, snapshot));
 
         ChatPolicyService.CandidateTrace trace = new ChatPolicyService.CandidateTrace(
                 "주거 지원\n후속 질문: 월세 쪽으로 보여줘",
@@ -416,7 +439,11 @@ class ChatConversationServiceTest {
                 any(Map.class),
                 argThat(value -> value != null
                         && value.contains("직전 사용자 질문: 주거 지원")
-                        && value.contains("직전 탐색 방향: 즉시 현금성 지원"))
+                        && value.contains("최근 질문 흐름: 취업 지원도 있나 -> 주거 지원")
+                        && value.contains("직전 탐색 방향: 즉시 현금성 지원")
+                        && value.contains("최근 탐색 흐름: 훈련/교육")
+                        && value.contains("최근 제안 갈래: 장기 주거 안정, 즉시 현금성 지원, 청약/입주 정보")
+                        && value.contains("직전 추천 정책: 청년일자리 도약장려금"))
         );
     }
 
