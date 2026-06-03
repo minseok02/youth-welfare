@@ -36,6 +36,8 @@ bash deploy/smoke/run-local-recommendation-observation-suite.sh
 - `tmp/recommendation-observation/latest-recommendation-observation-summary.txt`
 - `tmp/recommendation-observation/latest-recommendation-observation.json`
 - `tmp/recommendation-observation/latest-recommendation-observation-note.md`
+- `tmp/recommendation-observation/latest/housing-standard-code-effect.out`
+- `tmp/recommendation-observation/latest/welfare-standard-code-matrix.out`
 
 사람이 먼저 읽을 때는 `note.md`, 자동 파싱이나 handoff 스크립트는 `summary/json` 을 우선합니다.
 
@@ -48,6 +50,12 @@ bash deploy/smoke/run-local-recommendation-observation-suite.sh
 - `observation_blocker`
 - `recommended_cadence`
 - `next_action`
+- `housing_standard_code_effect_status`
+- `housing_standard_code_effect_positive_rule_delta_rows`
+- `housing_standard_code_effect_max_rule_delta`
+- `welfare_standard_code_matrix_status`
+- `welfare_standard_code_matrix_positive_rule_scenarios`
+- `welfare_standard_code_matrix_max_rule_delta`
 
 ## 상태 해석
 
@@ -95,8 +103,16 @@ bash deploy/smoke/run-local-recommendation-observation-suite.sh
 - `observation_blocker`
 - `recommended_cadence`
 - `next_action`
+- `housing_standard_code_effect_status`
+- `housing_standard_code_effect_positive_rule_delta_rows`
+- `housing_standard_code_effect_max_rule_delta`
+- `welfare_standard_code_matrix_status`
+- `welfare_standard_code_matrix_positive_rule_scenarios`
+- `welfare_standard_code_matrix_max_rule_delta`
 
 ## 한 줄 요약
 
 `observation suite` 는 recommendation을 다시 열지 말지 daily 수준에서 빠르게 판단하는 entrypoint이고,
 `reopen_allowed=true` 가 아니면 기본 해석은 **코드 reopen이 아니라 관찰 유지** 입니다.
+이제 여기에는 `housing standard code effect` 와 `welfare standard code matrix` 도 같이 묶여 있어서,
+주거형태/주택유형뿐 아니라 `기초생활수급권자 / 장애등급` 계열 표준코드 효과도 같은 artifact에서 바로 확인할 수 있습니다.

@@ -2,19 +2,27 @@ package com.example.welfare.admin;
 
 import com.example.welfare.admin.dashboard.controller.AdminDashboardController;
 import com.example.welfare.admin.dashboard.dto.AdminCollectFailureResponse;
+import com.example.welfare.admin.dashboard.dto.AdminDashboardAttentionResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationCandidateDiagnosticResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordClearResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
+import com.example.welfare.admin.dashboard.dto.AdminStandardCodeEffectObservationResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
+import com.example.welfare.admin.dashboard.dto.AdminUserProfileStandardCodeCoverageResponse;
+import com.example.welfare.admin.dashboard.dto.AdminWrapperObservationResponse;
 import com.example.welfare.collect.dto.InvertedAgeBackfillResponse;
 import com.example.welfare.admin.dashboard.service.AdminDashboardCollectService;
+import com.example.welfare.admin.dashboard.service.AdminDashboardAttentionService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardRecommendationDiagnosticService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardRecommendationService;
 import com.example.welfare.admin.dashboard.service.AdminRecommendationReviewGatePromotionApprovalRecordService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardSearchService;
+import com.example.welfare.admin.dashboard.service.AdminDashboardStandardCodeObservationService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardSummaryService;
+import com.example.welfare.admin.dashboard.service.AdminDashboardUserProfileService;
+import com.example.welfare.admin.dashboard.service.AdminDashboardWrapperObservationService;
 import com.example.welfare.collect.controller.CollectAdminController;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillService;
 import com.example.welfare.collect.service.CollectAdminService;
@@ -59,7 +67,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
@@ -92,55 +100,63 @@ class AdminSecurityWebMvcTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private CollectBatchService collectBatchService;
-    @MockBean
+    @MockitoBean
     private CollectAdminService collectAdminService;
-    @MockBean
+    @MockitoBean
     private NormalizedPolicySidecarBackfillService normalizedPolicySidecarBackfillService;
-    @MockBean
+    @MockitoBean
     private YouthDetailCollectService youthDetailCollectService;
-    @MockBean
+    @MockitoBean
     private SearchYouthRelevanceService searchYouthRelevanceService;
-    @MockBean
+    @MockitoBean
     private PolicyEmbeddingAdminService policyEmbeddingAdminService;
-    @MockBean
+    @MockitoBean
     private PolicyReferenceUrlAdminService policyReferenceUrlAdminService;
-    @MockBean
+    @MockitoBean
     private PolicyRetrievalEvaluationService policyRetrievalEvaluationService;
-    @MockBean
+    @MockitoBean
     private PolicyRetrievalEvaluationExportService policyRetrievalEvaluationExportService;
-    @MockBean
+    @MockitoBean
     private PolicyRetrievalQualityGateService policyRetrievalQualityGateService;
-    @MockBean
+    @MockitoBean
     private PolicyCategoryAuditService policyCategoryAuditService;
-    @MockBean
+    @MockitoBean
     private UserMetadataUserKeyBackfillService userMetadataUserKeyBackfillService;
-    @MockBean
+    @MockitoBean
     private UserPiiBackfillService userPiiBackfillService;
-    @MockBean
+    @MockitoBean
     private UserPiiSyncReplayService userPiiSyncReplayService;
-    @MockBean
+    @MockitoBean
     private UserPiiSyncStatusService userPiiSyncStatusService;
-    @MockBean
+    @MockitoBean
     private UserSessionRevocationService userSessionRevocationService;
-    @MockBean
+    @MockitoBean
     private UserKeyLookupService userKeyLookupService;
-    @MockBean
+    @MockitoBean
     private AdminDashboardSummaryService adminDashboardSummaryService;
-    @MockBean
+    @MockitoBean
     private AdminDashboardSearchService adminDashboardSearchService;
-    @MockBean
+    @MockitoBean
     private AdminDashboardRecommendationService adminDashboardRecommendationService;
-    @MockBean
+    @MockitoBean
     private AdminDashboardRecommendationDiagnosticService adminDashboardRecommendationDiagnosticService;
-    @MockBean
+    @MockitoBean
     private AdminRecommendationReviewGatePromotionApprovalRecordService adminRecommendationReviewGatePromotionApprovalRecordService;
-    @MockBean
+    @MockitoBean
     private AdminDashboardCollectService adminDashboardCollectService;
-    @MockBean
+    @MockitoBean
+    private AdminDashboardAttentionService adminDashboardAttentionService;
+    @MockitoBean
+    private AdminDashboardUserProfileService adminDashboardUserProfileService;
+    @MockitoBean
+    private AdminDashboardStandardCodeObservationService adminDashboardStandardCodeObservationService;
+    @MockitoBean
+    private AdminDashboardWrapperObservationService adminDashboardWrapperObservationService;
+    @MockitoBean
     private JwtUtil jwtUtil;
-    @MockBean
+    @MockitoBean
     private JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @Test
@@ -314,6 +330,207 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.cleared").value(true));
 
         then(adminRecommendationReviewGatePromotionApprovalRecordService).should().clearApproval();
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 표준코드 coverage API를 호출하면 coverage service를 실행한다")
+    void adminEndpointAllowsUserProfileStandardCodeCoverage() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(adminDashboardUserProfileService.getUserProfileStandardCodeCoverage())
+                .willReturn(new AdminUserProfileStandardCodeCoverageResponse(
+                        LocalDateTime.of(2026, 6, 3, 12, 0),
+                        796,
+                        796,
+                        0,
+                        7,
+                        0,
+                        789,
+                        7,
+                        3,
+                        0,
+                        0,
+                        7,
+                        0,
+                        789,
+                        0,
+                        0,
+                        0,
+                        0
+                ));
+
+        mockMvc.perform(get("/api/admin/dashboard/user-profile-standard-code-coverage")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.totalUsers").value(796))
+                .andExpect(jsonPath("$.data.usersMissingAllStandardCodes").value(789))
+                .andExpect(jsonPath("$.data.housingTypeFilled").value(3));
+
+        then(adminDashboardUserProfileService).should().getUserProfileStandardCodeCoverage();
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 attention feed API를 호출하면 attention service를 실행한다")
+    void adminEndpointAllowsAttentionFeed() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(adminDashboardAttentionService.getAttentionFeed())
+                .willReturn(new AdminDashboardAttentionResponse(
+                        LocalDateTime.of(2026, 6, 3, 12, 30),
+                        2,
+                        List.of(
+                                new AdminDashboardAttentionResponse.AttentionItem(
+                                        "collect-drift",
+                                        "warning",
+                                        "수집 drift 확인",
+                                        "실패 2건, 부분 성공 1건, 열린 회로 1개",
+                                        "admin-collect-triage",
+                                        "collect"
+                                ),
+                                new AdminDashboardAttentionResponse.AttentionItem(
+                                        "standard-code-backlog",
+                                        "warning",
+                                        "표준코드 입력 backlog",
+                                        "793명이 주거·복지 표준코드 4개를 모두 비워둔 상태입니다.",
+                                        "admin-standard-code-coverage",
+                                        "user-profile-standard-codes"
+                                )
+                        )
+                ));
+
+        mockMvc.perform(get("/api/admin/dashboard/attention-feed")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.itemCount").value(2))
+                .andExpect(jsonPath("$.data.items[0].key").value("collect-drift"))
+                .andExpect(jsonPath("$.data.items[1].key").value("standard-code-backlog"));
+
+        then(adminDashboardAttentionService).should().getAttentionFeed();
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 표준코드 추천 효과 observation API를 호출하면 observation service를 실행한다")
+    void adminEndpointAllowsStandardCodeEffectObservation() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(adminDashboardStandardCodeObservationService.getLatestObservation())
+                .willReturn(new AdminStandardCodeEffectObservationResponse(
+                        true,
+                        LocalDateTime.of(2026, 6, 3, 13, 0),
+                        "/tmp/recommendation-observation/latest-recommendation-observation-summary.txt",
+                        "SUPPLEMENTAL_REVIEW_ONLY",
+                        "SUPPLEMENTAL_POLICY_REVIEW",
+                        "ok",
+                        2,
+                        4,
+                        24.0,
+                        0.1344,
+                        "3259:sample",
+                        "ok",
+                        4,
+                        4,
+                        4,
+                        "basic_living_and_housing_combo",
+                        54.0,
+                        "basic_living_only",
+                        0.23586,
+                        "basic_living_only:5:30.00000"
+                ));
+
+        mockMvc.perform(get("/api/admin/dashboard/standard-code-effect-observation")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.available").value(true))
+                .andExpect(jsonPath("$.data.housingPositiveRuleDeltaRows").value(2))
+                .andExpect(jsonPath("$.data.welfareScenarioCount").value(4))
+                .andExpect(jsonPath("$.data.welfareMaxRuleDelta").value(54.0));
+
+        then(adminDashboardStandardCodeObservationService).should().getLatestObservation();
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 wrapper observation API를 호출하면 wrapper observation service를 실행한다")
+    void adminEndpointAllowsWrapperObservation() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(adminDashboardWrapperObservationService.getLatestObservation())
+                .willReturn(new AdminWrapperObservationResponse(
+                        true,
+                        LocalDateTime.of(2026, 6, 3, 13, 20),
+                        "/tmp/active-baseline-suite/latest-active-baseline-summary.txt",
+                        "passed",
+                        "passed",
+                        "ok",
+                        1,
+                        1,
+                        "standard-code-backlog",
+                        "표준코드 입력 backlog",
+                        52,
+                        793,
+                        "passed",
+                        2,
+                        4,
+                        54.0,
+                        true,
+                        LocalDateTime.of(2026, 6, 3, 13, 21),
+                        "/tmp/current-priority-suite/latest-current-priority-summary.txt",
+                        "passed",
+                        true,
+                        "ok",
+                        1,
+                        1,
+                        "standard-code-backlog",
+                        "표준코드 입력 backlog",
+                        52,
+                        793,
+                        "passed",
+                        2,
+                        4,
+                        4,
+                        54.0,
+                        true,
+                        LocalDateTime.of(2026, 6, 3, 13, 19),
+                        "/tmp/current-priority-suite/20260603T041240Z/current-priority-summary.txt",
+                        796,
+                        -3,
+                        "3 감소",
+                        "skipped",
+                        true,
+                        "skipped -> passed",
+                        new AdminWrapperObservationResponse.SnapshotAlert(
+                                "success",
+                                "개선 신호",
+                                "표준코드 미입력 3 감소, priority 관측 skipped -> passed"
+                        )
+                ));
+
+        mockMvc.perform(get("/api/admin/dashboard/wrapper-observation")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.activeBaselineAvailable").value(true))
+                .andExpect(jsonPath("$.data.activeBaselineUsersWithAnyStandardCode").value(52))
+                .andExpect(jsonPath("$.data.currentPriorityAvailable").value(true))
+                .andExpect(jsonPath("$.data.currentPriorityActiveBaselineReused").value(true))
+                .andExpect(jsonPath("$.data.currentPriorityRecommendationWelfareMaxRuleDelta").value(54.0))
+                .andExpect(jsonPath("$.data.currentPriorityUsersMissingAllStandardCodesDelta").value(-3))
+                .andExpect(jsonPath("$.data.currentPriorityUsersMissingAllStandardCodesDeltaLabel").value("3 감소"))
+                .andExpect(jsonPath("$.data.currentPriorityRecommendationObservationStatusChanged").value(true))
+                .andExpect(jsonPath("$.data.currentPriorityRecommendationObservationStatusTransitionLabel").value("skipped -> passed"))
+                .andExpect(jsonPath("$.data.promotedAlert.severity").value("success"));
+
+        then(adminDashboardWrapperObservationService).should().getLatestObservation();
     }
 
     @Test

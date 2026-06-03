@@ -1,6 +1,7 @@
 package com.example.welfare.admin.dashboard.controller;
 
 import com.example.welfare.admin.dashboard.dto.AdminCollectFailureResponse;
+import com.example.welfare.admin.dashboard.dto.AdminDashboardAttentionResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationCandidateDiagnosticResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordClearResponse;
@@ -8,12 +9,19 @@ import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGateProm
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
+import com.example.welfare.admin.dashboard.dto.AdminStandardCodeEffectObservationResponse;
+import com.example.welfare.admin.dashboard.dto.AdminUserProfileStandardCodeCoverageResponse;
+import com.example.welfare.admin.dashboard.dto.AdminWrapperObservationResponse;
 import com.example.welfare.admin.dashboard.service.AdminDashboardCollectService;
+import com.example.welfare.admin.dashboard.service.AdminDashboardAttentionService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardRecommendationDiagnosticService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardRecommendationService;
 import com.example.welfare.admin.dashboard.service.AdminRecommendationReviewGatePromotionApprovalRecordService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardSearchService;
+import com.example.welfare.admin.dashboard.service.AdminDashboardStandardCodeObservationService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardSummaryService;
+import com.example.welfare.admin.dashboard.service.AdminDashboardUserProfileService;
+import com.example.welfare.admin.dashboard.service.AdminDashboardWrapperObservationService;
 import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
@@ -47,6 +55,10 @@ public class AdminDashboardController {
     private final AdminDashboardRecommendationService adminDashboardRecommendationService;
     private final AdminDashboardRecommendationDiagnosticService adminDashboardRecommendationDiagnosticService;
     private final AdminDashboardCollectService adminDashboardCollectService;
+    private final AdminDashboardAttentionService adminDashboardAttentionService;
+    private final AdminDashboardUserProfileService adminDashboardUserProfileService;
+    private final AdminDashboardStandardCodeObservationService adminDashboardStandardCodeObservationService;
+    private final AdminDashboardWrapperObservationService adminDashboardWrapperObservationService;
     private final AdminRecommendationReviewGatePromotionApprovalRecordService
             adminRecommendationReviewGatePromotionApprovalRecordService;
 
@@ -138,6 +150,38 @@ public class AdminDashboardController {
         log.info("[Admin] dashboard collect failures 조회 summaryWindowDays={} limit={}", summaryWindowDays, limit);
         return ResponseEntity.ok(ApiResponse.success(
                 adminDashboardCollectService.getCollectFailures(summaryWindowDays, limit)
+        ));
+    }
+
+    @GetMapping("/user-profile-standard-code-coverage")
+    public ResponseEntity<ApiResponse<AdminUserProfileStandardCodeCoverageResponse>> getUserProfileStandardCodeCoverage() {
+        log.info("[Admin] dashboard user profile standard code coverage 조회");
+        return ResponseEntity.ok(ApiResponse.success(
+                adminDashboardUserProfileService.getUserProfileStandardCodeCoverage()
+        ));
+    }
+
+    @GetMapping("/attention-feed")
+    public ResponseEntity<ApiResponse<AdminDashboardAttentionResponse>> getAttentionFeed() {
+        log.info("[Admin] dashboard attention feed 조회");
+        return ResponseEntity.ok(ApiResponse.success(
+                adminDashboardAttentionService.getAttentionFeed()
+        ));
+    }
+
+    @GetMapping("/standard-code-effect-observation")
+    public ResponseEntity<ApiResponse<AdminStandardCodeEffectObservationResponse>> getStandardCodeEffectObservation() {
+        log.info("[Admin] dashboard standard code effect observation 조회");
+        return ResponseEntity.ok(ApiResponse.success(
+                adminDashboardStandardCodeObservationService.getLatestObservation()
+        ));
+    }
+
+    @GetMapping("/wrapper-observation")
+    public ResponseEntity<ApiResponse<AdminWrapperObservationResponse>> getWrapperObservation() {
+        log.info("[Admin] dashboard wrapper observation 조회");
+        return ResponseEntity.ok(ApiResponse.success(
+                adminDashboardWrapperObservationService.getLatestObservation()
         ));
     }
 

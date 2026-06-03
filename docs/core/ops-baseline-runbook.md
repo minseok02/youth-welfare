@@ -40,6 +40,25 @@ bash deploy/smoke/run-local-ops-observation-suite.sh
 ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-ops-observation-suite.sh
 ```
 
+이 observation wrapper는 아래 두 가지도 같이 돌립니다.
+
+- `user profile standard code coverage`
+- `recommendation standard code observation`
+
+즉 운영 handoff에서 아래를 같은 summary/json 에서 바로 읽습니다.
+
+- `attention_feed.items`
+- `attention_feed_item_count`
+- `attention_feed_item_titles`
+- `users_missing_all_standard_codes`
+- `users_with_any_standard_code`
+- `safe_reconcile_candidate_rows`
+- `wrapper_promoted_alert_severity`
+- `wrapper_promoted_alert_message`
+- `housing_standard_code_effect_positive_rule_delta_rows`
+- `welfare_standard_code_matrix_positive_rule_scenarios`
+- `welfare_standard_code_matrix_max_rule_delta`
+
 ## 기본 wrapper
 
 ```bash

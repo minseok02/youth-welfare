@@ -137,6 +137,9 @@ source 전체 일반화 전에, 특정 맥락을 맞춰주면 Gov24가 실제로
 
 - `bash deploy/smoke/run-local-gov24-housing-signal-smoke.sh`
 - `bash deploy/smoke/run-local-gov24-education-signal-smoke.sh`
+- `bash deploy/smoke/run-local-housing-standard-code-effect-audit.sh`
+- `bash deploy/smoke/run-local-housing-standard-code-matrix-audit.sh`
+- `bash deploy/smoke/run-local-welfare-standard-code-matrix-audit.sh`
 
 질문:
 
@@ -153,11 +156,38 @@ source 전체 일반화 전에, 특정 맥락을 맞춰주면 Gov24가 실제로
   - `gov24_top2_rows=1`
   - `16490 국가장학금 Ⅰ유형 (학생직접지원형)`
   - `rank1`, `rule=27`, `ai=80`, `final=1.01376`
+- `housing standard code effect`
+  - baseline/enhanced comparable rows: `40`
+  - `positive_rule_delta_rows=2`
+  - `max_rule_delta=24.00000`
+  - `max_final_delta=0.13440`
+  - 대표 상승 행:
+    - `3259 주거급여수급자 월세보증금 지원`
+    - `3211 무주택 신혼부부 전월세자금 대출이자 지원사업`
+- `housing standard code matrix`
+  - `scenario_count=4`
+  - `positive_rule_scenarios=4`
+  - `positive_final_scenarios=4`
+  - `max_rule_delta=24.00000`
+  - `house_tenure_only / housing_type_only / tenure_and_type_combo / family_combo` 시나리오 전부에서 동일한 rule delta가 확인됨
+- `welfare standard code matrix`
+  - `scenario_count=4`
+  - `positive_rule_scenarios=4`
+  - `positive_final_scenarios=4`
+  - `max_rule_delta=54.00000`
+  - `basic_living_only / disability_only / basic_living_and_housing_combo / disability_and_housing_combo`
+    시나리오에서 모두 positive delta가 확인됨
 
 읽는 법:
 
 - 둘 다 green이면 Gov24 source 전체 억압으로 일반화하면 안 됩니다.
 - 특정 bounded smoke만 약하면 그 정책군 규칙을 더 봅니다.
+- `housing standard code effect` 까지 green이면, `houseTenureCode / housingTypeCode` 연결이
+  실제 추천 점수에 반영된 상태로 읽습니다.
+- `housing standard code matrix` 까지 같이 green이면, 이 반영이 한 번의 샘플이 아니라
+  여러 주거형 조합에서도 재현된다고 읽는 편이 맞습니다.
+- `welfare standard code matrix` 까지 green이면, `basicLivingRecipientTypeCode / disabilityGradeCode`
+  도 bounded scenario에서는 실제 추천 점수 변화를 만든다고 읽는 편이 맞습니다.
 
 ## 6. 현재 결론
 

@@ -7,9 +7,13 @@ source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
 APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:8082}"
 OBSERVATION_ROOT="${OBSERVATION_ROOT:-${ROOT_DIR}/tmp/recommendation-observation}"
 KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
+RUN_HOUSING_STANDARD_CODE_EFFECT_AUDIT="${RUN_HOUSING_STANDARD_CODE_EFFECT_AUDIT:-true}"
+RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT="${RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT:-true}"
 RUN_TS_UTC="$(smoke_now_ts_utc)"
 ARTIFACT_DIR="${ARTIFACT_DIR:-${OBSERVATION_ROOT}/${RUN_TS_UTC}}"
 PRECHECK_OUTPUT="${ARTIFACT_DIR}/recommendation-reopen-precheck.out"
+HOUSING_EFFECT_OUTPUT="${ARTIFACT_DIR}/housing-standard-code-effect.out"
+WELFARE_MATRIX_OUTPUT="${ARTIFACT_DIR}/welfare-standard-code-matrix.out"
 SUMMARY_OUT="${ARTIFACT_DIR}/recommendation-observation-summary.txt"
 JSON_OUT="${ARTIFACT_DIR}/recommendation-observation.json"
 NOTE_OUT="${ARTIFACT_DIR}/recommendation-observation-note.md"
@@ -27,6 +31,8 @@ cleanup() {
 trap cleanup EXIT
 
 KEEP_ARTIFACTS="$(smoke_normalize_bool "${KEEP_ARTIFACTS}")"
+RUN_HOUSING_STANDARD_CODE_EFFECT_AUDIT="$(smoke_normalize_bool "${RUN_HOUSING_STANDARD_CODE_EFFECT_AUDIT}")"
+RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT="$(smoke_normalize_bool "${RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT}")"
 
 smoke_require_command bash
 smoke_require_command python3
@@ -39,16 +45,34 @@ KEEP_ARTIFACTS=true \
 ARTIFACT_DIR="${ARTIFACT_DIR}/precheck-artifact" \
 bash "${ROOT_DIR}/deploy/smoke/run-local-recommendation-reopen-precheck.sh" | tee "${PRECHECK_OUTPUT}"
 
-python3 - "${PRECHECK_OUTPUT}" "${SUMMARY_OUT}" "${JSON_OUT}" "${NOTE_OUT}" "${ARTIFACT_DIR}" <<'PY'
+if [[ "${RUN_HOUSING_STANDARD_CODE_EFFECT_AUDIT}" == "true" ]]; then
+  smoke_print_step "housing standard code effect audit"
+  APP_BASE_URL="${APP_BASE_URL}" \
+  ARTIFACT_DIR="${ARTIFACT_DIR}/housing-effect-artifact" \
+  bash "${ROOT_DIR}/deploy/smoke/run-local-housing-standard-code-effect-audit.sh" | tee "${HOUSING_EFFECT_OUTPUT}"
+fi
+
+if [[ "${RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT}" == "true" ]]; then
+  smoke_print_step "welfare standard code matrix audit"
+  APP_BASE_URL="${APP_BASE_URL}" \
+  ARTIFACT_DIR="${ARTIFACT_DIR}/welfare-matrix-artifact" \
+  bash "${ROOT_DIR}/deploy/smoke/run-local-welfare-standard-code-matrix-audit.sh" | tee "${WELFARE_MATRIX_OUTPUT}"
+fi
+
+python3 - "${PRECHECK_OUTPUT}" "${HOUSING_EFFECT_OUTPUT}" "${WELFARE_MATRIX_OUTPUT}" "${SUMMARY_OUT}" "${JSON_OUT}" "${NOTE_OUT}" "${ARTIFACT_DIR}" "${RUN_HOUSING_STANDARD_CODE_EFFECT_AUDIT}" "${RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT}" <<'PY'
 import json
 import sys
 from pathlib import Path
 
 output_path = Path(sys.argv[1])
-summary_out = Path(sys.argv[2])
-json_out = Path(sys.argv[3])
-note_out = Path(sys.argv[4])
-artifact_dir = sys.argv[5]
+housing_effect_path = Path(sys.argv[2])
+welfare_matrix_path = Path(sys.argv[3])
+summary_out = Path(sys.argv[4])
+json_out = Path(sys.argv[5])
+note_out = Path(sys.argv[6])
+artifact_dir = sys.argv[7]
+run_housing_effect = sys.argv[8] == "true"
+run_welfare_matrix = sys.argv[9] == "true"
 
 values = {}
 for raw_line in output_path.read_text(encoding="utf-8").splitlines():
@@ -64,6 +88,41 @@ effective_step = values.get("effective_operator_next_step", "")
 dashboard_gate = values.get("real_user_dashboard_gate", "")
 cohort_gate = values.get("real_user_breakdown_cohort_gate", "")
 review_gate = values.get("real_user_review_gate", "")
+
+housing_values = {}
+if run_housing_effect and housing_effect_path.exists():
+    for raw_line in housing_effect_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line.startswith("METRIC "):
+            continue
+        metric_payload = line[len("METRIC "):]
+        if "=" not in metric_payload:
+            continue
+        key, value = metric_payload.split("=", 1)
+        housing_values[key.strip()] = value.strip()
+
+housing_effect_status = "skipped"
+if run_housing_effect:
+    housing_effect_status = "ok" if housing_values else "missing"
+
+positive_rule_delta_rows = housing_values.get("positive_rule_delta_rows", "")
+positive_final_delta_rows = housing_values.get("positive_final_delta_rows", "")
+max_rule_delta = housing_values.get("max_rule_delta", "")
+max_final_delta = housing_values.get("max_final_delta", "")
+top_positive_rule_delta_rows = housing_values.get("top_positive_rule_delta_rows", "")
+
+welfare_matrix_values = {}
+if run_welfare_matrix and welfare_matrix_path.exists():
+    for raw_line in welfare_matrix_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        welfare_matrix_values[key.strip()] = value.strip()
+
+welfare_matrix_status = "skipped"
+if run_welfare_matrix:
+    welfare_matrix_status = "ok" if welfare_matrix_values else "missing"
 
 if precheck_status == "KEEP_OBSERVING":
     observation_blocker = "REAL_USER_TRAFFIC"
@@ -117,7 +176,32 @@ summary_lines = [
     f"recommended_cadence={recommended_cadence}",
     f"operator_reading={operator_reading}",
     f"next_action={next_action}",
+    f"run_housing_standard_code_effect_audit={str(run_housing_effect).lower()}",
+    f"housing_standard_code_effect_status={housing_effect_status}",
+    f"run_welfare_standard_code_matrix_audit={str(run_welfare_matrix).lower()}",
+    f"welfare_standard_code_matrix_status={welfare_matrix_status}",
 ]
+if run_housing_effect:
+    summary_lines.extend([
+        f"housing_standard_code_effect_stdout={artifact_dir}/housing-standard-code-effect.out",
+        f"housing_standard_code_effect_positive_rule_delta_rows={positive_rule_delta_rows}",
+        f"housing_standard_code_effect_positive_final_delta_rows={positive_final_delta_rows}",
+        f"housing_standard_code_effect_max_rule_delta={max_rule_delta}",
+        f"housing_standard_code_effect_max_final_delta={max_final_delta}",
+        f"housing_standard_code_effect_top_positive_rule_delta_rows={top_positive_rule_delta_rows}",
+    ])
+if run_welfare_matrix:
+    summary_lines.extend([
+        f"welfare_standard_code_matrix_stdout={artifact_dir}/welfare-standard-code-matrix.out",
+        f"welfare_standard_code_matrix_scenario_count={welfare_matrix_values.get('scenario_count', '')}",
+        f"welfare_standard_code_matrix_positive_rule_scenarios={welfare_matrix_values.get('positive_rule_scenarios', '')}",
+        f"welfare_standard_code_matrix_positive_final_scenarios={welfare_matrix_values.get('positive_final_scenarios', '')}",
+        f"welfare_standard_code_matrix_max_rule_delta_scenario={welfare_matrix_values.get('max_rule_delta_scenario', '')}",
+        f"welfare_standard_code_matrix_max_rule_delta={welfare_matrix_values.get('max_rule_delta', '')}",
+        f"welfare_standard_code_matrix_max_final_delta_scenario={welfare_matrix_values.get('max_final_delta_scenario', '')}",
+        f"welfare_standard_code_matrix_max_final_delta={welfare_matrix_values.get('max_final_delta', '')}",
+        f"welfare_standard_code_matrix_scenario_rule_delta_snapshot={welfare_matrix_values.get('scenario_rule_delta_snapshot', '')}",
+    ])
 summary_out.write_text("\n".join(summary_lines) + "\n", encoding="utf-8")
 
 json_payload = {
@@ -134,7 +218,32 @@ json_payload = {
     "recommended_cadence": recommended_cadence,
     "operator_reading": operator_reading,
     "next_action": next_action,
+    "run_housing_standard_code_effect_audit": run_housing_effect,
+    "housing_standard_code_effect_status": housing_effect_status,
+    "run_welfare_standard_code_matrix_audit": run_welfare_matrix,
+    "welfare_standard_code_matrix_status": welfare_matrix_status,
 }
+if run_housing_effect:
+    json_payload["housing_standard_code_effect"] = {
+        "stdout": f"{artifact_dir}/housing-standard-code-effect.out",
+        "positive_rule_delta_rows": int(positive_rule_delta_rows or "0"),
+        "positive_final_delta_rows": int(positive_final_delta_rows or "0"),
+        "max_rule_delta": float(max_rule_delta or "0"),
+        "max_final_delta": float(max_final_delta or "0"),
+        "top_positive_rule_delta_rows": top_positive_rule_delta_rows,
+    }
+if run_welfare_matrix:
+    json_payload["welfare_standard_code_matrix"] = {
+        "stdout": f"{artifact_dir}/welfare-standard-code-matrix.out",
+        "scenario_count": int(welfare_matrix_values.get("scenario_count", "0") or "0"),
+        "positive_rule_scenarios": int(welfare_matrix_values.get("positive_rule_scenarios", "0") or "0"),
+        "positive_final_scenarios": int(welfare_matrix_values.get("positive_final_scenarios", "0") or "0"),
+        "max_rule_delta_scenario": welfare_matrix_values.get("max_rule_delta_scenario", ""),
+        "max_rule_delta": float(welfare_matrix_values.get("max_rule_delta", "0") or "0"),
+        "max_final_delta_scenario": welfare_matrix_values.get("max_final_delta_scenario", ""),
+        "max_final_delta": float(welfare_matrix_values.get("max_final_delta", "0") or "0"),
+        "scenario_rule_delta_snapshot": welfare_matrix_values.get("scenario_rule_delta_snapshot", ""),
+    }
 json_out.write_text(json.dumps(json_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 note_lines = [
@@ -158,6 +267,33 @@ note_lines = [
     f"- `breakdown_real_user_cohort_gate`: `{cohort_gate}`",
     f"- `recommendation_review_gate`: `{review_gate}`",
 ]
+if run_housing_effect:
+    note_lines.extend([
+        "",
+        "## Housing Standard Code Effect",
+        "",
+        f"- `status`: `{housing_effect_status}`",
+        f"- `positive_rule_delta_rows`: `{positive_rule_delta_rows}`",
+        f"- `positive_final_delta_rows`: `{positive_final_delta_rows}`",
+        f"- `max_rule_delta`: `{max_rule_delta}`",
+        f"- `max_final_delta`: `{max_final_delta}`",
+        f"- `top_positive_rule_delta_rows`: `{top_positive_rule_delta_rows}`",
+    ])
+if run_welfare_matrix:
+    note_lines.extend([
+        "",
+        "## Welfare Standard Code Matrix",
+        "",
+        f"- `status`: `{welfare_matrix_status}`",
+        f"- `scenario_count`: `{welfare_matrix_values.get('scenario_count', '')}`",
+        f"- `positive_rule_scenarios`: `{welfare_matrix_values.get('positive_rule_scenarios', '')}`",
+        f"- `positive_final_scenarios`: `{welfare_matrix_values.get('positive_final_scenarios', '')}`",
+        f"- `max_rule_delta_scenario`: `{welfare_matrix_values.get('max_rule_delta_scenario', '')}`",
+        f"- `max_rule_delta`: `{welfare_matrix_values.get('max_rule_delta', '')}`",
+        f"- `max_final_delta_scenario`: `{welfare_matrix_values.get('max_final_delta_scenario', '')}`",
+        f"- `max_final_delta`: `{welfare_matrix_values.get('max_final_delta', '')}`",
+        f"- `scenario_rule_delta_snapshot`: `{welfare_matrix_values.get('scenario_rule_delta_snapshot', '')}`",
+    ])
 note_out.write_text("\n".join(note_lines) + "\n", encoding="utf-8")
 PY
 

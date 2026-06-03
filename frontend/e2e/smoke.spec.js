@@ -1,8 +1,32 @@
 import { expect, test } from "@playwright/test";
 import { execFileSync } from "node:child_process";
-import { adminDashboardFixtures, buildAdminDashboardApiPayload } from "./fixtures/adminDashboard.js";
+import {
+  adminDashboardFixtures,
+  buildAdminDashboardApiPayload,
+  buildOfficialCodebooksApiPayload,
+  officialCodebookRows,
+} from "./fixtures/adminDashboard.js";
 import { expectLoggedInChat, loginFromProtectedRoute, loginThroughForm } from "./support/auth.js";
+import {
+  adminAction,
+  activePrimaryFocusWithin,
+  attentionAction,
+  activeCard,
+  activeFocus,
+  activeFocusWithin,
+  activeList,
+  activeSection,
+  attentionPrimaryAction,
+  section,
+} from "./support/adminDashboardSelectors.js";
 import { resolveAdminCredentials, resolveUserCredentials } from "./support/env.js";
+import {
+  ADMIN_DASHBOARD_ACTION_KEYS,
+  ADMIN_DASHBOARD_ATTENTION_KEYS,
+  ADMIN_DASHBOARD_CARD_KEYS,
+  ADMIN_DASHBOARD_FOCUS_KEYS,
+  ADMIN_DASHBOARD_LIST_KEYS,
+} from "../src/lib/adminDashboardTestHooks.js";
 
 const userCredentials = resolveUserCredentials();
 const adminCredentials = resolveAdminCredentials();
@@ -150,6 +174,10 @@ async function mockAdminDashboardApis(page) {
     ["**/api/admin/dashboard/recommendation-breakdowns*", adminDashboardFixtures.breakdowns],
     ["**/api/admin/dashboard/collect-failures*", adminDashboardFixtures.collectFailures],
     ["**/api/admin/dashboard/search-failures*", adminDashboardFixtures.searchFailures],
+    ["**/api/admin/dashboard/user-profile-standard-code-coverage*", adminDashboardFixtures.userProfileStandardCodeCoverage],
+    ["**/api/admin/dashboard/attention-feed*", adminDashboardFixtures.attentionFeed],
+    ["**/api/admin/dashboard/standard-code-effect-observation*", adminDashboardFixtures.standardCodeEffectObservation],
+    ["**/api/admin/dashboard/wrapper-observation*", adminDashboardFixtures.wrapperObservation],
   ];
 
   await Promise.all(routes.map(([url, data]) => page.route(url, (route) => route.fulfill({
@@ -157,6 +185,64 @@ async function mockAdminDashboardApis(page) {
     contentType: "application/json; charset=utf-8",
     body: JSON.stringify(buildAdminDashboardApiPayload(data)),
   }))));
+
+  await page.route("**/api/reference/official-codes", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json; charset=utf-8",
+    body: JSON.stringify(buildOfficialCodebooksApiPayload(adminDashboardFixtures.officialCodebooks)),
+  }));
+
+  await page.route("**/api/reference/official-codes/LOCAL_HOUSING_TYPE*", (route) => {
+    const url = new URL(route.request().url());
+    const queryText = (url.searchParams.get("q") || "").trim();
+    const allRows = officialCodebookRows.LOCAL_HOUSING_TYPE;
+    const rows = queryText
+      ? allRows.filter((row) => Object.values(row).some((value) => String(value).includes(queryText)))
+      : allRows;
+
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify(buildOfficialCodebooksApiPayload({
+        codeSetKey: "LOCAL_HOUSING_TYPE",
+        sourceType: "xlsx",
+        sourceFile: "주택유형구분코드 조회자료.xlsx",
+        intendedUse: "user-profile and housing policy normalization",
+        rowCount: 8,
+        matchedRowCount: rows.length,
+        sheetName: "주택유형구분코드 조회자료",
+        headers: ["코드값", "코드값의미", "비고"],
+        rows,
+      })),
+    });
+  });
+
+  await page.route("**/api/reference/official-codes/LOCAL_AGENCY_CODES*", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json; charset=utf-8",
+    body: JSON.stringify(buildOfficialCodebooksApiPayload({
+      codeSetKey: "LOCAL_AGENCY_CODES",
+      sourceType: "txt",
+      sourceFile: "기관코드 전체자료(유형분류 의미추가).txt",
+      intendedUse: "gov24 agency normalization crosswalk",
+      rowCount: 135186,
+      matchedRowCount: 5,
+      sheetName: null,
+      headers: null,
+      rows: null,
+      metadata: {
+        activeRowCount: 135186,
+        topLevelAgencyCount: 219,
+        sampleRows: [
+          {
+            기관코드: "1741000",
+            전체기관명: "행정안전부",
+            유형분류_중_의미: "중앙행정기관",
+          },
+        ],
+      },
+    })),
+  }));
 }
 
 test("비로그인 chat 접근 후 로그인하면 원래 chat 경로로 복귀한다", async ({ page }) => {
@@ -409,7 +495,7 @@ test("admin dashboard는 recommendation overview와 triage 섹션을 함께 보�
   await loginFromProtectedRoute(page, "/admin/dashboard", adminCredentials);
 
   await expect(page.getByText("운영 추천 대시보드")).toBeVisible();
-  await expect(page.locator("#admin-recommendation-overview").getByText("추천 검토 상태", { exact: true }).first()).toBeVisible();
+  await expect(page.locator(section("admin-recommendation-overview")).getByText("추천 검토 상태", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("수집 실패 상세 로딩 중")).toHaveCount(0);
   await expect(page.getByText("수집 실패 상세", { exact: true })).toBeVisible();
   await expect(page.getByText("최근 0건 검색 키워드", { exact: true })).toBeVisible();
@@ -444,8 +530,280 @@ test("admin dashboard breakdown 실패 시 recommendation hero는 유지되고 �
 
   await expect(page.getByText("추천 상세 진단 로딩 중")).toHaveCount(0);
   await expect(page.getByText("운영 추천 대시보드")).toBeVisible();
-  await expect(page.locator("#admin-recommendation-overview").getByText("추천 검토 상태", { exact: true }).first()).toBeVisible();
+  await expect(page.locator(section("admin-recommendation-overview")).getByText("추천 검토 상태", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("일부 섹션만 불러오지 못했습니다.")).toBeVisible();
   await expect(page.getByText("추천 상세 진단 로드 실패")).toBeVisible();
   await expect(page.getByText("breakdown forced failure")).toBeVisible();
+});
+
+test("admin dashboard 공식 코드북 탐색은 검색과 메타데이터를 보여준다 @admin-required", async ({ page }) => {
+  await mockAdminDashboardApis(page);
+  await loginFromProtectedRoute(page, "/admin/dashboard", adminCredentials);
+
+  await expect(page.getByText("공식 코드북 탐색", { exact: true })).toBeVisible();
+  await expect(page.getByText("행 조회 가능", { exact: true })).toBeVisible();
+  await expect(page.getByText("아파트", { exact: true })).toBeVisible();
+  await expect(page.getByText("다가구주택", { exact: true })).toBeVisible();
+
+  await page.getByPlaceholder("코드값, 라벨, 설명 검색").fill("아파트");
+  await expect(page.getByText("다가구주택", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("아파트", { exact: true })).toBeVisible();
+
+  await page.getByRole("combobox").nth(1).click();
+  await page.getByRole("option", { name: "LOCAL_AGENCY_CODES", exact: true }).click();
+
+  await expect(page.getByText("메타데이터 전용", { exact: true })).toBeVisible();
+  await expect(page.getByText(/activeRowCount: 135186/)).toBeVisible();
+  await expect(page.getByText("행정안전부", { exact: true })).toBeVisible();
+});
+
+test("admin dashboard 표준코드 입력률 섹션은 coverage를 보여준다 @admin-required", async ({ page }) => {
+  await mockAdminDashboardApis(page);
+  await loginFromProtectedRoute(page, "/admin/dashboard", adminCredentials);
+
+  const standardCodeCoverageSection = page.locator(section("admin-standard-code-coverage"));
+
+  await expect(standardCodeCoverageSection.getByText("주거·복지 표준코드 입력률", { exact: true })).toBeVisible();
+  await expect(standardCodeCoverageSection.getByText("전체 사용자", { exact: true })).toBeVisible();
+  await expect(standardCodeCoverageSection.getByText("전부 미입력", { exact: true })).toBeVisible();
+  await expect(standardCodeCoverageSection.getByText("주택유형 입력", { exact: true })).toBeVisible();
+  await expect(standardCodeCoverageSection.getByText("안전 보정 후보", { exact: true })).toBeVisible();
+  await expect(standardCodeCoverageSection.getByText("796", { exact: true })).toBeVisible();
+  await expect(standardCodeCoverageSection.getByText("789", { exact: true })).toBeVisible();
+  await expect(standardCodeCoverageSection.getByText("3", { exact: true }).first()).toBeVisible();
+});
+
+test("admin dashboard 표준코드 추천 효과 섹션은 matrix 결과를 보여준다 @admin-required", async ({ page }) => {
+  await mockAdminDashboardApis(page);
+  await loginFromProtectedRoute(page, "/admin/dashboard", adminCredentials);
+
+  const standardCodeEffectSection = page.locator(section("admin-standard-code-effect"));
+
+  await expect(standardCodeEffectSection.getByText("표준코드 추천 효과", { exact: true })).toBeVisible();
+  await expect(standardCodeEffectSection.getByText("주거 효과 rule 상승", { exact: true })).toBeVisible();
+  await expect(standardCodeEffectSection.getByText("2", { exact: true }).first()).toBeVisible();
+  await expect(standardCodeEffectSection.getByText("복지 matrix 시나리오", { exact: true })).toBeVisible();
+  await expect(standardCodeEffectSection.getByText("4", { exact: true }).first()).toBeVisible();
+  await expect(standardCodeEffectSection.getByText("최대 rule delta", { exact: true })).toBeVisible();
+  await expect(standardCodeEffectSection.getByText("54", { exact: true }).first()).toBeVisible();
+  await expect(standardCodeEffectSection.getByText("basic_living_and_housing_combo").first()).toBeVisible();
+});
+
+test("admin dashboard 상위 wrapper 섹션은 active baseline/current priority 요약을 보여준다 @admin-required", async ({ page }) => {
+  await mockAdminDashboardApis(page);
+  await loginFromProtectedRoute(page, "/admin/dashboard", adminCredentials);
+
+  const wrapperObservationSection = page.locator(section("admin-wrapper-observation"));
+
+  await expect(wrapperObservationSection.getByText("active baseline / current priority", { exact: true })).toBeVisible();
+  await expect(wrapperObservationSection.getByText("active baseline", { exact: true })).toBeVisible();
+  await expect(wrapperObservationSection.getByText("current priority", { exact: true })).toBeVisible();
+  await expect(wrapperObservationSection.getByText("/tmp/active-baseline-suite/latest-active-baseline-summary.txt")).toBeVisible();
+  await expect(wrapperObservationSection.getByText("/tmp/current-priority-suite/latest-current-priority-summary.txt")).toBeVisible();
+  await expect(wrapperObservationSection.getByText("active baseline reused", { exact: true })).toBeVisible();
+  await expect(wrapperObservationSection.getByText("attention feed", { exact: true })).toHaveCount(2);
+  await expect(wrapperObservationSection.getByText(/attention 표준코드 입력 backlog/)).toHaveCount(2);
+  await expect(wrapperObservationSection.getByText("true", { exact: true }).first()).toBeVisible();
+  await expect(wrapperObservationSection.getByText("793", { exact: true }).first()).toBeVisible();
+  await expect(wrapperObservationSection.getByText(/54(\.0)?/).first()).toBeVisible();
+});
+
+test("admin dashboard 운영 스냅샷은 wrapper 핵심 수치를 상단 카드에 보여준다 @admin-required", async ({ page }) => {
+  await mockAdminDashboardApis(page);
+  await loginFromProtectedRoute(page, "/admin/dashboard", adminCredentials);
+
+  await expect(page.getByText("표준코드 미입력", { exact: true })).toBeVisible();
+  await expect(page.getByText("attention 대표", { exact: true })).toBeVisible();
+  await expect(page.getByText("priority 관측", { exact: true })).toBeVisible();
+  await expect(page.getByText("current priority 승격 기준 · 3 감소", { exact: true })).toBeVisible();
+  await expect(page.getByText("current priority 승격 기준 · 1건 · standard-codes / warning", { exact: true })).toBeVisible();
+  await expect(page.getByText("표준코드 입력 backlog", { exact: true }).first()).toBeVisible();
+  await expect(page.locator(attentionPrimaryAction(ADMIN_DASHBOARD_ATTENTION_KEYS.standardCodeBacklog)).first()).toBeVisible();
+  await expect(page.getByText("active baseline 재사용 · skipped -> passed · attention ok", { exact: true })).toBeVisible();
+  await expect(page.getByText("개선 신호", { exact: true })).toBeVisible();
+  await expect(page.getByText(/표준코드 미입력 3 감소/)).toBeVisible();
+  await expect(page.getByText(/priority 관측 skipped -> passed/)).toBeVisible();
+  await expect(page.getByText("정리 필요", { exact: true })).toBeVisible();
+  await expect(page.getByText("주시", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("정상", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("793", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("passed", { exact: true }).first()).toBeVisible();
+});
+
+test("admin dashboard 운영 알림 카드는 상위 주의 항목을 스크롤 없이 보여준다 @admin-required", async ({ page }) => {
+  await mockAdminDashboardApis(page);
+  await loginFromProtectedRoute(page, "/admin/dashboard", adminCredentials);
+
+  const alertsCard = page.locator(section("admin-ops-alerts"));
+  await expect(alertsCard.getByText("운영 알림", { exact: true })).toBeVisible();
+  await expect(alertsCard.getByText(/지금 바로 볼 우선 신호 2건/)).toBeVisible();
+  await expect(alertsCard.getByText("수집 drift 확인", { exact: true })).toBeVisible();
+  await expect(alertsCard.getByText("표준코드 입력 backlog", { exact: true })).toBeVisible();
+  await expect(alertsCard.getByRole("button", { name: "주의 항목 큐 보기", exact: true })).toBeVisible();
+});
+
+test("admin dashboard 주의 항목 큐는 collect와 표준코드 backlog를 함께 보여준다 @admin-required", async ({ page }) => {
+  await mockAdminDashboardApis(page);
+  await loginFromProtectedRoute(page, "/admin/dashboard", adminCredentials);
+
+  const queueSection = page.locator(section("admin-attention-queue"));
+  await expect(queueSection.getByText("지금 먼저 볼 주의 항목", { exact: true })).toBeVisible();
+  await expect(queueSection.getByText("수집 drift 확인", { exact: true })).toBeVisible();
+  await expect(queueSection.getByText("표준코드 입력 backlog", { exact: true })).toBeVisible();
+  await expect(queueSection.getByRole("button", { name: "해당 섹션 보기" })).toHaveCount(2);
+});
+
+test("admin dashboard attention 진입 버튼은 올바른 섹션과 focus target을 활성화한다 @admin-required", async ({ page }) => {
+  await mockAdminDashboardApis(page);
+  await loginFromProtectedRoute(page, "/admin/dashboard", adminCredentials);
+
+  await page.locator(attentionPrimaryAction(ADMIN_DASHBOARD_ATTENTION_KEYS.standardCodeBacklog)).click();
+  await expect(page.locator(activeSection("admin-standard-code-coverage"))).toBeVisible();
+  await expect(page.locator(activePrimaryFocusWithin("admin-standard-code-coverage"))).toBeVisible();
+
+  const alertsCard = page.locator(section("admin-ops-alerts"));
+  await alertsCard.getByRole("button", { name: "주의 항목 큐 보기", exact: true }).click();
+  await expect(page.locator(activeSection("admin-attention-queue"))).toBeVisible();
+  await expect(page.locator(activePrimaryFocusWithin("admin-attention-queue"))).toBeVisible();
+
+  const queueSection = page.locator(section("admin-attention-queue"));
+  await queueSection.locator(attentionAction(ADMIN_DASHBOARD_ATTENTION_KEYS.collectDrift)).click();
+  await expect(page.locator(activeSection("admin-collect-triage"))).toBeVisible();
+  await expect(page.locator(activeFocusWithin("admin-collect-triage", ADMIN_DASHBOARD_FOCUS_KEYS.default))).toBeVisible();
+
+  await queueSection.locator(attentionAction(ADMIN_DASHBOARD_ATTENTION_KEYS.standardCodeBacklog)).click();
+  await expect(page.locator(activeSection("admin-standard-code-coverage"))).toBeVisible();
+  await expect(page.locator(activePrimaryFocusWithin("admin-standard-code-coverage"))).toBeVisible();
+});
+
+test("admin dashboard quick jump는 코드북/추천 상세 focus card를 활성화한다 @admin-required", async ({ page }) => {
+  await mockAdminDashboardApis(page);
+  await loginFromProtectedRoute(page, "/admin/dashboard", adminCredentials);
+
+  await page.locator(adminAction(ADMIN_DASHBOARD_ACTION_KEYS.quickJumpReferenceCodebooks)).click();
+  await expect(page.locator(activeSection("admin-reference-codebooks"))).toBeVisible();
+  await expect(page.locator(activeCard(ADMIN_DASHBOARD_CARD_KEYS.matchedRowCount))).toBeVisible();
+
+  await page.locator(adminAction(ADMIN_DASHBOARD_ACTION_KEYS.quickJumpRecommendationBreakdowns)).click();
+  await expect(page.locator(activeSection("admin-recommendation-breakdowns"))).toBeVisible();
+  await expect(page.locator(activeList(ADMIN_DASHBOARD_LIST_KEYS.topRepeatedServices))).toBeVisible();
+});
+
+test("admin dashboard quick jump는 개요/효과/wrapper focus card를 활성화한다 @admin-required", async ({ page }) => {
+  await mockAdminDashboardApis(page);
+  await loginFromProtectedRoute(page, "/admin/dashboard", adminCredentials);
+
+  await page.locator(adminAction(ADMIN_DASHBOARD_ACTION_KEYS.quickJumpRecommendationOverview)).click();
+  await expect(page.locator(activeSection("admin-recommendation-overview"))).toBeVisible();
+  await expect(page.locator(activeCard(ADMIN_DASHBOARD_CARD_KEYS.top1LeaderSignal))).toBeVisible();
+
+  await page.locator(adminAction(ADMIN_DASHBOARD_ACTION_KEYS.quickJumpStandardCodeEffect)).click();
+  await expect(page.locator(activeSection("admin-standard-code-effect"))).toBeVisible();
+  await expect(page.locator(activeCard(ADMIN_DASHBOARD_CARD_KEYS.welfareScenarioCount))).toBeVisible();
+
+  await page.locator(adminAction(ADMIN_DASHBOARD_ACTION_KEYS.quickJumpWrapperObservation)).click();
+  await expect(page.locator(activeSection("admin-wrapper-observation"))).toBeVisible();
+  await expect(page.locator(activeCard(ADMIN_DASHBOARD_CARD_KEYS.currentPriorityMissingStandardCodes))).toBeVisible();
+});
+
+test("admin dashboard quick jump는 attention/coverage/collect/search 경로를 활성화한다 @admin-required", async ({ page }) => {
+  await mockAdminDashboardApis(page);
+  await loginFromProtectedRoute(page, "/admin/dashboard", adminCredentials);
+
+  await page.locator(adminAction(ADMIN_DASHBOARD_ACTION_KEYS.quickJumpAttentionQueue)).click();
+  await expect(page.locator(activeSection("admin-attention-queue"))).toBeVisible();
+  await expect(page.locator(activePrimaryFocusWithin("admin-attention-queue"))).toBeVisible();
+
+  await page.locator(adminAction(ADMIN_DASHBOARD_ACTION_KEYS.quickJumpStandardCodeCoverage)).click();
+  await expect(page.locator(activeSection("admin-standard-code-coverage"))).toBeVisible();
+  await expect(page.locator(activePrimaryFocusWithin("admin-standard-code-coverage"))).toBeVisible();
+
+  await page.locator(adminAction(ADMIN_DASHBOARD_ACTION_KEYS.quickJumpCollectTriage)).click();
+  await expect(page.locator(activeSection("admin-collect-triage"))).toBeVisible();
+  await expect(page.locator(activeFocusWithin("admin-collect-triage", ADMIN_DASHBOARD_FOCUS_KEYS.default))).toBeVisible();
+
+  await page.locator(adminAction(ADMIN_DASHBOARD_ACTION_KEYS.quickJumpSearchTriage)).click();
+  await expect(page.locator(activeSection("admin-search-triage"))).toBeVisible();
+  await expect(page.locator(activeFocusWithin("admin-search-triage", ADMIN_DASHBOARD_FOCUS_KEYS.searchWarning))).toBeVisible();
+});
+
+test("admin dashboard 수집/검색 jump 액션은 올바른 focus target을 활성화한다 @admin-required", async ({ page }) => {
+  await mockAdminDashboardApis(page);
+  await loginFromProtectedRoute(page, "/admin/dashboard", adminCredentials);
+
+  const collectSection = page.locator(section("admin-collect-triage"));
+  await collectSection.locator(adminAction(ADMIN_DASHBOARD_ACTION_KEYS.collectPartialView)).click();
+  await expect(page.locator(activeList(ADMIN_DASHBOARD_LIST_KEYS.collectJobBreakdowns))).toBeVisible();
+  await expect(page.locator(activeFocus(ADMIN_DASHBOARD_FOCUS_KEYS.collectPartial))).toBeVisible();
+
+  await collectSection.locator(adminAction(ADMIN_DASHBOARD_ACTION_KEYS.collectCircuitView)).click();
+  await expect(page.locator(activeList(ADMIN_DASHBOARD_LIST_KEYS.collectCircuitStatuses))).toBeVisible();
+  await expect(page.locator(activeFocus(ADMIN_DASHBOARD_FOCUS_KEYS.collectCircuit))).toBeVisible();
+
+  await collectSection.locator(adminAction(ADMIN_DASHBOARD_ACTION_KEYS.collectFailureSampleView)).click();
+  await expect(page.locator(activeList(ADMIN_DASHBOARD_LIST_KEYS.collectRecentFailureSamples))).toBeVisible();
+  await expect(page.locator(activeFocus(ADMIN_DASHBOARD_FOCUS_KEYS.default))).toBeVisible();
+
+  const searchSection = page.locator(section("admin-search-triage"));
+  await searchSection.locator(adminAction(ADMIN_DASHBOARD_ACTION_KEYS.searchWarningView)).click();
+  await expect(page.locator(activeList(ADMIN_DASHBOARD_LIST_KEYS.searchRecentZeroResultSamples))).toBeVisible();
+  await expect(page.locator(activeFocus(ADMIN_DASHBOARD_FOCUS_KEYS.searchWarning))).toBeVisible();
+
+  await searchSection.locator(adminAction(ADMIN_DASHBOARD_ACTION_KEYS.searchRecoveredView)).click();
+  await expect(page.locator(activeList(ADMIN_DASHBOARD_LIST_KEYS.searchRecoveredGroups))).toBeVisible();
+  await expect(page.locator(activeFocus(ADMIN_DASHBOARD_FOCUS_KEYS.searchRecovered))).toBeVisible();
+});
+
+test("admin dashboard 운영 알림 카드는 warning 상태일 때 wrapper 경고까지 승격한다 @admin-required", async ({ page }) => {
+  await mockAdminDashboardApis(page);
+  await page.route("**/api/admin/dashboard/attention-feed*", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json; charset=utf-8",
+    body: JSON.stringify(buildAdminDashboardApiPayload({
+      generatedAt: adminDashboardFixtures.attentionFeed.generatedAt,
+      itemCount: 3,
+      items: [
+        ...adminDashboardFixtures.attentionFeed.items,
+        {
+          key: "wrapper-warning",
+          severity: "warning",
+          title: "운영 주시 포인트",
+          message: "표준코드 미입력 5 증가, priority 관측 passed -> failed",
+          targetId: "admin-wrapper-observation",
+          source: "wrapper-observation",
+        },
+      ],
+    })),
+  }));
+  await page.route("**/api/admin/dashboard/wrapper-observation*", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json; charset=utf-8",
+    body: JSON.stringify(buildAdminDashboardApiPayload({
+      ...adminDashboardFixtures.wrapperObservation,
+      currentPriorityUsersMissingAllStandardCodes: 801,
+      currentPriorityUsersMissingAllStandardCodesDelta: 5,
+      currentPriorityUsersMissingAllStandardCodesDeltaLabel: "5 증가",
+      currentPriorityRecommendationObservationStatus: "failed",
+      currentPriorityPreviousRecommendationObservationStatus: "passed",
+      currentPriorityRecommendationObservationStatusChanged: true,
+      currentPriorityRecommendationObservationStatusTransitionLabel: "passed -> failed",
+      promotedAlert: {
+        severity: "warning",
+        title: "운영 주시 포인트",
+        message: "표준코드 미입력 5 증가, priority 관측 passed -> failed",
+      },
+    })),
+  }));
+
+  await loginFromProtectedRoute(page, "/admin/dashboard", adminCredentials);
+
+  const alertsCard = page.locator(section("admin-ops-alerts"));
+  await expect(alertsCard.getByText(/지금 바로 볼 우선 신호 3건/)).toBeVisible();
+  await expect(alertsCard.getByText("운영 주시 포인트", { exact: true })).toBeVisible();
+  await expect(alertsCard.getByText(/표준코드 미입력 5 증가/)).toBeVisible();
+  await expect(alertsCard.getByText(/priority 관측 passed -> failed/)).toBeVisible();
+  await expect(alertsCard.getByRole("button", { name: "주의 항목 큐 보기", exact: true })).toBeVisible();
+  await alertsCard.locator(attentionAction(ADMIN_DASHBOARD_ATTENTION_KEYS.wrapperWarning)).click();
+  await expect(page.locator(activeSection("admin-wrapper-observation"))).toBeVisible();
+  await expect(page.locator(activePrimaryFocusWithin("admin-wrapper-observation"))).toBeVisible();
 });

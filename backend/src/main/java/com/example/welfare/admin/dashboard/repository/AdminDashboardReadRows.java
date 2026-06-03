@@ -235,6 +235,27 @@ public final class AdminDashboardReadRows {
     ) {
     }
 
+    public record UserProfileStandardCodeCoverageRow(
+            long totalUsers,
+            long usersWithProfileRow,
+            long usersWithoutProfileRow,
+            long usersWithAnyStandardCode,
+            long usersWithAllStandardCodes,
+            long usersMissingAllStandardCodes,
+            long usersHouseTenureCodeFilled,
+            long usersHousingTypeCodeFilled,
+            long usersBasicLivingRecipientTypeCodeFilled,
+            long usersDisabilityGradeCodeFilled,
+            long profilesWithAnyStandardCode,
+            long profilesWithAllStandardCodes,
+            long profilesMissingAllStandardCodes,
+            long profileOnlyGapRows,
+            long userOnlyGapRows,
+            long safeReconcileCandidateRows,
+            long conflictingValueGapRows
+    ) {
+    }
+
     public record RecommendationSourceBreakdownRow(
             String sourceType,
             long sentCount,

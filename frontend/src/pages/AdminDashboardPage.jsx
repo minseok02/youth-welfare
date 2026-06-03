@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Alert,
@@ -12,11 +12,28 @@ import {
   MenuItem,
   Select,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
   Typography,
 } from "@mui/material";
 import Header from "../components/Header";
 import FloatingNav from "../components/FloatingNav";
 import api from "../lib/axios";
+import {
+  ADMIN_DASHBOARD_ACTION_KEYS,
+  ADMIN_DASHBOARD_CARD_KEYS,
+  ADMIN_DASHBOARD_DEFAULT_JUMP_PRESET,
+  ADMIN_DASHBOARD_JUMP_PRESETS,
+  ADMIN_DASHBOARD_LIST_KEYS,
+  ADMIN_DASHBOARD_TEST_ATTRS,
+  ADMIN_DASHBOARD_FOCUS_KEYS,
+  buildDashboardDataAttr,
+} from "../lib/adminDashboardTestHooks";
 
 const PAGE_BG = "#f7f8fc";
 const PANEL_BG = "#ffffff";
@@ -96,6 +113,92 @@ const COLLECT_RESOURCE_TONE = {
   STANDARD: { label: "표준", bg: SUCCESS_BG, border: SUCCESS_BORDER, color: SUCCESS_TEXT },
   BUDGETED: { label: "예산 제한", bg: WARNING_BG, border: WARNING_BORDER, color: WARNING_TEXT },
   ON_DEMAND: { label: "온디맨드", bg: INFO_BG, border: INFO_BORDER, color: INFO_TEXT },
+};
+
+const WRAPPER_STATUS_TONE = {
+  passed: { label: "정상", bg: SUCCESS_BG, border: SUCCESS_BORDER, color: SUCCESS_TEXT },
+  ok: { label: "정상", bg: SUCCESS_BG, border: SUCCESS_BORDER, color: SUCCESS_TEXT },
+  skipped: { label: "건너뜀", bg: WARNING_BG, border: WARNING_BORDER, color: WARNING_TEXT },
+  failed: { label: "실패", bg: "#fee2e2", border: "#fca5a5", color: "#b91c1c" },
+  missing: { label: "없음", bg: "#f8fafc", border: PANEL_LINE, color: INK2 },
+};
+
+const ATTENTION_SEVERITY_TONE = {
+  warning: { label: "주의", bg: WARNING_BG, border: WARNING_BORDER, color: WARNING_TEXT },
+  info: { label: "확인", bg: INFO_BG, border: INFO_BORDER, color: INFO_TEXT },
+  success: { label: "정상", bg: SUCCESS_BG, border: SUCCESS_BORDER, color: SUCCESS_TEXT },
+};
+
+const ATTENTION_SOURCE_LABELS = {
+  collect: "collect",
+  "user-profile-standard-codes": "standard-codes",
+  "wrapper-observation": "wrapper",
+};
+
+function formatAttentionSource(sourceOrKey) {
+  if (!sourceOrKey) {
+    return "attention";
+  }
+  if (ATTENTION_SOURCE_LABELS[sourceOrKey]) {
+    return ATTENTION_SOURCE_LABELS[sourceOrKey];
+  }
+  if (sourceOrKey.includes("standard-code")) {
+    return "standard-codes";
+  }
+  if (sourceOrKey.includes("collect")) {
+    return "collect";
+  }
+  if (sourceOrKey.includes("wrapper")) {
+    return "wrapper";
+  }
+  return sourceOrKey;
+}
+
+function formatAttentionActionLabel(source) {
+  switch (source) {
+    case "collect":
+      return "수집 실패 보기";
+    case "standard-codes":
+      return "표준코드 입력률 보기";
+    case "wrapper":
+      return "상위 wrapper 보기";
+    default:
+      return "관련 섹션 보기";
+  }
+}
+
+const SECTION_FLASH_TONE = {
+  warning: {
+    shadow: "rgba(249,115,22,0.28)",
+    background: "rgba(249,115,22,0.10)",
+  },
+  info: {
+    shadow: "rgba(37,99,235,0.20)",
+    background: "rgba(37,99,235,0.08)",
+  },
+  success: {
+    shadow: "rgba(22,163,74,0.20)",
+    background: "rgba(22,163,74,0.08)",
+  },
+};
+
+const ACTIVE_CARD_SX = {
+  transition: "border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease",
+  [`&[${ADMIN_DASHBOARD_TEST_ATTRS.jumpActive}="true"]`]: {
+    transform: "translateY(-1px)",
+  },
+  [`&[${ADMIN_DASHBOARD_TEST_ATTRS.jumpActive}="true"][${ADMIN_DASHBOARD_TEST_ATTRS.jumpActiveTone}="info"]`]: {
+    borderColor: INFO_BORDER,
+    boxShadow: "0 16px 36px rgba(37,99,235,0.18)",
+  },
+  [`&[${ADMIN_DASHBOARD_TEST_ATTRS.jumpActive}="true"][${ADMIN_DASHBOARD_TEST_ATTRS.jumpActiveTone}="warning"]`]: {
+    borderColor: WARNING_BORDER,
+    boxShadow: "0 16px 36px rgba(249,115,22,0.22)",
+  },
+  [`&[${ADMIN_DASHBOARD_TEST_ATTRS.jumpActive}="true"][${ADMIN_DASHBOARD_TEST_ATTRS.jumpActiveTone}="success"]`]: {
+    borderColor: SUCCESS_BORDER,
+    boxShadow: "0 16px 36px rgba(22,163,74,0.18)",
+  },
 };
 
 const STATUS_LABELS = {
@@ -447,6 +550,41 @@ const fetchSearchFailures = async (windowDays) => {
   return data?.data;
 };
 
+const fetchUserProfileStandardCodeCoverage = async () => {
+  const { data } = await api.get("/api/admin/dashboard/user-profile-standard-code-coverage");
+  return data?.data;
+};
+
+const fetchAttentionFeed = async () => {
+  const { data } = await api.get("/api/admin/dashboard/attention-feed");
+  return data?.data;
+};
+
+const fetchStandardCodeEffectObservation = async () => {
+  const { data } = await api.get("/api/admin/dashboard/standard-code-effect-observation");
+  return data?.data;
+};
+
+const fetchWrapperObservation = async () => {
+  const { data } = await api.get("/api/admin/dashboard/wrapper-observation");
+  return data?.data;
+};
+
+const fetchOfficialCodebooks = async () => {
+  const { data } = await api.get("/api/reference/official-codes");
+  return data?.data ?? [];
+};
+
+const fetchOfficialCodebookDetail = async (codeSetKey, queryText) => {
+  const { data } = await api.get(`/api/reference/official-codes/${codeSetKey}`, {
+    params: {
+      q: queryText?.trim() || undefined,
+      limit: 20,
+    },
+  });
+  return data?.data;
+};
+
 function GateChip({ value }) {
   const tone = REVIEW_GATE_TONE[value] ?? { bg: "#eef2ff", border: "#c7d2fe", color: "#3730a3", label: formatStatusLabel(value) };
   return (
@@ -488,9 +626,24 @@ function ToneChip({ toneMap, value }) {
   );
 }
 
-function MetricCard({ title, value, description, chip }) {
+function MetricCard({
+  title,
+  value,
+  description,
+  descriptionColor = INK3,
+  chip,
+  actionLabel,
+  onAction,
+  focusTarget = false,
+  cardProps,
+  actionProps,
+}) {
   return (
-    <Card sx={{ background: PANEL_BG, border: `1px solid ${PANEL_LINE}`, boxShadow: "0 8px 24px rgba(15,23,42,0.04)" }}>
+    <Card
+      {...(focusTarget ? buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.jumpFocusTarget, "true") : {})}
+      {...cardProps}
+      sx={{ background: PANEL_BG, border: `1px solid ${PANEL_LINE}`, boxShadow: "0 8px 24px rgba(15,23,42,0.04)", ...ACTIVE_CARD_SX }}
+    >
       <CardContent sx={{ p: 2.5 }}>
         <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems="flex-start" spacing={2}>
           <Box sx={{ minWidth: 0, width: "100%" }}>
@@ -512,7 +665,7 @@ function MetricCard({ title, value, description, chip }) {
               <Typography
                 sx={{
                   fontSize: 12,
-                  color: INK3,
+                  color: descriptionColor,
                   mt: 0.75,
                   overflowWrap: "anywhere",
                   wordBreak: "break-word",
@@ -520,6 +673,17 @@ function MetricCard({ title, value, description, chip }) {
               >
                 {description}
               </Typography>
+            )}
+            {actionLabel && onAction && (
+              <Button
+                size="small"
+                variant="text"
+                {...actionProps}
+                sx={{ mt: 1, px: 0, textTransform: "none", fontWeight: 700 }}
+                onClick={onAction}
+              >
+                {actionLabel}
+              </Button>
             )}
           </Box>
           {chip && <Box sx={{ width: { xs: "100%", sm: "auto" } }}>{chip}</Box>}
@@ -564,9 +728,13 @@ function CohortMix({ mix }) {
   );
 }
 
-function ServiceListCard({ title, items, countLabel }) {
+function ServiceListCard({ title, items, countLabel, focusTarget = false, cardProps }) {
   return (
-    <Card sx={{ background: PANEL_BG, border: `1px solid ${PANEL_LINE}`, boxShadow: "0 8px 24px rgba(15,23,42,0.04)", height: "100%" }}>
+    <Card
+      {...(focusTarget ? buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.jumpFocusTarget, "true") : {})}
+      {...cardProps}
+      sx={{ background: PANEL_BG, border: `1px solid ${PANEL_LINE}`, boxShadow: "0 8px 24px rgba(15,23,42,0.04)", height: "100%", ...ACTIVE_CARD_SX }}
+    >
       <CardContent sx={{ p: 2.5 }}>
         <Typography sx={{ fontSize: 15, fontWeight: 800, color: INK }}>{title}</Typography>
         <Stack spacing={1.5} mt={2}>
@@ -596,14 +764,17 @@ function ServiceListCard({ title, items, countLabel }) {
   );
 }
 
-function CompactListCard({ title, description, items, renderItem }) {
+function CompactListCard({ title, description, items, renderItem, cardProps }) {
   return (
-    <Card sx={{ background: PANEL_BG, border: `1px solid ${PANEL_LINE}`, boxShadow: "0 8px 24px rgba(15,23,42,0.04)", height: "100%" }}>
+    <Card
+      {...cardProps}
+      sx={{ background: PANEL_BG, border: `1px solid ${PANEL_LINE}`, boxShadow: "0 8px 24px rgba(15,23,42,0.04)", height: "100%", ...ACTIVE_CARD_SX }}
+    >
       <CardContent sx={{ p: 2.5 }}>
         <Typography sx={{ fontSize: 15, fontWeight: 800, color: INK }}>{title}</Typography>
         {description && <Typography sx={{ fontSize: 12, color: INK3, mt: 0.5 }}>{description}</Typography>}
         <Stack spacing={1.25} mt={2}>
-          {items?.length ? items.map(renderItem) : (
+          {items?.length ? items.map((item, index) => renderItem(item, index)) : (
             <Typography sx={{ fontSize: 13, color: INK3 }}>표시할 데이터가 없습니다.</Typography>
           )}
         </Stack>
@@ -628,11 +799,12 @@ function TriageSectionTitle({ eyebrow, title, description }) {
   );
 }
 
-function QuickJumpButton({ label, targetId, count, subtle }) {
+function QuickJumpButton({ label, targetId, count, subtle, onJump, tone = "info", focusKey = "default", preset = "quickJump", actionProps }) {
   return (
     <Button
       variant={subtle ? "outlined" : "contained"}
-      onClick={() => document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "start" })}
+      {...actionProps}
+      onClick={() => onJump?.(targetId, { tone, focusKey, preset })}
       sx={{
         borderRadius: 999,
         px: 2,
@@ -702,6 +874,8 @@ function SectionErrorCard({ title, description, message, onRetry }) {
 
 export default function AdminDashboardPage() {
   const [windowDays, setWindowDays] = useState(14);
+  const [selectedCodeSetKey, setSelectedCodeSetKey] = useState("");
+  const [codebookQueryText, setCodebookQueryText] = useState("");
   const queryBaseOptions = {
     staleTime: 30_000,
     retry: false,
@@ -731,37 +905,288 @@ export default function AdminDashboardPage() {
     ...queryBaseOptions,
   });
 
+  const standardCodeCoverageQuery = useQuery({
+    queryKey: ["admin-dashboard-standard-code-coverage"],
+    queryFn: fetchUserProfileStandardCodeCoverage,
+    ...queryBaseOptions,
+  });
+
+  const attentionFeedQuery = useQuery({
+    queryKey: ["admin-dashboard-attention-feed"],
+    queryFn: fetchAttentionFeed,
+    ...queryBaseOptions,
+  });
+
+  const standardCodeEffectObservationQuery = useQuery({
+    queryKey: ["admin-dashboard-standard-code-effect-observation"],
+    queryFn: fetchStandardCodeEffectObservation,
+    ...queryBaseOptions,
+  });
+
+  const wrapperObservationQuery = useQuery({
+    queryKey: ["admin-dashboard-wrapper-observation"],
+    queryFn: fetchWrapperObservation,
+    ...queryBaseOptions,
+  });
+
+  const officialCodebooksQuery = useQuery({
+    queryKey: ["official-codebooks"],
+    queryFn: fetchOfficialCodebooks,
+    ...queryBaseOptions,
+  });
+
+  const officialCodebookDetailQuery = useQuery({
+    queryKey: ["official-codebook-detail", selectedCodeSetKey, codebookQueryText],
+    queryFn: () => fetchOfficialCodebookDetail(selectedCodeSetKey, codebookQueryText),
+    enabled: Boolean(selectedCodeSetKey),
+    ...queryBaseOptions,
+  });
+
+  useEffect(() => {
+    if (!selectedCodeSetKey && officialCodebooksQuery.data?.length) {
+      setSelectedCodeSetKey(officialCodebooksQuery.data[0].codeSetKey);
+    }
+  }, [officialCodebooksQuery.data, selectedCodeSetKey]);
+
   const summaryData = summaryQuery.data;
   const recommendationSummary = summaryData?.recommendation;
   const concentration = recommendationSummary?.latestBatchConcentration;
   const breakdowns = breakdownQuery.data;
   const collectFailures = collectFailuresQuery.data;
   const searchFailures = searchFailuresQuery.data;
+  const standardCodeCoverage = standardCodeCoverageQuery.data;
+  const attentionFeed = attentionFeedQuery.data;
+  const standardCodeEffectObservation = standardCodeEffectObservationQuery.data;
+  const wrapperObservation = wrapperObservationQuery.data;
+  const officialCodebooks = officialCodebooksQuery.data ?? [];
+  const selectedCodebookSummary = officialCodebooks.find((item) => item.codeSetKey === selectedCodeSetKey) ?? null;
+  const officialCodebookDetail = officialCodebookDetailQuery.data;
+  const detailRows = officialCodebookDetail?.rows ?? officialCodebookDetail?.metadata?.sampleRows ?? [];
   const summaryErrorMessage = summaryQuery.error?.response?.data?.message ?? "요약 데이터를 불러오지 못했습니다.";
   const breakdownErrorMessage = breakdownQuery.error?.response?.data?.message ?? "추천 상세 triage를 불러오지 못했습니다.";
   const collectErrorMessage = collectFailuresQuery.error?.response?.data?.message ?? "수집 실패 상세를 불러오지 못했습니다.";
   const searchErrorMessage = searchFailuresQuery.error?.response?.data?.message ?? "검색 실패 상세를 불러오지 못했습니다.";
+  const standardCodeCoverageErrorMessage =
+    standardCodeCoverageQuery.error?.response?.data?.message ?? "표준코드 입력 현황을 불러오지 못했습니다.";
+  const attentionFeedErrorMessage =
+    attentionFeedQuery.error?.response?.data?.message ?? "운영 알림 항목을 불러오지 못했습니다.";
+  const standardCodeEffectObservationErrorMessage =
+    standardCodeEffectObservationQuery.error?.response?.data?.message ?? "표준코드 추천 효과 관측값을 불러오지 못했습니다.";
+  const wrapperObservationErrorMessage =
+    wrapperObservationQuery.error?.response?.data?.message ?? "상위 wrapper 관측값을 불러오지 못했습니다.";
+  const officialCodebooksErrorMessage = officialCodebooksQuery.error?.response?.data?.message ?? "공식 코드북 목록을 불러오지 못했습니다.";
+  const officialCodebookDetailErrorMessage = officialCodebookDetailQuery.error?.response?.data?.message ?? "선택한 코드북 상세를 불러오지 못했습니다.";
+  const animateJumpTarget = (target, tone, duration = 1400) => {
+    if (!target || typeof target.animate !== "function") {
+      return;
+    }
+    const flashTone = SECTION_FLASH_TONE[tone] ?? SECTION_FLASH_TONE.info;
+    target.animate(
+      [
+        { boxShadow: "0 0 0 0 rgba(0,0,0,0)", backgroundColor: "rgba(0,0,0,0)" },
+        { boxShadow: `0 0 0 4px ${flashTone.shadow}`, backgroundColor: flashTone.background },
+        { boxShadow: "0 0 0 0 rgba(0,0,0,0)", backgroundColor: "rgba(0,0,0,0)" },
+      ],
+      { duration, easing: "ease-out" },
+    );
+  };
+  const markJumpActive = (target, tone = "info", duration) => {
+    if (!target) {
+      return;
+    }
+    if (target.__jumpActiveTimeoutId) {
+      window.clearTimeout(target.__jumpActiveTimeoutId);
+    }
+    target.setAttribute(ADMIN_DASHBOARD_TEST_ATTRS.jumpActive, "true");
+    target.setAttribute(ADMIN_DASHBOARD_TEST_ATTRS.jumpActiveTone, tone);
+    target.__jumpActiveTimeoutId = window.setTimeout(() => {
+      target.removeAttribute(ADMIN_DASHBOARD_TEST_ATTRS.jumpActive);
+      target.removeAttribute(ADMIN_DASHBOARD_TEST_ATTRS.jumpActiveTone);
+      delete target.__jumpActiveTimeoutId;
+    }, duration);
+  };
+  const jumpToSection = (targetId, options = {}) => {
+    const tone = options.tone ?? "info";
+    const focusKey = options.focusKey ?? ADMIN_DASHBOARD_FOCUS_KEYS.default;
+    const preset = ADMIN_DASHBOARD_JUMP_PRESETS[options.preset] ?? ADMIN_DASHBOARD_JUMP_PRESETS[ADMIN_DASHBOARD_DEFAULT_JUMP_PRESET];
+    const section = document.getElementById(targetId);
+    if (!section) {
+      return;
+    }
+    section.scrollIntoView({ behavior: "smooth", block: "start" });
+    markJumpActive(section, tone, preset.sectionDuration);
+    animateJumpTarget(section, tone, preset.sectionDuration);
+    const focusTargetSelector = focusKey === "default"
+      ? `[${ADMIN_DASHBOARD_TEST_ATTRS.jumpFocusTarget}="true"], [${ADMIN_DASHBOARD_TEST_ATTRS.jumpFocusTarget}="${ADMIN_DASHBOARD_FOCUS_KEYS.default}"]`
+      : `[${ADMIN_DASHBOARD_TEST_ATTRS.jumpFocusTarget}="${focusKey}"]`;
+    const focusTarget = section.querySelector(focusTargetSelector);
+    if (focusTarget && focusTarget !== section) {
+      const focusTone = focusTarget.getAttribute(ADMIN_DASHBOARD_TEST_ATTRS.jumpFocusTone) || tone;
+      const focusContainer = focusTarget.closest(
+        `[${ADMIN_DASHBOARD_TEST_ATTRS.adminCardKey}], [${ADMIN_DASHBOARD_TEST_ATTRS.adminListKey}], [${ADMIN_DASHBOARD_TEST_ATTRS.attentionKey}]`,
+      );
+      if (focusContainer && focusContainer !== section && focusContainer !== focusTarget) {
+        markJumpActive(focusContainer, focusTone, preset.containerDuration);
+        animateJumpTarget(focusContainer, focusTone, preset.containerDuration);
+      }
+      markJumpActive(focusTarget, focusTone, preset.focusDuration);
+      animateJumpTarget(focusTarget, focusTone, preset.focusDuration);
+    }
+  };
   const failedSectionCount = [
     summaryQuery.isError,
     breakdownQuery.isError,
     collectFailuresQuery.isError,
     searchFailuresQuery.isError,
+    standardCodeCoverageQuery.isError,
+    attentionFeedQuery.isError,
+    standardCodeEffectObservationQuery.isError,
+    wrapperObservationQuery.isError,
+    officialCodebooksQuery.isError,
+    officialCodebookDetailQuery.isError,
   ].filter(Boolean).length;
   const isRefreshing = [
     summaryQuery.isFetching,
     breakdownQuery.isFetching,
     collectFailuresQuery.isFetching,
     searchFailuresQuery.isFetching,
+    standardCodeCoverageQuery.isFetching,
+    attentionFeedQuery.isFetching,
+    standardCodeEffectObservationQuery.isFetching,
+    wrapperObservationQuery.isFetching,
+    officialCodebooksQuery.isFetching,
+    officialCodebookDetailQuery.isFetching,
   ].some(Boolean);
   const latestGeneratedAt = summaryData?.generatedAt ?? breakdowns?.generatedAt ?? null;
   const openCircuitCount = collectFailures?.circuitStatuses?.filter((item) => item.open).length ?? 0;
+  const firstCollectCircuitKey =
+    collectFailures?.circuitStatuses?.find((item) => item.open)?.circuitKey
+    ?? collectFailures?.circuitStatuses?.[0]?.circuitKey
+    ?? null;
   const retryGroupCount = searchFailures?.retryGroups?.length ?? 0;
   const recoveredGroupCount = searchFailures?.recoveredSearchGroups?.length ?? 0;
+  const wrapperMissingAllStandardCodes =
+    wrapperObservation?.currentPriorityUsersMissingAllStandardCodes
+    ?? wrapperObservation?.activeBaselineUsersMissingAllStandardCodes
+    ?? standardCodeCoverage?.usersMissingAllStandardCodes
+    ?? 0;
+  const wrapperRecommendationObservationStatus =
+    wrapperObservation?.currentPriorityRecommendationObservationStatus
+    || wrapperObservation?.activeBaselineRecommendationObservationStatus
+    || "—";
+  const wrapperActiveBaselineReuseLabel = wrapperObservation?.currentPriorityAvailable
+    ? (wrapperObservation.currentPriorityActiveBaselineReused ? "재사용" : "직접 실행")
+    : "—";
+  const wrapperAttentionFeedStatus =
+    wrapperObservation?.currentPriorityAttentionFeedStatus
+    || wrapperObservation?.activeBaselineAttentionFeedStatus
+    || "—";
+  const wrapperAttentionFeedItemCount =
+    wrapperObservation?.currentPriorityAttentionFeedItemCount
+    ?? wrapperObservation?.activeBaselineAttentionFeedItemCount
+    ?? attentionFeed?.itemCount
+    ?? 0;
+  const wrapperAttentionFeedPrimaryTitle =
+    wrapperObservation?.currentPriorityAttentionFeedItemTitles
+    || wrapperObservation?.activeBaselineAttentionFeedItemTitles
+    || attentionFeed?.items?.[0]?.title
+    || "대표 항목 없음";
+  const wrapperAttentionFeedPrimaryKey =
+    wrapperObservation?.currentPriorityAttentionFeedItemKeys
+    || wrapperObservation?.activeBaselineAttentionFeedItemKeys
+    || attentionFeed?.items?.[0]?.key
+    || "";
+  const wrapperAttentionFeedPrimarySeverity =
+    (wrapperObservation?.currentPriorityAttentionFeedWarningItemCount ?? wrapperObservation?.activeBaselineAttentionFeedWarningItemCount ?? 0) > 0
+      ? "warning"
+      : (attentionFeed?.items?.[0]?.severity || (wrapperAttentionFeedItemCount > 0 ? "warning" : "success"));
+  const wrapperAttentionFeedPrimarySource = formatAttentionSource(
+    wrapperAttentionFeedPrimaryKey || attentionFeed?.items?.[0]?.source
+  );
+  const wrapperAttentionFeedPrimaryTargetId = (
+    attentionFeed?.items?.find((item) => item.key === wrapperAttentionFeedPrimaryKey)?.targetId
+    || attentionFeed?.items?.find((item) => item.title === wrapperAttentionFeedPrimaryTitle)?.targetId
+    || "admin-attention-queue"
+  );
+  const wrapperAttentionFeedPrimaryActionLabel = formatAttentionActionLabel(wrapperAttentionFeedPrimarySource);
+  const wrapperAttentionFeedTone = wrapperAttentionFeedItemCount > 0
+    ? { label: "주시", bg: WARNING_BG, border: WARNING_BORDER, color: WARNING_TEXT }
+    : { label: "양호", bg: SUCCESS_BG, border: SUCCESS_BORDER, color: SUCCESS_TEXT };
+  const wrapperMissingStandardCodeTone = wrapperMissingAllStandardCodes > 0
+    ? { label: "정리 필요", bg: WARNING_BG, border: WARNING_BORDER, color: WARNING_TEXT }
+    : { label: "양호", bg: SUCCESS_BG, border: SUCCESS_BORDER, color: SUCCESS_TEXT };
+  const wrapperMissingDelta = wrapperObservation?.currentPriorityUsersMissingAllStandardCodesDelta ?? 0;
+  const wrapperMissingDeltaLabel = wrapperObservation?.currentPriorityUsersMissingAllStandardCodesDeltaLabel
+    || (
+      wrapperObservation?.currentPriorityPreviousAvailable
+        ? (
+            wrapperMissingDelta > 0
+              ? `${formatNumber(wrapperMissingDelta)} 증가`
+              : wrapperMissingDelta < 0
+                ? `${formatNumber(Math.abs(wrapperMissingDelta))} 감소`
+                : "변화 없음"
+          )
+        : "이전값 없음"
+    );
+  const wrapperMissingDeltaColor = wrapperObservation?.currentPriorityPreviousAvailable
+    ? (
+        wrapperMissingDelta > 0
+          ? WARNING_TEXT
+          : wrapperMissingDelta < 0
+            ? SUCCESS_TEXT
+            : INK3
+      )
+    : INK3;
+  const wrapperObservationChangeLabel = wrapperObservation?.currentPriorityRecommendationObservationStatusTransitionLabel
+    || (
+      wrapperObservation?.currentPriorityPreviousAvailable
+        ? (
+            wrapperObservation?.currentPriorityRecommendationObservationStatusChanged
+              ? `${wrapperObservation.currentPriorityPreviousRecommendationObservationStatus || "—"} -> ${wrapperRecommendationObservationStatus}`
+              : "변화 없음"
+          )
+        : "이전값 없음"
+    );
+  const wrapperObservationChangeColor = wrapperObservation?.currentPriorityPreviousAvailable
+    ? (
+        wrapperObservation?.currentPriorityRecommendationObservationStatusChanged
+          ? INFO_TEXT
+          : INK3
+      )
+    : INK3;
+  const wrapperSnapshotAlert = wrapperObservation?.promotedAlert
+    ? {
+        severity: wrapperObservation.promotedAlert.severity,
+        title: wrapperObservation.promotedAlert.title,
+        message: wrapperObservation.promotedAlert.message,
+      }
+    : null;
+  const localAttentionQueueItems = [
+    failedSectionCount > 0 ? {
+      key: "section-failures",
+      severity: "warning",
+      title: "대시보드 섹션 재시도 필요",
+      message: `${formatNumber(failedSectionCount)}개 섹션이 실패했습니다. 실패 카드부터 다시 불러오세요.`,
+    } : null,
+  ].filter(Boolean);
+  const attentionQueueItems = [
+    ...localAttentionQueueItems,
+    ...(attentionFeed?.items ?? []),
+  ];
+  const promotedAttentionItems = attentionQueueItems.slice(0, 3);
   const refetchAll = () => {
     summaryQuery.refetch();
     breakdownQuery.refetch();
     collectFailuresQuery.refetch();
     searchFailuresQuery.refetch();
+    standardCodeCoverageQuery.refetch();
+    attentionFeedQuery.refetch();
+    standardCodeEffectObservationQuery.refetch();
+    wrapperObservationQuery.refetch();
+    officialCodebooksQuery.refetch();
+    if (selectedCodeSetKey) {
+      officialCodebookDetailQuery.refetch();
+    }
   };
 
   return (
@@ -813,6 +1238,82 @@ export default function AdminDashboardPage() {
           </Stack>
         </Stack>
 
+        {promotedAttentionItems.length > 0 && (
+          <Card
+            id="admin-ops-alerts"
+            sx={{
+              mt: 3,
+              background: "#fffaf0",
+              border: `1px solid ${WARNING_BORDER}`,
+              boxShadow: "0 10px 28px rgba(15,23,42,0.04)",
+            }}
+          >
+            <CardContent sx={{ p: 2.5 }}>
+              <Stack spacing={2}>
+                <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" spacing={1.5}>
+                  <Box>
+                    <Typography sx={{ fontSize: 12, fontWeight: 800, color: WARNING_TEXT, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                      운영 알림
+                    </Typography>
+                    <Typography sx={{ fontSize: 20, fontWeight: 900, color: INK, mt: 0.75, letterSpacing: "-0.02em" }}>
+                      지금 바로 볼 우선 신호 {formatNumber(attentionQueueItems.length)}건
+                    </Typography>
+                    <Typography sx={{ fontSize: 13, color: INK3, mt: 0.75 }}>
+                      상위 경고와 표준코드 backlog, collect drift를 먼저 읽고 아래 상세 섹션으로 내려가면 됩니다.
+                    </Typography>
+                  </Box>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    sx={{ alignSelf: { xs: "flex-start", md: "center" }, textTransform: "none", borderRadius: 999 }}
+                    onClick={() => jumpToSection("admin-attention-queue", { tone: "warning", preset: "attention" })}
+                  >
+                    주의 항목 큐 보기
+                  </Button>
+                </Stack>
+
+                <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", xl: "repeat(3, 1fr)" } }}>
+                  {promotedAttentionItems.map((item) => (
+                    <Box
+                      key={item.key}
+                      {...buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.attentionKey, item.key)}
+                      sx={{
+                        p: 1.75,
+                        borderRadius: 2,
+                        border: `1px solid ${ATTENTION_SEVERITY_TONE[item.severity]?.border ?? PANEL_LINE}`,
+                        bgcolor: "#ffffff",
+                      }}
+                    >
+                      <Stack spacing={1}>
+                        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                          <ToneChip toneMap={ATTENTION_SEVERITY_TONE} value={item.severity} />
+                          <Typography sx={{ fontSize: 14, fontWeight: 800, color: INK }}>
+                            {item.title}
+                          </Typography>
+                        </Stack>
+                        <Typography sx={{ fontSize: 13, color: INK2 }}>
+                          {item.message}
+                        </Typography>
+                        {item.targetId ? (
+                          <Button
+                            size="small"
+                            variant="text"
+                            {...buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.attentionActionKey, item.key)}
+                            sx={{ alignSelf: "flex-start", px: 0, textTransform: "none", fontWeight: 700 }}
+                            onClick={() => jumpToSection(item.targetId, { tone: item.severity, preset: "attention" })}
+                          >
+                            해당 섹션 보기
+                          </Button>
+                        ) : null}
+                      </Stack>
+                    </Box>
+                  ))}
+                </Box>
+              </Stack>
+            </CardContent>
+          </Card>
+        )}
+
         <Card sx={{ mt: 3, background: PANEL_BG, border: `1px solid ${PANEL_LINE}`, boxShadow: "0 10px 28px rgba(15,23,42,0.04)" }}>
           <CardContent sx={{ p: 2.5 }}>
             <Stack spacing={2.5}>
@@ -825,7 +1326,7 @@ export default function AdminDashboardPage() {
                     오늘 볼 운영 신호를 먼저 모았습니다
                   </Typography>
                   <Typography sx={{ fontSize: 13, color: INK3, mt: 0.75 }}>
-                    실패 섹션, 열린 회로, 재시도 묶음, 마지막 갱신 시각을 먼저 확인하고 아래 상세로 내려가면 됩니다.
+                    실패 섹션, 열린 회로, 표준코드 미입력 규모, current priority 관측 상태를 먼저 확인하고 아래 상세로 내려가면 됩니다.
                   </Typography>
                 </Box>
                 <Stack spacing={0.5} alignItems={{ xs: "flex-start", lg: "flex-end" }}>
@@ -838,7 +1339,7 @@ export default function AdminDashboardPage() {
                 </Stack>
               </Stack>
 
-              <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", xl: "repeat(4, 1fr)" } }}>
+              <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", xl: "repeat(7, 1fr)" } }}>
                 <MetricCard
                   title="실패 섹션"
                   value={formatNumber(failedSectionCount)}
@@ -859,13 +1360,122 @@ export default function AdminDashboardPage() {
                   value={formatNumber(recoveredGroupCount)}
                   description="0건 후 결과가 생긴 검색"
                 />
+                <MetricCard
+                  title="표준코드 미입력"
+                  value={formatNumber(wrapperMissingAllStandardCodes)}
+                  description={`current priority 승격 기준 · ${wrapperMissingDeltaLabel}`}
+                  descriptionColor={wrapperMissingDeltaColor}
+                  chip={<ToneChip toneMap={{ active: wrapperMissingStandardCodeTone }} value="active" />}
+                />
+                <MetricCard
+                  title="attention 대표"
+                  value={wrapperAttentionFeedPrimaryTitle}
+                  description={`current priority 승격 기준 · ${formatNumber(wrapperAttentionFeedItemCount)}건 · ${wrapperAttentionFeedPrimarySource} / ${wrapperAttentionFeedPrimarySeverity}`}
+                  chip={<ToneChip toneMap={{ active: wrapperAttentionFeedTone }} value="active" />}
+                  actionLabel={wrapperAttentionFeedPrimaryActionLabel}
+                  cardProps={buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.attentionPrimaryKey, wrapperAttentionFeedPrimaryKey || "unknown")}
+                  actionProps={buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.attentionPrimaryActionKey, wrapperAttentionFeedPrimaryKey || "unknown")}
+                  onAction={() => jumpToSection(wrapperAttentionFeedPrimaryTargetId, { tone: wrapperAttentionFeedPrimarySeverity, preset: "attention" })}
+                />
+                <MetricCard
+                  title="priority 관측"
+                  value={wrapperRecommendationObservationStatus}
+                  description={`active baseline ${wrapperActiveBaselineReuseLabel} · ${wrapperObservationChangeLabel} · attention ${wrapperAttentionFeedStatus}`}
+                  descriptionColor={wrapperObservationChangeColor}
+                  chip={<ToneChip toneMap={WRAPPER_STATUS_TONE} value={wrapperRecommendationObservationStatus} />}
+                />
               </Box>
 
+              {wrapperSnapshotAlert && (
+                <Alert severity={wrapperSnapshotAlert.severity}>
+                  <strong>{wrapperSnapshotAlert.title}</strong>
+                  {` · ${wrapperSnapshotAlert.message}`}
+                </Alert>
+              )}
+
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                <QuickJumpButton label="추천 개요" targetId="admin-recommendation-overview" subtle={false} />
-                <QuickJumpButton label="추천 상세" targetId="admin-recommendation-breakdowns" count={breakdowns?.topRepeatedServices?.length ?? 0} subtle />
-                <QuickJumpButton label="수집 실패" targetId="admin-collect-triage" count={collectFailures?.failedJobsInWindow ?? 0} subtle />
-                <QuickJumpButton label="검색 실패" targetId="admin-search-triage" count={searchFailures?.zeroResultSearchesInWindow ?? 0} subtle />
+                <QuickJumpButton
+                  label="추천 개요"
+                  targetId="admin-recommendation-overview"
+                  subtle={false}
+                  onJump={jumpToSection}
+                  tone="info"
+                  actionProps={buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.adminActionKey, ADMIN_DASHBOARD_ACTION_KEYS.quickJumpRecommendationOverview)}
+                />
+                <QuickJumpButton
+                  label="주의 항목"
+                  targetId="admin-attention-queue"
+                  count={attentionQueueItems.length}
+                  subtle
+                  onJump={jumpToSection}
+                  tone="warning"
+                  actionProps={buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.adminActionKey, ADMIN_DASHBOARD_ACTION_KEYS.quickJumpAttentionQueue)}
+                />
+                <QuickJumpButton
+                  label="표준코드 입력률"
+                  targetId="admin-standard-code-coverage"
+                  count={standardCodeCoverage?.usersMissingAllStandardCodes ?? 0}
+                  subtle
+                  onJump={jumpToSection}
+                  tone={standardCodeCoverage?.usersMissingAllStandardCodes > 0 ? "warning" : "success"}
+                  actionProps={buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.adminActionKey, ADMIN_DASHBOARD_ACTION_KEYS.quickJumpStandardCodeCoverage)}
+                />
+                <QuickJumpButton
+                  label="표준코드 효과"
+                  targetId="admin-standard-code-effect"
+                  count={standardCodeEffectObservation?.welfareScenarioCount ?? 0}
+                  subtle
+                  onJump={jumpToSection}
+                  tone="info"
+                  actionProps={buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.adminActionKey, ADMIN_DASHBOARD_ACTION_KEYS.quickJumpStandardCodeEffect)}
+                />
+                <QuickJumpButton
+                  label="상위 wrapper"
+                  targetId="admin-wrapper-observation"
+                  count={wrapperObservation?.currentPriorityUsersMissingAllStandardCodes ?? 0}
+                  subtle
+                  onJump={jumpToSection}
+                  tone={wrapperSnapshotAlert?.severity ?? "info"}
+                  actionProps={buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.adminActionKey, ADMIN_DASHBOARD_ACTION_KEYS.quickJumpWrapperObservation)}
+                />
+                <QuickJumpButton
+                  label="공식 코드북"
+                  targetId="admin-reference-codebooks"
+                  count={officialCodebooks.length}
+                  subtle
+                  onJump={jumpToSection}
+                  tone="info"
+                  actionProps={buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.adminActionKey, ADMIN_DASHBOARD_ACTION_KEYS.quickJumpReferenceCodebooks)}
+                />
+                <QuickJumpButton
+                  label="추천 상세"
+                  targetId="admin-recommendation-breakdowns"
+                  count={breakdowns?.topRepeatedServices?.length ?? 0}
+                  subtle
+                  onJump={jumpToSection}
+                  tone="info"
+                  actionProps={buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.adminActionKey, ADMIN_DASHBOARD_ACTION_KEYS.quickJumpRecommendationBreakdowns)}
+                />
+                <QuickJumpButton
+                  label="수집 실패"
+                  targetId="admin-collect-triage"
+                  count={collectFailures?.failedJobsInWindow ?? 0}
+                  subtle
+                  onJump={jumpToSection}
+                  tone={collectFailures?.failedJobsInWindow > 0 ? "warning" : "success"}
+                  focusKey={ADMIN_DASHBOARD_FOCUS_KEYS.default}
+                  actionProps={buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.adminActionKey, ADMIN_DASHBOARD_ACTION_KEYS.quickJumpCollectTriage)}
+                />
+                <QuickJumpButton
+                  label="검색 실패"
+                  targetId="admin-search-triage"
+                  count={searchFailures?.zeroResultSearchesInWindow ?? 0}
+                  subtle
+                  onJump={jumpToSection}
+                  tone={searchFailures?.zeroResultSearchesInWindow > 0 ? "warning" : "success"}
+                  focusKey={ADMIN_DASHBOARD_FOCUS_KEYS.searchWarning}
+                  actionProps={buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.adminActionKey, ADMIN_DASHBOARD_ACTION_KEYS.quickJumpSearchTriage)}
+                />
               </Stack>
             </Stack>
           </CardContent>
@@ -878,6 +1488,533 @@ export default function AdminDashboardPage() {
         )}
 
         <Stack spacing={3} mt={3}>
+          <Box id="admin-attention-queue" sx={{ scrollMarginTop: 96 }}>
+            <Card sx={{ background: PANEL_BG, border: `1px solid ${PANEL_LINE}`, boxShadow: "0 10px 28px rgba(15,23,42,0.04)" }}>
+              <CardContent sx={{ p: 2.5 }}>
+                <Stack spacing={2}>
+                  <Box>
+                    <Typography sx={{ fontSize: 12, fontWeight: 800, color: ACCENT, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                      운영 큐
+                    </Typography>
+                    <Typography sx={{ fontSize: 20, fontWeight: 900, color: INK, mt: 0.75, letterSpacing: "-0.02em" }}>
+                      지금 먼저 볼 주의 항목
+                    </Typography>
+                    <Typography sx={{ fontSize: 13, color: INK3, mt: 0.75 }}>
+                      collect drift, 표준코드 backlog, wrapper 경고처럼 바로 조치가 필요한 신호만 우선순위 큐로 묶었습니다.
+                    </Typography>
+                  </Box>
+
+                  {attentionFeedQuery.isLoading && localAttentionQueueItems.length === 0 ? (
+                    <SectionLoadingCard
+                      title="운영 알림 로딩 중"
+                      description="재사용 가능한 attention feed를 읽는 중입니다."
+                    />
+                  ) : null}
+
+                  {attentionFeedQuery.isError ? (
+                    <SectionErrorCard
+                      title="운영 알림 로드 실패"
+                      description="backend attention feed를 읽지 못했습니다."
+                      message={attentionFeedErrorMessage}
+                      onRetry={() => attentionFeedQuery.refetch()}
+                    />
+                  ) : null}
+
+                  {attentionQueueItems.length === 0 && !attentionFeedQuery.isLoading ? (
+                    <Alert severity="success">현재 우선 조치가 필요한 운영 큐가 없습니다.</Alert>
+                  ) : (
+                    <CompactListCard
+                      title="주의 항목 큐"
+                      description="상단 운영 스냅샷과 하위 섹션을 잇는 우선순위 큐"
+                      items={attentionQueueItems}
+                      renderItem={(item, index) => (
+                        <Box
+                          key={item.key}
+                          {...buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.attentionKey, item.key)}
+                          {...(index === 0 ? buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.jumpFocusTarget, "true") : {})}
+                          sx={{
+                            p: 1.75,
+                            borderRadius: 2,
+                            border: `1px solid ${ATTENTION_SEVERITY_TONE[item.severity]?.border ?? PANEL_LINE}`,
+                            bgcolor: ATTENTION_SEVERITY_TONE[item.severity]?.bg ?? "#fafbff",
+                          }}
+                        >
+                          <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} justifyContent="space-between" alignItems={{ xs: "flex-start", md: "center" }}>
+                            <Stack spacing={0.75}>
+                              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                                <ToneChip toneMap={ATTENTION_SEVERITY_TONE} value={item.severity} />
+                                <Typography sx={{ fontSize: 14, fontWeight: 800, color: INK }}>
+                                  {item.title}
+                                </Typography>
+                              </Stack>
+                              <Typography sx={{ fontSize: 13, color: INK2 }}>
+                                {item.message}
+                              </Typography>
+                            </Stack>
+                            {item.targetId ? (
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                {...buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.attentionActionKey, item.key)}
+                                sx={{ textTransform: "none", borderRadius: 999 }}
+                                onClick={() => jumpToSection(item.targetId, { tone: item.severity, preset: "attention" })}
+                              >
+                                해당 섹션 보기
+                              </Button>
+                            ) : null}
+                          </Stack>
+                        </Box>
+                      )}
+                    />
+                  )}
+                </Stack>
+              </CardContent>
+            </Card>
+          </Box>
+
+          <Box id="admin-standard-code-coverage" sx={{ scrollMarginTop: 96 }}>
+            <Card sx={{ background: PANEL_BG, border: `1px solid ${PANEL_LINE}`, boxShadow: "0 10px 28px rgba(15,23,42,0.04)" }}>
+              <CardContent sx={{ p: 2.5 }}>
+                <Stack spacing={2}>
+                  <Box>
+                    <Typography sx={{ fontSize: 12, fontWeight: 800, color: ACCENT, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                      프로필 정합성
+                    </Typography>
+                    <Typography sx={{ fontSize: 20, fontWeight: 900, color: INK, mt: 0.75, letterSpacing: "-0.02em" }}>
+                      주거·복지 표준코드 입력률
+                    </Typography>
+                    <Typography sx={{ fontSize: 13, color: INK3, mt: 0.75 }}>
+                      추천 정확도에 직접 쓰는 표준코드 4개가 실제 사용자 프로필에 얼마나 채워졌는지, `users`와 `user_profiles` 간 안전한 보정 후보가 있는지 같이 봅니다.
+                    </Typography>
+                  </Box>
+
+                  {standardCodeCoverageQuery.isLoading && (
+                    <SectionLoadingCard
+                      title="표준코드 coverage 로딩 중"
+                      description="사용자 프로필의 표준코드 입력 현황을 계산하는 중입니다."
+                    />
+                  )}
+
+                  {standardCodeCoverageQuery.isError && (
+                    <SectionErrorCard
+                      title="표준코드 coverage 로드 실패"
+                      description="운영용 coverage 집계를 불러오지 못했습니다."
+                      message={standardCodeCoverageErrorMessage}
+                      onRetry={() => standardCodeCoverageQuery.refetch()}
+                    />
+                  )}
+
+                  {standardCodeCoverage && !standardCodeCoverageQuery.isLoading && !standardCodeCoverageQuery.isError && (
+                    <Stack spacing={2}>
+                      <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", xl: "repeat(4, 1fr)" } }}>
+                        <MetricCard
+                          title="전체 사용자"
+                          value={formatNumber(standardCodeCoverage.totalUsers)}
+                          description={formatRelativeDateTime(standardCodeCoverage.generatedAt)}
+                        />
+                        <MetricCard
+                          title="1개 이상 입력"
+                          value={formatNumber(standardCodeCoverage.usersWithAnyStandardCode)}
+                          description="표준코드가 하나라도 채워진 사용자"
+                        />
+                        <MetricCard
+                          title="전부 미입력"
+                          value={formatNumber(standardCodeCoverage.usersMissingAllStandardCodes)}
+                          description="4개 표준코드가 모두 비어 있는 사용자"
+                          focusTarget
+                        />
+                        <MetricCard
+                          title="안전 보정 후보"
+                          value={formatNumber(standardCodeCoverage.safeReconcileCandidateRows)}
+                          description="충돌 없이 복사 가능한 user/profile gap"
+                        />
+                      </Box>
+
+                      <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)", xl: "repeat(4, 1fr)" } }}>
+                        <MetricCard title="주거형태 입력" value={formatNumber(standardCodeCoverage.houseTenureFilled)} description="`house_tenure_code` 채움 수" />
+                        <MetricCard title="주택유형 입력" value={formatNumber(standardCodeCoverage.housingTypeFilled)} description="`housing_type_code` 채움 수" />
+                        <MetricCard title="기초생활수급권자 입력" value={formatNumber(standardCodeCoverage.basicLivingRecipientTypeFilled)} description="`basic_living_recipient_type_code` 채움 수" />
+                        <MetricCard title="장애등급 입력" value={formatNumber(standardCodeCoverage.disabilityGradeFilled)} description="`disability_grade_code` 채움 수" />
+                      </Box>
+
+                      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                        <Chip label={`profile row 보유 ${formatNumber(standardCodeCoverage.usersWithProfileRow)}`} size="small" variant="outlined" />
+                        <Chip label={`profile row 없음 ${formatNumber(standardCodeCoverage.usersWithoutProfileRow)}`} size="small" variant="outlined" />
+                        <Chip label={`users/profile 충돌 ${formatNumber(standardCodeCoverage.conflictingValueGapRows)}`} size="small" variant="outlined" />
+                        <Chip label={`profile only gap ${formatNumber(standardCodeCoverage.profileOnlyGapRows)}`} size="small" variant="outlined" />
+                        <Chip label={`user only gap ${formatNumber(standardCodeCoverage.userOnlyGapRows)}`} size="small" variant="outlined" />
+                      </Stack>
+                    </Stack>
+                  )}
+                </Stack>
+              </CardContent>
+            </Card>
+          </Box>
+
+          <Box id="admin-standard-code-effect" sx={{ scrollMarginTop: 96 }}>
+            <Card sx={{ background: PANEL_BG, border: `1px solid ${PANEL_LINE}`, boxShadow: "0 10px 28px rgba(15,23,42,0.04)" }}>
+              <CardContent sx={{ p: 2.5 }}>
+                <Stack spacing={2}>
+                  <Box>
+                    <Typography sx={{ fontSize: 12, fontWeight: 800, color: ACCENT, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                      추천 관측
+                    </Typography>
+                    <Typography sx={{ fontSize: 20, fontWeight: 900, color: INK, mt: 0.75, letterSpacing: "-0.02em" }}>
+                      표준코드 추천 효과
+                    </Typography>
+                    <Typography sx={{ fontSize: 13, color: INK3, mt: 0.75 }}>
+                      latest recommendation observation artifact 기준으로, 주거 표준코드와 복지 표준코드가 실제 추천 점수 변화에 반영되는지 확인합니다.
+                    </Typography>
+                  </Box>
+
+                  {standardCodeEffectObservationQuery.isLoading && (
+                    <SectionLoadingCard
+                      title="표준코드 효과 관측 로딩 중"
+                      description="latest recommendation observation summary를 읽는 중입니다."
+                    />
+                  )}
+
+                  {standardCodeEffectObservationQuery.isError && (
+                    <SectionErrorCard
+                      title="표준코드 효과 관측 로드 실패"
+                      description="latest observation artifact를 읽지 못했습니다."
+                      message={standardCodeEffectObservationErrorMessage}
+                      onRetry={() => standardCodeEffectObservationQuery.refetch()}
+                    />
+                  )}
+
+                  {standardCodeEffectObservation && !standardCodeEffectObservationQuery.isLoading && !standardCodeEffectObservationQuery.isError && (
+                    <>
+                      {!standardCodeEffectObservation.available ? (
+                        <Alert severity="warning">
+                          latest recommendation observation artifact가 아직 없습니다. 먼저 `run-local-recommendation-observation-suite.sh`를 실행해야 합니다.
+                        </Alert>
+                      ) : (
+                        <Stack spacing={2}>
+                          <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", xl: "repeat(4, 1fr)" } }}>
+                            <MetricCard
+                              title="주거 효과 rule 상승"
+                              value={formatNumber(standardCodeEffectObservation.housingPositiveRuleDeltaRows)}
+                              description={`status=${standardCodeEffectObservation.housingEffectStatus}`}
+                            />
+                            <MetricCard
+                              title="주거 최대 rule delta"
+                              value={String(standardCodeEffectObservation.housingMaxRuleDelta)}
+                              description={`final delta ${standardCodeEffectObservation.housingMaxFinalDelta}`}
+                            />
+                            <MetricCard
+                              title="복지 matrix 시나리오"
+                              value={formatNumber(standardCodeEffectObservation.welfareScenarioCount)}
+                              description={`positive rule ${formatNumber(standardCodeEffectObservation.welfarePositiveRuleScenarios)}`}
+                              focusTarget
+                              cardProps={buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.adminCardKey, ADMIN_DASHBOARD_CARD_KEYS.welfareScenarioCount)}
+                            />
+                            <MetricCard
+                              title="최대 rule delta"
+                              value={String(standardCodeEffectObservation.welfareMaxRuleDelta)}
+                              description={standardCodeEffectObservation.welfareMaxRuleDeltaScenario || "시나리오 없음"}
+                            />
+                          </Box>
+
+                          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                            <Chip label={`precheck ${standardCodeEffectObservation.precheckStatus || "—"}`} size="small" variant="outlined" />
+                            <Chip label={`decision ${standardCodeEffectObservation.decisionClass || "—"}`} size="small" variant="outlined" />
+                            <Chip label={`matrix status ${standardCodeEffectObservation.welfareMatrixStatus || "—"}`} size="small" variant="outlined" />
+                            <Chip label={`final delta ${standardCodeEffectObservation.welfareMaxFinalDelta}`} size="small" variant="outlined" />
+                          </Stack>
+
+                          <CompactListCard
+                            title="관측 스냅샷"
+                            description={standardCodeEffectObservation.sourceSummaryPath}
+                            items={[
+                              {
+                                label: "주거 top delta",
+                                value: standardCodeEffectObservation.housingTopPositiveRuleDeltaRows || "empty",
+                              },
+                              {
+                                label: "복지 scenario snapshot",
+                                value: standardCodeEffectObservation.welfareScenarioRuleDeltaSnapshot || "empty",
+                              },
+                            ]}
+                            renderItem={(item) => (
+                              <Box key={item.label} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
+                                <Typography sx={{ fontSize: 12, fontWeight: 800, color: INK2 }}>{item.label}</Typography>
+                                <Typography sx={{ fontSize: 13, color: INK, mt: 0.75, overflowWrap: "anywhere", wordBreak: "break-word" }}>
+                                  {item.value}
+                                </Typography>
+                              </Box>
+                            )}
+                          />
+                        </Stack>
+                      )}
+                    </>
+                  )}
+                </Stack>
+              </CardContent>
+            </Card>
+          </Box>
+
+          <Box id="admin-wrapper-observation" sx={{ scrollMarginTop: 96 }}>
+            <Card sx={{ background: PANEL_BG, border: `1px solid ${PANEL_LINE}`, boxShadow: "0 10px 28px rgba(15,23,42,0.04)" }}>
+              <CardContent sx={{ p: 2.5 }}>
+                <Stack spacing={2}>
+                  <Box>
+                    <Typography sx={{ fontSize: 12, fontWeight: 800, color: ACCENT, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                      상위 요약
+                    </Typography>
+                    <Typography sx={{ fontSize: 20, fontWeight: 900, color: INK, mt: 0.75, letterSpacing: "-0.02em" }}>
+                      active baseline / current priority
+                    </Typography>
+                    <Typography sx={{ fontSize: 13, color: INK3, mt: 0.75 }}>
+                      운영 상위 wrapper latest summary 기준으로, 표준코드 coverage와 recommendation observation 핵심값이 최상단 baseline/current priority handoff에 올라왔는지 확인합니다.
+                    </Typography>
+                  </Box>
+
+                  {wrapperObservationQuery.isLoading && (
+                    <SectionLoadingCard
+                      title="상위 wrapper 관측 로딩 중"
+                      description="active baseline / current priority latest summary를 읽는 중입니다."
+                    />
+                  )}
+
+                  {wrapperObservationQuery.isError && (
+                    <SectionErrorCard
+                      title="상위 wrapper 관측 로드 실패"
+                      description="latest active baseline/current priority summary를 읽지 못했습니다."
+                      message={wrapperObservationErrorMessage}
+                      onRetry={() => wrapperObservationQuery.refetch()}
+                    />
+                  )}
+
+                  {wrapperObservation && !wrapperObservationQuery.isLoading && !wrapperObservationQuery.isError && (
+                    <Stack spacing={2}>
+                      <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", xl: "1fr 1fr" } }}>
+                        <SectionStateCard
+                          title="active baseline"
+                          description={wrapperObservation.activeBaselineSummaryPath}
+                        >
+                          {!wrapperObservation.activeBaselineAvailable ? (
+                            <Alert severity="warning">latest active baseline summary가 아직 없습니다.</Alert>
+                          ) : (
+                            <Stack spacing={2}>
+                              <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" } }}>
+                                <MetricCard title="suite" value={wrapperObservation.activeBaselineStatus || "—"} description={formatDateTime(wrapperObservation.activeBaselineGeneratedAt)} />
+                                <MetricCard title="ops observation" value={wrapperObservation.activeBaselineOpsObservationStatus || "—"} description="상위 wrapper 내 ops observation 상태" />
+                                <MetricCard title="attention feed" value={wrapperObservation.activeBaselineAttentionFeedStatus || "—"} description={`${formatNumber(wrapperObservation.activeBaselineAttentionFeedItemCount)}개 항목`} />
+                                <MetricCard title="1개 이상 입력" value={formatNumber(wrapperObservation.activeBaselineUsersWithAnyStandardCode)} description="ops summary 승격값" />
+                                <MetricCard title="전부 미입력" value={formatNumber(wrapperObservation.activeBaselineUsersMissingAllStandardCodes)} description="ops summary 승격값" />
+                              </Box>
+                              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                                <Chip label={`attention ${wrapperObservation.activeBaselineAttentionFeedItemTitles || "—"}`} size="small" variant="outlined" />
+                                <Chip label={`주거 rule 상승 ${formatNumber(wrapperObservation.activeBaselineRecommendationHousingPositiveRuleDeltaRows)}`} size="small" variant="outlined" />
+                                <Chip label={`복지 positive scenarios ${formatNumber(wrapperObservation.activeBaselineRecommendationWelfarePositiveRuleScenarios)}`} size="small" variant="outlined" />
+                                <Chip label={`복지 max delta ${wrapperObservation.activeBaselineRecommendationWelfareMaxRuleDelta}`} size="small" variant="outlined" />
+                              </Stack>
+                            </Stack>
+                          )}
+                        </SectionStateCard>
+
+                        <SectionStateCard
+                          title="current priority"
+                          description={wrapperObservation.currentPrioritySummaryPath}
+                        >
+                          {!wrapperObservation.currentPriorityAvailable ? (
+                            <Alert severity="warning">latest current priority summary가 아직 없습니다.</Alert>
+                          ) : (
+                            <Stack spacing={2}>
+                              <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" } }}>
+                                <MetricCard title="suite" value={wrapperObservation.currentPriorityStatus || "—"} description={formatDateTime(wrapperObservation.currentPriorityGeneratedAt)} />
+                                <MetricCard title="active baseline reused" value={wrapperObservation.currentPriorityActiveBaselineReused ? "true" : "false"} description="same-config latest 재사용 여부" />
+                                <MetricCard title="attention feed" value={wrapperObservation.currentPriorityAttentionFeedStatus || "—"} description={`${formatNumber(wrapperObservation.currentPriorityAttentionFeedItemCount)}개 항목`} />
+                                <MetricCard title="1개 이상 입력" value={formatNumber(wrapperObservation.currentPriorityUsersWithAnyStandardCode)} description="current priority 승격값" />
+                                <MetricCard
+                                  title="전부 미입력"
+                                  value={formatNumber(wrapperObservation.currentPriorityUsersMissingAllStandardCodes)}
+                                  description="current priority 승격값"
+                                  focusTarget
+                                  cardProps={buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.adminCardKey, ADMIN_DASHBOARD_CARD_KEYS.currentPriorityMissingStandardCodes)}
+                                />
+                              </Box>
+                              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                                <Chip label={`attention ${wrapperObservation.currentPriorityAttentionFeedItemTitles || "—"}`} size="small" variant="outlined" />
+                                <Chip label={`recommendation status ${wrapperObservation.currentPriorityRecommendationObservationStatus || "—"}`} size="small" variant="outlined" />
+                                <Chip label={`주거 rule 상승 ${formatNumber(wrapperObservation.currentPriorityRecommendationHousingPositiveRuleDeltaRows)}`} size="small" variant="outlined" />
+                                <Chip label={`복지 scenarios ${formatNumber(wrapperObservation.currentPriorityRecommendationWelfareScenarioCount)}`} size="small" variant="outlined" />
+                                <Chip label={`복지 positive ${formatNumber(wrapperObservation.currentPriorityRecommendationWelfarePositiveRuleScenarios)}`} size="small" variant="outlined" />
+                                <Chip label={`복지 max delta ${wrapperObservation.currentPriorityRecommendationWelfareMaxRuleDelta}`} size="small" variant="outlined" />
+                              </Stack>
+                            </Stack>
+                          )}
+                        </SectionStateCard>
+                      </Box>
+                    </Stack>
+                  )}
+                </Stack>
+              </CardContent>
+            </Card>
+          </Box>
+
+          <Box id="admin-reference-codebooks" sx={{ scrollMarginTop: 96 }}>
+            <Card sx={{ background: PANEL_BG, border: `1px solid ${PANEL_LINE}`, boxShadow: "0 10px 28px rgba(15,23,42,0.04)" }}>
+              <CardContent sx={{ p: 2.5 }}>
+                <Stack spacing={2}>
+                  <Box>
+                    <Typography sx={{ fontSize: 12, fontWeight: 800, color: ACCENT, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                      기준 정보
+                    </Typography>
+                    <Typography sx={{ fontSize: 20, fontWeight: 900, color: INK, mt: 0.75, letterSpacing: "-0.02em" }}>
+                      공식 코드북 탐색
+                    </Typography>
+                    <Typography sx={{ fontSize: 13, color: INK3, mt: 0.75 }}>
+                      사용자 제공 표준 코드북을 운영 화면에서 바로 조회합니다. 작은 코드표는 검색 결과를, 큰 자료는 메타데이터와 샘플 행을 보여줍니다.
+                    </Typography>
+                  </Box>
+
+                  {officialCodebooksQuery.isLoading && (
+                    <SectionLoadingCard
+                      title="공식 코드북 로딩 중"
+                      description="코드셋 목록을 불러오는 중입니다."
+                    />
+                  )}
+
+                  {officialCodebooksQuery.isError && (
+                    <SectionErrorCard
+                      title="공식 코드북 목록 로드 실패"
+                      description="기준정보 API를 불러오지 못했습니다."
+                      message={officialCodebooksErrorMessage}
+                      onRetry={() => officialCodebooksQuery.refetch()}
+                    />
+                  )}
+
+                  {!officialCodebooksQuery.isLoading && !officialCodebooksQuery.isError && (
+                    <>
+                      <Stack direction={{ xs: "column", lg: "row" }} spacing={2}>
+                        <Stack spacing={0.75} sx={{ minWidth: { xs: "100%", lg: 320 } }}>
+                          <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK2 }}>코드셋 선택</Typography>
+                          <Select
+                            size="small"
+                            value={selectedCodeSetKey}
+                            onChange={(event) => setSelectedCodeSetKey(event.target.value)}
+                            sx={{ bgcolor: PANEL_BG }}
+                          >
+                            {officialCodebooks.map((item) => (
+                              <MenuItem key={item.codeSetKey} value={item.codeSetKey}>
+                                {item.codeSetKey}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </Stack>
+                        <Stack spacing={0.75} sx={{ flex: 1 }}>
+                          <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK2 }}>검색</Typography>
+                          <TextField
+                            size="small"
+                            placeholder="코드값, 라벨, 설명 검색"
+                            value={codebookQueryText}
+                            onChange={(event) => setCodebookQueryText(event.target.value)}
+                          />
+                        </Stack>
+                      </Stack>
+
+                      {selectedCodebookSummary && (
+                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                          <Chip label={selectedCodebookSummary.sourceType} size="small" />
+                          <Chip label={`${selectedCodebookSummary.rowCount.toLocaleString()} rows`} size="small" variant="outlined" />
+                          <Chip label={selectedCodebookSummary.rowDataIncluded ? "행 조회 가능" : "메타데이터 전용"} size="small" variant="outlined" />
+                          <Chip label={selectedCodebookSummary.sourceFile} size="small" variant="outlined" />
+                        </Stack>
+                      )}
+
+                      {officialCodebookDetailQuery.isLoading && (
+                        <SectionLoadingCard
+                          title="코드북 상세 로딩 중"
+                          description="선택한 코드셋의 샘플 행을 불러오는 중입니다."
+                        />
+                      )}
+
+                      {officialCodebookDetailQuery.isError && (
+                        <SectionErrorCard
+                          title="코드북 상세 로드 실패"
+                          description="선택한 코드셋의 내용을 불러오지 못했습니다."
+                          message={officialCodebookDetailErrorMessage}
+                          onRetry={() => officialCodebookDetailQuery.refetch()}
+                        />
+                      )}
+
+                      {officialCodebookDetail && !officialCodebookDetailQuery.isLoading && !officialCodebookDetailQuery.isError && (
+                        <Stack spacing={2}>
+                          <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" } }}>
+                            <MetricCard
+                              title="전체 행 수"
+                              value={formatNumber(officialCodebookDetail.rowCount)}
+                              description={officialCodebookDetail.sheetName ?? "원본 시트 정보 없음"}
+                            />
+                            <MetricCard
+                              title="표시 행 수"
+                              value={formatNumber(officialCodebookDetail.matchedRowCount)}
+                              description={codebookQueryText.trim() ? "검색 조건 반영" : "기본 조회"}
+                              focusTarget
+                              cardProps={buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.adminCardKey, ADMIN_DASHBOARD_CARD_KEYS.matchedRowCount)}
+                            />
+                            <MetricCard
+                              title="용도"
+                              value={officialCodebookDetail.intendedUse ?? "—"}
+                              description={officialCodebookDetail.sourceFile}
+                            />
+                          </Box>
+
+                          {officialCodebookDetail.metadata && (
+                            <Stack spacing={1}>
+                              <Typography sx={{ fontSize: 14, fontWeight: 800, color: INK }}>메타데이터</Typography>
+                              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                                {Object.entries(officialCodebookDetail.metadata)
+                                  .filter(([key]) => key !== "sampleRows")
+                                  .map(([key, value]) => (
+                                    <Chip
+                                      key={key}
+                                      label={`${key}: ${Array.isArray(value) ? value.join(", ") : String(value)}`}
+                                      size="small"
+                                      variant="outlined"
+                                    />
+                                  ))}
+                              </Stack>
+                            </Stack>
+                          )}
+
+                          {detailRows.length > 0 ? (
+                            <TableContainer sx={{ border: `1px solid ${PANEL_LINE}`, borderRadius: 3, overflow: "hidden" }}>
+                              <Table size="small">
+                                <TableHead sx={{ bgcolor: "#f8fafc" }}>
+                                  <TableRow>
+                                    {(officialCodebookDetail.headers ?? Object.keys(detailRows[0] ?? {})).map((header) => (
+                                      <TableCell key={header} sx={{ fontWeight: 800, color: INK2 }}>{header}</TableCell>
+                                    ))}
+                                  </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                  {detailRows.map((row, index) => (
+                                    <TableRow key={`${selectedCodeSetKey}-${index}`}>
+                                      {(officialCodebookDetail.headers ?? Object.keys(row ?? {})).map((header) => (
+                                        <TableCell key={header} sx={{ color: INK, verticalAlign: "top" }}>
+                                          {row?.[header] ?? "—"}
+                                        </TableCell>
+                                      ))}
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </TableContainer>
+                          ) : (
+                            <Alert severity="info">표시할 행이 없습니다.</Alert>
+                          )}
+                        </Stack>
+                      )}
+                    </>
+                  )}
+                </Stack>
+              </CardContent>
+            </Card>
+          </Box>
+
           {summaryQuery.isLoading && (
             <SectionLoadingCard
               title="운영 요약 로딩 중"
@@ -941,6 +2078,8 @@ export default function AdminDashboardPage() {
                     value={formatStatusLabel(concentration.top1LeaderSignalSummary)}
                     description={formatStatusLabel(concentration.signalQuality)}
                     chip={<GateChip value={recommendationSummary.realUserTrafficGateInWindow} />}
+                    focusTarget
+                    cardProps={buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.adminCardKey, ADMIN_DASHBOARD_CARD_KEYS.top1LeaderSignal)}
                   />
                 </Box>
 
@@ -1047,7 +2186,13 @@ export default function AdminDashboardPage() {
             <>
               <Box id="admin-recommendation-breakdowns" sx={{ scrollMarginTop: 96 }}>
                 <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", xl: "1fr 1fr" } }}>
-                  <ServiceListCard title="반복 노출 상위 서비스" items={breakdowns.topRepeatedServices} countLabel="rowCount" />
+                  <ServiceListCard
+                    title="반복 노출 상위 서비스"
+                    items={breakdowns.topRepeatedServices}
+                    countLabel="rowCount"
+                    focusTarget
+                    cardProps={buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.adminListKey, ADMIN_DASHBOARD_LIST_KEYS.topRepeatedServices)}
+                  />
                   <ServiceListCard title="1순위 분포 선두 서비스" items={breakdowns.top1Services} countLabel="usersAsTop1" />
                 </Box>
 
@@ -1129,26 +2274,25 @@ export default function AdminDashboardPage() {
               title="수집 실패 상세"
               description="실패 작업, 회로 열림 상태, 최근 실패 샘플을 요약 카드 아래에서 바로 확인합니다."
             />
-          </Box>
 
-          {collectFailuresQuery.isLoading && (
-            <SectionLoadingCard
-              title="수집 실패 상세 로딩 중"
-              description="수집 실패 API를 불러오는 중입니다."
-            />
-          )}
+            {collectFailuresQuery.isLoading && (
+              <SectionLoadingCard
+                title="수집 실패 상세 로딩 중"
+                description="수집 실패 API를 불러오는 중입니다."
+              />
+            )}
 
-          {collectFailuresQuery.isError && (
-            <SectionErrorCard
-              title="수집 실패 상세 로드 실패"
-              description="수집 진단만 실패한 경우 추천/검색 섹션은 그대로 확인할 수 있습니다."
-              message={collectErrorMessage}
-              onRetry={() => collectFailuresQuery.refetch()}
-            />
-          )}
+            {collectFailuresQuery.isError && (
+              <SectionErrorCard
+                title="수집 실패 상세 로드 실패"
+                description="수집 진단만 실패한 경우 추천/검색 섹션은 그대로 확인할 수 있습니다."
+                message={collectErrorMessage}
+                onRetry={() => collectFailuresQuery.refetch()}
+              />
+            )}
 
-          {collectFailures && (
-            <>
+            {collectFailures && (
+              <>
               <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" } }}>
               <MetricCard
                 title="실패 작업"
@@ -1159,16 +2303,25 @@ export default function AdminDashboardPage() {
                 title="부분 성공"
                 value={formatNumber(collectFailures.partialSuccessJobsInWindow)}
                 description="일부 저장 후 종료된 작업"
+                actionLabel="부분 성공 보기"
+                actionProps={buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.adminActionKey, ADMIN_DASHBOARD_ACTION_KEYS.collectPartialView)}
+                onAction={() => jumpToSection("admin-collect-triage", { tone: "info", focusKey: ADMIN_DASHBOARD_FOCUS_KEYS.collectPartial, preset: "metricAction" })}
               />
               <MetricCard
                 title="열린 회로"
                 value={formatNumber(collectFailures.circuitStatuses?.filter((item) => item.open).length)}
                 description={`추적 중 ${formatNumber(collectFailures.circuitStatuses?.length)}`}
+                actionLabel="회로 상태 보기"
+                actionProps={buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.adminActionKey, ADMIN_DASHBOARD_ACTION_KEYS.collectCircuitView)}
+                onAction={() => jumpToSection("admin-collect-triage", { tone: "warning", focusKey: ADMIN_DASHBOARD_FOCUS_KEYS.collectCircuit, preset: "metricAction" })}
               />
               <MetricCard
                 title="최근 실패 샘플"
                 value={formatNumber(collectFailures.recentSamples?.length)}
                 description="상세 샘플 미리보기"
+                actionLabel="실패 샘플 보기"
+                actionProps={buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.adminActionKey, ADMIN_DASHBOARD_ACTION_KEYS.collectFailureSampleView)}
+                onAction={() => jumpToSection("admin-collect-triage", { tone: "warning", focusKey: ADMIN_DASHBOARD_FOCUS_KEYS.default, preset: "metricAction" })}
               />
               </Box>
 
@@ -1234,9 +2387,15 @@ export default function AdminDashboardPage() {
                 <CompactListCard
                   title="작업별 현황"
                   description="실패/부분 성공이 많은 수집 작업"
+                  cardProps={buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.adminListKey, ADMIN_DASHBOARD_LIST_KEYS.collectJobBreakdowns)}
                   items={collectFailures.jobBreakdowns}
-                  renderItem={(item) => (
-                    <Box key={`${item.jobName}-${item.latestStartedAt}`} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
+                  renderItem={(item, index) => (
+                    <Box
+                      key={`${item.jobName}-${item.latestStartedAt}`}
+                      {...(index === 0 ? buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.jumpFocusTarget, ADMIN_DASHBOARD_FOCUS_KEYS.collectPartial) : {})}
+                      {...(index === 0 ? buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.jumpFocusTone, "info") : {})}
+                      sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}
+                    >
                       <Stack direction="row" justifyContent="space-between" spacing={2}>
                         <Box>
                           <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{formatCollectJobName(item.jobName)}</Typography>
@@ -1259,9 +2418,15 @@ export default function AdminDashboardPage() {
                 <CompactListCard
                   title="회로 상태"
                   description="열린 회로는 외부 수집 안정성 저하를 뜻합니다."
+                  cardProps={buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.adminListKey, ADMIN_DASHBOARD_LIST_KEYS.collectCircuitStatuses)}
                   items={collectFailures.circuitStatuses}
                   renderItem={(item) => (
-                    <Box key={item.circuitKey} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: item.open ? "#fff7ed" : "#f8fafc" }}>
+                    <Box
+                      key={item.circuitKey}
+                      {...(item.circuitKey === firstCollectCircuitKey ? buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.jumpFocusTarget, ADMIN_DASHBOARD_FOCUS_KEYS.collectCircuit) : {})}
+                      {...(item.circuitKey === firstCollectCircuitKey ? buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.jumpFocusTone, item.open ? "warning" : "success") : {})}
+                      sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: item.open ? "#fff7ed" : "#f8fafc" }}
+                    >
                       <Stack direction="row" justifyContent="space-between" spacing={2}>
                         <Box>
                           <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{formatCollectJobName(item.circuitKey)}</Typography>
@@ -1313,9 +2478,15 @@ export default function AdminDashboardPage() {
                 <CompactListCard
                   title="최근 실패 샘플"
                   description="에러 메시지와 저장 실패 규모"
+                  cardProps={buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.adminListKey, ADMIN_DASHBOARD_LIST_KEYS.collectRecentFailureSamples)}
                   items={collectFailures.recentSamples}
-                  renderItem={(item) => (
-                    <Box key={`${item.jobName}-${item.startedAt}-${item.errorCode}`} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
+                  renderItem={(item, index) => (
+                    <Box
+                      key={`${item.jobName}-${item.startedAt}-${item.errorCode}`}
+                      {...(index === 0 ? buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.jumpFocusTarget, ADMIN_DASHBOARD_FOCUS_KEYS.default) : {})}
+                      {...(index === 0 ? buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.jumpFocusTone, "warning") : {})}
+                      sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}
+                    >
                       <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{formatCollectJobName(item.jobName)}</Typography>
                       <Typography sx={{ fontSize: 12, color: INK3, mt: 0.35 }}>
                         {formatCodeOrStatus(item.errorCode || item.status)} · {formatDateTime(item.startedAt)}
@@ -1330,8 +2501,9 @@ export default function AdminDashboardPage() {
                   )}
                 />
               </Box>
-            </>
-          )}
+              </>
+            )}
+          </Box>
 
           <Box id="admin-search-triage" sx={{ scrollMarginTop: 96 }}>
             <TriageSectionTitle
@@ -1339,31 +2511,33 @@ export default function AdminDashboardPage() {
               title="검색 실패 상세"
               description="0건 검색 패턴, 재시도 묶음, recovery 여부를 같은 페이지에서 바로 확인합니다."
             />
-          </Box>
 
-          {searchFailuresQuery.isLoading && (
-            <SectionLoadingCard
-              title="검색 실패 상세 로딩 중"
-              description="검색 실패 API를 불러오는 중입니다."
-            />
-          )}
+            {searchFailuresQuery.isLoading && (
+              <SectionLoadingCard
+                title="검색 실패 상세 로딩 중"
+                description="검색 실패 API를 불러오는 중입니다."
+              />
+            )}
 
-          {searchFailuresQuery.isError && (
-            <SectionErrorCard
-              title="검색 실패 상세 로드 실패"
-              description="검색 진단만 실패한 경우 추천/수집 섹션은 그대로 확인할 수 있습니다."
-              message={searchErrorMessage}
-              onRetry={() => searchFailuresQuery.refetch()}
-            />
-          )}
+            {searchFailuresQuery.isError && (
+              <SectionErrorCard
+                title="검색 실패 상세 로드 실패"
+                description="검색 진단만 실패한 경우 추천/수집 섹션은 그대로 확인할 수 있습니다."
+                message={searchErrorMessage}
+                onRetry={() => searchFailuresQuery.refetch()}
+              />
+            )}
 
-          {searchFailures && (
-            <>
+            {searchFailures && (
+              <>
               <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" } }}>
               <MetricCard
                 title="0건 검색"
                 value={formatNumber(searchFailures.zeroResultSearchesInWindow)}
                 description={`최근 ${searchFailures.windowDays}일`}
+                actionLabel="실패 샘플 보기"
+                actionProps={buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.adminActionKey, ADMIN_DASHBOARD_ACTION_KEYS.searchWarningView)}
+                onAction={() => jumpToSection("admin-search-triage", { tone: "warning", focusKey: ADMIN_DASHBOARD_FOCUS_KEYS.searchWarning, preset: "metricAction" })}
               />
               <MetricCard
                 title="재시도 묶음"
@@ -1374,6 +2548,9 @@ export default function AdminDashboardPage() {
                 title="복구된 묶음"
                 value={formatNumber(searchFailures.recoveredSearchGroups?.length)}
                 description="0건 후 결과 복구"
+                actionLabel="복구 묶음 보기"
+                actionProps={buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.adminActionKey, ADMIN_DASHBOARD_ACTION_KEYS.searchRecoveredView)}
+                onAction={() => jumpToSection("admin-search-triage", { tone: "success", focusKey: ADMIN_DASHBOARD_FOCUS_KEYS.searchRecovered, preset: "metricAction" })}
               />
               <MetricCard
                 title="최근 검색 샘플"
@@ -1436,9 +2613,15 @@ export default function AdminDashboardPage() {
                 <CompactListCard
                   title="복구된 묶음"
                   description="나중에 결과가 생긴 검색 묶음"
+                  cardProps={buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.adminListKey, ADMIN_DASHBOARD_LIST_KEYS.searchRecoveredGroups)}
                   items={searchFailures.recoveredSearchGroups}
-                  renderItem={(item) => (
-                    <Box key={`${item.actorType}-${item.actorKey}-${item.keyword}-${item.latestRecoveredAt}`} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
+                  renderItem={(item, index) => (
+                    <Box
+                      key={`${item.actorType}-${item.actorKey}-${item.keyword}-${item.latestRecoveredAt}`}
+                      {...(index === 0 ? buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.jumpFocusTarget, ADMIN_DASHBOARD_FOCUS_KEYS.searchRecovered) : {})}
+                      {...(index === 0 ? buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.jumpFocusTone, "success") : {})}
+                      sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}
+                    >
                       <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{item.keyword || "키워드 없음"}</Typography>
                       <Typography sx={{ fontSize: 12, color: INK3, mt: 0.35 }}>
                         0건 {formatNumber(item.zeroResultCount)} / 복구 {formatNumber(item.recoveredResultCount)}
@@ -1452,9 +2635,15 @@ export default function AdminDashboardPage() {
                 <CompactListCard
                   title="최근 0건 검색 샘플"
                   description="실패 검색 샘플"
+                  cardProps={buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.adminListKey, ADMIN_DASHBOARD_LIST_KEYS.searchRecentZeroResultSamples)}
                   items={searchFailures.recentSamples}
-                  renderItem={(item) => (
-                    <Box key={`${item.keyword}-${item.searchedAt}-${item.sido}-${item.sgg}`} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
+                  renderItem={(item, index) => (
+                    <Box
+                      key={`${item.keyword}-${item.searchedAt}-${item.sido}-${item.sgg}`}
+                      {...(index === 0 ? buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.jumpFocusTarget, ADMIN_DASHBOARD_FOCUS_KEYS.searchWarning) : {})}
+                      {...(index === 0 ? buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.jumpFocusTone, "warning") : {})}
+                      sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}
+                    >
                       <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{item.keyword || "키워드 없음"}</Typography>
                       <Typography sx={{ fontSize: 12, color: INK3, mt: 0.35 }}>
                         {item.sido || "전국"} {item.sgg || ""} · {formatDateTime(item.searchedAt)}
@@ -1466,8 +2655,9 @@ export default function AdminDashboardPage() {
                   )}
                 />
               </Box>
-            </>
-          )}
+              </>
+            )}
+          </Box>
         </Stack>
       </Box>
     </div>

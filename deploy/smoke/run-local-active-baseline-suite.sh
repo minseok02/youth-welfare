@@ -12,6 +12,7 @@ RUN_FRONTEND_E2E="${RUN_FRONTEND_E2E:-true}"
 FRONTEND_E2E_MODE="${FRONTEND_E2E_MODE:-local-dev}"
 FRONTEND_PUBLIC_BASE_URL="${FRONTEND_PUBLIC_BASE_URL:-${PUBLIC_BASE_URL:-}}"
 RUN_OPS_BASELINE="${RUN_OPS_BASELINE:-true}"
+RUN_OPS_OBSERVATION="${RUN_OPS_OBSERVATION:-true}"
 RUN_COLLECT_LEGACY_REPAIR="${RUN_COLLECT_LEGACY_REPAIR:-true}"
 ACTIVE_BASELINE_ROOT="${ACTIVE_BASELINE_ROOT:-${ROOT_DIR}/tmp/active-baseline-suite}"
 RUN_TS_UTC="$(smoke_now_ts_utc)"
@@ -58,6 +59,7 @@ RUN_BACKEND_TESTS="$(smoke_normalize_bool "${RUN_BACKEND_TESTS}")"
 RUN_FRONTEND_BASELINE="$(smoke_normalize_bool "${RUN_FRONTEND_BASELINE}")"
 RUN_FRONTEND_E2E="$(smoke_normalize_bool "${RUN_FRONTEND_E2E}")"
 RUN_OPS_BASELINE="$(smoke_normalize_bool "${RUN_OPS_BASELINE}")"
+RUN_OPS_OBSERVATION="$(smoke_normalize_bool "${RUN_OPS_OBSERVATION}")"
 RUN_COLLECT_LEGACY_REPAIR="$(smoke_normalize_bool "${RUN_COLLECT_LEGACY_REPAIR}")"
 
 smoke_require_command bash
@@ -138,6 +140,16 @@ if [[ "${RUN_OPS_BASELINE}" == "true" ]]; then
     bash "${ROOT_DIR}/deploy/smoke/run-local-ops-baseline-suite.sh"
 fi
 
+if [[ "${RUN_OPS_OBSERVATION}" == "true" ]]; then
+  run_script_step \
+    "ops_observation" \
+    "${ARTIFACT_DIR}/ops-observation.txt" \
+    env ARTIFACT_DIR="${ARTIFACT_DIR}/ops-observation-artifacts" \
+    APP_BASE_URL="${APP_BASE_URL}" \
+    KEEP_ARTIFACTS=true \
+    bash "${ROOT_DIR}/deploy/smoke/run-local-ops-observation-suite.sh"
+fi
+
 if [[ "${RUN_COLLECT_LEGACY_REPAIR}" == "true" ]]; then
   run_script_step \
     "collect_legacy_repair" \
@@ -148,7 +160,7 @@ if [[ "${RUN_COLLECT_LEGACY_REPAIR}" == "true" ]]; then
     bash "${ROOT_DIR}/deploy/smoke/run-local-collect-legacy-repair-suite.sh"
 fi
 
-python3 - "${DURATIONS_TSV}" "${SUMMARY_OUT}" "${JSON_OUT}" "${APP_BASE_URL}" "${ARTIFACT_DIR}" "${RUN_TS_UTC}" "${RUN_BACKEND_TESTS}" "${RUN_FRONTEND_BASELINE}" "${RUN_FRONTEND_E2E}" "${FRONTEND_E2E_MODE}" "${FRONTEND_PUBLIC_BASE_URL}" "${RUN_OPS_BASELINE}" "${RUN_COLLECT_LEGACY_REPAIR}" <<'PY'
+python3 - "${DURATIONS_TSV}" "${SUMMARY_OUT}" "${JSON_OUT}" "${APP_BASE_URL}" "${ARTIFACT_DIR}" "${RUN_TS_UTC}" "${RUN_BACKEND_TESTS}" "${RUN_FRONTEND_BASELINE}" "${RUN_FRONTEND_E2E}" "${FRONTEND_E2E_MODE}" "${FRONTEND_PUBLIC_BASE_URL}" "${RUN_OPS_BASELINE}" "${RUN_OPS_OBSERVATION}" "${RUN_COLLECT_LEGACY_REPAIR}" <<'PY'
 import csv
 import json
 import sys
@@ -166,12 +178,26 @@ run_frontend_e2e = sys.argv[9]
 frontend_e2e_mode = sys.argv[10]
 frontend_public_base_url = sys.argv[11]
 run_ops_baseline = sys.argv[12]
-run_collect_legacy_repair = sys.argv[13]
+run_ops_observation = sys.argv[13]
+run_collect_legacy_repair = sys.argv[14]
+
+def read_key_values(path_str: str) -> dict[str, str]:
+    path = Path(path_str)
+    if not path.exists():
+        return {}
+    values: dict[str, str] = {}
+    for raw_line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        if "=" not in raw_line:
+            continue
+        key, value = raw_line.split("=", 1)
+        values[key.strip()] = value.strip()
+    return values
 
 rows = list(csv.DictReader(durations_path.open(encoding="utf-8"), delimiter="\t"))
 failed = [row for row in rows if row["exit_code"] != "0"]
 suite_duration_ms = sum(int(row["duration_ms"]) for row in rows)
 suite_duration_seconds = suite_duration_ms / 1000
+ops_observation_summary = read_key_values(f"{artifact_dir}/ops-observation-artifacts/ops-observation-summary.txt")
 
 lines = [
     f"active_baseline_suite={'failed' if failed else 'passed'}",
@@ -187,6 +213,7 @@ lines = [
     f"frontend_e2e_mode={frontend_e2e_mode}",
     f"frontend_public_base_url={frontend_public_base_url}",
     f"run_ops_baseline={run_ops_baseline}",
+    f"run_ops_observation={run_ops_observation}",
     f"run_collect_legacy_repair={run_collect_legacy_repair}",
 ]
 
@@ -207,6 +234,38 @@ if run_frontend_baseline == "true":
     lines.append(f"frontend_e2e_stdout={artifact_dir}/frontend-e2e.txt")
 if run_ops_baseline == "true":
     lines.append(f"ops_baseline_stdout={artifact_dir}/ops-baseline.txt")
+if run_ops_observation == "true":
+    lines.append(f"ops_observation_stdout={artifact_dir}/ops-observation.txt")
+    lines.append(f"ops_observation_status={ops_observation_summary.get('ops_observation_suite', '')}")
+    lines.append(f"ops_observation_decision_class={ops_observation_summary.get('decision_class', '')}")
+    lines.append(f"ops_attention_feed_status={ops_observation_summary.get('attention_feed_status', '')}")
+    lines.append(f"ops_attention_feed_item_count={ops_observation_summary.get('attention_feed_item_count', '')}")
+    lines.append(
+        f"ops_attention_feed_warning_item_count="
+        f"{ops_observation_summary.get('attention_feed_warning_item_count', '')}"
+    )
+    lines.append(f"ops_attention_feed_item_keys={ops_observation_summary.get('attention_feed_item_keys', '')}")
+    lines.append(f"ops_attention_feed_item_titles={ops_observation_summary.get('attention_feed_item_titles', '')}")
+    lines.append(
+        f"ops_user_profile_standard_code_users_with_any_standard_code="
+        f"{ops_observation_summary.get('user_profile_standard_code_users_with_any_standard_code', '')}"
+    )
+    lines.append(
+        f"ops_user_profile_standard_code_users_missing_all_standard_codes="
+        f"{ops_observation_summary.get('user_profile_standard_code_users_missing_all_standard_codes', '')}"
+    )
+    lines.append(
+        f"ops_recommendation_standard_code_housing_positive_rule_delta_rows="
+        f"{ops_observation_summary.get('recommendation_standard_code_housing_positive_rule_delta_rows', '')}"
+    )
+    lines.append(
+        f"ops_recommendation_standard_code_welfare_positive_rule_scenarios="
+        f"{ops_observation_summary.get('recommendation_standard_code_welfare_positive_rule_scenarios', '')}"
+    )
+    lines.append(
+        f"ops_recommendation_standard_code_welfare_max_rule_delta="
+        f"{ops_observation_summary.get('recommendation_standard_code_welfare_max_rule_delta', '')}"
+    )
 if run_collect_legacy_repair == "true":
     lines.append(f"collect_legacy_repair_stdout={artifact_dir}/collect-legacy-repair.txt")
 
@@ -223,7 +282,34 @@ json_out.write_text(json.dumps({
     "frontend_e2e_mode": frontend_e2e_mode,
     "frontend_public_base_url": frontend_public_base_url,
     "run_ops_baseline": run_ops_baseline,
+    "run_ops_observation": run_ops_observation,
     "run_collect_legacy_repair": run_collect_legacy_repair,
+    "ops_observation": {
+        "status": ops_observation_summary.get("ops_observation_suite", ""),
+        "decision_class": ops_observation_summary.get("decision_class", ""),
+        "attention_feed_status": ops_observation_summary.get("attention_feed_status", ""),
+        "attention_feed_item_count": ops_observation_summary.get("attention_feed_item_count", ""),
+        "attention_feed_warning_item_count": ops_observation_summary.get(
+            "attention_feed_warning_item_count", ""
+        ),
+        "attention_feed_item_keys": ops_observation_summary.get("attention_feed_item_keys", ""),
+        "attention_feed_item_titles": ops_observation_summary.get("attention_feed_item_titles", ""),
+        "user_profile_standard_code_users_with_any_standard_code": ops_observation_summary.get(
+            "user_profile_standard_code_users_with_any_standard_code", ""
+        ),
+        "user_profile_standard_code_users_missing_all_standard_codes": ops_observation_summary.get(
+            "user_profile_standard_code_users_missing_all_standard_codes", ""
+        ),
+        "recommendation_standard_code_housing_positive_rule_delta_rows": ops_observation_summary.get(
+            "recommendation_standard_code_housing_positive_rule_delta_rows", ""
+        ),
+        "recommendation_standard_code_welfare_positive_rule_scenarios": ops_observation_summary.get(
+            "recommendation_standard_code_welfare_positive_rule_scenarios", ""
+        ),
+        "recommendation_standard_code_welfare_max_rule_delta": ops_observation_summary.get(
+            "recommendation_standard_code_welfare_max_rule_delta", ""
+        ),
+    },
     "steps": rows,
 }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 print(summary_out.read_text(encoding="utf-8"), end="")
