@@ -67,23 +67,23 @@ public class Gov24Client {
                 sleepQuietly(requestIntervalMs);
             }
 
-            Gov24ServiceListDto response = fetchPage(page, PAGE_SIZE);
-            if (response == null || response.getData() == null || response.getData().isEmpty()) {
+            PageChunk chunk = fetchChunk(page, PAGE_SIZE);
+            if (chunk.items().isEmpty()) {
                 break;
             }
 
             int remainingSlots = Math.max(maxItemsPerRun - result.size(), 0);
-            if (response.getData().size() > remainingSlots) {
-                result.addAll(response.getData().subList(0, remainingSlots));
+            if (chunk.items().size() > remainingSlots) {
+                result.addAll(chunk.items().subList(0, remainingSlots));
                 log.warn("[Gov24Client] max-items-per-run 상한으로 조기 종료 page={} collected={} maxItemsPerRun={}",
                         page, result.size(), maxItemsPerRun);
                 break;
             }
 
-            result.addAll(response.getData());
+            result.addAll(chunk.items());
 
-            Integer totalCount = response.getTotalCount();
-            Integer currentCount = response.getCurrentCount();
+            Integer totalCount = chunk.totalCount();
+            Integer currentCount = chunk.currentCount();
             if ((totalCount != null && result.size() >= totalCount)
                     || (currentCount != null && currentCount < PAGE_SIZE)) {
                 break;
@@ -94,6 +94,29 @@ public class Gov24Client {
 
         log.info("[Gov24Client] 수집 완료: {}건", result.size());
         return result;
+    }
+
+    public PageChunk fetchChunk(int page, int perPage) {
+        Gov24ServiceListDto response = fetchPage(page, perPage);
+        if (response == null) {
+            return new PageChunk(page, perPage, null, 0, List.of());
+        }
+        List<Gov24ServiceListDto.Item> items = response.getData() == null ? List.of() : response.getData();
+        Integer currentCount = response.getCurrentCount();
+        if (currentCount == null) {
+            currentCount = items.size();
+        }
+        return new PageChunk(
+                response.getPage() == null ? page : response.getPage(),
+                response.getPerPage() == null ? perPage : response.getPerPage(),
+                response.getTotalCount(),
+                currentCount,
+                items
+        );
+    }
+
+    public int maxItemsPerRun() {
+        return maxItemsPerRun;
     }
 
     public Gov24ServiceDetailDto.Item fetchDetail(String serviceId) {
@@ -227,5 +250,14 @@ public class Gov24Client {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Gov24 수집 대기 중 인터럽트 발생", e);
         }
+    }
+
+    public record PageChunk(
+            int page,
+            int perPage,
+            Integer totalCount,
+            int currentCount,
+            List<Gov24ServiceListDto.Item> items
+    ) {
     }
 }
