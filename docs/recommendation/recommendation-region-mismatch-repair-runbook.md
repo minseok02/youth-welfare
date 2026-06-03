@@ -48,9 +48,9 @@ bash deploy/smoke/run-local-recommendation-region-mismatch-audit.sh
 
 현재 closeout 시점 local 수치:
 
-- `affected_users=454`
-- `mismatch_rows=587`
-- `gov24_mismatch_rows=587`
+- `affected_users=310`
+- `mismatch_rows=336`
+- `gov24_mismatch_rows=336`
 - `bokjiro_local_mismatch_rows=0`
 
 즉 남은 잔량은 사실상 old `GOV24` saved batch 청소 문제로 봅니다.
@@ -84,6 +84,13 @@ USER_LIMIT=25 DRY_RUN=false KEEP_ARTIFACTS=true \
 bash deploy/smoke/run-local-recommendation-region-mismatch-repair.sh
 ```
 
+병렬로 조금 더 빨리 태우려면:
+
+```bash
+PARALLELISM=5 USER_LIMIT=25 DRY_RUN=false KEEP_ARTIFACTS=true \
+bash deploy/smoke/run-local-recommendation-region-mismatch-repair.sh
+```
+
 server/RDS:
 
 ```bash
@@ -95,6 +102,7 @@ bash deploy/smoke/run-local-recommendation-region-mismatch-repair.sh
 권장:
 
 - 먼저 `25` 또는 `50`
+- interactive local/server shell에서는 `PARALLELISM=5` 정도부터 시작
 - 응답 속도가 안정적이면 `100`
 - 장시간 interactive 실행은 피함
 
@@ -114,8 +122,9 @@ bash deploy/smoke/run-local-recommendation-region-mismatch-audit.sh
 
 closeout 작업 중 local partial repair 결과:
 
-- before: `affected_users=481`, `mismatch_rows=713`
-- after: `affected_users=454`, `mismatch_rows=587`
+- start: `affected_users=481`, `mismatch_rows=713`
+- mid: `affected_users=454`, `mismatch_rows=587`
+- current: `affected_users=310`, `mismatch_rows=336`
 
 즉 current query 버그가 아니라 stale saved batch 잔량이 실제로 줄어드는 경로가 확인됐습니다.
 

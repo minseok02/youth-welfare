@@ -7,6 +7,7 @@ source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
 APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:8082}"
 TOP_WINDOW_LIMIT="${TOP_WINDOW_LIMIT:-20}"
 USER_LIMIT="${USER_LIMIT:-25}"
+PARALLELISM="${PARALLELISM:-1}"
 DRY_RUN="${DRY_RUN:-true}"
 KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
 
@@ -26,6 +27,11 @@ trap cleanup EXIT
 
 KEEP_ARTIFACTS="$(smoke_normalize_bool "${KEEP_ARTIFACTS}")"
 DRY_RUN="$(smoke_normalize_bool "${DRY_RUN}")"
+
+if ! [[ "${PARALLELISM}" =~ ^[0-9]+$ ]] || [[ "${PARALLELISM}" -lt 1 ]]; then
+  echo "PARALLELISM must be a positive integer" >&2
+  exit 1
+fi
 
 mkdir -p "${ARTIFACT_DIR}"
 
@@ -120,12 +126,16 @@ smoke_db_query "${TARGET_SQL}" > "${TARGETS_OUT}"
 target_user_count="$(awk 'NF {count++} END {print count+0}' "${TARGETS_OUT}")"
 success_count=0
 failure_count=0
+STATUS_DIR="${ARTIFACT_DIR}/refresh-status"
+mkdir -p "${STATUS_DIR}"
 
-while IFS=$'\t' read -r user_key user_id recommended_at_kst mismatch_rows gov24_mismatch_rows; do
-  [[ -n "${user_key}" ]] || continue
-  if [[ "${DRY_RUN}" == "true" ]]; then
-    continue
-  fi
+refresh_one() {
+  local user_key="$1"
+  local user_id="$2"
+  local status_file="${STATUS_DIR}/${user_key}.status"
+  local access_token
+  local response_file
+  local status
 
   access_token="$(smoke_mint_access_token "${jwt_secret}" "${user_key}" "${user_id}" "ROLE_USER" "${access_expiration_ms}")"
   response_file="${ARTIFACT_DIR}/refresh-${user_key}.json"
@@ -134,17 +144,42 @@ while IFS=$'\t' read -r user_key user_id recommended_at_kst mismatch_rows gov24_
       -H "Authorization: Bearer ${access_token}"
   )"
   if [[ "${status}" == "200" ]]; then
-    success_count=$((success_count + 1))
+    printf 'success\t%s\n' "${status}" > "${status_file}"
   else
-    failure_count=$((failure_count + 1))
+    printf 'failure\t%s\n' "${status}" > "${status_file}"
+  fi
+}
+
+while IFS=$'\t' read -r user_key user_id recommended_at_kst mismatch_rows gov24_mismatch_rows; do
+  [[ -n "${user_key}" ]] || continue
+  if [[ "${DRY_RUN}" == "true" ]]; then
+    continue
+  fi
+  if [[ "${PARALLELISM}" -eq 1 ]]; then
+    refresh_one "${user_key}" "${user_id}"
+  else
+    while [[ "$(jobs -pr | wc -l | tr -d ' ')" -ge "${PARALLELISM}" ]]; do
+      sleep 0.2
+    done
+    refresh_one "${user_key}" "${user_id}" &
   fi
 done < "${TARGETS_OUT}"
+
+if [[ "${DRY_RUN}" == "false" ]] && [[ "${PARALLELISM}" -gt 1 ]]; then
+  wait
+fi
+
+if [[ "${DRY_RUN}" == "false" ]]; then
+  success_count="$(find "${STATUS_DIR}" -type f -name '*.status' -print0 | xargs -0 -r cat | awk -F '\t' '$1 == "success" {count++} END {print count+0}')"
+  failure_count="$(find "${STATUS_DIR}" -type f -name '*.status' -print0 | xargs -0 -r cat | awk -F '\t' '$1 == "failure" {count++} END {print count+0}')"
+fi
 
 cat > "${SUMMARY_OUT}" <<EOF
 recommendation_region_mismatch_repair_status=ok
 dry_run=${DRY_RUN}
 top_window_limit=${TOP_WINDOW_LIMIT}
 user_limit=${USER_LIMIT}
+parallelism=${PARALLELISM}
 target_user_count=${target_user_count}
 refresh_success_count=${success_count}
 refresh_failure_count=${failure_count}
