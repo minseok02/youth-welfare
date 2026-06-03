@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -38,29 +38,29 @@ class PolicySearchKeywordApiWebMvcTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private PolicyListService policyListService;
-    @MockBean
+    @MockitoBean
     private PolicyDetailService policyDetailService;
-    @MockBean
+    @MockitoBean
     private PolicyBookmarkCommandService policyBookmarkCommandService;
-    @MockBean
+    @MockitoBean
     private PolicyRankingService policyRankingService;
-    @MockBean
+    @MockitoBean
     private PolicySearchService policySearchService;
-    @MockBean
+    @MockitoBean
     private PolicySearchLogService policySearchLogService;
-    @MockBean
+    @MockitoBean
     private PolicySearchKeywordReadService policySearchKeywordReadService;
-    @MockBean
+    @MockitoBean
     private PolicyTrafficRateLimitService policyTrafficRateLimitService;
-    @MockBean
+    @MockitoBean
     private RecommendationLogService recommendationLogService;
-    @MockBean
+    @MockitoBean
     private PolicyViewLogService policyViewLogService;
-    @MockBean
+    @MockitoBean
     private ClientFingerprintService clientFingerprintService;
-    @MockBean
+    @MockitoBean
     private JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @Test

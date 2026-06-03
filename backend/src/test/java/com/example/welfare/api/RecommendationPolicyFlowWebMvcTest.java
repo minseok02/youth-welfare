@@ -34,7 +34,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
@@ -64,41 +64,41 @@ class RecommendationPolicyFlowWebMvcTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private RecommendationAccessService recommendationAccessService;
-    @MockBean
+    @MockitoBean
     private RecommendationGenerationService recommendationGenerationService;
-    @MockBean
+    @MockitoBean
     private RecommendationBookmarkCommandService recommendationBookmarkCommandService;
-    @MockBean
+    @MockitoBean
     private JpaMetamodelMappingContext jpaMetamodelMappingContext;
-    @MockBean
+    @MockitoBean
     private PolicyListService policyListService;
-    @MockBean
+    @MockitoBean
     private PolicyDetailService policyDetailService;
-    @MockBean
+    @MockitoBean
     private PolicyBookmarkCommandService policyBookmarkCommandService;
-    @MockBean
+    @MockitoBean
     private PolicyRankingService policyRankingService;
-    @MockBean
+    @MockitoBean
     private PolicySearchService policySearchService;
-    @MockBean
+    @MockitoBean
     private PolicySearchLogService policySearchLogService;
-    @MockBean
+    @MockitoBean
     private PolicySearchKeywordReadService policySearchKeywordReadService;
-    @MockBean
+    @MockitoBean
     private PolicyTrafficRateLimitService policyTrafficRateLimitService;
-    @MockBean
+    @MockitoBean
     private RecommendationLogService recommendationLogService;
-    @MockBean
+    @MockitoBean
     private RecommendationLogReadService recommendationLogReadService;
-    @MockBean
+    @MockitoBean
     private RecommendationProjectionReadService recommendationProjectionReadService;
-    @MockBean
+    @MockitoBean
     private PolicyViewLogService policyViewLogService;
-    @MockBean
+    @MockitoBean
     private ClientFingerprintService clientFingerprintService;
-    @MockBean
+    @MockitoBean
     private ServiceRegionRepository serviceRegionRepository;
 
     @Test
