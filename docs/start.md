@@ -54,6 +54,8 @@
 - collect governance를 compact하게 다시 보려면 `bash deploy/smoke/run-local-collect-governance-observation-suite.sh`
 - 운영 서버/RDS에서는 `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-collect-governance-observation-suite.sh`
 - collect governance artifact latest 경로는 `tmp/collect-governance-observation/latest-collect-governance-observation-summary.txt`, `latest-collect-governance-observation-note.md`, `latest-collect-governance-observation.json` 을 먼저 봅니다. `KEEP_ARTIFACTS=false` 기본값에서도 이 stable snapshot은 남습니다.
+- source별 retry/rate-limit/lock guard inventory를 compact하게 다시 보려면 `bash deploy/smoke/run-local-collect-source-resilience-audit.sh`
+- 운영 서버/RDS에서는 `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-collect-source-resilience-audit.sh`
 - `Gov24` list 수동 collect는 이제 동기 `POST /api/admin/collect/gov24` 보다 `bash deploy/smoke/run-local-gov24-async-collect-smoke.sh` 를 먼저 씁니다.
 - 이 smoke는 `async trigger(202) -> async-status polling -> latest api_sync_logs metadata` 까지 한 번에 확인합니다.
 - auth/session baseline을 compact하게 다시 보려면 `bash deploy/smoke/run-local-auth-observation-suite.sh`

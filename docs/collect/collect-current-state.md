@@ -6,6 +6,7 @@
 
 - [collect-ops.md](./collect-ops.md)
 - [collect-governance-observation-runbook.md](./collect-governance-observation-runbook.md)
+- [collect-source-resilience-audit-runbook.md](./collect-source-resilience-audit-runbook.md)
 - [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
 - [phase-plan.md](../phase-plan.md)
 
@@ -18,6 +19,8 @@
 현재 collect 문서 해석도 `phase-plan` 의 긴 전환 로그보다 이 문서와 `collect-operation-checklist`, `collect-ops` 를 우선합니다.
 
 daily operator entrypoint는 [collect-governance-observation-runbook.md](./collect-governance-observation-runbook.md) 와 `bash deploy/smoke/run-local-collect-governance-observation-suite.sh` 입니다. 이 wrapper는 `collect-failures` 전체 contract 대신 `nightly/manual lane count`, `latest failed/partial lane`, `open circuit`, `next_action` 을 compact하게 요약하고 `latest-collect-governance-observation-note.md` 사람용 artifact도 남깁니다.
+
+source별 retry/rate-limit/duplicate-run guard inventory를 다시 볼 때는 [collect-source-resilience-audit-runbook.md](./collect-source-resilience-audit-runbook.md) 와 `bash deploy/smoke/run-local-collect-source-resilience-audit.sh` 를 먼저 씁니다. 이 audit는 `collectSourceLanes.configEntries` 를 재사용해 lane별 resilience metadata drift를 compact하게 다시 읽습니다.
 
 ## 현재 collect entry
 

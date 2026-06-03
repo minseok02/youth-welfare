@@ -84,6 +84,9 @@
 - server/RDS collect governance observation suite: `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-collect-governance-observation-suite.sh`
   - latest artifact: `tmp/collect-governance-observation/latest-collect-governance-observation-summary.txt`, `tmp/collect-governance-observation/latest-collect-governance-observation-note.md`, `tmp/collect-governance-observation/latest-collect-governance-observation.json`
   - `KEEP_ARTIFACTS=false` 기본값에서도 latest summary/json 과 `tmp/collect-governance-observation/latest/` snapshot은 남습니다.
+- collect source resilience audit: `APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-collect-source-resilience-audit.sh`
+- server/RDS collect source resilience audit: `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-collect-source-resilience-audit.sh`
+  - latest artifact: `tmp/collect-source-resilience-audit/latest-collect-source-resilience-summary.txt`, `tmp/collect-source-resilience-audit/latest-collect-source-resilience-note.md`, `tmp/collect-source-resilience-audit/latest-collect-source-resilience.json`
 - auth observation suite: `APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-auth-observation-suite.sh`
 - server/RDS auth observation suite: `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-auth-observation-suite.sh`
   - latest artifact: `tmp/auth-observation/latest-auth-observation-summary.txt`, `tmp/auth-observation/latest-auth-observation-note.md`, `tmp/auth-observation/latest-auth-observation.json`
