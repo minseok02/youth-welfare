@@ -19,6 +19,7 @@
 - [gov24-recommendation-audit-runbook.md](./gov24-recommendation-audit-runbook.md)
 - [recommendation-ctr-readiness-runbook.md](./recommendation-ctr-readiness-runbook.md)
 - [recommendation-concentration-audit-runbook.md](./recommendation-concentration-audit-runbook.md)
+- [recommendation-no-priority-gap-audit-runbook.md](./recommendation-no-priority-gap-audit-runbook.md)
 - [recommendation-real-user-baseline-runbook.md](./recommendation-real-user-baseline-runbook.md)
 - [recommendation-observation-runbook.md](./recommendation-observation-runbook.md)
 - [recommendation-standard-code-coverage-and-observation-closeout.md](./recommendation-standard-code-coverage-and-observation-closeout.md)
