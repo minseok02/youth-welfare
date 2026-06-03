@@ -198,6 +198,7 @@ function HeroLoggedIn({
   deadlineCount,
   firstDeadlinePolicy,
   secondDeadlinePolicy,
+  hasPriorities,
   standardCodeMissingCount,
   standardCodeMissingLabels,
 }) {
@@ -245,6 +246,41 @@ function HeroLoggedIn({
               전체 둘러보기
             </button>
           </div>
+          {!hasPriorities && (
+            <div style={{
+              marginTop: 14,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 10,
+              flexWrap: "wrap",
+              padding: "10px 14px",
+              borderRadius: 14,
+              background: "rgba(15,23,42,0.18)",
+              border: "1px solid rgba(255,255,255,0.22)",
+            }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: "white", letterSpacing: "0.04em" }}>
+                추천 품질 우선 개선
+              </span>
+              <span style={{ fontSize: 13, opacity: 0.92 }}>
+                우선순위를 아직 설정하지 않았어요. 최신 품질 점검에서도 무우선순위 사용자군은 상단 정책 쏠림이 더 크게 보였습니다.
+              </span>
+              <button
+                onClick={() => navigate("/mypage?tab=1")}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: 999,
+                  border: "1px solid rgba(255,255,255,0.28)",
+                  background: "rgba(255,255,255,0.08)",
+                  color: "white",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                우선순위 설정 →
+              </button>
+            </div>
+          )}
           {standardCodeMissingCount > 0 && (
             <div style={{
               marginTop: 14,
@@ -675,6 +711,54 @@ function StandardCodePromptBanner({ missingCount, filledCount, missingLabels, na
   );
 }
 
+function PriorityPromptBanner({ navigate }) {
+  return (
+    <section style={{
+      marginTop: 16,
+      marginBottom: 16,
+      background: "linear-gradient(135deg, #fff7ed 0%, #ffffff 100%)",
+      border: `1px solid ${LINE}`,
+      borderRadius: 18,
+      padding: "18px 20px",
+      display: "flex",
+      justifyContent: "space-between",
+      gap: 16,
+      alignItems: "center",
+      flexWrap: "wrap",
+    }}>
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 800, color: "#c2410c", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+          추천 우선순위 필요
+        </div>
+        <div style={{ fontSize: 17, fontWeight: 800, color: INK, marginTop: 6, letterSpacing: "-0.02em" }}>
+          아직 추천 우선순위를 설정하지 않았어요
+        </div>
+        <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.6 }}>
+          최신 추천 품질 점검 기준으로도 우선순위가 비어 있으면 특정 지자체 정책이 상단에 반복되는 경향이 더 컸습니다.
+          {" "}주거, 일자리, 교육처럼 먼저 보고 싶은 축을 정해두면 재추천 결과가 더 안정적입니다.
+        </div>
+      </div>
+      <button
+        onClick={() => navigate("/mypage?tab=1")}
+        style={{
+          padding: "12px 16px",
+          borderRadius: 12,
+          border: "none",
+          background: "#c2410c",
+          color: "white",
+          fontSize: 14,
+          fontWeight: 700,
+          cursor: "pointer",
+          whiteSpace: "nowrap",
+          boxShadow: "0 8px 24px rgba(194,65,12,0.14)",
+        }}
+      >
+        우선순위 먼저 설정 →
+      </button>
+    </section>
+  );
+}
+
 function Spinner() {
   return (
     <div style={{ display: "flex", justifyContent: "center", padding: "48px 0" }}>
@@ -911,6 +995,7 @@ export default function MainPage() {
             deadlineCount={deadlinePolicies.length}
             firstDeadlinePolicy={deadlinePolicies[0]}
             secondDeadlinePolicy={deadlinePolicies[1]}
+            hasPriorities={Boolean(user?.hasPriorities)}
             standardCodeMissingCount={standardCodeMissingCount}
             standardCodeMissingLabels={standardCodeMissingLabels}
           />
@@ -932,6 +1017,9 @@ export default function MainPage() {
             missingLabels={standardCodeMissingLabels}
             navigate={navigate}
           />
+        )}
+        {isLoggedIn && !user?.hasPriorities && (
+          <PriorityPromptBanner navigate={navigate} />
         )}
 
         {/* 카테고리 바 */}

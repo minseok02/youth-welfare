@@ -22,6 +22,12 @@ APP_BASE_URL='http://127.0.0.1:8082' \
 bash deploy/smoke/run-local-recommendation-observation-suite.sh
 ```
 
+nightly 운영 wrapper:
+
+```bash
+bash deploy/smoke/run-nightly-standard-code-observation.sh
+```
+
 운영 서버/RDS:
 
 ```bash
@@ -124,3 +130,4 @@ bash deploy/smoke/run-local-recommendation-observation-suite.sh
 이제 여기에는 `housing standard code effect` 와 `welfare standard code matrix` 도 같이 묶여 있어서,
 주거형태/주택유형뿐 아니라 `기초생활수급권자 / 장애등급` 계열 표준코드 효과도 같은 artifact에서 바로 확인할 수 있습니다.
 추가로 `recommendation standard code adoption` audit가 latest batch 기준 `표준코드가 실제로 들어간 추천 사용자 비중`까지 같이 남깁니다.
+nightly wrapper는 여기에 더해 `run-local-recommendation-review-gate-blocker-audit.sh` 를 같이 실행해서, `blocker_class`, `operator_next_step`, `mixed_concentration_readiness`, `real_user_concentration_readiness` 까지 `/var/log/youth-welfare/standard-code-observation/nightly-summary-YYYY-MM-DD.log` 에 남깁니다.

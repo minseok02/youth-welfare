@@ -402,6 +402,53 @@ function StandardCodePolicyPrompt({
   );
 }
 
+function PriorityPolicyPrompt({ onNavigate }) {
+  return (
+    <section style={{
+      marginBottom: 16,
+      background: "linear-gradient(135deg, #fff7ed 0%, #ffffff 100%)",
+      border: `1px solid ${LINE}`,
+      borderRadius: 18,
+      padding: "18px 20px",
+      display: "flex",
+      justifyContent: "space-between",
+      gap: 16,
+      alignItems: "center",
+      flexWrap: "wrap",
+    }}>
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 800, color: "#c2410c", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+          추천 우선순위 필요
+        </div>
+        <div style={{ fontSize: 17, fontWeight: 800, color: INK, marginTop: 6, letterSpacing: "-0.02em" }}>
+          아직 추천 우선순위를 설정하지 않았어요
+        </div>
+        <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.6 }}>
+          최근 추천 품질 점검 기준으로는 우선순위가 비어 있을 때 상단 정책이 더 쉽게 반복됐습니다.
+          {" "}주거, 일자리, 교육처럼 먼저 보고 싶은 축을 정해두면 재추천과 정책 탐색이 더 안정적입니다.
+        </div>
+      </div>
+      <button
+        onClick={onNavigate}
+        style={{
+          padding: "12px 16px",
+          borderRadius: 12,
+          border: "none",
+          background: "#c2410c",
+          color: "white",
+          fontSize: 14,
+          fontWeight: 700,
+          cursor: "pointer",
+          whiteSpace: "nowrap",
+          boxShadow: "0 8px 24px rgba(194,65,12,0.14)",
+        }}
+      >
+        우선순위 설정 →
+      </button>
+    </section>
+  );
+}
+
 // ── 정책 카드 ─────────────────────────────────────────────────────────────────
 
 function PolicyRow({ p, onNavigate, onBookmark }) {
@@ -654,6 +701,7 @@ export default function PoliciesPage() {
         setUser({
           ...(profile.name ? { name: profile.name } : {}),
           ...(profile.email ? { email: profile.email } : {}),
+          hasPriorities: Array.isArray(profile.priorities) && profile.priorities.length > 0,
           standardCodeFilledCount: STANDARD_CODE_ENTRIES.length - missingLabels.length,
           standardCodeMissingCount: missingLabels.length,
           missingStandardCodeLabels: missingLabels,
@@ -1253,6 +1301,9 @@ export default function PoliciesPage() {
 
         {/* ── 결과 영역 ── */}
         <div>
+          {isLoggedIn && !user?.hasPriorities && (
+            <PriorityPolicyPrompt onNavigate={() => navigate("/mypage?tab=1")} />
+          )}
           {isLoggedIn && standardCodeMissingCount > 0 && (
             <StandardCodePolicyPrompt
               missingCount={standardCodeMissingCount}

@@ -46,6 +46,7 @@
 daily operator entrypoint는 [recommendation-observation-runbook.md](./recommendation-observation-runbook.md) 와 `bash deploy/smoke/run-local-recommendation-observation-suite.sh` 입니다. observation suite는 `summary/json` 외에 `latest-recommendation-observation-note.md` 도 남겨, 현재 reopen 가능 여부와 다음 행동을 사람 말로 바로 handoff 할 수 있습니다.
 표준코드 입력 유도 UX 확장, adoption audit, nightly wrapper까지 포함한 최근 closeout 요약은 [recommendation-standard-code-coverage-and-observation-closeout.md](./recommendation-standard-code-coverage-and-observation-closeout.md) 에 따로 묶어 둡니다.
 지역이 다른 정책이 추천된다는 제보를 다룰 때는 먼저 [recommendation-region-mismatch-repair-runbook.md](./recommendation-region-mismatch-repair-runbook.md) 로 current query bug와 stale saved batch를 구분합니다. 현재 closeout 기준 남은 mismatch는 사실상 old `GOV24` saved batch 잔량으로 읽고, 대응은 `audit -> bounded refresh repair -> re-audit` 순서로 고정합니다.
+`2026-06-03` 최신 latest-window / blocker audit 기준으로는 남은 recommendation 품질 이슈가 region mismatch보다 **`NO_PRIORITY` 사용자군에서 특정 지자체 정책이 상단을 반복 점유하는 현상** 쪽입니다. mixed latest batch는 `top1_leader=3284(인천 청년도약기지)`, `share=42.47%` 였고, real-user-only latest batch도 `top1_leader=3254(인천 중구 청년 자격시험 응시료 지원사업)`, `share=10.00%`, `real_user_concentration_readiness=NO_PRIORITY_DOMINANT` 로 읽혔습니다. 즉 current query bug보다 **우선순위 입력/유도**가 다음 제품 체감 개선 포인트입니다.
 
 즉 지금까지 닫힌 것은 아래입니다.
 
