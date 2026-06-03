@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Alert,
@@ -935,18 +935,15 @@ export default function AdminDashboardPage() {
     ...queryBaseOptions,
   });
 
+  const officialCodebooks = officialCodebooksQuery.data ?? [];
+  const effectiveSelectedCodeSetKey = selectedCodeSetKey || officialCodebooks[0]?.codeSetKey || "";
+
   const officialCodebookDetailQuery = useQuery({
-    queryKey: ["official-codebook-detail", selectedCodeSetKey, codebookQueryText],
-    queryFn: () => fetchOfficialCodebookDetail(selectedCodeSetKey, codebookQueryText),
-    enabled: Boolean(selectedCodeSetKey),
+    queryKey: ["official-codebook-detail", effectiveSelectedCodeSetKey, codebookQueryText],
+    queryFn: () => fetchOfficialCodebookDetail(effectiveSelectedCodeSetKey, codebookQueryText),
+    enabled: Boolean(effectiveSelectedCodeSetKey),
     ...queryBaseOptions,
   });
-
-  useEffect(() => {
-    if (!selectedCodeSetKey && officialCodebooksQuery.data?.length) {
-      setSelectedCodeSetKey(officialCodebooksQuery.data[0].codeSetKey);
-    }
-  }, [officialCodebooksQuery.data, selectedCodeSetKey]);
 
   const summaryData = summaryQuery.data;
   const recommendationSummary = summaryData?.recommendation;
@@ -958,8 +955,7 @@ export default function AdminDashboardPage() {
   const attentionFeed = attentionFeedQuery.data;
   const standardCodeEffectObservation = standardCodeEffectObservationQuery.data;
   const wrapperObservation = wrapperObservationQuery.data;
-  const officialCodebooks = officialCodebooksQuery.data ?? [];
-  const selectedCodebookSummary = officialCodebooks.find((item) => item.codeSetKey === selectedCodeSetKey) ?? null;
+  const selectedCodebookSummary = officialCodebooks.find((item) => item.codeSetKey === effectiveSelectedCodeSetKey) ?? null;
   const officialCodebookDetail = officialCodebookDetailQuery.data;
   const detailRows = officialCodebookDetail?.rows ?? officialCodebookDetail?.metadata?.sampleRows ?? [];
   const summaryErrorMessage = summaryQuery.error?.response?.data?.message ?? "요약 데이터를 불러오지 못했습니다.";
@@ -1184,7 +1180,7 @@ export default function AdminDashboardPage() {
     standardCodeEffectObservationQuery.refetch();
     wrapperObservationQuery.refetch();
     officialCodebooksQuery.refetch();
-    if (selectedCodeSetKey) {
+    if (effectiveSelectedCodeSetKey) {
       officialCodebookDetailQuery.refetch();
     }
   };
@@ -1893,7 +1889,7 @@ export default function AdminDashboardPage() {
                           <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK2 }}>코드셋 선택</Typography>
                           <Select
                             size="small"
-                            value={selectedCodeSetKey}
+                            value={effectiveSelectedCodeSetKey}
                             onChange={(event) => setSelectedCodeSetKey(event.target.value)}
                             sx={{ bgcolor: PANEL_BG }}
                           >
@@ -1992,7 +1988,7 @@ export default function AdminDashboardPage() {
                                 </TableHead>
                                 <TableBody>
                                   {detailRows.map((row, index) => (
-                                    <TableRow key={`${selectedCodeSetKey}-${index}`}>
+                                    <TableRow key={`${effectiveSelectedCodeSetKey}-${index}`}>
                                       {(officialCodebookDetail.headers ?? Object.keys(row ?? {})).map((header) => (
                                         <TableCell key={header} sx={{ color: INK, verticalAlign: "top" }}>
                                           {row?.[header] ?? "—"}

@@ -9,6 +9,7 @@ KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
 RUN_BACKEND_TESTS="${RUN_BACKEND_TESTS:-true}"
 RUN_FRONTEND_BASELINE="${RUN_FRONTEND_BASELINE:-true}"
 RUN_FRONTEND_E2E="${RUN_FRONTEND_E2E:-true}"
+RUN_FRONTEND_ADMIN_E2E="${RUN_FRONTEND_ADMIN_E2E:-false}"
 FRONTEND_E2E_MODE="${FRONTEND_E2E_MODE:-local-dev}"
 FRONTEND_PUBLIC_BASE_URL="${FRONTEND_PUBLIC_BASE_URL:-${PUBLIC_BASE_URL:-}}"
 RUN_OPS_BASELINE="${RUN_OPS_BASELINE:-true}"
@@ -58,6 +59,7 @@ KEEP_ARTIFACTS="$(smoke_normalize_bool "${KEEP_ARTIFACTS}")"
 RUN_BACKEND_TESTS="$(smoke_normalize_bool "${RUN_BACKEND_TESTS}")"
 RUN_FRONTEND_BASELINE="$(smoke_normalize_bool "${RUN_FRONTEND_BASELINE}")"
 RUN_FRONTEND_E2E="$(smoke_normalize_bool "${RUN_FRONTEND_E2E}")"
+RUN_FRONTEND_ADMIN_E2E="$(smoke_normalize_bool "${RUN_FRONTEND_ADMIN_E2E}")"
 RUN_OPS_BASELINE="$(smoke_normalize_bool "${RUN_OPS_BASELINE}")"
 RUN_OPS_OBSERVATION="$(smoke_normalize_bool "${RUN_OPS_OBSERVATION}")"
 RUN_COLLECT_LEGACY_REPAIR="$(smoke_normalize_bool "${RUN_COLLECT_LEGACY_REPAIR}")"
@@ -108,10 +110,25 @@ if [[ "${RUN_FRONTEND_BASELINE}" == "true" ]]; then
           echo "FRONTEND_PUBLIC_BASE_URL or PUBLIC_BASE_URL is required for FRONTEND_E2E_MODE=deployed-origin" >&2
           exit 1
         fi
+        smoke_resolve_admin_credentials "${ROOT_DIR}"
+        if [[ -z "${E2E_USER_EMAIL:-}" ]]; then
+          E2E_USER_EMAIL="playwright.active.baseline.${RUN_TS_UTC,,}@example.com"
+        fi
+        if [[ -z "${E2E_USER_PASSWORD:-}" ]]; then
+          E2E_USER_PASSWORD="Password123!"
+        fi
+        PLAYWRIGHT_GREP_INVERT="@dev-only"
+        if [[ "${RUN_FRONTEND_ADMIN_E2E}" != "true" ]]; then
+          PLAYWRIGHT_GREP_INVERT="${PLAYWRIGHT_GREP_INVERT}|@admin-required"
+        fi
+        run_command_step \
+          "frontend_e2e_bootstrap" \
+          "${ARTIFACT_DIR}/frontend-e2e-bootstrap.txt" \
+          bash -lc "cd '${ROOT_DIR}/frontend' && APP_BASE_URL='${APP_BASE_URL}' HEALTH_URL='${APP_BASE_URL}/actuator/health' RUN_ADMIN_SETUP='${RUN_FRONTEND_ADMIN_E2E}' E2E_ADMIN_EMAIL='${ADMIN_EMAIL:-}' E2E_ADMIN_PASSWORD='${ADMIN_PASSWORD:-}' E2E_USER_EMAIL='${E2E_USER_EMAIL}' E2E_USER_PASSWORD='${E2E_USER_PASSWORD}' ENV_FILE='${ENV_FILE:-}' DB_QUERY_USERNAME='${DB_QUERY_USERNAME:-}' DB_QUERY_PASSWORD='${DB_QUERY_PASSWORD:-}' bash ./scripts/bootstrap-playwright-smoke-data.sh"
         run_command_step \
           "frontend_e2e" \
           "${ARTIFACT_DIR}/frontend-e2e.txt" \
-          bash -lc "cd '${ROOT_DIR}/frontend' && PLAYWRIGHT_SKIP_WEBSERVER=true PLAYWRIGHT_BASE_URL='${FRONTEND_PUBLIC_BASE_URL}' PLAYWRIGHT_GREP_INVERT='@dev-only' npm run test:e2e"
+          bash -lc "cd '${ROOT_DIR}/frontend' && ENV_FILE='${ENV_FILE:-}' E2E_ADMIN_EMAIL='${ADMIN_EMAIL:-}' E2E_ADMIN_PASSWORD='${ADMIN_PASSWORD:-}' E2E_USER_EMAIL='${E2E_USER_EMAIL}' E2E_USER_PASSWORD='${E2E_USER_PASSWORD}' PLAYWRIGHT_SKIP_WEBSERVER=true PLAYWRIGHT_BASE_URL='${FRONTEND_PUBLIC_BASE_URL}' PLAYWRIGHT_GREP_INVERT='${PLAYWRIGHT_GREP_INVERT}' npm run test:e2e"
         ;;
       skip)
         cat <<'EOF' > "${ARTIFACT_DIR}/frontend-e2e.txt"

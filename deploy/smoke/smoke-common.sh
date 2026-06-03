@@ -683,7 +683,7 @@ smoke_db_query() {
   if [[ "${db_mode}" == "docker" ]]; then
     smoke_require_command docker
     docker exec -e PGPASSWORD="${db_query_password}" "${db_container_name}" \
-      psql -U "${db_query_username}" -d "${db_name}" -At -F $'\t' -c "${sql}"
+      psql -v ON_ERROR_STOP=1 -U "${db_query_username}" -d "${db_name}" -At -F $'\t' -c "${sql}"
     return 0
   fi
 
@@ -693,7 +693,7 @@ smoke_db_query() {
   }
 
   smoke_run_psql_direct "${db_query_password}" \
-    --username "${db_query_username}" --dbname "${db_connection_url}" -At -F $'\t' -c "${sql}"
+    --set ON_ERROR_STOP=1 --username "${db_query_username}" --dbname "${db_connection_url}" -At -F $'\t' -c "${sql}"
 }
 
 smoke_db_apply_file() {

@@ -19,9 +19,12 @@ smoke_require_command curl
 smoke_require_command python3
 
 smoke_resolve_admin_credentials "${ROOT_DIR}"
+smoke_resolve_admin_access_token "${ROOT_DIR}"
 
 : "${ADMIN_EMAIL:?ADMIN_EMAIL is empty; export ADMIN_EMAIL or set /tmp/youth-welfare-admin-smoke-email}"
-: "${ADMIN_PASSWORD:?ADMIN_PASSWORD is empty; export ADMIN_PASSWORD or set /tmp/youth-welfare-admin-smoke-password}"
+if [[ -z "${ADMIN_ACCESS_TOKEN:-}" ]]; then
+  : "${ADMIN_PASSWORD:?ADMIN_PASSWORD is empty; export ADMIN_PASSWORD or set /tmp/youth-welfare-admin-smoke-password}"
+fi
 
 RUN_TARGETED_REPAIR="$(smoke_normalize_bool "${RUN_TARGETED_REPAIR}")"
 RUN_GAP_FILL="$(smoke_normalize_bool "${RUN_GAP_FILL}")"
@@ -39,19 +42,23 @@ FINAL_REMAINING_FILE="${TMP_DIR}/remaining.tsv"
 smoke_print_step "app health"
 smoke_wait_for_health "${HEALTH_RETRY_COUNT}" 2 "${APP_HEALTH_URL}" "${HEALTH_RESPONSE}" "${HEALTH_STDERR}" >/dev/null
 
-smoke_print_step "admin login (${ADMIN_EMAIL})"
-LOGIN_STATUS="$(
-  smoke_http_status POST "${APP_BASE_URL}/api/auth/login" "${LOGIN_RESPONSE}" \
-    -H 'Content-Type: application/json' \
-    --data-binary @- <<JSON
+if [[ -n "${ADMIN_ACCESS_TOKEN:-}" ]]; then
+  smoke_print_step "admin token reuse (${ADMIN_EMAIL})"
+  ADMIN_TOKEN="${ADMIN_ACCESS_TOKEN}"
+else
+  smoke_print_step "admin login (${ADMIN_EMAIL})"
+  LOGIN_STATUS="$(
+    smoke_http_status POST "${APP_BASE_URL}/api/auth/login" "${LOGIN_RESPONSE}" \
+      -H 'Content-Type: application/json' \
+      --data-binary @- <<JSON
 {
   "email": "${ADMIN_EMAIL}",
   "password": "${ADMIN_PASSWORD}"
 }
 JSON
-)"
-smoke_assert_status 200 "${LOGIN_STATUS}" "admin login" "${LOGIN_RESPONSE}"
-ADMIN_TOKEN="$(python3 - "${LOGIN_RESPONSE}" <<'PY'
+  )"
+  smoke_assert_status 200 "${LOGIN_STATUS}" "admin login" "${LOGIN_RESPONSE}"
+  ADMIN_TOKEN="$(python3 - "${LOGIN_RESPONSE}" <<'PY'
 import json
 import sys
 
@@ -60,7 +67,8 @@ with open(sys.argv[1], "r", encoding="utf-8") as fp:
 
 print(payload["data"]["accessToken"])
 PY
-)"
+  )"
+fi
 
 db_inverted_count() {
   local source_type="$1"

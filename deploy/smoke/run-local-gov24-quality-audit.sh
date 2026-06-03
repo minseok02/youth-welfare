@@ -2,14 +2,15 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-DB_CONTAINER="${DB_CONTAINER:-youth-welfare-db}"
+source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
+
 APP_HEALTH_URL="${APP_HEALTH_URL:-http://127.0.0.1:8082/actuator/health}"
 GOV24_MAPPED_CODES_SQL="$(python3 "${ROOT_DIR}/scripts/gov24_support_condition_codes.py" --format sql-array)"
 GOV24_MAPPED_CODES_WITH_AGE_SQL="$(python3 "${ROOT_DIR}/scripts/gov24_support_condition_codes.py" --format sql-array --include-age)"
 
 query() {
   local sql="$1"
-  docker exec -i "$DB_CONTAINER" psql -U postgres -d youth_welfare -At -F $'\t' -c "$sql"
+  smoke_db_query "${sql}"
 }
 
 metric() {
