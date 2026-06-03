@@ -90,7 +90,7 @@ public final class RecommendationProjectionHeuristicSupport {
                                                 Set<String> lifeStages,
                                                 Integer minAge,
                                                 Integer maxAge) {
-        boolean explicitYouthSignal = audienceTextSignals(title, summary, targetGroupsRaw, keywordTags, interestThemes, lifeStages).stream()
+        boolean explicitYouthSignal = explicitAudienceTextSignals(title, summary, targetGroupsRaw, keywordTags, interestThemes).stream()
                 .anyMatch(RecommendationProjectionHeuristicSupport::containsYouthSignal);
         boolean focusedLifeStage = hasYouthFocusedLifeStage(lifeStages);
         boolean youthFocusedAgeRange = isYouthFocusedAgeRange(minAge, maxAge);
@@ -106,6 +106,20 @@ public final class RecommendationProjectionHeuristicSupport {
             bonus += AGE_RANGE_ONLY_BONUS;
         }
         return bonus;
+    }
+
+    public static boolean hasExplicitYouthSignal(String title,
+                                                 String summary,
+                                                 Set<String> targetGroupsRaw,
+                                                 Set<String> keywordTags,
+                                                 Set<String> interestThemes,
+                                                 Set<String> lifeStages) {
+        return explicitAudienceTextSignals(title, summary, targetGroupsRaw, keywordTags, interestThemes).stream()
+                .anyMatch(RecommendationProjectionHeuristicSupport::containsYouthSignal);
+    }
+
+    public static boolean hasFocusedYouthLifeStage(Set<String> lifeStages) {
+        return hasYouthFocusedLifeStage(lifeStages);
     }
 
     public static void collectSpecialTargetBuckets(Set<String> buckets, String raw) {
@@ -157,12 +171,11 @@ public final class RecommendationProjectionHeuristicSupport {
         return benefitTypeToken == null ? null : GOV24_BENEFIT_TYPE_PRIORITY_BUCKETS.get(benefitTypeToken);
     }
 
-    private static List<String> audienceTextSignals(String title,
-                                                    String summary,
-                                                    Set<String> targetGroupsRaw,
-                                                    Set<String> keywordTags,
-                                                    Set<String> interestThemes,
-                                                    Set<String> lifeStages) {
+    private static List<String> explicitAudienceTextSignals(String title,
+                                                            String summary,
+                                                            Set<String> targetGroupsRaw,
+                                                            Set<String> keywordTags,
+                                                            Set<String> interestThemes) {
         List<String> signals = new ArrayList<>();
         if (title != null) {
             signals.add(title);
@@ -173,7 +186,6 @@ public final class RecommendationProjectionHeuristicSupport {
         signals.addAll(emptyIfNull(targetGroupsRaw));
         signals.addAll(emptyIfNull(keywordTags));
         signals.addAll(emptyIfNull(interestThemes));
-        signals.addAll(emptyIfNull(lifeStages));
         return signals;
     }
 

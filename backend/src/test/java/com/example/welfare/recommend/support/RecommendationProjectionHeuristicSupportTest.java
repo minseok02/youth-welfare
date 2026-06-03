@@ -42,6 +42,53 @@ class RecommendationProjectionHeuristicSupportTest {
     }
 
     @Test
+    @DisplayName("life stage만 청년이면 explicit youth signal로 보지 않고 focused life stage bonus만 준다")
+    void audienceBonusSeparatesLifeStageFromExplicitYouthSignal() {
+        double bonus = RecommendationProjectionHeuristicSupport.audienceRelevanceBonus(
+                "주거 지원",
+                "일반 생활 안정 지원",
+                Set.of("저소득층"),
+                Set.of(),
+                Set.of(),
+                Set.of("청년"),
+                19,
+                34
+        );
+
+        assertThat(bonus).isEqualTo(8.0);
+        assertThat(RecommendationProjectionHeuristicSupport.hasExplicitYouthSignal(
+                "주거 지원",
+                "일반 생활 안정 지원",
+                Set.of("저소득층"),
+                Set.of(),
+                Set.of(),
+                Set.of("청년")
+        )).isFalse();
+    }
+
+    @Test
+    @DisplayName("projection heuristic은 explicit youth signal 여부를 분리해서 판단한다")
+    void detectsExplicitYouthSignal() {
+        assertThat(RecommendationProjectionHeuristicSupport.hasExplicitYouthSignal(
+                "청년 면접비 지원",
+                "미취업 청년의 구직 부담을 줄입니다",
+                Set.of(),
+                Set.of(),
+                Set.of(),
+                Set.of("청년")
+        )).isTrue();
+
+        assertThat(RecommendationProjectionHeuristicSupport.hasExplicitYouthSignal(
+                "생활 안정 지원",
+                "일반 생활 지원",
+                Set.of("저소득층"),
+                Set.of(),
+                Set.of(),
+                Set.of("성인")
+        )).isFalse();
+    }
+
+    @Test
     @DisplayName("special target bucket은 중복 없이 누적된다")
     void collectsSpecialTargetBuckets() {
         Set<String> buckets = new LinkedHashSet<>();

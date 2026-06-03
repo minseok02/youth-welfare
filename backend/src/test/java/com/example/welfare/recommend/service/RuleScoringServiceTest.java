@@ -216,7 +216,7 @@ class RuleScoringServiceTest {
         );
 
         assertThat(findByServiceId(scored, 81L).getRuleBaseScore())
-                .isEqualTo(findByServiceId(scored, 80L).getRuleBaseScore() + 10.0);
+                .isEqualTo(findByServiceId(scored, 80L).getRuleBaseScore() + 15.0);
     }
 
     @Test
@@ -383,6 +383,70 @@ class RuleScoringServiceTest {
 
         assertThat(findByServiceId(scored, 83L).getRuleBaseScore())
                 .isEqualTo(findByServiceId(scored, 82L).getRuleBaseScore() + 23.0);
+    }
+
+    @Test
+    @DisplayName("우선순위가 비어 있으면 explicit youth projection에 bounded bonus를 준다")
+    void noPriorityProfileGetsExtraBonusForExplicitYouthProjection() {
+        RecommendationUserSnapshot user = snapshot(List.of(), List.of(), (byte) 5, null, null);
+
+        WelfareService baseline = welfareService(83_1L, "일반 생활 지원");
+        WelfareService explicitYouth = welfareService(83_2L, "청년 면접비 지원");
+
+        when(recommendationCandidateReadRepository.findTagsByServiceIds(anyList())).thenReturn(Map.of());
+
+        List<ScoredCandidate> scored = ruleScoringService.score(
+                new RetrievedRecommendationCandidates(
+                        List.of(baseline, explicitYouth),
+                        Map.of(
+                                explicitYouth.getId(),
+                                RecommendationCandidateProjection.builder()
+                                        .serviceId(explicitYouth.getId())
+                                        .title("청년 면접비 지원")
+                                        .summary("미취업 청년의 구직 비용을 지원")
+                                        .targetGroupsRaw(Set.of("청년"))
+                                        .lifeStages(Set.of("청년"))
+                                        .build()
+                        )
+                ),
+                user
+        );
+
+        assertThat(findByServiceId(scored, 83_2L).getRuleBaseScore())
+                .isEqualTo(findByServiceId(scored, 83_1L).getRuleBaseScore() + 20.0);
+    }
+
+    @Test
+    @DisplayName("우선순위가 비어 있으면 age-only youth projection에는 bounded penalty를 준다")
+    void noPriorityProfilePenalizesAgeOnlyYouthProjection() {
+        RecommendationUserSnapshot user = snapshot(List.of(), List.of(), (byte) 5, null, null);
+
+        WelfareService baseline = welfareService(83_3L, "일반 생활 지원");
+        WelfareService ageOnlyYouth = welfareService(83_4L, "일반 생활 지원");
+
+        when(recommendationCandidateReadRepository.findTagsByServiceIds(anyList())).thenReturn(Map.of());
+
+        List<ScoredCandidate> scored = ruleScoringService.score(
+                new RetrievedRecommendationCandidates(
+                        List.of(baseline, ageOnlyYouth),
+                        Map.of(
+                                ageOnlyYouth.getId(),
+                                RecommendationCandidateProjection.builder()
+                                        .serviceId(ageOnlyYouth.getId())
+                                        .title("일반 생활 지원")
+                                        .summary("연령 기준만 충족하는 생활 지원")
+                                        .minAge(19)
+                                        .maxAge(34)
+                                        .youthRelevant(true)
+                                        .audienceRelevanceBonus(3.0)
+                                        .build()
+                        )
+                ),
+                user
+        );
+
+        assertThat(findByServiceId(scored, 83_4L).getRuleBaseScore())
+                .isEqualTo(findByServiceId(scored, 83_3L).getRuleBaseScore() - 2.0);
     }
 
     @Test

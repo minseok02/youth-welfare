@@ -11,6 +11,7 @@ import com.example.welfare.recommend.dto.ScoredCandidate;
 import com.example.welfare.recommend.repository.RecommendationCandidateReadRepository;
 import com.example.welfare.recommend.support.Gov24RecommendationScoringSupport;
 import com.example.welfare.recommend.support.RecommendationMatchingSupport;
+import com.example.welfare.recommend.support.RecommendationProjectionHeuristicSupport;
 import com.example.welfare.recommend.support.RecommendationYouthRelevanceSupport;
 import com.example.welfare.recommend.support.RecommendationRuntimeSupport;
 import lombok.RequiredArgsConstructor;
@@ -49,6 +50,9 @@ public class RuleScoringService {
     private static final double SPECIAL_TARGET_MATCH_BONUS = 12.0;
     private static final double SPECIAL_TARGET_MISMATCH_PENALTY = 8.0;
     private static final double HOUSING_PROFILE_MATCH_BONUS = 8.0;
+    private static final double NO_PRIORITY_EXPLICIT_YOUTH_POLICY_BONUS = 5.0;
+    private static final double NO_PRIORITY_FOCUSED_LIFE_STAGE_POLICY_BONUS = 2.0;
+    private static final double NO_PRIORITY_AGE_ONLY_YOUTH_POLICY_PENALTY = 5.0;
 
     private final RecommendationCandidateReadRepository recommendationCandidateReadRepository;
     private final PriorityMatcher priorityMatcher;
@@ -159,6 +163,8 @@ public class RuleScoringService {
             score += HOUSING_PROFILE_MATCH_BONUS;
         }
 
+        score += noPriorityYouthSignalAdjustment(user, projection);
+
         if (priorityMismatch) {
             score -= PRIORITY_MISMATCH_PENALTY;
         }
@@ -172,6 +178,37 @@ public class RuleScoringService {
         if (isDeadlineSoon(service, projection)) score += 5;
 
         return score;
+    }
+
+    private double noPriorityYouthSignalAdjustment(RecommendationUserSnapshot user,
+                                                   RecommendationCandidateProjection projection) {
+        if (projection == null || user.priorities() == null || !user.priorities().isEmpty()) {
+            return 0.0;
+        }
+
+        boolean explicitYouthSignal = RecommendationProjectionHeuristicSupport.hasExplicitYouthSignal(
+                projection.title(),
+                projection.summary(),
+                projection.targetGroupsRaw(),
+                projection.keywordTags(),
+                projection.interestThemes(),
+                projection.lifeStages()
+        );
+        if (explicitYouthSignal) {
+            return NO_PRIORITY_EXPLICIT_YOUTH_POLICY_BONUS;
+        }
+
+        boolean focusedYouthLifeStage = RecommendationProjectionHeuristicSupport.hasFocusedYouthLifeStage(
+                projection.lifeStages()
+        );
+        if (focusedYouthLifeStage) {
+            return NO_PRIORITY_FOCUSED_LIFE_STAGE_POLICY_BONUS;
+        }
+        if (projection.youthRelevant() && projection.audienceRelevanceBonus() <= 3.0) {
+            return -NO_PRIORITY_AGE_ONLY_YOUTH_POLICY_PENALTY;
+        }
+
+        return 0.0;
     }
 
     /**
