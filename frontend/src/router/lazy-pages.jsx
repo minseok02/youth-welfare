@@ -2,6 +2,7 @@ import { lazy } from "react";
 
 export const MainPage = lazy(() => import("../pages/MainPage.jsx"));
 export const GuidePage = lazy(() => import("../pages/GuidePage.jsx"));
+export const SupportPage = lazy(() => import("../pages/SupportPage.jsx"));
 export const AlertsPage = lazy(() => import("../pages/AlertsPage.jsx"));
 export const LoginPage = lazy(() => import("../pages/LoginPage.jsx"));
 export const SignupPage = lazy(() => import("../pages/SignupPage.jsx"));

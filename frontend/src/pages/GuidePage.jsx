@@ -68,6 +68,12 @@ const FEATURE_CARDS = [
     cta: "알림함 보기",
     target: "alerts",
   },
+  {
+    title: "서비스 문의",
+    desc: "로그인, 추천, 챗봇, 검색, 알림처럼 서비스를 쓰다가 막힌 경우 문의를 남길 수 있습니다.",
+    cta: "문의 남기기",
+    target: "support",
+  },
 ];
 
 const ACCURACY_ITEMS = [
@@ -153,6 +159,11 @@ export default function GuidePage() {
         return;
       }
       navigate("/login", { state: authState });
+      return;
+    }
+
+    if (target === "support") {
+      navigate("/support", { state: authState });
       return;
     }
 
@@ -399,6 +410,12 @@ export default function GuidePage() {
                 style={{ padding: "13px 18px", borderRadius: 12, border: `1px solid ${LINE}`, background: WHITE, color: INK, fontSize: 14, fontWeight: 700, cursor: "pointer" }}
               >
                 챗봇 사용
+              </button>
+              <button
+                onClick={() => moveToTarget("support")}
+                style={{ padding: "13px 18px", borderRadius: 12, border: `1px solid ${LINE}`, background: WHITE, color: INK, fontSize: 14, fontWeight: 700, cursor: "pointer" }}
+              >
+                서비스 문의
               </button>
             </div>
           </div>

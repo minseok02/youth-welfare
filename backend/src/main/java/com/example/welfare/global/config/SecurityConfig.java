@@ -71,6 +71,7 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/api/auth/signup", "/api/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/support/inquiries").permitAll()
                         .requestMatchers(HttpMethod.POST,
                                 "/api/auth/password-reset/request",
                                 "/api/auth/password-reset/confirm"

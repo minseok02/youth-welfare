@@ -11,6 +11,7 @@ import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGateProm
 import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
 import com.example.welfare.admin.dashboard.dto.AdminStandardCodeEffectObservationResponse;
+import com.example.welfare.admin.dashboard.dto.AdminSupportInquiryResponse;
 import com.example.welfare.admin.dashboard.dto.AdminUserProfileStandardCodeCoverageResponse;
 import com.example.welfare.admin.dashboard.dto.AdminWrapperObservationResponse;
 import com.example.welfare.admin.dashboard.service.AdminDashboardCollectService;
@@ -24,6 +25,7 @@ import com.example.welfare.admin.dashboard.service.AdminDashboardSummaryService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardUserProfileService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardWrapperObservationService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyErrorReportService;
+import com.example.welfare.admin.dashboard.service.AdminSupportInquiryService;
 import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
@@ -62,6 +64,7 @@ public class AdminDashboardController {
     private final AdminDashboardStandardCodeObservationService adminDashboardStandardCodeObservationService;
     private final AdminDashboardWrapperObservationService adminDashboardWrapperObservationService;
     private final AdminPolicyErrorReportService adminPolicyErrorReportService;
+    private final AdminSupportInquiryService adminSupportInquiryService;
     private final AdminRecommendationReviewGatePromotionApprovalRecordService
             adminRecommendationReviewGatePromotionApprovalRecordService;
 
@@ -199,6 +202,20 @@ public class AdminDashboardController {
         log.info("[Admin] dashboard policy error reports 조회 limit={}", limit);
         return ResponseEntity.ok(ApiResponse.success(
                 adminPolicyErrorReportService.getRecentReports(limit)
+        ));
+    }
+
+    @GetMapping("/support-inquiries")
+    public ResponseEntity<ApiResponse<AdminSupportInquiryResponse>> getSupportInquiries(
+            @RequestParam(name = "limit", required = false)
+            @Min(value = 1, message = "limit는 1 이상이어야 합니다.")
+            @Max(value = 20, message = "limit는 20 이하여야 합니다.")
+            Integer limit
+    ) {
+        validateDashboardLimit(limit);
+        log.info("[Admin] dashboard support inquiries 조회 limit={}", limit);
+        return ResponseEntity.ok(ApiResponse.success(
+                adminSupportInquiryService.getRecentInquiries(limit)
         ));
     }
 

@@ -577,6 +577,13 @@ const fetchPolicyErrorReports = async () => {
   return data?.data;
 };
 
+const fetchSupportInquiries = async () => {
+  const { data } = await api.get("/api/admin/dashboard/support-inquiries", {
+    params: { limit: 5 },
+  });
+  return data?.data;
+};
+
 const fetchOfficialCodebooks = async () => {
   const { data } = await api.get("/api/reference/official-codes");
   return data?.data ?? [];
@@ -942,6 +949,12 @@ export default function AdminDashboardPage() {
     ...queryBaseOptions,
   });
 
+  const supportInquiriesQuery = useQuery({
+    queryKey: ["admin-dashboard-support-inquiries"],
+    queryFn: fetchSupportInquiries,
+    ...queryBaseOptions,
+  });
+
   const officialCodebooksQuery = useQuery({
     queryKey: ["official-codebooks"],
     queryFn: fetchOfficialCodebooks,
@@ -969,6 +982,7 @@ export default function AdminDashboardPage() {
   const standardCodeEffectObservation = standardCodeEffectObservationQuery.data;
   const wrapperObservation = wrapperObservationQuery.data;
   const policyErrorReports = policyErrorReportsQuery.data;
+  const supportInquiries = supportInquiriesQuery.data;
   const selectedCodebookSummary = officialCodebooks.find((item) => item.codeSetKey === effectiveSelectedCodeSetKey) ?? null;
   const officialCodebookDetail = officialCodebookDetailQuery.data;
   const detailRows = officialCodebookDetail?.rows ?? officialCodebookDetail?.metadata?.sampleRows ?? [];
@@ -986,6 +1000,8 @@ export default function AdminDashboardPage() {
     wrapperObservationQuery.error?.response?.data?.message ?? "상위 wrapper 관측값을 불러오지 못했습니다.";
   const policyErrorReportsErrorMessage =
     policyErrorReportsQuery.error?.response?.data?.message ?? "정책 오류 제보 목록을 불러오지 못했습니다.";
+  const supportInquiriesErrorMessage =
+    supportInquiriesQuery.error?.response?.data?.message ?? "서비스 문의 목록을 불러오지 못했습니다.";
   const officialCodebooksErrorMessage = officialCodebooksQuery.error?.response?.data?.message ?? "공식 코드북 목록을 불러오지 못했습니다.";
   const officialCodebookDetailErrorMessage = officialCodebookDetailQuery.error?.response?.data?.message ?? "선택한 코드북 상세를 불러오지 못했습니다.";
   const animateJumpTarget = (target, tone, duration = 1400) => {
@@ -1055,6 +1071,7 @@ export default function AdminDashboardPage() {
     standardCodeEffectObservationQuery.isError,
     wrapperObservationQuery.isError,
     policyErrorReportsQuery.isError,
+    supportInquiriesQuery.isError,
     officialCodebooksQuery.isError,
     officialCodebookDetailQuery.isError,
   ].filter(Boolean).length;
@@ -1068,6 +1085,7 @@ export default function AdminDashboardPage() {
     standardCodeEffectObservationQuery.isFetching,
     wrapperObservationQuery.isFetching,
     policyErrorReportsQuery.isFetching,
+    supportInquiriesQuery.isFetching,
     officialCodebooksQuery.isFetching,
     officialCodebookDetailQuery.isFetching,
   ].some(Boolean);
@@ -1198,6 +1216,7 @@ export default function AdminDashboardPage() {
     standardCodeEffectObservationQuery.refetch();
     wrapperObservationQuery.refetch();
     policyErrorReportsQuery.refetch();
+    supportInquiriesQuery.refetch();
     officialCodebooksQuery.refetch();
     if (effectiveSelectedCodeSetKey) {
       officialCodebookDetailQuery.refetch();
@@ -1749,6 +1768,105 @@ export default function AdminDashboardPage() {
                                 </Stack>
                                 <Typography sx={{ fontSize: 13, color: INK2 }}>
                                   제보자 {item.userKey || "익명"}{item.note ? ` · ${item.note}` : " · 추가 메모 없음"}
+                                </Typography>
+                              </Stack>
+                            </Box>
+                          )}
+                        />
+                      )}
+                    </Stack>
+                  )}
+                </Stack>
+              </CardContent>
+            </Card>
+          </Box>
+
+          <Box id="admin-support-inquiries" sx={{ scrollMarginTop: 96 }}>
+            <Card sx={{ background: PANEL_BG, border: `1px solid ${PANEL_LINE}`, boxShadow: "0 10px 28px rgba(15,23,42,0.04)" }}>
+              <CardContent sx={{ p: 2.5 }}>
+                <Stack spacing={2}>
+                  <Box>
+                    <Typography sx={{ fontSize: 12, fontWeight: 800, color: ACCENT, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                      사용자 문의
+                    </Typography>
+                    <Typography sx={{ fontSize: 20, fontWeight: 900, color: INK, mt: 0.75, letterSpacing: "-0.02em" }}>
+                      서비스 문의 recent queue
+                    </Typography>
+                    <Typography sx={{ fontSize: 13, color: INK3, mt: 0.75 }}>
+                      로그인, 추천, 챗봇, 검색, 알림처럼 서비스를 쓰다가 막힌 내용을 최근 열린 순서대로 봅니다. 정책 데이터 오류 제보와는 별도 queue입니다.
+                    </Typography>
+                  </Box>
+
+                  {supportInquiriesQuery.isLoading && (
+                    <SectionLoadingCard
+                      title="서비스 문의 로딩 중"
+                      description="최근 열린 서비스 문의를 불러오는 중입니다."
+                    />
+                  )}
+
+                  {supportInquiriesQuery.isError && (
+                    <SectionErrorCard
+                      title="서비스 문의 로드 실패"
+                      description="서비스 사용 문의 queue를 읽지 못했습니다."
+                      message={supportInquiriesErrorMessage}
+                      onRetry={() => supportInquiriesQuery.refetch()}
+                    />
+                  )}
+
+                  {supportInquiries && !supportInquiriesQuery.isLoading && !supportInquiriesQuery.isError && (
+                    <Stack spacing={2}>
+                      <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)" } }}>
+                        <MetricCard
+                          title="열린 문의"
+                          value={formatNumber(supportInquiries.openCount)}
+                          description="아직 운영 확인이 필요한 서비스 문의"
+                        />
+                        <MetricCard
+                          title="표시 문의"
+                          value={formatNumber(supportInquiries.recentInquiries?.length ?? 0)}
+                          description="최근 열린 문의 샘플"
+                        />
+                      </Box>
+
+                      {supportInquiries.openCount === 0 ? (
+                        <Alert severity="success">현재 열린 서비스 문의가 없습니다.</Alert>
+                      ) : (
+                        <CompactListCard
+                          title="최근 서비스 문의"
+                          description="가장 최근 열린 문의부터 표시합니다."
+                          items={supportInquiries.recentInquiries ?? []}
+                          renderItem={(item) => (
+                            <Box
+                              key={item.inquiryId}
+                              sx={{ p: 1.75, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}
+                            >
+                              <Stack spacing={1}>
+                                <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" spacing={1.5}>
+                                  <Box sx={{ minWidth: 0 }}>
+                                    <Typography sx={{ fontSize: 14, fontWeight: 800, color: INK, overflowWrap: "anywhere", wordBreak: "break-word" }}>
+                                      {item.categoryLabel}
+                                    </Typography>
+                                    <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25, overflowWrap: "anywhere", wordBreak: "break-word" }}>
+                                      {item.contactEmail} · {item.routePath || "경로 정보 없음"} · {formatDateTime(item.createdAt)}
+                                    </Typography>
+                                  </Box>
+                                  <Chip
+                                    label={item.categoryLabel}
+                                    size="small"
+                                    sx={{
+                                      bgcolor: INFO_BG,
+                                      color: INFO_TEXT,
+                                      border: `1px solid ${INFO_BORDER}`,
+                                      fontWeight: 700,
+                                      alignSelf: { xs: "flex-start", md: "center" },
+                                    }}
+                                  />
+                                </Stack>
+                                <Typography sx={{ fontSize: 13, color: INK2 }}>
+                                  {item.message}
+                                </Typography>
+                                <Typography sx={{ fontSize: 12, color: INK3 }}>
+                                  문의자 {item.userKey || "비로그인/미연결"}
                                 </Typography>
                               </Stack>
                             </Box>

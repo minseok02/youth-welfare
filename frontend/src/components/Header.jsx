@@ -293,6 +293,23 @@ export default function Header() {
                   </Box>
                 </Button>
                 <Button
+                  color="inherit"
+                  size="small"
+                  onClick={() => navigate("/support", { state: authFromState })}
+                  sx={{
+                    display: { xs: "none", md: "inline-flex" },
+                    fontSize: 13,
+                    color: "white",
+                    bgcolor: "rgba(255,255,255,0.08)",
+                    border: "1px solid rgba(255,255,255,0.18)",
+                    minWidth: "auto",
+                    px: 1.25,
+                    "&:hover": { bgcolor: "rgba(255,255,255,0.14)" },
+                  }}
+                >
+                  서비스 문의
+                </Button>
+                <Button
                   variant="outlined"
                   color="inherit"
                   size="small"
@@ -336,6 +353,23 @@ export default function Header() {
                   <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
                     이용가이드
                   </Box>
+                </Button>
+                <Button
+                  color="inherit"
+                  size="small"
+                  onClick={() => navigate("/support", { state: authFromState })}
+                  sx={{
+                    display: { xs: "none", md: "inline-flex" },
+                    fontSize: 13,
+                    color: "white",
+                    bgcolor: "rgba(255,255,255,0.08)",
+                    border: "1px solid rgba(255,255,255,0.18)",
+                    minWidth: "auto",
+                    px: 1.25,
+                    "&:hover": { bgcolor: "rgba(255,255,255,0.14)" },
+                  }}
+                >
+                  서비스 문의
                 </Button>
                 <Button
                   variant="contained"

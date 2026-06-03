@@ -404,6 +404,31 @@ export const adminDashboardFixtures = {
       },
     ],
   },
+  supportInquiries: {
+    openCount: 2,
+    recentInquiries: [
+      {
+        inquiryId: 501,
+        categoryCode: "RECOMMENDATION_CHATBOT",
+        categoryLabel: "추천/챗봇",
+        contactEmail: "user@example.com",
+        message: "챗봇이 이전 질문 맥락을 잘 못 이어갑니다.",
+        routePath: "/chat",
+        userKey: "user-3",
+        createdAt: generatedAt,
+      },
+      {
+        inquiryId: 502,
+        categoryCode: "SEARCH_FILTER",
+        categoryLabel: "정책 검색/필터",
+        contactEmail: "another@example.com",
+        message: "필터가 바로 적용되는지 헷갈립니다.",
+        routePath: "/policies",
+        userKey: null,
+        createdAt: "2026-05-29T00:33:45Z",
+      },
+    ],
+  },
   officialCodebooks: [
     {
       codeSetKey: "LOCAL_HOUSING_TYPE",

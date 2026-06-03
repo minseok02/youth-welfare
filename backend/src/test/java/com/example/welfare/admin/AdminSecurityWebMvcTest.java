@@ -10,6 +10,7 @@ import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGateProm
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminStandardCodeEffectObservationResponse;
+import com.example.welfare.admin.dashboard.dto.AdminSupportInquiryResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
 import com.example.welfare.admin.dashboard.dto.AdminUserProfileStandardCodeCoverageResponse;
 import com.example.welfare.admin.dashboard.dto.AdminWrapperObservationResponse;
@@ -25,6 +26,7 @@ import com.example.welfare.admin.dashboard.service.AdminDashboardSummaryService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardUserProfileService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardWrapperObservationService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyErrorReportService;
+import com.example.welfare.admin.dashboard.service.AdminSupportInquiryService;
 import com.example.welfare.collect.controller.CollectAdminController;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillService;
 import com.example.welfare.collect.dto.AsyncCollectStatusResponse;
@@ -163,6 +165,8 @@ class AdminSecurityWebMvcTest {
     @MockitoBean
     private AdminPolicyErrorReportService adminPolicyErrorReportService;
     @MockitoBean
+    private AdminSupportInquiryService adminSupportInquiryService;
+    @MockitoBean
     private JwtUtil jwtUtil;
     @MockitoBean
     private JpaMetamodelMappingContext jpaMetamodelMappingContext;
@@ -231,6 +235,24 @@ class AdminSecurityWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.openCount").value(2));
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 서비스 문의 대시보드 API를 호출할 수 있다")
+    void adminEndpointAllowsSupportInquiriesDashboard() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(adminSupportInquiryService.getRecentInquiries(5))
+                .willReturn(new AdminSupportInquiryResponse(3, List.of()));
+
+        mockMvc.perform(get("/api/admin/dashboard/support-inquiries")
+                        .param("limit", "5")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.openCount").value(3));
     }
 
     @Test

@@ -16,11 +16,13 @@ import {
   PolicyDetailPage,
   ResetPasswordPage,
   SignupPage,
+  SupportPage,
 } from "./lazy-pages.jsx";
 
 const router = createBrowserRouter([
   { path: "/", element: <AuthExpiryHandler><LazyRoute><NavLayout><MainPage /></NavLayout></LazyRoute></AuthExpiryHandler> },
   { path: "/guide", element: <AuthExpiryHandler><LazyRoute><NavLayout><GuidePage /></NavLayout></LazyRoute></AuthExpiryHandler> },
+  { path: "/support", element: <AuthExpiryHandler><LazyRoute><NavLayout><SupportPage /></NavLayout></LazyRoute></AuthExpiryHandler> },
   { path: "/login", element: <AuthExpiryHandler><LazyRoute><NavLayout><LoginPage /></NavLayout></LazyRoute></AuthExpiryHandler> },
   { path: "/signup", element: <AuthExpiryHandler><LazyRoute><NavLayout><SignupPage /></NavLayout></LazyRoute></AuthExpiryHandler> },
   { path: "/reset-password", element: <AuthExpiryHandler><LazyRoute><NavLayout><ResetPasswordPage /></NavLayout></LazyRoute></AuthExpiryHandler> },

@@ -202,6 +202,7 @@ async function mockAdminDashboardApis(page) {
     ["**/api/admin/dashboard/standard-code-effect-observation*", adminDashboardFixtures.standardCodeEffectObservation],
     ["**/api/admin/dashboard/wrapper-observation*", adminDashboardFixtures.wrapperObservation],
     ["**/api/admin/dashboard/policy-error-reports*", adminDashboardFixtures.policyErrorReports],
+    ["**/api/admin/dashboard/support-inquiries*", adminDashboardFixtures.supportInquiries],
   ];
 
   await Promise.all(routes.map(([url, data]) => page.route(url, (route) => route.fulfill({
@@ -764,6 +765,21 @@ test("admin dashboard 정책 오류 제보 섹션은 열린 제보 recent queue�
   await expect(policyErrorReportsSection.getByText("지역 정보가 다릅니다", { exact: true })).toBeVisible();
   await expect(policyErrorReportsSection.getByText("청년 자격시험 응시료 지원사업", { exact: true })).toBeVisible();
   await expect(policyErrorReportsSection.getByText("링크나 원문이 열리지 않습니다", { exact: true })).toBeVisible();
+});
+
+test("admin dashboard 서비스 문의 섹션은 열린 문의 recent queue를 보여준다 @admin-required", async ({ page }) => {
+  await mockAdminDashboardApis(page);
+  await loginFromProtectedRoute(page, "/admin/dashboard", adminCredentials);
+
+  const supportInquiriesSection = page.locator(section("admin-support-inquiries"));
+
+  await expect(supportInquiriesSection.getByText("서비스 문의 recent queue", { exact: true })).toBeVisible();
+  await expect(supportInquiriesSection.getByText("열린 문의", { exact: true })).toBeVisible();
+  await expect(supportInquiriesSection.getByText("표시 문의", { exact: true })).toBeVisible();
+  await expect(supportInquiriesSection.getByText("추천/챗봇", { exact: true }).first()).toBeVisible();
+  await expect(supportInquiriesSection.getByText("챗봇이 이전 질문 맥락을 잘 못 이어갑니다.", { exact: true })).toBeVisible();
+  await expect(supportInquiriesSection.getByText("정책 검색/필터", { exact: true }).first()).toBeVisible();
+  await expect(supportInquiriesSection.getByText("필터가 바로 적용되는지 헷갈립니다.", { exact: true })).toBeVisible();
 });
 
 test("admin dashboard 표준코드 추천 효과 섹션은 matrix 결과를 보여준다 @admin-required", async ({ page }) => {
