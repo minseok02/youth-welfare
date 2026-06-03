@@ -25,8 +25,8 @@ ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
 HEALTH_RESPONSE="${ARTIFACT_DIR}/health.json"
 ADMIN_LOGIN_RESPONSE="${ARTIFACT_DIR}/admin.login.json"
 
-ADMIN_EMAIL=""
-ADMIN_PASSWORD=""
+ADMIN_EMAIL="${ADMIN_EMAIL:-}"
+ADMIN_PASSWORD="${ADMIN_PASSWORD:-}"
 ADMIN_ACCESS_TOKEN=""
 ADMIN_USER_KEY=""
 ORIGINAL_NOTIFICATION_YN=""
@@ -104,6 +104,11 @@ extract_error_code() {
 query_count() {
   local sql="$1"
   smoke_db_query "${sql}"
+}
+
+reset_manual_digest_history() {
+  smoke_db_query "DELETE FROM user_alerts WHERE user_key='${ADMIN_USER_KEY}' AND kind='RECOMMENDATION_DIGEST' AND event_key LIKE 'manual:%';" >/dev/null
+  smoke_db_query "DELETE FROM notifications WHERE user_key='${ADMIN_USER_KEY}' AND period_type='manual';" >/dev/null
 }
 
 assert_equals() {
@@ -202,11 +207,11 @@ PY
 
 save_notification_profile() {
   local scenario_key="$1"
-  local notif_yn="$3"
-  local email_yn="$4"
-  local in_app_yn="$5"
-  local web_push_yn="$6"
-  local expected_status="$7"
+  local notif_yn="$2"
+  local email_yn="$3"
+  local in_app_yn="$4"
+  local web_push_yn="$5"
+  local expected_status="$6"
 
   local response_file="${ARTIFACT_DIR}/${scenario_key}.profile.json"
   smoke_print_step "${scenario_key}: save notification profile"
@@ -236,10 +241,10 @@ save_notification_profile() {
 
 assert_profile_flags() {
   local scenario_key="$1"
-  local expected_notif="$3"
-  local expected_email="$4"
-  local expected_in_app="$5"
-  local expected_web_push="$6"
+  local expected_notif="$2"
+  local expected_email="$3"
+  local expected_in_app="$4"
+  local expected_web_push="$5"
 
   local profile_response="${ARTIFACT_DIR}/${scenario_key}.profile-read.json"
   local profile_status
@@ -282,6 +287,7 @@ run_inapp_only_scenario() {
   refresh_recommendations "inapp_only"
   save_notification_profile "inapp_only" true false true false 200
   assert_profile_flags "inapp_only" true false true false
+  reset_manual_digest_history
 
   local notif_before alert_before
   notif_before="$(query_count "SELECT COUNT(*) FROM notifications WHERE user_key='${ADMIN_USER_KEY}';")"
@@ -310,6 +316,7 @@ run_webpush_only_subscription_state_scenario() {
   refresh_recommendations "webpush_only"
   save_notification_profile "webpush_only" true false false true 200
   assert_profile_flags "webpush_only" true false false true
+  reset_manual_digest_history
 
   local notif_before alert_before push_before
   notif_before="$(query_count "SELECT COUNT(*) FROM notifications WHERE user_key='${ADMIN_USER_KEY}';")"

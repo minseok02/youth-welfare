@@ -110,6 +110,7 @@
   - `KEEP_ARTIFACTS=false` 기본값에서도 latest summary/json 과 `tmp/frontend-observation/latest/` snapshot은 남습니다.
 - policy quality observation suite: `APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-policy-quality-observation-suite.sh`
 - server/RDS policy quality observation suite: `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-policy-quality-observation-suite.sh`
+- nightly server/RDS policy quality wrapper: `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-nightly-policy-quality-observation.sh`
   - latest artifact: `tmp/policy-quality-observation/latest-policy-quality-observation-summary.txt`, `tmp/policy-quality-observation/latest-policy-quality-observation-note.md`, `tmp/policy-quality-observation/latest-policy-quality-observation.json`
   - `KEEP_ARTIFACTS=false` 기본값에서도 latest summary/json 과 `tmp/policy-quality-observation/latest/` snapshot은 남습니다.
 

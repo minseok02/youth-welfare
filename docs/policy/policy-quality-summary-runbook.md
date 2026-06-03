@@ -21,6 +21,13 @@ daily operator가 full retrieval/category baseline 숫자를 다시 읽기보다
 bash deploy/smoke/run-local-policy-quality-observation-suite.sh
 ```
 
+server/RDS에서 compact 결과를 nightly 로그로만 적재하려면 아래 wrapper를 씁니다.
+
+```bash
+ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' \
+bash deploy/smoke/run-nightly-policy-quality-observation.sh
+```
+
 이 wrapper는 기존 `run-local-policy-quality-summary.sh` child artifact를 재사용해
 `decision_class`, `operator_reading`, `next_action` 을 summary/json/note artifact로 다시 남깁니다.
 즉 이 문서는 raw baseline 숫자를 읽는 runbook이고,
