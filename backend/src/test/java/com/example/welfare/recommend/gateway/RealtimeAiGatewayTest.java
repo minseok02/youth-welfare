@@ -6,6 +6,7 @@ import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.dto.ScoredCandidate;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -14,6 +15,31 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class RealtimeAiGatewayTest {
+
+    @Test
+    void selectTopCandidatesForAiUsesConfiguredTopNAndRuleWeightedOrder() {
+        RealtimeAiGateway gateway = new RealtimeAiGateway(null, new ObjectMapper());
+        ReflectionTestUtils.setField(gateway, "aiTopN", 3);
+
+        List<ScoredCandidate> selected = gateway.selectTopCandidatesForAi(List.of(
+                scoredCandidate(101L, 10.0),
+                scoredCandidate(102L, 55.0),
+                scoredCandidate(103L, 30.0),
+                scoredCandidate(104L, 40.0)
+        ));
+
+        assertThat(selected)
+                .extracting(candidate -> candidate.getService().getId())
+                .containsExactly(102L, 104L, 103L);
+    }
+
+    @Test
+    void resolveAiTopNClampsInvalidConfiguredValueToOne() {
+        RealtimeAiGateway gateway = new RealtimeAiGateway(null, new ObjectMapper());
+        ReflectionTestUtils.setField(gateway, "aiTopN", 0);
+
+        assertThat(gateway.resolveAiTopN()).isEqualTo(1);
+    }
 
     @Test
     void candidateIdsKeepsInputOrder() {

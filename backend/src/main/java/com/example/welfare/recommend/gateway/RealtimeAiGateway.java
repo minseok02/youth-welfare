@@ -58,16 +58,15 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
     @Value("${recommend.ai.force-rule-only:false}")
     private boolean forceRuleOnly;
 
-    private static final int AI_TOP_N = 8; // 상위 N건만 AI 호출 (비용 절감 + 응답시간 단축)
-    private static final int AI_MAX_TOKENS = 450; // 8건 점수와 짧은 추천메모만 받도록 출력량 제한
+    @Value("${recommend.ai.top-n:12}")
+    private int aiTopN;
+
+    private static final int AI_MAX_TOKENS = 450; // top-N 점수와 짧은 추천메모만 받도록 출력량 제한
 
     @Override
     public List<ScoredCandidate> score(String clusterId, List<ScoredCandidate> candidates, RecommendationUserSnapshot user) {
         // rule_weighted_score 내림차순으로 상위 N개만 AI 호출
-        List<ScoredCandidate> topCandidates = candidates.stream()
-                .sorted((a, b) -> Double.compare(b.getRuleWeightedScore(), a.getRuleWeightedScore()))
-                .limit(AI_TOP_N)
-                .collect(Collectors.toList());
+        List<ScoredCandidate> topCandidates = selectTopCandidatesForAi(candidates);
 
         try {
             String prompt = buildUserPrompt(topCandidates, user);
@@ -126,6 +125,17 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
                 || apiKey == null
                 || apiKey.isBlank()
                 || RULE_ONLY_INVALID_KEY.equals(apiKey.trim());
+    }
+
+    List<ScoredCandidate> selectTopCandidatesForAi(List<ScoredCandidate> candidates) {
+        return candidates.stream()
+                .sorted(Comparator.comparingDouble(ScoredCandidate::getRuleWeightedScore).reversed())
+                .limit(resolveAiTopN())
+                .collect(Collectors.toList());
+    }
+
+    int resolveAiTopN() {
+        return Math.max(1, aiTopN);
     }
 
     void logReplayTrace(String clusterId, List<ScoredCandidate> topCandidates, RecommendationUserSnapshot user, String prompt, Long replaySeed) {
