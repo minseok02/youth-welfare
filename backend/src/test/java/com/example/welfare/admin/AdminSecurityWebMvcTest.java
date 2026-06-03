@@ -25,7 +25,9 @@ import com.example.welfare.admin.dashboard.service.AdminDashboardUserProfileServ
 import com.example.welfare.admin.dashboard.service.AdminDashboardWrapperObservationService;
 import com.example.welfare.collect.controller.CollectAdminController;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillService;
+import com.example.welfare.collect.dto.AsyncCollectStatusResponse;
 import com.example.welfare.collect.service.CollectAdminService;
+import com.example.welfare.collect.service.CollectAsyncJobService;
 import com.example.welfare.collect.service.CollectBatchService;
 import com.example.welfare.collect.service.CollectBatchRunResult;
 import com.example.welfare.collect.service.CollectResult;
@@ -104,6 +106,8 @@ class AdminSecurityWebMvcTest {
     private CollectBatchService collectBatchService;
     @MockitoBean
     private CollectAdminService collectAdminService;
+    @MockitoBean
+    private CollectAsyncJobService collectAsyncJobService;
     @MockitoBean
     private NormalizedPolicySidecarBackfillService normalizedPolicySidecarBackfillService;
     @MockitoBean
@@ -256,6 +260,88 @@ class AdminSecurityWebMvcTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("C001"));
+    }
+
+    @Test
+    @DisplayName("관리자 비동기 수집 API는 인증 없이 호출하면 401을 반환한다")
+    void adminAsyncCollectEndpointRequiresAuthentication() throws Exception {
+        mockMvc.perform(post("/api/admin/collect/gov24/async"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("A006"));
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 비동기 수집 API를 호출하면 accepted 응답을 반환한다")
+    void adminAsyncCollectEndpointAllowsAdminUser() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(collectAsyncJobService.trigger(CollectSource.GOV24)).willReturn(new AsyncCollectStatusResponse(
+                "gov24",
+                "GOV24",
+                AsyncCollectStatusResponse.AsyncCollectState.QUEUED,
+                true,
+                "정부24 비동기 수집이 대기열에 등록되었습니다.",
+                LocalDateTime.of(2026, 6, 3, 19, 0),
+                null,
+                null,
+                null,
+                null,
+                null
+        ));
+
+        mockMvc.perform(post("/api/admin/collect/gov24/async")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.sourceKey").value("gov24"))
+                .andExpect(jsonPath("$.data.state").value("QUEUED"));
+
+        then(collectAsyncJobService).should().trigger(CollectSource.GOV24);
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 비동기 수집 상태 API를 호출하면 상태를 반환한다")
+    void adminAsyncCollectStatusEndpointAllowsAdminUser() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(collectAsyncJobService.getStatus(CollectSource.GOV24)).willReturn(new AsyncCollectStatusResponse(
+                "gov24",
+                "GOV24",
+                AsyncCollectStatusResponse.AsyncCollectState.RUNNING,
+                true,
+                "정부24 비동기 수집이 실행 중입니다.",
+                LocalDateTime.of(2026, 6, 3, 19, 0),
+                LocalDateTime.of(2026, 6, 3, 19, 1),
+                null,
+                null,
+                null,
+                new AsyncCollectStatusResponse.LatestCollectLog(
+                        1L,
+                        "RUNNING",
+                        500,
+                        500,
+                        0,
+                        0,
+                        0,
+                        LocalDateTime.of(2026, 6, 3, 19, 1),
+                        null,
+                        "{\"chunkSize\":500}"
+                )
+        ));
+
+        mockMvc.perform(get("/api/admin/collect/gov24/async-status")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.state").value("RUNNING"))
+                .andExpect(jsonPath("$.data.latestLog.metadataJson").value("{\"chunkSize\":500}"));
+
+        then(collectAsyncJobService).should().getStatus(CollectSource.GOV24);
     }
 
     @Test

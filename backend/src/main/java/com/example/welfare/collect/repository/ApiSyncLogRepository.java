@@ -11,6 +11,8 @@ import java.time.LocalDateTime;
 
 public interface ApiSyncLogRepository extends JpaRepository<ApiSyncLog, Long> {
 
+    java.util.Optional<ApiSyncLog> findTopByJobNameOrderByIdDesc(String jobName);
+
     @Transactional
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("""

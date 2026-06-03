@@ -1,7 +1,9 @@
 package com.example.welfare.collect.controller;
 
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillService;
+import com.example.welfare.collect.dto.AsyncCollectStatusResponse;
 import com.example.welfare.collect.service.CollectAdminService;
+import com.example.welfare.collect.service.CollectAsyncJobService;
 import com.example.welfare.collect.service.CollectBatchService;
 import com.example.welfare.collect.service.CollectBatchRunResult;
 import com.example.welfare.collect.service.CollectResult;
@@ -15,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -39,6 +42,7 @@ public class CollectAdminController {
 
     private final CollectBatchService collectBatchService;
     private final CollectAdminService collectAdminService;
+    private final CollectAsyncJobService collectAsyncJobService;
     private final NormalizedPolicySidecarBackfillService normalizedPolicySidecarBackfillService;
 
     @PostMapping("/all")
@@ -86,6 +90,19 @@ public class CollectAdminController {
 
         collectAdminService.collect(source);
         return ResponseEntity.ok(ApiResponse.success(source.successMessage()));
+    }
+
+    @PostMapping("/{sourceKey}/async")
+    public ResponseEntity<ApiResponse<AsyncCollectStatusResponse>> collectSourceAsync(@PathVariable String sourceKey) {
+        CollectSource source = CollectSource.fromPathKey(sourceKey);
+        log.info("[Admin] {} 비동기 수집 수동 트리거", source.triggerLabel());
+        return ResponseEntity.accepted().body(ApiResponse.success(collectAsyncJobService.trigger(source)));
+    }
+
+    @GetMapping("/{sourceKey}/async-status")
+    public ResponseEntity<ApiResponse<AsyncCollectStatusResponse>> collectSourceAsyncStatus(@PathVariable String sourceKey) {
+        CollectSource source = CollectSource.fromPathKey(sourceKey);
+        return ResponseEntity.ok(ApiResponse.success(collectAsyncJobService.getStatus(source)));
     }
 
     @PostMapping("/youth-details")
