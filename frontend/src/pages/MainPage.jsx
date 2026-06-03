@@ -194,6 +194,12 @@ function HeroNonLogin({ totalPolicies, deadlineCount, firstDeadlinePolicy, secon
             >
               전체 둘러보기
             </button>
+            <button
+              onClick={() => navigate("/guide")}
+              style={{ padding: "14px 22px", background: "rgba(255,255,255,0.08)", color: "white", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+            >
+              이용가이드
+            </button>
           </div>
           <div style={{ display: "flex", gap: isMobile ? 16 : 24, marginTop: 28, fontSize: 13 }}>
             <div>
@@ -312,6 +318,12 @@ function HeroLoggedIn({
               style={{ padding: "14px 22px", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 12, fontSize: 14, fontWeight: 500, cursor: "pointer" }}
             >
               전체 둘러보기
+            </button>
+            <button
+              onClick={() => navigate("/guide")}
+              style={{ padding: "14px 22px", background: "rgba(255,255,255,0.08)", color: "white", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 12, fontSize: 14, fontWeight: 500, cursor: "pointer" }}
+            >
+              이용가이드
             </button>
           </div>
           {!hasPriorities && (

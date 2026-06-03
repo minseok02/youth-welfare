@@ -271,6 +271,23 @@ export default function Header() {
                   </Button>
                 )}
                 <Button
+                  color="inherit"
+                  size="small"
+                  onClick={() => navigate("/guide")}
+                  sx={{
+                    display: { xs: "none", md: "inline-flex" },
+                    fontSize: { xs: 12, sm: 13 },
+                    color: "white",
+                    bgcolor: "rgba(255,255,255,0.08)",
+                    border: "1px solid rgba(255,255,255,0.18)",
+                    minWidth: "auto",
+                    px: { xs: 1, sm: 1.25 },
+                    "&:hover": { bgcolor: "rgba(255,255,255,0.14)" },
+                  }}
+                >
+                  이용가이드
+                </Button>
+                <Button
                   variant="outlined"
                   color="inherit"
                   size="small"
@@ -292,22 +309,41 @@ export default function Header() {
                 </Button>
               </>
             ) : (
-              <Button
-                variant="contained"
-                size="small"
-                onClick={() => navigate("/login", { state: authFromState })}
-                sx={{
-                  bgcolor: "white",
-                  color: "primary.main",
-                  fontWeight: 700,
-                  fontSize: { xs: 12, sm: 13 },
-                  minWidth: "auto",
-                  px: { xs: 1.1, sm: 1.5 },
-                  "&:hover": { bgcolor: "rgba(255,255,255,0.9)" },
-                }}
-              >
-                로그인
-              </Button>
+              <>
+                <Button
+                  color="inherit"
+                  size="small"
+                  onClick={() => navigate("/guide")}
+                  sx={{
+                    display: { xs: "none", md: "inline-flex" },
+                    fontSize: { xs: 12, sm: 13 },
+                    color: "white",
+                    bgcolor: "rgba(255,255,255,0.08)",
+                    border: "1px solid rgba(255,255,255,0.18)",
+                    minWidth: "auto",
+                    px: { xs: 1, sm: 1.25 },
+                    "&:hover": { bgcolor: "rgba(255,255,255,0.14)" },
+                  }}
+                >
+                  이용가이드
+                </Button>
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={() => navigate("/login", { state: authFromState })}
+                  sx={{
+                    bgcolor: "white",
+                    color: "primary.main",
+                    fontWeight: 700,
+                    fontSize: { xs: 12, sm: 13 },
+                    minWidth: "auto",
+                    px: { xs: 1.1, sm: 1.5 },
+                    "&:hover": { bgcolor: "rgba(255,255,255,0.9)" },
+                  }}
+                >
+                  로그인
+                </Button>
+              </>
             )}
           </Box>
         </Toolbar>
