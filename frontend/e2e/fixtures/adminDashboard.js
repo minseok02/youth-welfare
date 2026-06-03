@@ -375,6 +375,35 @@ export const adminDashboardFixtures = {
       message: "표준코드 미입력 3 감소, priority 관측 skipped -> passed",
     },
   },
+  policyErrorReports: {
+    openCount: 3,
+    recentReports: [
+      {
+        reportId: 301,
+        policyId: 4101,
+        policyTitle: "청년 월세 한시 특별지원",
+        sourceType: "GOV24",
+        sourceId: "O00000000001",
+        reasonCode: "REGION_MISMATCH",
+        reasonLabel: "지역 정보가 다릅니다",
+        note: "서울 정책인데 경기로 보입니다.",
+        userKey: "user-1",
+        createdAt: generatedAt,
+      },
+      {
+        reportId: 302,
+        policyId: 4102,
+        policyTitle: "청년 자격시험 응시료 지원사업",
+        sourceType: "YOUTH",
+        sourceId: "3254",
+        reasonCode: "BROKEN_LINK",
+        reasonLabel: "링크나 원문이 열리지 않습니다",
+        note: "",
+        userKey: "user-2",
+        createdAt: "2026-05-29T00:53:45Z",
+      },
+    ],
+  },
   officialCodebooks: [
     {
       codeSetKey: "LOCAL_HOUSING_TYPE",

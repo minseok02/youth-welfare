@@ -201,6 +201,7 @@ async function mockAdminDashboardApis(page) {
     ["**/api/admin/dashboard/attention-feed*", adminDashboardFixtures.attentionFeed],
     ["**/api/admin/dashboard/standard-code-effect-observation*", adminDashboardFixtures.standardCodeEffectObservation],
     ["**/api/admin/dashboard/wrapper-observation*", adminDashboardFixtures.wrapperObservation],
+    ["**/api/admin/dashboard/policy-error-reports*", adminDashboardFixtures.policyErrorReports],
   ];
 
   await Promise.all(routes.map(([url, data]) => page.route(url, (route) => route.fulfill({
@@ -748,6 +749,21 @@ test("admin dashboard 표준코드 입력률 섹션은 coverage를 보여준다 
   await expect(standardCodeCoverageSection.getByText("796", { exact: true })).toBeVisible();
   await expect(standardCodeCoverageSection.getByText("789", { exact: true })).toBeVisible();
   await expect(standardCodeCoverageSection.getByText("3", { exact: true }).first()).toBeVisible();
+});
+
+test("admin dashboard 정책 오류 제보 섹션은 열린 제보 recent queue를 보여준다 @admin-required", async ({ page }) => {
+  await mockAdminDashboardApis(page);
+  await loginFromProtectedRoute(page, "/admin/dashboard", adminCredentials);
+
+  const policyErrorReportsSection = page.locator(section("admin-policy-error-reports"));
+
+  await expect(policyErrorReportsSection.getByText("정책 오류 제보 recent queue", { exact: true })).toBeVisible();
+  await expect(policyErrorReportsSection.getByText("열린 제보", { exact: true })).toBeVisible();
+  await expect(policyErrorReportsSection.getByText("표시 제보", { exact: true })).toBeVisible();
+  await expect(policyErrorReportsSection.getByText("청년 월세 한시 특별지원", { exact: true })).toBeVisible();
+  await expect(policyErrorReportsSection.getByText("지역 정보가 다릅니다", { exact: true })).toBeVisible();
+  await expect(policyErrorReportsSection.getByText("청년 자격시험 응시료 지원사업", { exact: true })).toBeVisible();
+  await expect(policyErrorReportsSection.getByText("링크나 원문이 열리지 않습니다", { exact: true })).toBeVisible();
 });
 
 test("admin dashboard 표준코드 추천 효과 섹션은 matrix 결과를 보여준다 @admin-required", async ({ page }) => {
