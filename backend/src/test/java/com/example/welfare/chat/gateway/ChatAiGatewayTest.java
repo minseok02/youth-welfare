@@ -210,4 +210,41 @@ class ChatAiGatewayTest {
                 .doesNotContain("인천광역시 중구 은하수로 10")
                 .doesNotContain("인천대학교");
     }
+
+    @Test
+    @DisplayName("챗봇 사용자 프롬프트는 대화 연속 맥락 블록을 별도로 포함한다")
+    void buildUserPromptIncludesConversationSummary() {
+        User user = User.builder()
+                .email("user@example.com")
+                .passwordHash("encoded")
+                .name("김민수")
+                .birthDate(LocalDate.of(2001, 4, 30))
+                .sido("인천광역시")
+                .sgg("중구")
+                .employmentStatus("미취업")
+                .build();
+        List<ChatPolicyCandidate> candidates = List.of(
+                ChatPolicyCandidate.builder()
+                        .serviceId(2451L)
+                        .title("청년전세임대")
+                        .hostOrg("LH")
+                        .description("청년 전세 주거 안정을 지원합니다.")
+                        .build()
+        );
+
+        String prompt = chatAiGateway.buildUserPrompt(
+                user,
+                "25_29",
+                "그럼 전세는?",
+                List.of(),
+                candidates,
+                Map.of(2451L, "전세 주거 안정을 지원합니다."),
+                "직전 사용자 질문: 서울 월세 지원 알려줘\n직전 추천 정책: 청년월세 한시 특별지원"
+        );
+
+        assertThat(prompt)
+                .contains("[대화 연속 맥락]")
+                .contains("직전 사용자 질문: 서울 월세 지원 알려줘")
+                .contains("직전 추천 정책: 청년월세 한시 특별지원");
+    }
 }

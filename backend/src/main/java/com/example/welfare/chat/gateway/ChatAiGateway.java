@@ -57,12 +57,23 @@ public class ChatAiGateway {
             List<ChatMessage> recentMessages,
             List<ChatPolicyCandidate> candidates,
             Map<Long, String> evidenceByServiceId) {
+        return generateAnswer(user, ageBand, question, recentMessages, candidates, evidenceByServiceId, null);
+    }
+
+    public ChatAiResult generateAnswer(
+            User user,
+            String ageBand,
+            String question,
+            List<ChatMessage> recentMessages,
+            List<ChatPolicyCandidate> candidates,
+            Map<Long, String> evidenceByServiceId,
+            String conversationSummary) {
         if (!StringUtils.hasText(apiKey) || candidates.isEmpty()) {
             return null;
         }
 
         try {
-            String responseBody = callOpenAi(buildUserPrompt(user, ageBand, question, recentMessages, candidates, evidenceByServiceId));
+            String responseBody = callOpenAi(buildUserPrompt(user, ageBand, question, recentMessages, candidates, evidenceByServiceId, conversationSummary));
             return parseResponse(responseBody, candidates, evidenceByServiceId);
         } catch (Exception e) {
             log.warn("[ChatAiGateway] OpenAI 호출 실패, fallback 사용: {}", e.getMessage());
@@ -158,6 +169,17 @@ public class ChatAiGateway {
             List<ChatMessage> recentMessages,
             List<ChatPolicyCandidate> candidates,
             Map<Long, String> evidenceByServiceId) {
+        return buildUserPrompt(user, ageBand, question, recentMessages, candidates, evidenceByServiceId, null);
+    }
+
+    String buildUserPrompt(
+            User user,
+            String ageBand,
+            String question,
+            List<ChatMessage> recentMessages,
+            List<ChatPolicyCandidate> candidates,
+            Map<Long, String> evidenceByServiceId,
+            String conversationSummary) {
         String ageGroup = resolveAgeGroup(ageBand, user);
         String region = buildRegion(user);
         String incomeRange = user.getIncomeLevel() != null ? user.getIncomeLevel() + "분위" : "미입력";
@@ -168,6 +190,9 @@ public class ChatAiGateway {
                 : recentMessages.stream()
                 .map(message -> message.getRole().name() + ": " + trimToLength(redactSensitiveText(message.getContent()), 200))
                 .collect(Collectors.joining("\n"));
+        String continuityBlock = StringUtils.hasText(conversationSummary)
+                ? redactSensitiveText(conversationSummary.trim())
+                : "없음";
 
         String candidateBlock = candidates.stream()
                 .map(candidate -> String.format(
@@ -189,6 +214,9 @@ public class ChatAiGateway {
                 취업상태: %s
 
                 [최근 대화]
+                %s
+
+                [대화 연속 맥락]
                 %s
 
                 [현재 질문]
@@ -223,6 +251,7 @@ public class ChatAiGateway {
                 incomeRange,
                 employment,
                 historyBlock,
+                continuityBlock,
                 redactSensitiveText(question.trim()),
                 candidateBlock
         );

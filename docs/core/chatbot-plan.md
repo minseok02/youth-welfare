@@ -1,7 +1,7 @@
 # 챗봇 구현 계획
 
 전체 cross-cutting 구조/확장 설계 문서 진입점은 [system-docs-index.md](./system-docs-index.md)를 먼저 봅니다.
-이 문서는 현재 코드베이스를 기준으로 2차 기능인 챗봇을 어떻게 붙일지 정리한 설계 메모입니다.
+이 문서는 현재 코드베이스를 기준으로 챗봇 구조와 남은 확장 방향을 정리한 설계 메모입니다.
 기준 문서는 [architecture.md](../architecture.md), [srs-v2.10.md](./srs-v2.10.md), [phase-plan.md](../phase-plan.md)입니다.
 현재 OpenAI runtime/fallback/privacy 계약은 [openai-runtime-contract.md](./openai-runtime-contract.md) 를 source of truth로 같이 봅니다.
 
@@ -10,8 +10,10 @@
 - 백엔드는 `policy`, `user`, `recommend`, `notification` 모듈까지 구현되어 있습니다.
 - OpenAI 호출은 추천 모듈의 [`RealtimeAiGateway`](../backend/src/main/java/com/example/welfare/recommend/gateway/RealtimeAiGateway.java)에서 이미 사용 중입니다.
 - 인증은 JWT + HttpOnly refresh cookie 구조이며, 정책 조회 API는 비로그인 허용, 추천/마이페이지는 로그인 필수입니다.
-- 프론트는 `/chat` 라우트 자리만 있고 실제 화면/백엔드 API는 아직 없습니다.
-- SRS 기준 챗봇은 로그인 전용이며, 로그아웃 시 세션 삭제가 필요합니다.
+- 현재는 `/chat` 화면, `chat_sessions/chat_messages` 저장, branch suggestion, retrieval snapshot, grounding evidence, OpenAI JSON 응답 파싱까지 구현돼 있습니다.
+- 챗봇은 로그인 전용이며, 로그아웃/회원탈퇴 시 세션 cleanup 경로도 따로 있습니다.
+- 2026-06-03 기준 continuity 보강으로 짧은 후속 질문은 `직전 질문 + 직전 branch + 직전 추천 정책` 맥락을 retrieval/AI prompt에 bounded 하게 다시 싣습니다.
+- 아직 하지 않은 것은 장기 세션 요약/압축(memory summarization)과 multi-turn 전용 ranking 재학습입니다.
 
 ## 설계 원칙
 

@@ -54,6 +54,7 @@ public class ChatConversationService {
     private final ChatRateLimitService chatRateLimitService;
     private final ChatMessageCommandService chatMessageCommandService;
     private final ChatRetrievalSnapshotService chatRetrievalSnapshotService;
+    private final ChatConversationContextSupport chatConversationContextSupport;
     private final ActiveUserReadService activeUserReadService;
     private final UserProfileRepository userProfileRepository;
     private final ObjectMapper objectMapper;
@@ -80,7 +81,13 @@ public class ChatConversationService {
         String sessionTitle = StringUtils.hasText(session.getTitle()) ? null : buildSessionTitle(content);
         chatMessageCommandService.appendUserMessage(session.getId(), content, sessionTitle);
 
-        List<ChatBranchOptionResponse> branchSuggestions = resolveBranchSuggestions(content, request.getBranchKey());
+        List<ChatMessage> recentMessages = getRecentMessages(session.getId());
+        List<ChatRetrievalSnapshot> recentSnapshots = chatRetrievalSnapshotService.findSessionSnapshots(session.getId());
+        ChatConversationContextSupport.ConversationContext conversationContext =
+                chatConversationContextSupport.resolve(content, request.getBranchKey(), recentMessages, recentSnapshots);
+
+        List<ChatBranchOptionResponse> branchSuggestions =
+                resolveBranchSuggestions(content, conversationContext.effectiveBranchKey());
         if (!branchSuggestions.isEmpty()) {
             chatRetrievalSnapshotService.recordInteractiveBranchSuggestions(session, content, request.getBranchKey(), branchSuggestions);
             String answer = buildBranchSuggestionAnswer(branchSuggestions);
@@ -102,7 +109,11 @@ public class ChatConversationService {
         }
 
         ChatPolicyService.CandidateTrace candidateTrace =
-                chatPolicyService.traceCandidates(content, request.getBranchKey(), REFERENCE_LIMIT);
+                chatPolicyService.traceCandidates(
+                        conversationContext.retrievalQuestion(),
+                        conversationContext.effectiveBranchKey(),
+                        REFERENCE_LIMIT
+                );
         List<ChatPolicyCandidate> candidates = candidateTrace.finalCandidates();
         Map<Long, String> evidenceByServiceId = chatGroundingService.loadEvidenceMap(candidates);
         List<ChatReferenceResponse> fallbackReferences = candidates.stream()
@@ -115,9 +126,10 @@ public class ChatConversationService {
                     user,
                     resolveAgeBand(activeUserContext.userKey()),
                     content,
-                    getRecentMessages(session.getId()),
+                    recentMessages,
                     candidates,
-                    evidenceByServiceId
+                    evidenceByServiceId,
+                    conversationContext.conversationSummary()
             );
         }
 
