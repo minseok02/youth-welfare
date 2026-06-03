@@ -139,6 +139,15 @@ deploy/smoke/run-local-public-profile-chat-smoke.sh
 이 스크립트는 `public policies list -> public search -> public detail -> signup -> login -> profile get -> priorities update -> chat create/list/send/get/delete` 를 한 번에 확인합니다.
 `PUBLIC_SEARCH_KEYWORD`, `CHAT_MESSAGE_CONTENT` 로 검색어와 챗 질문을 바꿀 수 있습니다.
 
+짧은 후속 질문이 실제 API 흐름에서 이어지는지 bounded 하게 볼 때는 아래 스크립트를 사용합니다.
+
+```bash
+deploy/smoke/run-local-chat-followup-smoke.sh
+```
+
+이 스크립트는 `signup -> login -> chat create -> 첫 질문 -> 후속 질문 -> messages 확인 -> delete` 를 한 번에 확인합니다.
+현재 smoke는 의미를 과하게 고정하지 않고, 두 번째 답변이 비어 있지 않고 `references` 또는 `branchSuggestions` 중 하나를 유지하는지만 봅니다.
+
 북마크 상태가 메인 추천/정책 검색/정책 상세/마이페이지 북마크 목록에서 같은 서비스 ID 기준으로 일관되게 보이는지 확인할 때는 아래 스크립트를 우선 사용합니다.
 
 ```bash
