@@ -257,6 +257,73 @@ class RecommendationRegionQueryIntegrationTest {
     }
 
     @Test
+    @DisplayName("지역코드 추천 후보는 사용자 sgg가 있으면 다른 시군구 same-sido fallback을 포함하지 않는다")
+    void findCandidatesWithRegionCodeExcludesDifferentSggSameSidoFallbackWhenUserSggPresent() {
+        WelfareService sameSidoDifferentSgg = saveService(
+                "region-local-sido-different-sgg",
+                WelfareService.SourceType.BOKJIRO_LOCAL,
+                true,
+                "주거"
+        );
+        WelfareService sameSggBridge = saveService(
+                "region-local-sido-same-sgg",
+                WelfareService.SourceType.BOKJIRO_LOCAL,
+                true,
+                "주거"
+        );
+
+        serviceRegionRepository.saveAll(List.of(
+                ServiceRegion.builder()
+                        .service(sameSidoDifferentSgg)
+                        .regionCode(null)
+                        .sidoName("경기도")
+                        .sggName("고양시")
+                        .build(),
+                ServiceRegion.builder()
+                        .service(sameSggBridge)
+                        .regionCode(null)
+                        .sidoName("경기도")
+                        .sggName("수원시")
+                        .build()
+        ));
+
+        List<WelfareService> results = welfareServiceRepository.findCandidatesWithRegionCode(
+                25,
+                5,
+                "41110",
+                "경기도",
+                "수원시",
+                PageRequest.of(0, 5000)
+        );
+
+        assertThat(results).extracting(WelfareService::getId)
+                .contains(sameSggBridge.getId())
+                .doesNotContain(sameSidoDifferentSgg.getId());
+    }
+
+    @Test
+    @DisplayName("지역코드 추천 후보는 service_regions가 없는 지자체 정책을 전국 정책처럼 포함하지 않는다")
+    void findCandidatesWithRegionCodeExcludesRegionlessLocalPolicies() {
+        WelfareService regionlessLocal = saveService(
+                "regionless-local-should-be-excluded",
+                WelfareService.SourceType.BOKJIRO_LOCAL,
+                true,
+                "주거"
+        );
+        List<WelfareService> results = welfareServiceRepository.findCandidatesWithRegionCode(
+                25,
+                5,
+                "41110",
+                "경기도",
+                "수원시",
+                PageRequest.of(0, 20)
+        );
+
+        assertThat(results).extracting(WelfareService::getId)
+                .doesNotContain(regionlessLocal.getId());
+    }
+
+    @Test
     @DisplayName("지역코드 추천 후보는 bounded same-sido BOKJIRO_LOCAL fallback을 generic exact-region 후보보다 먼저 노출한다")
     void findCandidatesWithRegionCodePrioritizesBoundedSameSidoLocalFallbackOverGenericExactRegion() {
         WelfareService sameSidoLocal = saveService(
@@ -333,7 +400,7 @@ class RecommendationRegionQueryIntegrationTest {
                 "28110",
                 "인천광역시",
                 null,
-                PageRequest.of(0, 20)
+                PageRequest.of(0, 5000)
         );
 
         assertThat(results).extracting(WelfareService::getId)
@@ -506,6 +573,73 @@ class RecommendationRegionQueryIntegrationTest {
     }
 
     @Test
+    @DisplayName("지역코드 최신 추천 후보도 사용자 sgg가 있으면 다른 시군구 same-sido fallback을 포함하지 않는다")
+    void findLatestCandidatesWithRegionCodeExcludesDifferentSggSameSidoFallbackWhenUserSggPresent() {
+        WelfareService sameSidoDifferentSgg = saveService(
+                "latest-region-local-sido-different-sgg",
+                WelfareService.SourceType.BOKJIRO_LOCAL,
+                true,
+                "금융·생활지원"
+        );
+        WelfareService sameSggBridge = saveService(
+                "latest-region-local-sido-same-sgg",
+                WelfareService.SourceType.BOKJIRO_LOCAL,
+                true,
+                "금융·생활지원"
+        );
+
+        serviceRegionRepository.saveAll(List.of(
+                ServiceRegion.builder()
+                        .service(sameSidoDifferentSgg)
+                        .regionCode(null)
+                        .sidoName("경기도")
+                        .sggName("고양시")
+                        .build(),
+                ServiceRegion.builder()
+                        .service(sameSggBridge)
+                        .regionCode(null)
+                        .sidoName("경기도")
+                        .sggName("수원시")
+                        .build()
+        ));
+
+        List<WelfareService> results = welfareServiceRepository.findLatestCandidatesWithRegionCode(
+                25,
+                5,
+                "41110",
+                "경기도",
+                "수원시",
+                PageRequest.of(0, 5000)
+        );
+
+        assertThat(results).extracting(WelfareService::getId)
+                .contains(sameSggBridge.getId())
+                .doesNotContain(sameSidoDifferentSgg.getId());
+    }
+
+    @Test
+    @DisplayName("지역코드 최신 추천 후보도 service_regions가 없는 지자체 정책을 전국 정책처럼 포함하지 않는다")
+    void findLatestCandidatesWithRegionCodeExcludesRegionlessLocalPolicies() {
+        WelfareService regionlessLocal = saveService(
+                "latest-regionless-local-should-be-excluded",
+                WelfareService.SourceType.BOKJIRO_LOCAL,
+                true,
+                "금융·생활지원"
+        );
+        List<WelfareService> results = welfareServiceRepository.findLatestCandidatesWithRegionCode(
+                25,
+                5,
+                "41110",
+                "경기도",
+                "수원시",
+                PageRequest.of(0, 20)
+        );
+
+        assertThat(results).extracting(WelfareService::getId)
+                .doesNotContain(regionlessLocal.getId());
+    }
+
+    @Test
     @DisplayName("지역코드 최신 추천 후보도 bounded same-sido BOKJIRO_LOCAL fallback을 generic exact-region 후보보다 먼저 노출한다")
     void findLatestCandidatesWithRegionCodePrioritizesBoundedSameSidoLocalFallbackOverGenericExactRegion() {
         WelfareService sameSidoLocal = saveService(
@@ -582,7 +716,7 @@ class RecommendationRegionQueryIntegrationTest {
                 "28110",
                 "인천광역시",
                 null,
-                PageRequest.of(0, 20)
+                PageRequest.of(0, 5000)
         );
 
         assertThat(results).extracting(WelfareService::getId)

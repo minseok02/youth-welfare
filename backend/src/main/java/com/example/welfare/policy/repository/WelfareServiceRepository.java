@@ -92,9 +92,12 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                     )
                   )
               AND (
-                    NOT EXISTS (
-                        SELECT sr1.id FROM ServiceRegion sr1
-                        WHERE sr1.service = ws
+                    (
+                        NOT EXISTS (
+                            SELECT sr1.id FROM ServiceRegion sr1
+                            WHERE sr1.service = ws
+                        )
+                        AND ws.sourceType NOT IN ('BOKJIRO_LOCAL', 'GOV24')
                     )
                     OR EXISTS (
                         SELECT sr2.id FROM ServiceRegion sr2
@@ -107,9 +110,25 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                                   AND sr2.sidoName = :sidoName
                                   AND ws.searchYouthRelevant = true
                                   AND ws.unifiedCategory <> '기타'
-                                  AND (:sggName IS NULL OR sr2.sggName IS NULL OR sr2.sggName = :sggName)
+                                  AND (:sggName IS NULL OR sr2.sggName = :sggName)
                               )
                           )
+                    )
+                    OR (
+                        ws.sourceType = 'GOV24'
+                        AND :sidoName IS NOT NULL
+                        AND ws.searchYouthRelevant = true
+                        AND ws.unifiedCategory <> '기타'
+                        AND NOT EXISTS (
+                            SELECT srGov.id FROM ServiceRegion srGov
+                            WHERE srGov.service = ws
+                        )
+                        AND (
+                            ws.title LIKE CONCAT('%', :sidoName, '%')
+                            OR ws.description LIKE CONCAT('%', :sidoName, '%')
+                            OR ws.title LIKE CONCAT('%', REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(:sidoName, '특별자치도', ''), '특별자치시', ''), '광역시', ''), '특별시', ''), '도', ''), '%')
+                            OR ws.description LIKE CONCAT('%', REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(:sidoName, '특별자치도', ''), '특별자치시', ''), '광역시', ''), '특별시', ''), '도', ''), '%')
+                        )
                     )
                   )
             ORDER BY
@@ -128,7 +147,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         SELECT sr4s.id FROM ServiceRegion sr4s
                         WHERE sr4s.service = ws
                           AND sr4s.sidoName = :sidoName
-                          AND (:sggName IS NULL OR sr4s.sggName IS NULL OR sr4s.sggName = :sggName)
+                          AND (:sggName IS NULL OR sr4s.sggName = :sggName)
                      ) THEN 1
                 WHEN ws.sourceType = 'GOV24'
                      AND :sidoName IS NOT NULL
@@ -169,7 +188,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         SELECT sr6s.id FROM ServiceRegion sr6s
                         WHERE sr6s.service = ws
                           AND sr6s.sidoName = :sidoName
-                          AND (:sggName IS NULL OR sr6s.sggName IS NULL OR sr6s.sggName = :sggName)
+                          AND (:sggName IS NULL OR sr6s.sggName = :sggName)
                      ) THEN 2
                 ELSE 3
               END ASC,
@@ -195,7 +214,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         SELECT sr8s.id FROM ServiceRegion sr8s
                         WHERE sr8s.service = ws
                           AND sr8s.sidoName = :sidoName
-                          AND (:sggName IS NULL OR sr8s.sggName IS NULL OR sr8s.sggName = :sggName)
+                          AND (:sggName IS NULL OR sr8s.sggName = :sggName)
                      ) THEN 2
                 ELSE 3
               END ASC,
@@ -224,14 +243,33 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                     )
                   )
               AND (
-                    NOT EXISTS (
-                        SELECT sr1.id FROM ServiceRegion sr1
-                        WHERE sr1.service = ws
+                    (
+                        NOT EXISTS (
+                            SELECT sr1.id FROM ServiceRegion sr1
+                            WHERE sr1.service = ws
+                        )
+                        AND ws.sourceType NOT IN ('BOKJIRO_LOCAL', 'GOV24')
                     )
                     OR EXISTS (
                         SELECT sr2.id FROM ServiceRegion sr2
                         WHERE sr2.service = ws
                           AND sr2.sidoName = :sidoName
+                    )
+                    OR (
+                        ws.sourceType = 'GOV24'
+                        AND :sidoName IS NOT NULL
+                        AND ws.searchYouthRelevant = true
+                        AND ws.unifiedCategory <> '기타'
+                        AND NOT EXISTS (
+                            SELECT srGov.id FROM ServiceRegion srGov
+                            WHERE srGov.service = ws
+                        )
+                        AND (
+                            ws.title LIKE CONCAT('%', :sidoName, '%')
+                            OR ws.description LIKE CONCAT('%', :sidoName, '%')
+                            OR ws.title LIKE CONCAT('%', REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(:sidoName, '특별자치도', ''), '특별자치시', ''), '광역시', ''), '특별시', ''), '도', ''), '%')
+                            OR ws.description LIKE CONCAT('%', REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(:sidoName, '특별자치도', ''), '특별자치시', ''), '광역시', ''), '특별시', ''), '도', ''), '%')
+                        )
                     )
                   )
             ORDER BY
@@ -334,9 +372,12 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                     )
                   )
               AND (
-                    NOT EXISTS (
-                        SELECT sr1.id FROM ServiceRegion sr1
-                        WHERE sr1.service = ws
+                    (
+                        NOT EXISTS (
+                            SELECT sr1.id FROM ServiceRegion sr1
+                            WHERE sr1.service = ws
+                        )
+                        AND ws.sourceType NOT IN ('BOKJIRO_LOCAL', 'GOV24')
                     )
                     OR EXISTS (
                         SELECT sr2.id FROM ServiceRegion sr2
@@ -349,9 +390,25 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                                   AND sr2.sidoName = :sidoName
                                   AND ws.searchYouthRelevant = true
                                   AND ws.unifiedCategory <> '기타'
-                                  AND (:sggName IS NULL OR sr2.sggName IS NULL OR sr2.sggName = :sggName)
+                                  AND (:sggName IS NULL OR sr2.sggName = :sggName)
                               )
                           )
+                    )
+                    OR (
+                        ws.sourceType = 'GOV24'
+                        AND :sidoName IS NOT NULL
+                        AND ws.searchYouthRelevant = true
+                        AND ws.unifiedCategory <> '기타'
+                        AND NOT EXISTS (
+                            SELECT srGov.id FROM ServiceRegion srGov
+                            WHERE srGov.service = ws
+                        )
+                        AND (
+                            ws.title LIKE CONCAT('%', :sidoName, '%')
+                            OR ws.description LIKE CONCAT('%', :sidoName, '%')
+                            OR ws.title LIKE CONCAT('%', REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(:sidoName, '특별자치도', ''), '특별자치시', ''), '광역시', ''), '특별시', ''), '도', ''), '%')
+                            OR ws.description LIKE CONCAT('%', REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(:sidoName, '특별자치도', ''), '특별자치시', ''), '광역시', ''), '특별시', ''), '도', ''), '%')
+                        )
                     )
                   )
             ORDER BY
@@ -370,7 +427,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         SELECT sr4s.id FROM ServiceRegion sr4s
                         WHERE sr4s.service = ws
                           AND sr4s.sidoName = :sidoName
-                          AND (:sggName IS NULL OR sr4s.sggName IS NULL OR sr4s.sggName = :sggName)
+                          AND (:sggName IS NULL OR sr4s.sggName = :sggName)
                      ) THEN 1
                 WHEN ws.sourceType = 'GOV24'
                      AND :sidoName IS NOT NULL
@@ -411,7 +468,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         SELECT sr6s.id FROM ServiceRegion sr6s
                         WHERE sr6s.service = ws
                           AND sr6s.sidoName = :sidoName
-                          AND (:sggName IS NULL OR sr6s.sggName IS NULL OR sr6s.sggName = :sggName)
+                          AND (:sggName IS NULL OR sr6s.sggName = :sggName)
                      ) THEN 2
                 ELSE 3
               END ASC,
@@ -437,7 +494,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         SELECT sr8s.id FROM ServiceRegion sr8s
                         WHERE sr8s.service = ws
                           AND sr8s.sidoName = :sidoName
-                          AND (:sggName IS NULL OR sr8s.sggName IS NULL OR sr8s.sggName = :sggName)
+                          AND (:sggName IS NULL OR sr8s.sggName = :sggName)
                      ) THEN 2
                 ELSE 3
               END ASC,
@@ -466,14 +523,33 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                     )
                   )
               AND (
-                    NOT EXISTS (
-                        SELECT sr1.id FROM ServiceRegion sr1
-                        WHERE sr1.service = ws
+                    (
+                        NOT EXISTS (
+                            SELECT sr1.id FROM ServiceRegion sr1
+                            WHERE sr1.service = ws
+                        )
+                        AND ws.sourceType NOT IN ('BOKJIRO_LOCAL', 'GOV24')
                     )
                     OR EXISTS (
                         SELECT sr2.id FROM ServiceRegion sr2
                         WHERE sr2.service = ws
                           AND sr2.sidoName = :sidoName
+                    )
+                    OR (
+                        ws.sourceType = 'GOV24'
+                        AND :sidoName IS NOT NULL
+                        AND ws.searchYouthRelevant = true
+                        AND ws.unifiedCategory <> '기타'
+                        AND NOT EXISTS (
+                            SELECT srGov.id FROM ServiceRegion srGov
+                            WHERE srGov.service = ws
+                        )
+                        AND (
+                            ws.title LIKE CONCAT('%', :sidoName, '%')
+                            OR ws.description LIKE CONCAT('%', :sidoName, '%')
+                            OR ws.title LIKE CONCAT('%', REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(:sidoName, '특별자치도', ''), '특별자치시', ''), '광역시', ''), '특별시', ''), '도', ''), '%')
+                            OR ws.description LIKE CONCAT('%', REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(:sidoName, '특별자치도', ''), '특별자치시', ''), '광역시', ''), '특별시', ''), '도', ''), '%')
+                        )
                     )
                   )
             ORDER BY
