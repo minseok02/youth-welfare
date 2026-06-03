@@ -187,7 +187,20 @@ function HeroNonLogin({ totalPolicies, deadlineCount, firstDeadlinePolicy, secon
   );
 }
 
-function HeroLoggedIn({ user, navigate, onRefresh, onPersonalRefresh, refreshingRec, personalRefreshing, totalPolicies, deadlineCount, firstDeadlinePolicy, secondDeadlinePolicy }) {
+function HeroLoggedIn({
+  user,
+  navigate,
+  onRefresh,
+  onPersonalRefresh,
+  refreshingRec,
+  personalRefreshing,
+  totalPolicies,
+  deadlineCount,
+  firstDeadlinePolicy,
+  secondDeadlinePolicy,
+  standardCodeMissingCount,
+  standardCodeMissingLabels,
+}) {
   const isMobile = useMediaQuery("(max-width: 1199px)");
   return (
     <section style={{
@@ -232,6 +245,41 @@ function HeroLoggedIn({ user, navigate, onRefresh, onPersonalRefresh, refreshing
               전체 둘러보기
             </button>
           </div>
+          {standardCodeMissingCount > 0 && (
+            <div style={{
+              marginTop: 14,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 10,
+              flexWrap: "wrap",
+              padding: "10px 14px",
+              borderRadius: 14,
+              background: "rgba(255,255,255,0.12)",
+              border: "1px solid rgba(255,255,255,0.18)",
+            }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: "white", letterSpacing: "0.04em" }}>
+                추천 정확도 보강
+              </span>
+              <span style={{ fontSize: 13, opacity: 0.9 }}>
+                표준코드 {4 - standardCodeMissingCount}/4 입력됨 · {standardCodeMissingLabels.join(", ")} 미입력
+              </span>
+              <button
+                onClick={() => navigate("/mypage?tab=0")}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: 999,
+                  border: "1px solid rgba(255,255,255,0.28)",
+                  background: "rgba(255,255,255,0.08)",
+                  color: "white",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                지금 채우기 →
+              </button>
+            </div>
+          )}
           <div style={{ display: "flex", gap: isMobile ? 16 : 24, marginTop: 28, fontSize: 13 }}>
             <div>
               <div style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800 }}>{totalPolicies > 0 ? totalPolicies.toLocaleString() : "—"}</div>
@@ -863,6 +911,8 @@ export default function MainPage() {
             deadlineCount={deadlinePolicies.length}
             firstDeadlinePolicy={deadlinePolicies[0]}
             secondDeadlinePolicy={deadlinePolicies[1]}
+            standardCodeMissingCount={standardCodeMissingCount}
+            standardCodeMissingLabels={standardCodeMissingLabels}
           />
         ) : (
           <HeroNonLogin

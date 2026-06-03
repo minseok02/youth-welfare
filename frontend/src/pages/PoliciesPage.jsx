@@ -110,6 +110,12 @@ const GOV24_BENEFIT_TYPES = [
   "봉사/기부",
 ];
 const GOV24_BADGE_LIMIT = 4;
+const STANDARD_CODE_ENTRIES = [
+  { key: "houseTenureCode", label: "주거형태" },
+  { key: "housingTypeCode", label: "주택유형" },
+  { key: "basicLivingRecipientTypeCode", label: "기초생활수급권자" },
+  { key: "disabilityGradeCode", label: "장애등급" },
+];
 
 const SORT_MAP = { relevance: "RELEVANCE", views: "VIEWS", latest: "LATEST", deadline: "DEADLINE" };
 const STATUS_FILTER_MAP = { "신청가능": "ACTIVE_ONLY", "마감": "EXPIRED_ONLY", "전부표기": "ALL" };
@@ -343,6 +349,59 @@ function RadioItem({ label, checked, onChange }) {
   );
 }
 
+function StandardCodePolicyPrompt({
+  missingCount,
+  filledCount,
+  missingLabels,
+  onNavigate,
+}) {
+  if (!missingCount) return null;
+  return (
+    <section style={{
+      marginBottom: 16,
+      background: "linear-gradient(135deg, #eff6ff 0%, #ffffff 100%)",
+      border: `1px solid ${LINE}`,
+      borderRadius: 18,
+      padding: "18px 20px",
+      display: "flex",
+      justifyContent: "space-between",
+      gap: 16,
+      alignItems: "center",
+      flexWrap: "wrap",
+    }}>
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 800, color: A7, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+          추천 정확도 보강
+        </div>
+        <div style={{ fontSize: 17, fontWeight: 800, color: INK, marginTop: 6, letterSpacing: "-0.02em" }}>
+          주거·복지 표준코드 {filledCount}/4개 입력됨
+        </div>
+        <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.6 }}>
+          정책 목록 필터링은 되고 있지만, 아직 비어 있는 항목 {missingLabels.join(", ")} 때문에
+          {" "}주거·복지 자격조건 매칭이 덜 정확할 수 있습니다.
+        </div>
+      </div>
+      <button
+        onClick={onNavigate}
+        style={{
+          padding: "12px 16px",
+          borderRadius: 12,
+          border: "none",
+          background: A,
+          color: "white",
+          fontSize: 14,
+          fontWeight: 700,
+          cursor: "pointer",
+          whiteSpace: "nowrap",
+          boxShadow: "0 8px 24px rgba(37,99,235,0.14)",
+        }}
+      >
+        표준코드 채우기 →
+      </button>
+    </section>
+  );
+}
+
 // ── 정책 카드 ─────────────────────────────────────────────────────────────────
 
 function PolicyRow({ p, onNavigate, onBookmark }) {
@@ -424,7 +483,7 @@ export default function PoliciesPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { isLoggedIn, filterSettings } = useAuthStore();
+  const { isLoggedIn, user, filterSettings, setUser } = useAuthStore();
   const defaultStatusFilter = filterSettings?.includeExpired ? "전부표기" : "신청가능";
 
   const [draftSearch, setDraftSearch] = useState(searchParams.get("search") || "");
@@ -494,6 +553,9 @@ export default function PoliciesPage() {
   const [filterOpen, setFilterOpen] = useState(false);
   const districtOptions = getDistrictOptions(region, { includeAll: true });
   const wardOptions = getWardOptions(region, subRegion, { includeAll: true });
+  const standardCodeMissingLabels = user?.missingStandardCodeLabels ?? [];
+  const standardCodeMissingCount = user?.standardCodeMissingCount ?? standardCodeMissingLabels.length;
+  const standardCodeFilledCount = user?.standardCodeFilledCount ?? Math.max(0, STANDARD_CODE_ENTRIES.length - standardCodeMissingCount);
 
   // ── URL 파라미터 동기화 ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -573,6 +635,38 @@ export default function PoliciesPage() {
     if (!appliedSearch.trim() && sort === "relevance") { setSort("latest"); return; }
     if (appliedSearch.trim() && !searchParams.get("sort") && sort !== "relevance") setSort("relevance");
   }, [appliedSearch]); // eslint-disable-line
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    api.get("/api/users/me", { signal: controller.signal })
+      .then(({ data }) => {
+        const profile = data?.data;
+        if (!profile) {
+          return;
+        }
+        const missingLabels = STANDARD_CODE_ENTRIES
+          .filter((entry) => !profile[entry.key])
+          .map((entry) => entry.label);
+        setUser({
+          ...(profile.name ? { name: profile.name } : {}),
+          ...(profile.email ? { email: profile.email } : {}),
+          standardCodeFilledCount: STANDARD_CODE_ENTRIES.length - missingLabels.length,
+          standardCodeMissingCount: missingLabels.length,
+          missingStandardCodeLabels: missingLabels,
+        });
+      })
+      .catch((error) => {
+        if (error.name === "CanceledError" || error.code === "ERR_CANCELED") {
+          return;
+        }
+      });
+
+    return () => controller.abort();
+  }, [isLoggedIn, setUser]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1159,6 +1253,14 @@ export default function PoliciesPage() {
 
         {/* ── 결과 영역 ── */}
         <div>
+          {isLoggedIn && standardCodeMissingCount > 0 && (
+            <StandardCodePolicyPrompt
+              missingCount={standardCodeMissingCount}
+              filledCount={standardCodeFilledCount}
+              missingLabels={standardCodeMissingLabels}
+              onNavigate={() => navigate("/mypage?tab=0")}
+            />
+          )}
           {/* 모바일 필터 버튼 */}
           {isTablet && (
             <div style={{ marginBottom: 14 }}>

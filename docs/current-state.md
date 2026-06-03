@@ -69,6 +69,7 @@
   - latest artifact: `tmp/recommendation-observation/latest-recommendation-observation-summary.txt`, `tmp/recommendation-observation/latest-recommendation-observation-note.md`, `tmp/recommendation-observation/latest-recommendation-observation.json`
   - latest housing effect stdout: `tmp/recommendation-observation/latest/housing-standard-code-effect.out`
   - latest welfare matrix stdout: `tmp/recommendation-observation/latest/welfare-standard-code-matrix.out`
+  - latest adoption audit stdout: `tmp/recommendation-observation/latest/recommendation-standard-code-adoption.out`
   - `KEEP_ARTIFACTS=false` 기본값에서도 latest summary/json 과 `tmp/recommendation-observation/latest/` snapshot은 남습니다.
 - housing standard code matrix audit: `bash deploy/smoke/run-local-housing-standard-code-matrix-audit.sh`
 - welfare standard code matrix audit: `bash deploy/smoke/run-local-welfare-standard-code-matrix-audit.sh`
@@ -87,7 +88,12 @@
   - attention feed is included in the same summary/json (`attention_feed_*`, `attention_feed.items`)
   - standard code coverage is included in the same summary/json (`user_profile_standard_code_*`)
   - recommendation standard code effect/matrix is included in the same summary/json (`recommendation_standard_code_*`)
+  - adoption audit is included in the same summary/json (`recommendation_standard_code_adoption_*`)
   - `KEEP_ARTIFACTS=false` 기본값에서도 latest summary/json 과 `tmp/ops-observation/latest/` snapshot은 남습니다.
+- nightly standard-code observation wrapper: `bash deploy/smoke/run-nightly-standard-code-observation.sh`
+- server/RDS nightly standard-code observation wrapper: `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-nightly-standard-code-observation.sh`
+  - default log root: `/var/log/youth-welfare/standard-code-observation`
+  - appends compact lines to `nightly-summary-YYYY-MM-DD.log`
 - admin attention feed: `GET /api/admin/dashboard/attention-feed`
   - collect drift, 표준코드 backlog, wrapper warning을 재사용 가능한 운영 알림 목록으로 반환합니다.
 - frontend observation suite: `bash deploy/smoke/run-local-frontend-observation-suite.sh`

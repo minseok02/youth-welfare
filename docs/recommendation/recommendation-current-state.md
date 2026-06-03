@@ -7,6 +7,7 @@
 - [recommendation-pipeline.md](./recommendation-pipeline.md)
 - [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md)
 - [recommendation-next-lane-brief.md](./recommendation-next-lane-brief.md)
+- [recommendation-standard-code-coverage-and-observation-closeout.md](./recommendation-standard-code-coverage-and-observation-closeout.md)
 - [recommendation-pr-review-brief.md](./recommendation-pr-review-brief.md)
 - [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
 - [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
@@ -42,6 +43,7 @@
 주의할 점은 `latest-status-export` 단독 결과가 baseline helper 범위 때문에 `WAIT_FOR_REAL_USER_TRAFFIC` 로 보일 수 있다는 것입니다. reopen 판단은 latest export 하나가 아니라 overview + real-user precheck + current priority suite 를 같이 본 값으로 확정합니다.
 
 daily operator entrypoint는 [recommendation-observation-runbook.md](./recommendation-observation-runbook.md) 와 `bash deploy/smoke/run-local-recommendation-observation-suite.sh` 입니다. observation suite는 `summary/json` 외에 `latest-recommendation-observation-note.md` 도 남겨, 현재 reopen 가능 여부와 다음 행동을 사람 말로 바로 handoff 할 수 있습니다.
+표준코드 입력 유도 UX 확장, adoption audit, nightly wrapper까지 포함한 최근 closeout 요약은 [recommendation-standard-code-coverage-and-observation-closeout.md](./recommendation-standard-code-coverage-and-observation-closeout.md) 에 따로 묶어 둡니다.
 
 즉 지금까지 닫힌 것은 아래입니다.
 

@@ -58,6 +58,19 @@ ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8
 - `housing_standard_code_effect_positive_rule_delta_rows`
 - `welfare_standard_code_matrix_positive_rule_scenarios`
 - `welfare_standard_code_matrix_max_rule_delta`
+- `recommendation_standard_code_adoption_latest_batch_users_with_any_standard_code_share_pct`
+- `recommendation_standard_code_adoption_latest_batch_users_missing_all_standard_codes`
+
+nightly server wrapper가 필요하면 아래를 씁니다.
+
+```bash
+ENV_FILE=.env.production \
+SMOKE_DB_MODE=postgres \
+APP_BASE_URL='http://127.0.0.1:8082' \
+FRONTEND_E2E_MODE=deployed-origin \
+FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' \
+bash deploy/smoke/run-nightly-standard-code-observation.sh
+```
 
 ## 기본 wrapper
 

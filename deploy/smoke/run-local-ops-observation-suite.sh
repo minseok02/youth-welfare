@@ -383,6 +383,12 @@ if run_recommendation_standard_code_observation:
         f"recommendation_standard_code_welfare_max_rule_delta={recommendation_standard_code_observation.get('welfare_standard_code_matrix_max_rule_delta', '')}",
         f"recommendation_standard_code_welfare_max_final_delta_scenario={recommendation_standard_code_observation.get('welfare_standard_code_matrix_max_final_delta_scenario', '')}",
         f"recommendation_standard_code_welfare_max_final_delta={recommendation_standard_code_observation.get('welfare_standard_code_matrix_max_final_delta', '')}",
+        f"recommendation_standard_code_adoption_status={recommendation_standard_code_observation.get('recommendation_standard_code_adoption_status', '')}",
+        f"recommendation_standard_code_adoption_latest_batch_user_count={recommendation_standard_code_observation.get('recommendation_standard_code_adoption_latest_batch_user_count', '')}",
+        f"recommendation_standard_code_adoption_latest_batch_users_with_any_standard_code={recommendation_standard_code_observation.get('recommendation_standard_code_adoption_latest_batch_users_with_any_standard_code', '')}",
+        f"recommendation_standard_code_adoption_latest_batch_users_missing_all_standard_codes={recommendation_standard_code_observation.get('recommendation_standard_code_adoption_latest_batch_users_missing_all_standard_codes', '')}",
+        f"recommendation_standard_code_adoption_latest_batch_users_with_any_standard_code_share_pct={recommendation_standard_code_observation.get('recommendation_standard_code_adoption_latest_batch_users_with_any_standard_code_share_pct', '')}",
+        f"recommendation_standard_code_adoption_latest_batch_users_missing_all_standard_codes_share_pct={recommendation_standard_code_observation.get('recommendation_standard_code_adoption_latest_batch_users_missing_all_standard_codes_share_pct', '')}",
     ])
 
 for row in rows:
@@ -472,6 +478,12 @@ if run_recommendation_standard_code_observation:
         "welfare_standard_code_matrix_max_rule_delta": float(recommendation_standard_code_observation.get("welfare_standard_code_matrix_max_rule_delta", "0") or 0),
         "welfare_standard_code_matrix_max_final_delta_scenario": recommendation_standard_code_observation.get("welfare_standard_code_matrix_max_final_delta_scenario", ""),
         "welfare_standard_code_matrix_max_final_delta": float(recommendation_standard_code_observation.get("welfare_standard_code_matrix_max_final_delta", "0") or 0),
+        "recommendation_standard_code_adoption_status": recommendation_standard_code_observation.get("recommendation_standard_code_adoption_status", ""),
+        "recommendation_standard_code_adoption_latest_batch_user_count": int(recommendation_standard_code_observation.get("recommendation_standard_code_adoption_latest_batch_user_count", "0") or 0),
+        "recommendation_standard_code_adoption_latest_batch_users_with_any_standard_code": int(recommendation_standard_code_observation.get("recommendation_standard_code_adoption_latest_batch_users_with_any_standard_code", "0") or 0),
+        "recommendation_standard_code_adoption_latest_batch_users_missing_all_standard_codes": int(recommendation_standard_code_observation.get("recommendation_standard_code_adoption_latest_batch_users_missing_all_standard_codes", "0") or 0),
+        "recommendation_standard_code_adoption_latest_batch_users_with_any_standard_code_share_pct": float(recommendation_standard_code_observation.get("recommendation_standard_code_adoption_latest_batch_users_with_any_standard_code_share_pct", "0") or 0),
+        "recommendation_standard_code_adoption_latest_batch_users_missing_all_standard_codes_share_pct": float(recommendation_standard_code_observation.get("recommendation_standard_code_adoption_latest_batch_users_missing_all_standard_codes_share_pct", "0") or 0),
     }
 for row in rows:
     payload[f"{row['label']}_duration_ms"] = int(row["duration_ms"])
@@ -498,6 +510,8 @@ note_lines = [
     f"- `wrapper_promoted_alert_message`: `{wrapper_promoted_alert['message'] if wrapper_promoted_alert else ''}`",
     f"- `recommendation_standard_code_housing_positive_rule_delta_rows`: `{recommendation_standard_code_observation.get('housing_standard_code_effect_positive_rule_delta_rows', '')}`",
     f"- `recommendation_standard_code_welfare_positive_rule_scenarios`: `{recommendation_standard_code_observation.get('welfare_standard_code_matrix_positive_rule_scenarios', '')}`",
+    f"- `recommendation_standard_code_adoption_latest_batch_users_with_any_standard_code_share_pct`: `{recommendation_standard_code_observation.get('recommendation_standard_code_adoption_latest_batch_users_with_any_standard_code_share_pct', '')}`",
+    f"- `recommendation_standard_code_adoption_latest_batch_users_missing_all_standard_codes`: `{recommendation_standard_code_observation.get('recommendation_standard_code_adoption_latest_batch_users_missing_all_standard_codes', '')}`",
     f"- `suite_duration_ms`: `{suite_duration_ms}`",
     f"- `next_action`: `{next_action}`",
     "",

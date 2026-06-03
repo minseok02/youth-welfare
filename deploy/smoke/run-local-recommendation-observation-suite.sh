@@ -9,11 +9,13 @@ OBSERVATION_ROOT="${OBSERVATION_ROOT:-${ROOT_DIR}/tmp/recommendation-observation
 KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
 RUN_HOUSING_STANDARD_CODE_EFFECT_AUDIT="${RUN_HOUSING_STANDARD_CODE_EFFECT_AUDIT:-true}"
 RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT="${RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT:-true}"
+RUN_RECOMMENDATION_STANDARD_CODE_ADOPTION_AUDIT="${RUN_RECOMMENDATION_STANDARD_CODE_ADOPTION_AUDIT:-true}"
 RUN_TS_UTC="$(smoke_now_ts_utc)"
 ARTIFACT_DIR="${ARTIFACT_DIR:-${OBSERVATION_ROOT}/${RUN_TS_UTC}}"
 PRECHECK_OUTPUT="${ARTIFACT_DIR}/recommendation-reopen-precheck.out"
 HOUSING_EFFECT_OUTPUT="${ARTIFACT_DIR}/housing-standard-code-effect.out"
 WELFARE_MATRIX_OUTPUT="${ARTIFACT_DIR}/welfare-standard-code-matrix.out"
+STANDARD_CODE_ADOPTION_OUTPUT="${ARTIFACT_DIR}/recommendation-standard-code-adoption.out"
 SUMMARY_OUT="${ARTIFACT_DIR}/recommendation-observation-summary.txt"
 JSON_OUT="${ARTIFACT_DIR}/recommendation-observation.json"
 NOTE_OUT="${ARTIFACT_DIR}/recommendation-observation-note.md"
@@ -33,6 +35,7 @@ trap cleanup EXIT
 KEEP_ARTIFACTS="$(smoke_normalize_bool "${KEEP_ARTIFACTS}")"
 RUN_HOUSING_STANDARD_CODE_EFFECT_AUDIT="$(smoke_normalize_bool "${RUN_HOUSING_STANDARD_CODE_EFFECT_AUDIT}")"
 RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT="$(smoke_normalize_bool "${RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT}")"
+RUN_RECOMMENDATION_STANDARD_CODE_ADOPTION_AUDIT="$(smoke_normalize_bool "${RUN_RECOMMENDATION_STANDARD_CODE_ADOPTION_AUDIT}")"
 
 smoke_require_command bash
 smoke_require_command python3
@@ -59,7 +62,12 @@ if [[ "${RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT}" == "true" ]]; then
   bash "${ROOT_DIR}/deploy/smoke/run-local-welfare-standard-code-matrix-audit.sh" | tee "${WELFARE_MATRIX_OUTPUT}"
 fi
 
-python3 - "${PRECHECK_OUTPUT}" "${HOUSING_EFFECT_OUTPUT}" "${WELFARE_MATRIX_OUTPUT}" "${SUMMARY_OUT}" "${JSON_OUT}" "${NOTE_OUT}" "${ARTIFACT_DIR}" "${RUN_HOUSING_STANDARD_CODE_EFFECT_AUDIT}" "${RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT}" <<'PY'
+if [[ "${RUN_RECOMMENDATION_STANDARD_CODE_ADOPTION_AUDIT}" == "true" ]]; then
+  smoke_print_step "recommendation standard code adoption audit"
+  bash "${ROOT_DIR}/deploy/smoke/run-local-recommendation-standard-code-adoption-audit.sh" | tee "${STANDARD_CODE_ADOPTION_OUTPUT}"
+fi
+
+python3 - "${PRECHECK_OUTPUT}" "${HOUSING_EFFECT_OUTPUT}" "${WELFARE_MATRIX_OUTPUT}" "${STANDARD_CODE_ADOPTION_OUTPUT}" "${SUMMARY_OUT}" "${JSON_OUT}" "${NOTE_OUT}" "${ARTIFACT_DIR}" "${RUN_HOUSING_STANDARD_CODE_EFFECT_AUDIT}" "${RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT}" "${RUN_RECOMMENDATION_STANDARD_CODE_ADOPTION_AUDIT}" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -67,12 +75,14 @@ from pathlib import Path
 output_path = Path(sys.argv[1])
 housing_effect_path = Path(sys.argv[2])
 welfare_matrix_path = Path(sys.argv[3])
-summary_out = Path(sys.argv[4])
-json_out = Path(sys.argv[5])
-note_out = Path(sys.argv[6])
-artifact_dir = sys.argv[7]
-run_housing_effect = sys.argv[8] == "true"
-run_welfare_matrix = sys.argv[9] == "true"
+standard_code_adoption_path = Path(sys.argv[4])
+summary_out = Path(sys.argv[5])
+json_out = Path(sys.argv[6])
+note_out = Path(sys.argv[7])
+artifact_dir = sys.argv[8]
+run_housing_effect = sys.argv[9] == "true"
+run_welfare_matrix = sys.argv[10] == "true"
+run_standard_code_adoption = sys.argv[11] == "true"
 
 values = {}
 for raw_line in output_path.read_text(encoding="utf-8").splitlines():
@@ -123,6 +133,22 @@ if run_welfare_matrix and welfare_matrix_path.exists():
 welfare_matrix_status = "skipped"
 if run_welfare_matrix:
     welfare_matrix_status = "ok" if welfare_matrix_values else "missing"
+
+standard_code_adoption_values = {}
+if run_standard_code_adoption and standard_code_adoption_path.exists():
+    for raw_line in standard_code_adoption_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line.startswith("METRIC "):
+            continue
+        payload = line[len("METRIC "):]
+        if "=" not in payload:
+            continue
+        key, value = payload.split("=", 1)
+        standard_code_adoption_values[key.strip()] = value.strip()
+
+standard_code_adoption_status = "skipped"
+if run_standard_code_adoption:
+    standard_code_adoption_status = "ok" if standard_code_adoption_values else "missing"
 
 if precheck_status == "KEEP_OBSERVING":
     observation_blocker = "REAL_USER_TRAFFIC"
@@ -180,6 +206,8 @@ summary_lines = [
     f"housing_standard_code_effect_status={housing_effect_status}",
     f"run_welfare_standard_code_matrix_audit={str(run_welfare_matrix).lower()}",
     f"welfare_standard_code_matrix_status={welfare_matrix_status}",
+    f"run_recommendation_standard_code_adoption_audit={str(run_standard_code_adoption).lower()}",
+    f"recommendation_standard_code_adoption_status={standard_code_adoption_status}",
 ]
 if run_housing_effect:
     summary_lines.extend([
@@ -202,6 +230,19 @@ if run_welfare_matrix:
         f"welfare_standard_code_matrix_max_final_delta={welfare_matrix_values.get('max_final_delta', '')}",
         f"welfare_standard_code_matrix_scenario_rule_delta_snapshot={welfare_matrix_values.get('scenario_rule_delta_snapshot', '')}",
     ])
+if run_standard_code_adoption:
+    summary_lines.extend([
+        f"recommendation_standard_code_adoption_stdout={artifact_dir}/recommendation-standard-code-adoption.out",
+        f"recommendation_standard_code_adoption_latest_batch_user_count={standard_code_adoption_values.get('latest_batch_user_count', '')}",
+        f"recommendation_standard_code_adoption_latest_batch_row_count={standard_code_adoption_values.get('latest_batch_row_count', '')}",
+        f"recommendation_standard_code_adoption_latest_batch_users_with_any_standard_code={standard_code_adoption_values.get('latest_batch_users_with_any_standard_code', '')}",
+        f"recommendation_standard_code_adoption_latest_batch_users_with_all_standard_codes={standard_code_adoption_values.get('latest_batch_users_with_all_standard_codes', '')}",
+        f"recommendation_standard_code_adoption_latest_batch_users_missing_all_standard_codes={standard_code_adoption_values.get('latest_batch_users_missing_all_standard_codes', '')}",
+        f"recommendation_standard_code_adoption_latest_batch_users_with_any_standard_code_share_pct={standard_code_adoption_values.get('latest_batch_users_with_any_standard_code_share_pct', '')}",
+        f"recommendation_standard_code_adoption_latest_batch_users_missing_all_standard_codes_share_pct={standard_code_adoption_values.get('latest_batch_users_missing_all_standard_codes_share_pct', '')}",
+        f"recommendation_standard_code_adoption_latest_batch_avg_final_score_with_any_standard_code={standard_code_adoption_values.get('latest_batch_avg_final_score_with_any_standard_code', '')}",
+        f"recommendation_standard_code_adoption_latest_batch_avg_final_score_missing_all_standard_codes={standard_code_adoption_values.get('latest_batch_avg_final_score_missing_all_standard_codes', '')}",
+    ])
 summary_out.write_text("\n".join(summary_lines) + "\n", encoding="utf-8")
 
 json_payload = {
@@ -222,6 +263,8 @@ json_payload = {
     "housing_standard_code_effect_status": housing_effect_status,
     "run_welfare_standard_code_matrix_audit": run_welfare_matrix,
     "welfare_standard_code_matrix_status": welfare_matrix_status,
+    "run_recommendation_standard_code_adoption_audit": run_standard_code_adoption,
+    "recommendation_standard_code_adoption_status": standard_code_adoption_status,
 }
 if run_housing_effect:
     json_payload["housing_standard_code_effect"] = {
@@ -243,6 +286,19 @@ if run_welfare_matrix:
         "max_final_delta_scenario": welfare_matrix_values.get("max_final_delta_scenario", ""),
         "max_final_delta": float(welfare_matrix_values.get("max_final_delta", "0") or "0"),
         "scenario_rule_delta_snapshot": welfare_matrix_values.get("scenario_rule_delta_snapshot", ""),
+    }
+if run_standard_code_adoption:
+    json_payload["recommendation_standard_code_adoption"] = {
+        "stdout": f"{artifact_dir}/recommendation-standard-code-adoption.out",
+        "latest_batch_user_count": int(standard_code_adoption_values.get("latest_batch_user_count", "0") or "0"),
+        "latest_batch_row_count": int(standard_code_adoption_values.get("latest_batch_row_count", "0") or "0"),
+        "latest_batch_users_with_any_standard_code": int(standard_code_adoption_values.get("latest_batch_users_with_any_standard_code", "0") or "0"),
+        "latest_batch_users_with_all_standard_codes": int(standard_code_adoption_values.get("latest_batch_users_with_all_standard_codes", "0") or "0"),
+        "latest_batch_users_missing_all_standard_codes": int(standard_code_adoption_values.get("latest_batch_users_missing_all_standard_codes", "0") or "0"),
+        "latest_batch_users_with_any_standard_code_share_pct": float(standard_code_adoption_values.get("latest_batch_users_with_any_standard_code_share_pct", "0") or "0"),
+        "latest_batch_users_missing_all_standard_codes_share_pct": float(standard_code_adoption_values.get("latest_batch_users_missing_all_standard_codes_share_pct", "0") or "0"),
+        "latest_batch_avg_final_score_with_any_standard_code": float(standard_code_adoption_values.get("latest_batch_avg_final_score_with_any_standard_code", "0") or "0"),
+        "latest_batch_avg_final_score_missing_all_standard_codes": float(standard_code_adoption_values.get("latest_batch_avg_final_score_missing_all_standard_codes", "0") or "0"),
     }
 json_out.write_text(json.dumps(json_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
@@ -293,6 +349,20 @@ if run_welfare_matrix:
         f"- `max_final_delta_scenario`: `{welfare_matrix_values.get('max_final_delta_scenario', '')}`",
         f"- `max_final_delta`: `{welfare_matrix_values.get('max_final_delta', '')}`",
         f"- `scenario_rule_delta_snapshot`: `{welfare_matrix_values.get('scenario_rule_delta_snapshot', '')}`",
+    ])
+if run_standard_code_adoption:
+    note_lines.extend([
+        "",
+        "## Recommendation Standard Code Adoption",
+        "",
+        f"- `status`: `{standard_code_adoption_status}`",
+        f"- `latest_batch_user_count`: `{standard_code_adoption_values.get('latest_batch_user_count', '')}`",
+        f"- `latest_batch_users_with_any_standard_code`: `{standard_code_adoption_values.get('latest_batch_users_with_any_standard_code', '')}`",
+        f"- `latest_batch_users_missing_all_standard_codes`: `{standard_code_adoption_values.get('latest_batch_users_missing_all_standard_codes', '')}`",
+        f"- `latest_batch_users_with_any_standard_code_share_pct`: `{standard_code_adoption_values.get('latest_batch_users_with_any_standard_code_share_pct', '')}`",
+        f"- `latest_batch_users_missing_all_standard_codes_share_pct`: `{standard_code_adoption_values.get('latest_batch_users_missing_all_standard_codes_share_pct', '')}`",
+        f"- `latest_batch_avg_final_score_with_any_standard_code`: `{standard_code_adoption_values.get('latest_batch_avg_final_score_with_any_standard_code', '')}`",
+        f"- `latest_batch_avg_final_score_missing_all_standard_codes`: `{standard_code_adoption_values.get('latest_batch_avg_final_score_missing_all_standard_codes', '')}`",
     ])
 note_out.write_text("\n".join(note_lines) + "\n", encoding="utf-8")
 PY

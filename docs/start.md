@@ -50,6 +50,7 @@
 - 운영 current truth만 compact하게 다시 보려면 `bash deploy/smoke/run-local-recommendation-observation-suite.sh`
 - 운영 서버/RDS에서는 `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-recommendation-observation-suite.sh`
 - observation artifact latest 경로는 `tmp/recommendation-observation/latest-recommendation-observation-summary.txt`, `latest-recommendation-observation-note.md`, `latest-recommendation-observation.json` 을 먼저 봅니다. `KEEP_ARTIFACTS=false` 기본값에서도 이 stable snapshot은 남습니다.
+- 같은 latest snapshot 안에 `recommendation-standard-code-adoption.out` 도 남아서 latest batch 기준 표준코드 입력 사용자 비중을 바로 읽을 수 있습니다.
 - collect governance를 compact하게 다시 보려면 `bash deploy/smoke/run-local-collect-governance-observation-suite.sh`
 - 운영 서버/RDS에서는 `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-collect-governance-observation-suite.sh`
 - collect governance artifact latest 경로는 `tmp/collect-governance-observation/latest-collect-governance-observation-summary.txt`, `latest-collect-governance-observation-note.md`, `latest-collect-governance-observation.json` 을 먼저 봅니다. `KEEP_ARTIFACTS=false` 기본값에서도 이 stable snapshot은 남습니다.
@@ -59,6 +60,8 @@
 - ops baseline을 compact하게 다시 보려면 `bash deploy/smoke/run-local-ops-observation-suite.sh`
 - 운영 서버/RDS에서는 `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-ops-observation-suite.sh`
 - ops observation artifact latest 경로는 `tmp/ops-observation/latest-ops-observation-summary.txt`, `latest-ops-observation-note.md`, `latest-ops-observation.json` 을 먼저 봅니다. `KEEP_ARTIFACTS=false` 기본값에서도 이 stable snapshot은 남습니다.
+- 서버/RDS nightly wrapper는 `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-nightly-standard-code-observation.sh`
+- nightly wrapper 기본 로그 루트는 `/var/log/youth-welfare/standard-code-observation` 이고 compact summary를 `nightly-summary-YYYY-MM-DD.log` 에 append 합니다.
 - frontend baseline을 compact하게 다시 보려면 `bash deploy/smoke/run-local-frontend-observation-suite.sh`
 - 운영 서버에서는 `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-local-frontend-observation-suite.sh`
 - 위 기본 명령은 fresh e2e user/bootstrap을 먼저 태우고, `@dev-only`, `@admin-required` 케이스는 제외합니다. admin dashboard smoke까지 포함하려면 `RUN_FRONTEND_ADMIN_E2E=true` 를 명시합니다.

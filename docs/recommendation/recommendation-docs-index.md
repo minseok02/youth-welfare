@@ -21,6 +21,7 @@
 - [recommendation-concentration-audit-runbook.md](./recommendation-concentration-audit-runbook.md)
 - [recommendation-real-user-baseline-runbook.md](./recommendation-real-user-baseline-runbook.md)
 - [recommendation-observation-runbook.md](./recommendation-observation-runbook.md)
+- [recommendation-standard-code-coverage-and-observation-closeout.md](./recommendation-standard-code-coverage-and-observation-closeout.md)
 - [recommendation-real-user-cohort-library-manifest.md](./recommendation-real-user-cohort-library-manifest.md)
 - [recommendation-real-user-exclusion-readiness-check-runbook.md](./recommendation-real-user-exclusion-readiness-check-runbook.md)
 - [recommendation-review-gate-blocker-audit-runbook.md](./recommendation-review-gate-blocker-audit-runbook.md)
@@ -103,6 +104,7 @@
 - `bash deploy/smoke/run-local-recommendation-observation-suite.sh`
   - daily operator 진입점
   - artifact는 `tmp/recommendation-observation/latest-recommendation-observation-summary.txt`, `latest-recommendation-observation-note.md`, `latest-recommendation-observation.json`
+- 표준코드 입력률/관측 closeout 요약은 [recommendation-standard-code-coverage-and-observation-closeout.md](./recommendation-standard-code-coverage-and-observation-closeout.md)
 - `bash deploy/smoke/run-local-gov24-recommend-surface-audit.sh`
 - `bash deploy/smoke/run-local-gov24-recommend-score-audit.sh`
 - `bash deploy/smoke/run-local-gov24-zero-ai-audit.sh`
