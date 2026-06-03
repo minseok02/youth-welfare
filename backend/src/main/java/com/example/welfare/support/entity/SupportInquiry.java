@@ -15,6 +15,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "support_inquiries")
 @Getter
@@ -49,6 +51,22 @@ public class SupportInquiry extends BaseTimeEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private Status status;
+
+    @Column(name = "review_note", length = 1000)
+    private String reviewNote;
+
+    @Column(name = "reviewed_by_user_key", length = 100)
+    private String reviewedByUserKey;
+
+    @Column(name = "reviewed_at")
+    private LocalDateTime reviewedAt;
+
+    public void markReviewed(String reviewNote, String reviewedByUserKey, LocalDateTime reviewedAt) {
+        this.status = Status.REVIEWED;
+        this.reviewNote = reviewNote;
+        this.reviewedByUserKey = reviewedByUserKey;
+        this.reviewedAt = reviewedAt;
+    }
 
     public enum Category {
         ACCOUNT_LOGIN("로그인/계정"),

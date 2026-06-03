@@ -17,7 +17,11 @@ public record AdminPolicyErrorReportResponse(
             String reasonLabel,
             String note,
             String userKey,
-            LocalDateTime createdAt
+            LocalDateTime createdAt,
+            String status,
+            String reviewNote,
+            String reviewedByUserKey,
+            LocalDateTime reviewedAt
     ) {
     }
 }

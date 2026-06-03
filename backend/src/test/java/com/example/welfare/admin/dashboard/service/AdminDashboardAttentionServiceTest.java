@@ -1,6 +1,8 @@
 package com.example.welfare.admin.dashboard.service;
 
 import com.example.welfare.admin.dashboard.dto.AdminCollectFailureResponse;
+import com.example.welfare.admin.dashboard.dto.AdminPolicyErrorReportResponse;
+import com.example.welfare.admin.dashboard.dto.AdminSupportInquiryResponse;
 import com.example.welfare.admin.dashboard.dto.AdminUserProfileStandardCodeCoverageResponse;
 import com.example.welfare.admin.dashboard.dto.AdminWrapperObservationResponse;
 import org.junit.jupiter.api.DisplayName;
@@ -18,10 +20,14 @@ class AdminDashboardAttentionServiceTest {
     private final AdminDashboardCollectService collectService = mock(AdminDashboardCollectService.class);
     private final AdminDashboardUserProfileService userProfileService = mock(AdminDashboardUserProfileService.class);
     private final AdminDashboardWrapperObservationService wrapperObservationService = mock(AdminDashboardWrapperObservationService.class);
+    private final AdminPolicyErrorReportService policyErrorReportService = mock(AdminPolicyErrorReportService.class);
+    private final AdminSupportInquiryService supportInquiryService = mock(AdminSupportInquiryService.class);
     private final AdminDashboardAttentionService service = new AdminDashboardAttentionService(
             collectService,
             userProfileService,
-            wrapperObservationService
+            wrapperObservationService,
+            policyErrorReportService,
+            supportInquiryService
     );
 
     @Test
@@ -108,11 +114,118 @@ class AdminDashboardAttentionServiceTest {
                         "표준코드 미입력 5 증가, priority 관측 passed -> failed"
                 )
         ));
+        given(policyErrorReportService.getRecentReports(1)).willReturn(new AdminPolicyErrorReportResponse(0, List.of()));
+        given(supportInquiryService.getRecentInquiries(1)).willReturn(new AdminSupportInquiryResponse(0, List.of()));
 
         var response = service.getAttentionFeed();
 
         assertThat(response.itemCount()).isEqualTo(3);
         assertThat(response.items()).extracting("key")
                 .containsExactly("collect-drift", "standard-code-backlog", "wrapper-warning");
+    }
+
+    @Test
+    @DisplayName("정책 오류 제보와 서비스 문의 backlog가 있으면 attention feed에 함께 승격한다")
+    void includesReportBacklogs() {
+        given(collectService.getCollectFailures(null, null)).willReturn(new AdminCollectFailureResponse(
+                LocalDateTime.of(2026, 6, 4, 10, 0),
+                7,
+                0,
+                0,
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of()
+        ));
+        given(userProfileService.getUserProfileStandardCodeCoverage()).willReturn(new AdminUserProfileStandardCodeCoverageResponse(
+                LocalDateTime.of(2026, 6, 4, 10, 0),
+                10,
+                10,
+                0,
+                10,
+                0,
+                0,
+                10,
+                10,
+                10,
+                10,
+                10,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+        ));
+        given(wrapperObservationService.getLatestObservation()).willReturn(new AdminWrapperObservationResponse(
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                0,
+                0,
+                null,
+                null,
+                0,
+                0,
+                null,
+                0,
+                0,
+                0.0,
+                false,
+                null,
+                null,
+                null,
+                false,
+                null,
+                0,
+                0,
+                null,
+                null,
+                0,
+                0,
+                null,
+                0,
+                0,
+                0,
+                0.0,
+                false,
+                null,
+                null,
+                0,
+                0,
+                "이전값 없음",
+                null,
+                false,
+                "이전 상태 없음",
+                null
+        ));
+        given(policyErrorReportService.getRecentReports(1)).willReturn(new AdminPolicyErrorReportResponse(
+                2,
+                List.of(new AdminPolicyErrorReportResponse.Item(
+                        9L, 33L, "청년 교통비 지원", "GOV24", "SRC-33",
+                        "BROKEN_LINK", "링크나 원문이 열리지 않습니다", "원문 링크가 404입니다.",
+                        "user-key-1", LocalDateTime.of(2026, 6, 4, 9, 45),
+                        "OPEN", null, null, null
+                ))
+        ));
+        given(supportInquiryService.getRecentInquiries(1)).willReturn(new AdminSupportInquiryResponse(
+                1,
+                List.of(new AdminSupportInquiryResponse.Item(
+                        21L, "SEARCH_FILTER", "정책 검색/필터", "user@example.com",
+                        "필터가 왜 바로 적용되는지 헷갈립니다.", "/policies", "user-key-21",
+                        LocalDateTime.of(2026, 6, 4, 9, 50),
+                        "OPEN", null, null, null
+                ))
+        ));
+
+        var response = service.getAttentionFeed();
+
+        assertThat(response.items()).extracting("key")
+                .contains("policy-error-report-backlog", "support-inquiry-backlog");
     }
 }

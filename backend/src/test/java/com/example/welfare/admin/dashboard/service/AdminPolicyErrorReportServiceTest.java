@@ -1,6 +1,7 @@
 package com.example.welfare.admin.dashboard.service;
 
 import com.example.welfare.admin.dashboard.dto.AdminPolicyErrorReportResponse;
+import com.example.welfare.admin.dashboard.dto.AdminReviewActionResponse;
 import com.example.welfare.policy.entity.PolicyErrorReport;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.PolicyErrorReportRepository;
@@ -13,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -55,5 +57,38 @@ class AdminPolicyErrorReportServiceTest {
         assertThat(response.recentReports()).hasSize(1);
         assertThat(response.recentReports().get(0).policyTitle()).isEqualTo("청년 교통비 지원");
         assertThat(response.recentReports().get(0).reasonLabel()).isEqualTo("링크나 원문이 열리지 않습니다");
+    }
+
+    @Test
+    @DisplayName("정책 오류 제보를 REVIEWED로 처리하면 메모와 처리자가 함께 저장된다")
+    void markReviewedUpdatesStatusAndReviewMetadata() {
+        WelfareService policy = WelfareService.builder()
+                .id(34L)
+                .sourceType(WelfareService.SourceType.GOV24)
+                .sourceId("SRC-34")
+                .title("청년 월세 지원")
+                .build();
+        PolicyErrorReport report = PolicyErrorReport.builder()
+                .id(10L)
+                .policy(policy)
+                .userKey("user-key-2")
+                .reasonCode(PolicyErrorReport.ReasonCode.REGION_MISMATCH)
+                .note("서울 정책이 인천 사용자에게 보입니다.")
+                .status(PolicyErrorReport.Status.OPEN)
+                .build();
+        given(policyErrorReportRepository.findById(10L)).willReturn(Optional.of(report));
+
+        AdminReviewActionResponse response = adminPolicyErrorReportService.markReviewed(
+                10L,
+                "admin-user-key",
+                "지역 mismatch 재현 후 조치 완료"
+        );
+
+        assertThat(response.id()).isEqualTo(10L);
+        assertThat(response.status()).isEqualTo("REVIEWED");
+        assertThat(response.reviewNote()).isEqualTo("지역 mismatch 재현 후 조치 완료");
+        assertThat(response.reviewedByUserKey()).isEqualTo("admin-user-key");
+        assertThat(response.reviewedAt()).isNotNull();
+        assertThat(report.getStatus()).isEqualTo(PolicyErrorReport.Status.REVIEWED);
     }
 }

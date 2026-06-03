@@ -1,6 +1,9 @@
 package com.example.welfare.admin.dashboard.service;
 
 import com.example.welfare.admin.dashboard.dto.AdminSupportInquiryResponse;
+import com.example.welfare.admin.dashboard.dto.AdminReviewActionResponse;
+import com.example.welfare.global.exception.CustomException;
+import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.support.entity.SupportInquiry;
 import com.example.welfare.support.repository.SupportInquiryRepository;
 import lombok.RequiredArgsConstructor;
@@ -8,6 +11,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -31,9 +35,48 @@ public class AdminSupportInquiryService {
                         inquiry.getMessage(),
                         inquiry.getRoutePath(),
                         inquiry.getUserKey(),
-                        inquiry.getCreatedAt()
+                        inquiry.getCreatedAt(),
+                        inquiry.getStatus().name(),
+                        inquiry.getReviewNote(),
+                        inquiry.getReviewedByUserKey(),
+                        inquiry.getReviewedAt()
                 ))
                 .toList();
         return new AdminSupportInquiryResponse(openCount, items);
+    }
+
+    @Transactional
+    public AdminReviewActionResponse markReviewed(Long inquiryId, String adminUserKey, String reviewNote) {
+        SupportInquiry inquiry = supportInquiryRepository.findById(inquiryId)
+                .orElseThrow(() -> new CustomException(ErrorCode.INVALID_INPUT));
+        inquiry.markReviewed(normalizeReviewNote(reviewNote), normalizeAdminUserKey(adminUserKey), LocalDateTime.now());
+        return new AdminReviewActionResponse(
+                inquiry.getId(),
+                inquiry.getStatus().name(),
+                inquiry.getReviewNote(),
+                inquiry.getReviewedByUserKey(),
+                inquiry.getReviewedAt()
+        );
+    }
+
+    private String normalizeAdminUserKey(String adminUserKey) {
+        if (adminUserKey == null || adminUserKey.isBlank()) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+        return adminUserKey.trim();
+    }
+
+    private String normalizeReviewNote(String reviewNote) {
+        if (reviewNote == null) {
+            return null;
+        }
+        String normalized = reviewNote.trim();
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        if (normalized.length() > 1000) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+        return normalized;
     }
 }

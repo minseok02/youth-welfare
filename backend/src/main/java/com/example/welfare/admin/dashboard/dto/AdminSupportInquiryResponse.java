@@ -15,7 +15,11 @@ public record AdminSupportInquiryResponse(
             String message,
             String routePath,
             String userKey,
-            LocalDateTime createdAt
+            LocalDateTime createdAt,
+            String status,
+            String reviewNote,
+            String reviewedByUserKey,
+            LocalDateTime reviewedAt
     ) {
     }
 }

@@ -5,6 +5,8 @@ import com.example.welfare.admin.dashboard.dto.AdminDashboardAttentionResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationCandidateDiagnosticResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
 import com.example.welfare.admin.dashboard.dto.AdminPolicyErrorReportResponse;
+import com.example.welfare.admin.dashboard.dto.AdminReviewActionRequest;
+import com.example.welfare.admin.dashboard.dto.AdminReviewActionResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordClearResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordRequest;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordResponse;
@@ -205,6 +207,23 @@ public class AdminDashboardController {
         ));
     }
 
+    @PostMapping("/policy-error-reports/{reportId}/review")
+    public ResponseEntity<ApiResponse<AdminReviewActionResponse>> reviewPolicyErrorReport(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @org.springframework.web.bind.annotation.PathVariable Long reportId,
+            @RequestBody(required = false) AdminReviewActionRequest request
+    ) {
+        log.info("[Admin] dashboard policy error report review reportId={} actorUserKey={}",
+                reportId, authenticatedUser != null ? authenticatedUser.userKey() : null);
+        return ResponseEntity.ok(ApiResponse.success(
+                adminPolicyErrorReportService.markReviewed(
+                        reportId,
+                        authenticatedUser != null ? authenticatedUser.userKey() : null,
+                        request != null ? request.reviewNote() : null
+                )
+        ));
+    }
+
     @GetMapping("/support-inquiries")
     public ResponseEntity<ApiResponse<AdminSupportInquiryResponse>> getSupportInquiries(
             @RequestParam(name = "limit", required = false)
@@ -216,6 +235,23 @@ public class AdminDashboardController {
         log.info("[Admin] dashboard support inquiries 조회 limit={}", limit);
         return ResponseEntity.ok(ApiResponse.success(
                 adminSupportInquiryService.getRecentInquiries(limit)
+        ));
+    }
+
+    @PostMapping("/support-inquiries/{inquiryId}/review")
+    public ResponseEntity<ApiResponse<AdminReviewActionResponse>> reviewSupportInquiry(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @org.springframework.web.bind.annotation.PathVariable Long inquiryId,
+            @RequestBody(required = false) AdminReviewActionRequest request
+    ) {
+        log.info("[Admin] dashboard support inquiry review inquiryId={} actorUserKey={}",
+                inquiryId, authenticatedUser != null ? authenticatedUser.userKey() : null);
+        return ResponseEntity.ok(ApiResponse.success(
+                adminSupportInquiryService.markReviewed(
+                        inquiryId,
+                        authenticatedUser != null ? authenticatedUser.userKey() : null,
+                        request != null ? request.reviewNote() : null
+                )
         ));
     }
 

@@ -890,6 +890,9 @@ export default function AdminDashboardPage() {
   const [windowDays, setWindowDays] = useState(14);
   const [selectedCodeSetKey, setSelectedCodeSetKey] = useState("");
   const [codebookQueryText, setCodebookQueryText] = useState("");
+  const [policyErrorReviewNotes, setPolicyErrorReviewNotes] = useState({});
+  const [supportInquiryReviewNotes, setSupportInquiryReviewNotes] = useState({});
+  const [reviewSubmittingKey, setReviewSubmittingKey] = useState(null);
   const queryBaseOptions = {
     staleTime: 30_000,
     retry: false,
@@ -1220,6 +1223,42 @@ export default function AdminDashboardPage() {
     officialCodebooksQuery.refetch();
     if (effectiveSelectedCodeSetKey) {
       officialCodebookDetailQuery.refetch();
+    }
+  };
+
+  const handleReviewPolicyErrorReport = async (reportId) => {
+    setReviewSubmittingKey(`policy-${reportId}`);
+    try {
+      await api.post(`/api/admin/dashboard/policy-error-reports/${reportId}/review`, {
+        reviewNote: policyErrorReviewNotes[reportId]?.trim() || null,
+      });
+      setPolicyErrorReviewNotes((prev) => {
+        const next = { ...prev };
+        delete next[reportId];
+        return next;
+      });
+      policyErrorReportsQuery.refetch();
+      attentionFeedQuery.refetch();
+    } finally {
+      setReviewSubmittingKey(null);
+    }
+  };
+
+  const handleReviewSupportInquiry = async (inquiryId) => {
+    setReviewSubmittingKey(`support-${inquiryId}`);
+    try {
+      await api.post(`/api/admin/dashboard/support-inquiries/${inquiryId}/review`, {
+        reviewNote: supportInquiryReviewNotes[inquiryId]?.trim() || null,
+      });
+      setSupportInquiryReviewNotes((prev) => {
+        const next = { ...prev };
+        delete next[inquiryId];
+        return next;
+      });
+      supportInquiriesQuery.refetch();
+      attentionFeedQuery.refetch();
+    } finally {
+      setReviewSubmittingKey(null);
     }
   };
 
@@ -1769,6 +1808,27 @@ export default function AdminDashboardPage() {
                                 <Typography sx={{ fontSize: 13, color: INK2 }}>
                                   제보자 {item.userKey || "익명"}{item.note ? ` · ${item.note}` : " · 추가 메모 없음"}
                                 </Typography>
+                                <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ xs: "stretch", md: "center" }}>
+                                  <TextField
+                                    size="small"
+                                    placeholder="운영 메모 (선택)"
+                                    value={policyErrorReviewNotes[item.reportId] ?? ""}
+                                    onChange={(event) => setPolicyErrorReviewNotes((prev) => ({
+                                      ...prev,
+                                      [item.reportId]: event.target.value,
+                                    }))}
+                                    sx={{ flex: 1 }}
+                                  />
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    disabled={reviewSubmittingKey === `policy-${item.reportId}`}
+                                    onClick={() => handleReviewPolicyErrorReport(item.reportId)}
+                                    sx={{ textTransform: "none", borderRadius: 999, whiteSpace: "nowrap" }}
+                                  >
+                                    {reviewSubmittingKey === `policy-${item.reportId}` ? "처리 중..." : "처리완료"}
+                                  </Button>
+                                </Stack>
                               </Stack>
                             </Box>
                           )}
@@ -1868,6 +1928,27 @@ export default function AdminDashboardPage() {
                                 <Typography sx={{ fontSize: 12, color: INK3 }}>
                                   문의자 {item.userKey || "비로그인/미연결"}
                                 </Typography>
+                                <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ xs: "stretch", md: "center" }}>
+                                  <TextField
+                                    size="small"
+                                    placeholder="운영 메모 (선택)"
+                                    value={supportInquiryReviewNotes[item.inquiryId] ?? ""}
+                                    onChange={(event) => setSupportInquiryReviewNotes((prev) => ({
+                                      ...prev,
+                                      [item.inquiryId]: event.target.value,
+                                    }))}
+                                    sx={{ flex: 1 }}
+                                  />
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    disabled={reviewSubmittingKey === `support-${item.inquiryId}`}
+                                    onClick={() => handleReviewSupportInquiry(item.inquiryId)}
+                                    sx={{ textTransform: "none", borderRadius: 999, whiteSpace: "nowrap" }}
+                                  >
+                                    {reviewSubmittingKey === `support-${item.inquiryId}` ? "처리 중..." : "처리완료"}
+                                  </Button>
+                                </Stack>
                               </Stack>
                             </Box>
                           )}

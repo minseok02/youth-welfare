@@ -41,6 +41,20 @@
 - OpenAI runtime 계약: [openai-runtime-contract.md](core/openai-runtime-contract.md)
 - 히스토리 문서군 진입점: [history-docs-index.md](./history-docs-index.md)
 
+## 문의/제보 운영 기준
+
+- 정책 데이터 오류는 정책 상세의 `정책 오류 제보`로 받습니다.
+- 서비스 사용 문의는 공개 `/support` 페이지에서 받습니다.
+- 관리자 대시보드는 두 recent queue를 모두 노출합니다.
+  - `정책 오류 제보 recent queue`
+  - `서비스 문의 recent queue`
+- 두 queue 모두 `OPEN -> REVIEWED` 처리와 운영 메모를 지원합니다.
+  - `POST /api/admin/dashboard/policy-error-reports/{reportId}/review`
+  - `POST /api/admin/dashboard/support-inquiries/{inquiryId}/review`
+- admin attention feed는 열린 backlog를 아래 key로 승격합니다.
+  - `policy-error-report-backlog`
+  - `support-inquiry-backlog`
+
 ## 작업 전 기본 검증 기준
 
 - one-shot local active baseline: `bash deploy/smoke/run-local-active-baseline-suite.sh`

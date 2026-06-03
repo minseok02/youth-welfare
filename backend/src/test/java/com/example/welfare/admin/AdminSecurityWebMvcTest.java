@@ -6,6 +6,7 @@ import com.example.welfare.admin.dashboard.dto.AdminDashboardAttentionResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationCandidateDiagnosticResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
 import com.example.welfare.admin.dashboard.dto.AdminPolicyErrorReportResponse;
+import com.example.welfare.admin.dashboard.dto.AdminReviewActionResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordClearResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
@@ -253,6 +254,68 @@ class AdminSecurityWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.openCount").value(3));
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 정책 오류 제보 review API를 호출하면 review 상태를 기록한다")
+    void adminEndpointAllowsPolicyErrorReportReview() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(adminPolicyErrorReportService.markReviewed(9L, "user-key-1", "링크 수정 확인"))
+                .willReturn(new AdminReviewActionResponse(
+                        9L,
+                        "REVIEWED",
+                        "링크 수정 확인",
+                        "user-key-1",
+                        LocalDateTime.of(2026, 6, 4, 11, 5)
+                ));
+
+        mockMvc.perform(post("/api/admin/dashboard/policy-error-reports/9/review")
+                        .header("Authorization", "Bearer admin-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"reviewNote":"링크 수정 확인"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.id").value(9))
+                .andExpect(jsonPath("$.data.status").value("REVIEWED"))
+                .andExpect(jsonPath("$.data.reviewedByUserKey").value("user-key-1"));
+
+        then(adminPolicyErrorReportService).should().markReviewed(9L, "user-key-1", "링크 수정 확인");
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 서비스 문의 review API를 호출하면 review 상태를 기록한다")
+    void adminEndpointAllowsSupportInquiryReview() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(adminSupportInquiryService.markReviewed(21L, "user-key-1", "추천 설정 안내 후 종료"))
+                .willReturn(new AdminReviewActionResponse(
+                        21L,
+                        "REVIEWED",
+                        "추천 설정 안내 후 종료",
+                        "user-key-1",
+                        LocalDateTime.of(2026, 6, 4, 11, 10)
+                ));
+
+        mockMvc.perform(post("/api/admin/dashboard/support-inquiries/21/review")
+                        .header("Authorization", "Bearer admin-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"reviewNote":"추천 설정 안내 후 종료"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.id").value(21))
+                .andExpect(jsonPath("$.data.status").value("REVIEWED"))
+                .andExpect(jsonPath("$.data.reviewedByUserKey").value("user-key-1"));
+
+        then(adminSupportInquiryService).should().markReviewed(21L, "user-key-1", "추천 설정 안내 후 종료");
     }
 
     @Test

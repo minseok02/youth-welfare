@@ -19,6 +19,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(
         name = "policy_error_reports",
@@ -59,6 +61,22 @@ public class PolicyErrorReport extends BaseTimeEntity {
     @Column(name = "status", nullable = false, length = 20)
     @Builder.Default
     private Status status = Status.OPEN;
+
+    @Column(name = "review_note", length = 1000)
+    private String reviewNote;
+
+    @Column(name = "reviewed_by_user_key", length = 100)
+    private String reviewedByUserKey;
+
+    @Column(name = "reviewed_at")
+    private LocalDateTime reviewedAt;
+
+    public void markReviewed(String reviewNote, String reviewedByUserKey, LocalDateTime reviewedAt) {
+        this.status = Status.REVIEWED;
+        this.reviewNote = reviewNote;
+        this.reviewedByUserKey = reviewedByUserKey;
+        this.reviewedAt = reviewedAt;
+    }
 
     public enum ReasonCode {
         REGION_MISMATCH("지역 정보가 다릅니다"),

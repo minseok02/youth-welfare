@@ -7,6 +7,9 @@ CREATE TABLE IF NOT EXISTS support_inquiries (
     message       VARCHAR(2000) NOT NULL,
     route_path    VARCHAR(255),
     status        VARCHAR(30) NOT NULL,
+    review_note   VARCHAR(1000),
+    reviewed_by_user_key VARCHAR(100),
+    reviewed_at   TIMESTAMP,
     created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
