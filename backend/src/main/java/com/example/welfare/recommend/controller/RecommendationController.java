@@ -105,10 +105,17 @@ public class RecommendationController {
                 .map(WelfareService::getId)
                 .distinct()
                 .toList();
-        return serviceRegionRepository.findFirstSidoByServiceIds(serviceIds).stream()
+        return serviceRegionRepository.findFirstRegionLabelByServiceIds(serviceIds).stream()
                 .collect(Collectors.toMap(
                         row -> ((Number) row[0]).longValue(),
-                        row -> (String) row[1],
+                        row -> {
+                            String regionLabel = (String) row[1];
+                            if (regionLabel == null) {
+                                return null;
+                            }
+                            int separator = regionLabel.indexOf(' ');
+                            return separator > 0 ? regionLabel.substring(0, separator) : regionLabel;
+                        },
                         (left, right) -> left
                 ));
     }

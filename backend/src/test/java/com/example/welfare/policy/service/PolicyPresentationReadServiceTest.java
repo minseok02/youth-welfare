@@ -15,6 +15,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -48,8 +49,11 @@ class PolicyPresentationReadServiceTest {
                 .sourceId("Y-11")
                 .title("청년 월세 지원")
                 .unifiedCategory("HOUSING")
+                .hostOrg("서울시")
                 .operatingOrg("서울청년센터")
                 .status(WelfareService.ServiceStatus.ACTIVE)
+                .applyStartDate(LocalDate.of(2026, 6, 1))
+                .applyEndDate(LocalDate.of(2026, 6, 30))
                 .apiViewCount(120L)
                 .viewCount(3)
                 .registeredAt(LocalDateTime.of(2026, 5, 1, 10, 0))
@@ -70,7 +74,8 @@ class PolicyPresentationReadServiceTest {
                                 .youthMajorLabel("주거")
                                 .build()
                 ));
-        when(serviceRegionRepository.findFirstSidoByServiceIds(List.of(11L))).thenReturn(List.of());
+        when(serviceRegionRepository.findFirstRegionLabelByServiceIds(List.of(11L)))
+                .thenReturn(List.<Object[]>of(new Object[]{11L, "서울특별시 강남구"}));
 
         Page<PolicySummaryResponse> result = service.buildSummaryPage(7L, page);
 
@@ -79,6 +84,11 @@ class PolicyPresentationReadServiceTest {
         assertThat(result.getContent().get(0).getDescription()).isEqualTo("월세 부담을 낮추는 상세 지원 안내");
         assertThat(result.getContent().get(0).getUnifiedCategory()).isEqualTo("주거");
         assertThat(result.getContent().get(0).getOperatingOrg()).isEqualTo("서울청년센터");
+        assertThat(result.getContent().get(0).getProviderName()).isEqualTo("서울시");
+        assertThat(result.getContent().get(0).getRegionLabel()).isEqualTo("서울특별시 강남구");
+        assertThat(result.getContent().get(0).getSido()).isEqualTo("서울특별시");
+        assertThat(result.getContent().get(0).getApplicationPeriod()).isEqualTo("2026-06-01 ~ 2026-06-30");
+        assertThat(result.getContent().get(0).getStatusLabel()).isEqualTo("진행중");
         assertThat(result.getContent().get(0).getYouthMajorLabel()).isEqualTo("주거");
         assertThat(result.getContent().get(0).getApiViewCount()).isEqualTo(120L);
         assertThat(result.getContent().get(0).getViewCount()).isEqualTo(3);

@@ -44,14 +44,14 @@ public class PolicyPresentationReadService {
 
         Set<Long> bookmarkedServiceIds = recommendationBookmarkReadService.findBookmarkedServiceIds(userId, services);
         Map<Long, RecommendationCandidateProjection> projections = findProjections(services);
-        Map<Long, String> sidoMap = buildSidoMap(services);
+        Map<Long, String> regionLabelMap = buildRegionLabelMap(services);
 
         return services.stream()
                 .map(service -> PolicySummaryResponse.from(
                         service,
                         bookmarkedServiceIds.contains(service.getId()),
                         projections.get(service.getId()),
-                        sidoMap.get(service.getId())
+                        regionLabelMap.get(service.getId())
                 ))
                 .toList();
     }
@@ -74,11 +74,10 @@ public class PolicyPresentationReadService {
         return recommendationProjectionReadService.findCandidateProjectionsByServices(services);
     }
 
-    // BOKJIRO_LOCAL만 sido_name이 있고, YOUTH는 region_code만 있어 sido_name=NULL → 이 맵에 안 잡힘
-    private Map<Long, String> buildSidoMap(List<WelfareService> services) {
+    private Map<Long, String> buildRegionLabelMap(List<WelfareService> services) {
         if (services == null || services.isEmpty()) return Map.of();
         List<Long> ids = services.stream().map(WelfareService::getId).toList();
-        return serviceRegionRepository.findFirstSidoByServiceIds(ids).stream()
+        return serviceRegionRepository.findFirstRegionLabelByServiceIds(ids).stream()
                 .collect(Collectors.toMap(
                         row -> ((Number) row[0]).longValue(),
                         row -> (String) row[1],

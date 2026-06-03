@@ -13,6 +13,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -42,6 +43,10 @@ class PolicyDetailServiceTest {
                 .sourceId("SRC-11")
                 .title("청년 월세 지원")
                 .status(WelfareService.ServiceStatus.ACTIVE)
+                .hostOrg("서울시")
+                .operatingOrg("서울청년센터")
+                .applyStartDate(LocalDate.of(2026, 6, 1))
+                .applyEndDate(LocalDate.of(2026, 6, 30))
                 .viewCount(7)
                 .build();
         WelfareServiceDetail detail = WelfareServiceDetail.builder()
@@ -91,6 +96,10 @@ class PolicyDetailServiceTest {
         assertTrue(response.isBookmarked());
         assertEquals("주거", response.getUnifiedCategory());
         assertEquals(8, response.getViewCount());
+        assertEquals("서울시", response.getProviderName());
+        assertEquals("서울특별시 강남구", response.getRegionLabel());
+        assertEquals("2026-06-01 ~ 2026-06-30", response.getApplicationPeriod());
+        assertEquals("진행중", response.getStatusLabel());
         assertEquals("소득 심사", response.getSelectionCriteria());
         assertEquals("분기별", response.getSupportCycle());
         assertEquals("바우처", response.getProvisionType());

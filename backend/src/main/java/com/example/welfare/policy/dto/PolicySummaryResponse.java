@@ -7,6 +7,7 @@ import lombok.Getter;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 
 @Getter
@@ -23,6 +24,8 @@ public class PolicySummaryResponse {
     private String operatingOrg;
     // 복지로 지자체 정책 중 hostOrg가 없는 경우 카드 source 표시에 사용 (service_regions.sido_name)
     private String sido;
+    private String providerName;
+    private String regionLabel;
     private Integer minAge;
     private Integer maxAge;
     private String applyMethodName;
@@ -39,6 +42,8 @@ public class PolicySummaryResponse {
     private String gov24BenefitTypeLabel;
     private LocalDate applyStartDate;
     private LocalDate applyEndDate;
+    private String applicationPeriod;
+    private String statusLabel;
     private Boolean isOnlineApply;
     private Long apiViewCount;
     private Integer viewCount;
@@ -60,7 +65,8 @@ public class PolicySummaryResponse {
     public static PolicySummaryResponse from(WelfareService ws,
                                              boolean bookmarked,
                                              RecommendationCandidateProjection projection,
-                                             String sido) {
+                                             String regionLabel) {
+        String normalizedRegionLabel = normalizeBlank(regionLabel);
         return PolicySummaryResponse.builder()
                 .id(ws.getId())
                 .title(ws.getTitle())
@@ -70,7 +76,9 @@ public class PolicySummaryResponse {
                 .sourceType(ws.getSourceType().name())
                 .hostOrg(ws.getHostOrg())
                 .operatingOrg(ws.getOperatingOrg())
-                .sido(sido)
+                .sido(resolveSido(normalizedRegionLabel))
+                .providerName(resolveProviderName(ws))
+                .regionLabel(normalizedRegionLabel)
                 .minAge(ws.getMinAge())
                 .maxAge(ws.getMaxAge())
                 .applyMethodName(ws.getApplyMethodName())
@@ -87,6 +95,8 @@ public class PolicySummaryResponse {
                 .gov24BenefitTypeLabel(resolveGov24BenefitTypeLabel(projection))
                 .applyStartDate(ws.getApplyStartDate())
                 .applyEndDate(ws.getApplyEndDate())
+                .applicationPeriod(resolveApplicationPeriod(ws))
+                .statusLabel(resolveStatusLabel(ws))
                 .isOnlineApply(ws.getIsOnlineApply())
                 .apiViewCount(ws.getApiViewCount())
                 .viewCount(ws.getViewCount())
@@ -158,5 +168,64 @@ public class PolicySummaryResponse {
 
     private static String resolveGov24BenefitTypeLabel(RecommendationCandidateProjection projection) {
         return projection != null ? projection.gov24BenefitTypeLabel() : null;
+    }
+
+    private static String resolveProviderName(WelfareService ws) {
+        return Arrays.stream(new String[]{ws.getHostOrg(), ws.getOperatingOrg()})
+                .map(PolicySummaryResponse::normalizeBlank)
+                .filter(value -> value != null)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private static String resolveSido(String regionLabel) {
+        String normalized = normalizeBlank(regionLabel);
+        if (normalized == null) {
+            return null;
+        }
+        int separator = normalized.indexOf(' ');
+        return separator > 0 ? normalized.substring(0, separator) : normalized;
+    }
+
+    private static String resolveApplicationPeriod(WelfareService ws) {
+        String applyPeriod = formatPeriod(ws.getApplyStartDate(), ws.getApplyEndDate());
+        return applyPeriod != null ? applyPeriod : formatPeriod(ws.getStartDate(), ws.getEndDate());
+    }
+
+    private static String resolveStatusLabel(WelfareService ws) {
+        if (ws.getStatus() == WelfareService.ServiceStatus.CLOSED) {
+            return "종료";
+        }
+        if (ws.getApplyEndDate() != null && ws.getApplyEndDate().isBefore(LocalDate.now())) {
+            return "종료";
+        }
+        if (ws.getStatus() == WelfareService.ServiceStatus.ACTIVE) {
+            return "진행중";
+        }
+        if (ws.getStatus() == WelfareService.ServiceStatus.UPCOMING) {
+            return "예정";
+        }
+        return "상태 정보 없음";
+    }
+
+    private static String formatPeriod(LocalDate start, LocalDate end) {
+        if (start != null && end != null) {
+            return "%s ~ %s".formatted(start, end);
+        }
+        if (start != null) {
+            return "%s ~".formatted(start);
+        }
+        if (end != null) {
+            return "~ %s".formatted(end);
+        }
+        return null;
+    }
+
+    private static String normalizeBlank(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 }

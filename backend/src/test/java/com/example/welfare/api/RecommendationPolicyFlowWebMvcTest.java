@@ -13,6 +13,7 @@ import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceRegionRepository;
 import com.example.welfare.policy.service.PolicyBookmarkCommandService;
 import com.example.welfare.policy.service.PolicyDetailService;
+import com.example.welfare.policy.service.PolicyErrorReportCommandService;
 import com.example.welfare.policy.service.PolicyListService;
 import com.example.welfare.policy.service.PolicyRankingService;
 import com.example.welfare.policy.service.PolicySearchLogService;
@@ -76,6 +77,8 @@ class RecommendationPolicyFlowWebMvcTest {
     private PolicyListService policyListService;
     @MockitoBean
     private PolicyDetailService policyDetailService;
+    @MockitoBean
+    private PolicyErrorReportCommandService policyErrorReportCommandService;
     @MockitoBean
     private PolicyBookmarkCommandService policyBookmarkCommandService;
     @MockitoBean
@@ -165,8 +168,8 @@ class RecommendationPolicyFlowWebMvcTest {
                                 .gov24BenefitTypeLabel("서비스")
                                 .build()
                 ));
-        given(serviceRegionRepository.findFirstSidoByServiceIds(List.of(11L)))
-                .willReturn(List.<Object[]>of(new Object[]{11L, "서울"}));
+        given(serviceRegionRepository.findFirstRegionLabelByServiceIds(List.of(11L)))
+                .willReturn(List.<Object[]>of(new Object[]{11L, "서울특별시"}));
         given(policyRankingService.getRanking(5)).willReturn(List.of(ranking));
         given(policySearchService.search(isNull(), eq("월세"), eq("ACTIVE"), isNull(), eq("HOUSING"), eq("YOUTH"), eq(true), isNull(), isNull(), eq("RELEVANCE"), isNull(), isNull(), isNull(), isNull(), isNull(), eq(0), eq(10)))
                 .willReturn(PolicySearchResponse.builder()
@@ -200,7 +203,7 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(jsonPath("$.data[0].gov24BenefitTypeLabel").value("서비스"))
                 .andExpect(jsonPath("$.data[0].hostOrg").value("서울시"))
                 .andExpect(jsonPath("$.data[0].operatingOrg").value("서울주거재단"))
-                .andExpect(jsonPath("$.data[0].sido").value("서울"))
+                .andExpect(jsonPath("$.data[0].sido").value("서울특별시"))
                 .andExpect(jsonPath("$.data[0].applyEndDate").value("2026-12-31"));
 
         mockMvc.perform(get("/api/policies/ranking")
@@ -340,8 +343,8 @@ class RecommendationPolicyFlowWebMvcTest {
                                 .gov24BenefitTypeLabel("서비스")
                                 .build()
                 ));
-        given(serviceRegionRepository.findFirstSidoByServiceIds(List.of(11L)))
-                .willReturn(List.<Object[]>of(new Object[]{11L, "서울"}));
+        given(serviceRegionRepository.findFirstRegionLabelByServiceIds(List.of(11L)))
+                .willReturn(List.<Object[]>of(new Object[]{11L, "서울특별시"}));
 
         mockMvc.perform(get("/api/recommendations")
                         .param("size", "10")
@@ -365,7 +368,7 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(jsonPath("$.data[0].gov24BenefitTypeLabel").value("서비스"))
                 .andExpect(jsonPath("$.data[0].hostOrg").value("서울시"))
                 .andExpect(jsonPath("$.data[0].operatingOrg").value("서울주거재단"))
-                .andExpect(jsonPath("$.data[0].sido").value("서울"))
+                .andExpect(jsonPath("$.data[0].sido").value("서울특별시"))
                 .andExpect(jsonPath("$.data[0].applyEndDate").value("2026-12-31"));
 
         verify(recommendationAccessService).getRecommendations(isNull(), eq(10));

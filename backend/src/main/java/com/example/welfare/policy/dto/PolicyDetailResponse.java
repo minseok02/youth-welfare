@@ -9,6 +9,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -24,6 +25,7 @@ public class PolicyDetailResponse {
     private String sourceType;
     private String hostOrg;
     private String operatingOrg;
+    private String providerName;
     private Integer minAge;
     private Integer maxAge;
     private Integer minIncome;
@@ -45,6 +47,8 @@ public class PolicyDetailResponse {
     private LocalDate endDate;
     private LocalDate applyStartDate;
     private LocalDate applyEndDate;
+    private String applicationPeriod;
+    private String statusLabel;
     private String lifeStage;
     private String detailUrl;
     private String supportCycle;
@@ -65,6 +69,7 @@ public class PolicyDetailResponse {
     private String referenceUrlsJson;
 
     // 관련 목록
+    private String regionLabel;
     private List<String> regions;
     private List<TagItem> tags;
 
@@ -101,6 +106,7 @@ public class PolicyDetailResponse {
                         .tagValue(t.getTagValue())
                         .build())
                 .collect(Collectors.toList());
+        String regionLabel = regionNames.isEmpty() ? null : regionNames.get(0);
 
         return PolicyDetailResponse.builder()
                 .id(ws.getId())
@@ -111,6 +117,7 @@ public class PolicyDetailResponse {
                 .sourceType(ws.getSourceType().name())
                 .hostOrg(ws.getHostOrg())
                 .operatingOrg(ws.getOperatingOrg())
+                .providerName(resolveProviderName(ws))
                 .minAge(ws.getMinAge())
                 .maxAge(ws.getMaxAge())
                 .minIncome(ws.getMinIncome())
@@ -132,6 +139,8 @@ public class PolicyDetailResponse {
                 .endDate(ws.getEndDate())
                 .applyStartDate(ws.getApplyStartDate())
                 .applyEndDate(ws.getApplyEndDate())
+                .applicationPeriod(resolveApplicationPeriod(ws))
+                .statusLabel(resolveStatusLabel(ws))
                 .lifeStage(ws.getLifeStage())
                 .detailUrl(ws.getDetailUrl())
                 .supportCycle(detail != null && detail.getSupportCycle() != null ? detail.getSupportCycle() : ws.getSupportCycle())
@@ -148,6 +157,7 @@ public class PolicyDetailResponse {
                 .relatedLaw(detail != null ? detail.getRelatedLaw() : null)
                 .formFiles(detail != null ? detail.getFormFiles() : null)
                 .referenceUrlsJson(detail != null ? detail.getReferenceUrlsJson() : null)
+                .regionLabel(regionLabel)
                 .regions(regionNames)
                 .tags(tagItems)
                 .build();
@@ -203,5 +213,55 @@ public class PolicyDetailResponse {
 
     private static String resolveGov24BenefitTypeLabel(RecommendationCandidateProjection projection) {
         return projection != null ? projection.gov24BenefitTypeLabel() : null;
+    }
+
+    private static String resolveProviderName(WelfareService ws) {
+        return Arrays.stream(new String[]{ws.getHostOrg(), ws.getOperatingOrg()})
+                .map(PolicyDetailResponse::normalizeBlank)
+                .filter(value -> value != null)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private static String resolveApplicationPeriod(WelfareService ws) {
+        String applyPeriod = formatPeriod(ws.getApplyStartDate(), ws.getApplyEndDate());
+        return applyPeriod != null ? applyPeriod : formatPeriod(ws.getStartDate(), ws.getEndDate());
+    }
+
+    private static String resolveStatusLabel(WelfareService ws) {
+        if (ws.getStatus() == WelfareService.ServiceStatus.CLOSED) {
+            return "종료";
+        }
+        if (ws.getApplyEndDate() != null && ws.getApplyEndDate().isBefore(LocalDate.now())) {
+            return "종료";
+        }
+        if (ws.getStatus() == WelfareService.ServiceStatus.ACTIVE) {
+            return "진행중";
+        }
+        if (ws.getStatus() == WelfareService.ServiceStatus.UPCOMING) {
+            return "예정";
+        }
+        return "상태 정보 없음";
+    }
+
+    private static String formatPeriod(LocalDate start, LocalDate end) {
+        if (start != null && end != null) {
+            return "%s ~ %s".formatted(start, end);
+        }
+        if (start != null) {
+            return "%s ~".formatted(start);
+        }
+        if (end != null) {
+            return "~ %s".formatted(end);
+        }
+        return null;
+    }
+
+    private static String normalizeBlank(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 }
