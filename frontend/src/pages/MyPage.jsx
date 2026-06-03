@@ -1486,6 +1486,18 @@ export default function MyPage() {
                       <div style={{ fontSize: 13, color: INK3, marginTop: 4 }}>마감일을 놓치지 않도록 알림을 설정해보세요</div>
                     </div>
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <button
+                        onClick={() => navigate("/policies")}
+                        style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${LINE}`, background: WHITE, color: INK2, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+                      >
+                        정책 더 찾기
+                      </button>
+                      <button
+                        onClick={() => navigate("/mypage?tab=3")}
+                        style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${LINE}`, background: WHITE, color: INK2, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+                      >
+                        알림 설정
+                      </button>
                       <select
                         value={bookmarkSort}
                         onChange={e => setBookmarkSort(e.target.value)}
@@ -1617,9 +1629,14 @@ export default function MyPage() {
                     <div style={{ textAlign: "center", padding: "60px 0", color: INK3 }}>
                       <div style={{ fontSize: 16, fontWeight: 700, color: INK, marginBottom: 6 }}>북마크한 정책이 없어요</div>
                       <div style={{ fontSize: 13 }}>관심 정책을 저장해보세요</div>
-                      <button onClick={() => navigate("/policies")} style={{ marginTop: 16, padding: "10px 24px", borderRadius: 8, background: A, color: WHITE, border: 0, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-                        정책 둘러보기
-                      </button>
+                      <div style={{ display: "flex", justifyContent: "center", gap: 10, flexWrap: "wrap", marginTop: 16 }}>
+                        <button onClick={() => navigate("/policies")} style={{ padding: "10px 24px", borderRadius: 8, background: A, color: WHITE, border: 0, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                          정책 둘러보기
+                        </button>
+                        <button onClick={() => navigate("/mypage?tab=3")} style={{ padding: "10px 20px", borderRadius: 8, background: WHITE, color: INK2, border: `1px solid ${LINE}`, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                          알림 설정 열기
+                        </button>
+                      </div>
                     </div>
                   )}
                 </SectionCard>

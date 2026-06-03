@@ -466,6 +466,20 @@ export default function AlertsPage() {
                   ? "읽지 않은 알림 필터나 종류 필터를 다시 조정해보세요."
                   : "추천 요약 알림이나 마감 임박 알림이 생성되면 이곳에서 다시 확인할 수 있어요."}
               </div>
+              <div style={{ display: "flex", justifyContent: "center", gap: 10, flexWrap: "wrap", marginTop: 16 }}>
+                <button
+                  onClick={() => navigate("/policies")}
+                  style={{ padding: "10px 18px", borderRadius: 10, border: 0, background: A, color: WHITE, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+                >
+                  정책 보러가기
+                </button>
+                <button
+                  onClick={() => navigate("/mypage?tab=3", { state: { from: location } })}
+                  style={{ padding: "10px 18px", borderRadius: 10, border: `1px solid ${LINE}`, background: WHITE, color: INK2, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+                >
+                  알림 설정 열기
+                </button>
+              </div>
             </div>
           )}
         </SectionCard>

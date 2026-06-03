@@ -1291,12 +1291,32 @@ export default function PoliciesPage() {
             </FilterSection>
           )}
 
-          <button
-            onClick={() => { handleApplyFilter(); if (isTablet) setFilterOpen(false); }}
-            style={{ width: "100%", marginTop: 16, padding: "12px 0", background: A, color: "white", border: 0, borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer" }}
-          >
-            {totalCount > 0 ? `${totalCount.toLocaleString()}개 정책 보기` : "정책 보기"}
-          </button>
+          {isTablet ? (
+            <button
+              onClick={() => { handleApplyFilter(); setFilterOpen(false); }}
+              style={{ width: "100%", marginTop: 16, padding: "12px 0", background: A, color: "white", border: 0, borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer" }}
+            >
+              {totalCount > 0 ? `${totalCount.toLocaleString()}개 정책 보기` : "정책 보기"}
+            </button>
+          ) : (
+            <div
+              style={{
+                marginTop: 16,
+                padding: "12px 14px",
+                borderRadius: 12,
+                background: "#f8fbff",
+                border: `1px solid ${LINE}`,
+                color: INK2,
+              }}
+            >
+              <div style={{ fontSize: 13, fontWeight: 800, color: AI }}>
+                필터는 선택 즉시 반영됩니다
+              </div>
+              <div style={{ marginTop: 4, fontSize: 12, color: INK3, lineHeight: 1.5 }}>
+                지역, 카테고리, Gov24 조건을 바꾸면 목록과 URL이 바로 업데이트됩니다.
+              </div>
+            </div>
+          )}
         </aside>
 
         {/* ── 결과 영역 ── */}

@@ -350,6 +350,16 @@ test("정책 목록 검색 query는 상세 진입 후 브라우저 back과 상�
   await expect(page.getByText(firstPolicy.title, { exact: true }).first()).toBeVisible();
 });
 
+test("정책 필터는 데스크톱에서 선택 즉시 반영되고 별도 적용 버튼을 요구하지 않는다", async ({ page }) => {
+  await page.goto("/policies");
+
+  const filterAside = page.locator("aside").first();
+  await expect(filterAside.getByText("필터는 선택 즉시 반영됩니다", { exact: true })).toBeVisible();
+  await filterAside.getByText("주거", { exact: true }).first().click();
+
+  await expect(page).toHaveURL(/\/policies\?[^#]*category=%EC%A3%BC%EA%B1%B0/);
+});
+
 test("마이페이지 북마크 탭에서 상세로 갔다가 뒤로오면 tab query가 유지된다", async ({ page, request }) => {
   const policy = await fetchFirstSearchResult(request, "청년");
   await ensurePolicyBookmarked(request, userCredentials, policy.id);
