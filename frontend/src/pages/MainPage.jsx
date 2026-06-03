@@ -999,34 +999,60 @@ export default function MainPage() {
   }, []);
 
   // ── 추천 갱신 핸들러 ──────────────────────────────────────────────────────
+  const redirectToPrioritySetup = useCallback(() => {
+    showToast("마이페이지 우선순위 탭으로 이동합니다.", "info");
+    navigate("/mypage?tab=1");
+  }, [navigate, showToast]);
+
+  const redirectToProfileInfo = useCallback(() => {
+    showToast("주거·복지 표준코드가 많이 비어 있어 마이페이지로 먼저 이동합니다.", "info");
+    navigate("/mypage?tab=0");
+  }, [navigate, showToast]);
+
   const handleRefreshRecommendations = async () => {
     if (!user?.hasPriorities) {
-      showToast("마이페이지 우선순위 탭으로 이동합니다.", "info");
-      navigate("/mypage?tab=1");
+      redirectToPrioritySetup();
       return;
+    }
+    if (standardCodeMissingCount > 0) {
+      showToast(`표준코드 ${standardCodeFilledCount}/4 입력 상태로 추천을 새로 불러옵니다. 남은 ${standardCodeMissingLabels.join(", ")}까지 채우면 더 정확해집니다.`, "info");
     }
     setRefreshingRec(true);
     try {
       const { data } = await api.post("/api/recommendations/refresh");
       setRecommendations((data.data ?? []).map(mapRec));
       setRecError(false);
-      showToast("추천을 새로 불러왔습니다", "success");
+      if (standardCodeMissingCount > 0) {
+        showToast(`추천을 새로 불러왔습니다. 다음으로 ${standardCodeMissingLabels.join(", ")}를 채우면 개인화 정확도가 더 올라갑니다.`, "success");
+      } else {
+        showToast("추천을 새로 불러왔습니다", "success");
+      }
     } catch { showToast("추천 갱신에 실패했습니다", "error"); }
     finally { setRefreshingRec(false); }
   };
 
   const handlePersonalRefresh = async () => {
     if (!user?.hasPriorities) {
-      showToast("마이페이지 우선순위 탭으로 이동합니다.", "info");
-      navigate("/mypage?tab=1");
+      redirectToPrioritySetup();
       return;
+    }
+    if (standardCodeMissingCount >= 3) {
+      redirectToProfileInfo();
+      return;
+    }
+    if (standardCodeMissingCount > 0) {
+      showToast(`표준코드 ${standardCodeFilledCount}/4 입력 상태로 개인 맞춤 재추천을 진행합니다. 남은 ${standardCodeMissingLabels.join(", ")}를 채우면 더 정교해집니다.`, "info");
     }
     setPersonalRefreshing(true);
     try {
       const { data } = await api.post("/api/recommendations/refresh?personal=true");
       setRecommendations((data.data ?? []).map(mapRec));
       setRecError(false);
-      showToast("개인 맞춤 추천을 새로 받았습니다", "success");
+      if (standardCodeMissingCount > 0) {
+        showToast(`개인 맞춤 추천을 새로 받았습니다. 다음으로 ${standardCodeMissingLabels.join(", ")}를 채우면 더 안정적인 결과를 볼 수 있습니다.`, "success");
+      } else {
+        showToast("개인 맞춤 추천을 새로 받았습니다", "success");
+      }
     } catch { showToast("재추천에 실패했습니다", "error"); }
     finally { setPersonalRefreshing(false); }
   };

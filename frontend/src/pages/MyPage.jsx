@@ -701,10 +701,14 @@ export default function MyPage() {
       });
       setProfileCompleteness(localCompletionPct);
       setEditing(false);
-      if (standardCodeMissingLabels.length === 0) {
-        showToast("저장되었습니다. 주거·복지 표준코드 4개가 추천에 반영됩니다");
+      if (standardCodeMissingLabels.length === 0 && priorities.length > 0) {
+        showToast("저장되었습니다. 주거·복지 표준코드 4개와 우선순위가 추천에 반영됩니다");
+      } else if (standardCodeMissingLabels.length === 0) {
+        showToast("저장되었습니다. 다음으로 우선순위를 설정하면 추천 결과가 더 안정적입니다");
+      } else if (priorities.length > 0) {
+        showToast(`저장되었습니다. 주거·복지 표준코드 ${standardCodeFilledCount}/4개 입력됨 · 남은 ${standardCodeMissingLabels.join(", ")}를 채우면 더 정확해집니다`);
       } else {
-        showToast(`저장되었습니다. 주거·복지 표준코드 ${standardCodeFilledCount}/4개 입력됨`);
+        showToast(`저장되었습니다. 주거·복지 표준코드 ${standardCodeFilledCount}/4개 입력됨 · 다음으로 우선순위를 설정하면 추천이 더 안정적입니다`);
       }
     } catch {
       showToast("저장에 실패했습니다", "error");
@@ -744,7 +748,11 @@ export default function MyPage() {
       await api.put("/api/users/me/priorities", { priorityCodes: priorities });
       setUser({ hasPriorities: true });
       setProfileCompleteness(Math.max(profileCompleteness ?? 0, localCompletionPct));
-      showToast("우선순위와 특화 대상이 저장되었습니다");
+      if (standardCodeMissingLabels.length === 0) {
+        showToast("우선순위와 특화 대상이 저장되었습니다. 현재 표준코드 4개도 함께 추천에 반영됩니다");
+      } else {
+        showToast(`우선순위와 특화 대상이 저장되었습니다. 다음으로 ${standardCodeMissingLabels.join(", ")} 입력을 채우면 추천 정확도가 더 올라갑니다`);
+      }
     } catch {
       showToast("우선순위 저장에 실패했습니다", "error");
     } finally {

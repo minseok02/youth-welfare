@@ -383,6 +383,68 @@ test("정책 필터는 데스크톱에서 선택 즉시 반영되고 별도 적�
   await expect(page).toHaveURL(/\/policies\?[^#]*category=%EC%A3%BC%EA%B1%B0/);
 });
 
+test("메인 재추천 CTA는 우선순위가 없으면 마이페이지 우선순위 탭으로 이동한다", async ({ page }) => {
+  await page.route("**/api/users/me", async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify({
+        success: true,
+        data: {
+          name: "테스터",
+          priorities: [],
+          houseTenureCode: "OWN",
+          housingTypeCode: "APT",
+          basicLivingRecipientTypeCode: "NONE",
+          disabilityGradeCode: "NONE",
+        },
+      }),
+    });
+  });
+
+  await page.goto("/login");
+  await loginThroughForm(page, userCredentials);
+  await page.goto("/");
+  await expect(page.getByText("추천 품질 우선 개선", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "맞춤 재추천 →", exact: true }).click();
+  await expect(page).toHaveURL(/\/mypage\?tab=1$/);
+});
+
+test("메인 개인 맞춤 재추천 CTA는 표준코드 공백이 크면 마이페이지 내 정보 탭으로 이동한다", async ({ page }) => {
+  await page.route("**/api/users/me", async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify({
+        success: true,
+        data: {
+          name: "테스터",
+          priorities: ["HOUSING"],
+          houseTenureCode: null,
+          housingTypeCode: null,
+          basicLivingRecipientTypeCode: null,
+          disabilityGradeCode: "NONE",
+        },
+      }),
+    });
+  });
+
+  await page.goto("/login");
+  await loginThroughForm(page, userCredentials);
+  await page.goto("/");
+  await expect(page.getByText("추천 정확도 보강", { exact: true }).first()).toBeVisible();
+  await page.getByRole("button", { name: "맞춤 재추천 →", exact: true }).click();
+  await expect(page).toHaveURL(/\/mypage\?tab=0$/);
+});
+
 test("마이페이지 북마크 탭에서 상세로 갔다가 뒤로오면 tab query가 유지된다", async ({ page, request }) => {
   const policy = await fetchFirstSearchResult(request, "청년");
   await ensurePolicyBookmarked(request, userCredentials, policy.id);

@@ -102,6 +102,9 @@
 - nightly standard-code observation wrapper: `bash deploy/smoke/run-nightly-standard-code-observation.sh`
 - server/RDS nightly standard-code observation wrapper: `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-nightly-standard-code-observation.sh`
   - default log root: `/var/log/youth-welfare/standard-code-observation`
+- nightly ops handoff wrapper: `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-nightly-ops-handoff.sh`
+  - default log root: `/var/log/youth-welfare/nightly-ops-handoff`
+  - cron/install procedure: [nightly-ops-handoff-cron-runbook.md](./core/nightly-ops-handoff-cron-runbook.md)
   - appends compact lines to `nightly-summary-YYYY-MM-DD.log`
 - admin attention feed: `GET /api/admin/dashboard/attention-feed`
   - collect drift, 표준코드 backlog, wrapper warning을 재사용 가능한 운영 알림 목록으로 반환합니다.

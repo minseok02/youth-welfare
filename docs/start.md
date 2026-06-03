@@ -66,6 +66,8 @@
 - ops observation artifact latest 경로는 `tmp/ops-observation/latest-ops-observation-summary.txt`, `latest-ops-observation-note.md`, `latest-ops-observation.json` 을 먼저 봅니다. `KEEP_ARTIFACTS=false` 기본값에서도 이 stable snapshot은 남습니다.
 - 서버/RDS nightly wrapper는 `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-nightly-standard-code-observation.sh`
 - nightly wrapper 기본 로그 루트는 `/var/log/youth-welfare/standard-code-observation` 이고 compact summary를 `nightly-summary-YYYY-MM-DD.log` 에 append 합니다.
+- 여러 nightly를 한 번에 묶는 운영 cron 진입점은 `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-nightly-ops-handoff.sh`
+- 해당 wrapper 기본 로그 루트는 `/var/log/youth-welfare/nightly-ops-handoff` 이고 cron 절차는 [nightly-ops-handoff-cron-runbook.md](./core/nightly-ops-handoff-cron-runbook.md) 에 있습니다.
 - frontend baseline을 compact하게 다시 보려면 `bash deploy/smoke/run-local-frontend-observation-suite.sh`
 - 운영 서버에서는 `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-local-frontend-observation-suite.sh`
 - 위 기본 명령은 fresh e2e user/bootstrap을 먼저 태우고, `@dev-only`, `@admin-required` 케이스는 제외합니다. admin dashboard smoke까지 포함하려면 `RUN_FRONTEND_ADMIN_E2E=true` 를 명시합니다.

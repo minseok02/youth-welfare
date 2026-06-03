@@ -72,6 +72,19 @@ FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' \
 bash deploy/smoke/run-nightly-standard-code-observation.sh
 ```
 
+여러 nightly handoff를 cron 한 줄로 묶을 때는 아래 wrapper를 씁니다.
+
+```bash
+ENV_FILE=.env.production \
+SMOKE_DB_MODE=postgres \
+APP_BASE_URL='http://127.0.0.1:8082' \
+FRONTEND_E2E_MODE=deployed-origin \
+FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' \
+bash deploy/smoke/run-nightly-ops-handoff.sh
+```
+
+cron 등록과 cleanup은 [nightly-ops-handoff-cron-runbook.md](./nightly-ops-handoff-cron-runbook.md) 기준으로 맞춥니다.
+
 ## 기본 wrapper
 
 ```bash
