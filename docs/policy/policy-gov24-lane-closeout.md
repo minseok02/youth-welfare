@@ -109,22 +109,24 @@ window 안에는 `GOV24` 후보가 있으면 첫 `GOV24` 후보 1건을 첫 페�
 curl -sS -X POST "http://127.0.0.1:8082/api/admin/collect/gov24-sidecars-backfill?scope=regions&limitPerSource=0"
 ```
 
-2026-06-02 current server Docker runtime 결과:
+2026-06-03 local runtime 재검증 결과:
 
 - Gov24 LIST 수집 row: `10954`
 - region backfill: `scanned=10954`, `upserted=10954`, `missing=0`, `failed=0`
-- 2026-06-02 latest acceptance 재측정: suite step `7839ms`, HTTP endpoint metric `4708ms`,
-  `regions=33010`
-- 최종 region coverage: `9814/10954 = 89.59%`
-- 최종 region row: `33010`
-- regionless service: `1140`
-- regionless non-central agency metric: `450`
-- regionless true local-agency metric: `3`
+- 2026-06-03 latest local region backfill smoke: endpoint metric `5209ms`,
+  `region_rows=36545`
+- 최종 region coverage: `9816/10954 = 89.61%`
+- 최종 region row: `36545`
+- regionless service: `1138`
+- regionless non-central agency metric: `448`
+- regionless true local-agency metric: `1`
 - 남은 미추론 상위 기관은 `대한법률구조공단`, `기술보증기금`, `한국전력공사`,
   `소상공인시장진흥공단`, `한국장학재단` 등 공공기관 중심입니다.
-- regionless sample follow-up에서 지방 계열 true residual은 `3`건으로 분리했습니다.
-  `고성교육재단`은 지명 중복으로 안전하지 않고, `(재)한국전통문화전당`은 기관/본문에서
-  명확한 지역 신호가 없으며, `온라인 신청 시연 테스트(운영)`은 테스트성 row라 자동 추론하지 않습니다.
+- 추가 복구는 `소관기관코드 -> 로컬정부 기관코드 lookup` 으로 처리했습니다.
+  - `재단법인고성교육재단` → `5420000` → `경상남도 고성군(48820)`
+  - `(재)한국전통문화전당` → `4641000` → `전주시 하위 구(52111, 52113)`
+- 남은 true residual은 `온라인 신청 시연 테스트(운영)` `1`건뿐이고,
+  테스트성 행정안전부 row라 자동 추론하지 않습니다.
 
 회귀 확인은 아래 smoke로 봅니다.
 

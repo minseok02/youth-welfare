@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 DB_CONTAINER="${DB_CONTAINER:-youth-welfare-db}"
 APP_HEALTH_URL="${APP_HEALTH_URL:-http://127.0.0.1:8082/actuator/health}"
+GOV24_MAPPED_CODES_SQL="$(python3 "${ROOT_DIR}/scripts/gov24_support_condition_codes.py" --format sql-array)"
+GOV24_MAPPED_CODES_WITH_AGE_SQL="$(python3 "${ROOT_DIR}/scripts/gov24_support_condition_codes.py" --format sql-array --include-age)"
 
 query() {
   local sql="$1"
@@ -118,20 +121,7 @@ metric "gov24_support_flat_shape" "$flat_shape"
 section "missing_fact_breakdown"
 missing_fact_breakdown_row="$(query "
 WITH mapped_codes AS (
-  SELECT unnest(ARRAY[
-    'JA0101','JA0102',
-    'JA0201','JA0202','JA0203','JA0204','JA0205',
-    'JA0313','JA0314','JA0315','JA0316',
-    'JA0317','JA0318','JA0319','JA0320','JA0322',
-    'JA0326','JA0327',
-    'JA0328','JA0329','JA0330',
-    'JA0401','JA0402','JA0403','JA0404','JA0410',
-    'JA0411','JA0412','JA0413','JA0414',
-    'JA1101','JA1102','JA1103',
-    'JA1201','JA1202','JA1299',
-    'JA2101','JA2102','JA2103',
-    'JA2201','JA2202','JA2203','JA2299'
-  ]) AS code
+  SELECT unnest(ARRAY[${GOV24_MAPPED_CODES_SQL}]) AS code
 ),
 missing_services AS (
   SELECT ws.id, ws.source_id
@@ -228,20 +218,7 @@ metric "gov24_detail_selection_criteria_count" "$selection_criteria_count"
 section "missing_fact_samples"
 query "
 WITH mapped_codes AS (
-  SELECT unnest(ARRAY[
-    'JA0101','JA0102',
-    'JA0201','JA0202','JA0203','JA0204','JA0205',
-    'JA0313','JA0314','JA0315','JA0316',
-    'JA0317','JA0318','JA0319','JA0320','JA0322',
-    'JA0326','JA0327',
-    'JA0328','JA0329','JA0330',
-    'JA0401','JA0402','JA0403','JA0404','JA0410',
-    'JA0411','JA0412','JA0413','JA0414',
-    'JA1101','JA1102','JA1103',
-    'JA1201','JA1202','JA1299',
-    'JA2101','JA2102','JA2103',
-    'JA2201','JA2202','JA2203','JA2299'
-  ]) AS code
+  SELECT unnest(ARRAY[${GOV24_MAPPED_CODES_SQL}]) AS code
 )
 SELECT
   ws.source_id,
@@ -295,21 +272,7 @@ LIMIT 5;
 section "unmapped_code_inventory"
 query "
 WITH mapped_codes AS (
-  SELECT unnest(ARRAY[
-    'JA0101','JA0102',
-    'JA0110','JA0111',
-    'JA0201','JA0202','JA0203','JA0204','JA0205',
-    'JA0313','JA0314','JA0315','JA0316',
-    'JA0317','JA0318','JA0319','JA0320','JA0322',
-    'JA0326','JA0327',
-    'JA0328','JA0329','JA0330',
-    'JA0401','JA0402','JA0403','JA0404','JA0410',
-    'JA0411','JA0412','JA0413','JA0414',
-    'JA1101','JA1102','JA1103',
-    'JA1201','JA1202','JA1299',
-    'JA2101','JA2102','JA2103',
-    'JA2201','JA2202','JA2203','JA2299'
-  ]) AS code
+  SELECT unnest(ARRAY[${GOV24_MAPPED_CODES_WITH_AGE_SQL}]) AS code
 ),
 missing_services AS (
   SELECT ws.id, ws.source_id

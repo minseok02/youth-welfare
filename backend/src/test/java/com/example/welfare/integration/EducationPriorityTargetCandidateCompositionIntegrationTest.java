@@ -155,6 +155,7 @@ class EducationPriorityTargetCandidateCompositionIntegrationTest {
                 USER_INCOME_LEVEL,
                 representativeRegion,
                 representativeSido,
+                null,
                 PageRequest.of(0, 150)
         );
         long rawTargetHits = rawCandidates.stream()

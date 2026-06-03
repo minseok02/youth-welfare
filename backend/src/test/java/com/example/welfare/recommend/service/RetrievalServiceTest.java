@@ -50,11 +50,11 @@ class RetrievalServiceTest {
         RecommendationUserSnapshot user = user("서울특별시", "11680");
         WelfareService candidate = welfareService(1L, "청년 월세 지원");
         given(recommendationCandidateReadRepository.findBaseCandidates(
-                new RecommendationCandidateReadCondition(26, 5, "서울특별시", "11680", 300, 20)
+                new RecommendationCandidateReadCondition(26, 5, "서울특별시", "강남구", "11680", 300, 20)
         ))
                 .willReturn(List.of(candidate));
         given(recommendationCandidateReadRepository.findLatestCandidates(
-                new RecommendationCandidateReadCondition(26, 5, "서울특별시", "11680", 300, 20)
+                new RecommendationCandidateReadCondition(26, 5, "서울특별시", "강남구", "11680", 300, 20)
         ))
                 .willReturn(List.of());
         given(recommendationCandidateReadRepository.findTagsByServiceIds(any())).willReturn(Collections.emptyMap());
@@ -65,10 +65,10 @@ class RetrievalServiceTest {
 
         assertThat(results.candidates()).extracting(WelfareService::getId).containsExactly(1L);
         verify(recommendationCandidateReadRepository).findBaseCandidates(
-                new RecommendationCandidateReadCondition(26, 5, "서울특별시", "11680", 300, 20)
+                new RecommendationCandidateReadCondition(26, 5, "서울특별시", "강남구", "11680", 300, 20)
         );
         verify(recommendationCandidateReadRepository).findLatestCandidates(
-                new RecommendationCandidateReadCondition(26, 5, "서울특별시", "11680", 300, 20)
+                new RecommendationCandidateReadCondition(26, 5, "서울특별시", "강남구", "11680", 300, 20)
         );
         verify(recommendationProjectionReadService).findCandidateProjectionsByServiceIds(argThat(ids -> ids.equals(List.of(1L))));
     }
@@ -85,11 +85,11 @@ class RetrievalServiceTest {
         RecommendationUserSnapshot user = user("서울특별시", null);
         WelfareService candidate = welfareService(2L, "청년 취업 지원");
         given(recommendationCandidateReadRepository.findBaseCandidates(
-                new RecommendationCandidateReadCondition(26, 5, "서울특별시", null, 300, 20)
+                new RecommendationCandidateReadCondition(26, 5, "서울특별시", "강남구", null, 300, 20)
         ))
                 .willReturn(List.of(candidate));
         given(recommendationCandidateReadRepository.findLatestCandidates(
-                new RecommendationCandidateReadCondition(26, 5, "서울특별시", null, 300, 20)
+                new RecommendationCandidateReadCondition(26, 5, "서울특별시", "강남구", null, 300, 20)
         ))
                 .willReturn(List.of());
         given(recommendationCandidateReadRepository.findTagsByServiceIds(any())).willReturn(Collections.emptyMap());
@@ -100,10 +100,10 @@ class RetrievalServiceTest {
 
         assertThat(results.candidates()).extracting(WelfareService::getId).containsExactly(2L);
         verify(recommendationCandidateReadRepository).findBaseCandidates(
-                new RecommendationCandidateReadCondition(26, 5, "서울특별시", null, 300, 20)
+                new RecommendationCandidateReadCondition(26, 5, "서울특별시", "강남구", null, 300, 20)
         );
         verify(recommendationCandidateReadRepository).findLatestCandidates(
-                new RecommendationCandidateReadCondition(26, 5, "서울특별시", null, 300, 20)
+                new RecommendationCandidateReadCondition(26, 5, "서울특별시", "강남구", null, 300, 20)
         );
         verify(recommendationProjectionReadService).findCandidateProjectionsByServiceIds(argThat(ids -> ids.equals(List.of(2L))));
     }
@@ -120,11 +120,11 @@ class RetrievalServiceTest {
         RecommendationUserSnapshot user = user("서울특별시", "11680");
         WelfareService candidate = welfareService(3L, "일반 복지");
         given(recommendationCandidateReadRepository.findBaseCandidates(
-                new RecommendationCandidateReadCondition(26, 5, "서울특별시", "11680", 300, 20)
+                new RecommendationCandidateReadCondition(26, 5, "서울특별시", "강남구", "11680", 300, 20)
         ))
                 .willReturn(List.of(candidate));
         given(recommendationCandidateReadRepository.findLatestCandidates(
-                new RecommendationCandidateReadCondition(26, 5, "서울특별시", "11680", 300, 20)
+                new RecommendationCandidateReadCondition(26, 5, "서울특별시", "강남구", "11680", 300, 20)
         ))
                 .willReturn(List.of());
         given(recommendationCandidateReadRepository.findTagsByServiceIds(any())).willReturn(Collections.emptyMap());
@@ -155,11 +155,11 @@ class RetrievalServiceTest {
 
         List<WelfareService> grouped = List.of(youth1, youth2, bokjiro1, bokjiro2, gov241);
         given(recommendationCandidateReadRepository.findBaseCandidates(
-                new RecommendationCandidateReadCondition(26, 5, "서울특별시", "11680", 300, 20)
+                new RecommendationCandidateReadCondition(26, 5, "서울특별시", "강남구", "11680", 300, 20)
         ))
                 .willReturn(grouped);
         given(recommendationCandidateReadRepository.findLatestCandidates(
-                new RecommendationCandidateReadCondition(26, 5, "서울특별시", "11680", 300, 20)
+                new RecommendationCandidateReadCondition(26, 5, "서울특별시", "강남구", "11680", 300, 20)
         ))
                 .willReturn(List.of());
         given(recommendationCandidateReadRepository.findTagsByServiceIds(any())).willReturn(Collections.emptyMap());
@@ -200,10 +200,10 @@ class RetrievalServiceTest {
         grouped.addAll(nonDominant);
 
         given(recommendationCandidateReadRepository.findBaseCandidates(
-                new RecommendationCandidateReadCondition(26, 5, "경기도", null, 300, 20)
+                new RecommendationCandidateReadCondition(26, 5, "경기도", "강남구", null, 300, 20)
         )).willReturn(grouped);
         given(recommendationCandidateReadRepository.findLatestCandidates(
-                new RecommendationCandidateReadCondition(26, 5, "경기도", null, 300, 20)
+                new RecommendationCandidateReadCondition(26, 5, "경기도", "강남구", null, 300, 20)
         )).willReturn(List.of());
         given(recommendationCandidateReadRepository.findTagsByServiceIds(any())).willReturn(Collections.emptyMap());
 

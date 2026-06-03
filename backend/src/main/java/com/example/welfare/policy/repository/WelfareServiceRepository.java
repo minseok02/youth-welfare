@@ -4,6 +4,7 @@ import com.example.welfare.policy.entity.WelfareService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -14,6 +15,22 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
 
     Optional<WelfareService> findBySourceTypeAndSourceId(
             WelfareService.SourceType sourceType, String sourceId);
+
+    @Query("""
+            SELECT ws.sourceId FROM WelfareService ws
+            WHERE ws.sourceType = :sourceType
+            ORDER BY ws.sourceId ASC
+            """)
+    List<String> findSourceIdsBySourceType(@Param("sourceType") WelfareService.SourceType sourceType);
+
+    @Modifying
+    @Query("""
+            DELETE FROM WelfareService ws
+            WHERE ws.sourceType = :sourceType
+              AND ws.sourceId IN :sourceIds
+            """)
+    int deleteBySourceTypeAndSourceIdIn(@Param("sourceType") WelfareService.SourceType sourceType,
+                                        @Param("sourceIds") List<String> sourceIds);
 
     @Query("""
             SELECT ws.id FROM WelfareService ws

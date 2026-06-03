@@ -54,6 +54,23 @@
 3. `service_facts` 기반 recommendation hard gate
 4. AI prompt hard condition 입력
 
+추가로 `2026-06-02` 기준 current live inventory 재검증 결과,
+이 3축은 더 이상 “설계만 있고 stable seed가 없는 상태”가 아니다.
+
+- `GOV24_SERVICE_FIELD`: `10` label
+- `GOV24_USER_TYPE_TOKEN`: `4` token
+- `GOV24_BENEFIT_TYPE_TOKEN`: `20` token
+
+위 inventory는 아래 두 곳에 이미 반영돼 있다.
+
+1. [Gov24TaxonomyCodeSupport.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/support/Gov24TaxonomyCodeSupport.java:1)
+2. [V2026_06_01_01__seed_gov24_taxonomy_codes.sql](/home/minseok/youth-welfare/backend/src/main/resources/db/migration/V2026_06_01_01__seed_gov24_taxonomy_codes.sql:1)
+
+검증 artifact:
+
+- `tmp/gov24-axis-frequency/latest-gov24-axis-frequency.json`
+- `tmp/gov24-taxonomy-validation/latest-gov24-taxonomy-validation.json`
+
 ## 왜 지금 이 경계가 맞는가
 
 현재 Gov24는 이미 아래가 닫혀 있습니다.

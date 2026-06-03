@@ -34,7 +34,7 @@ class RecommendationCandidateReadRepositoryImplTest {
     void findBaseCandidatesDelegates() {
         WelfareService service = WelfareService.builder().id(1L).sourceId("SRC-1").title("청년 정책").build();
         RecommendationCandidateReadCondition condition =
-                new RecommendationCandidateReadCondition(26, 5, "서울특별시", null, 150, 20);
+                new RecommendationCandidateReadCondition(26, 5, "서울특별시", null, null, 150, 20);
         given(policyExplorationService.findRecommendationBaseCandidates(condition))
                 .willReturn(List.of(service));
 
@@ -47,7 +47,7 @@ class RecommendationCandidateReadRepositoryImplTest {
     void findLatestCandidatesDelegates() {
         WelfareService service = WelfareService.builder().id(2L).sourceId("SRC-2").title("최신 정책").build();
         RecommendationCandidateReadCondition condition =
-                new RecommendationCandidateReadCondition(26, 5, "서울특별시", "11680", 150, 20);
+                new RecommendationCandidateReadCondition(26, 5, "서울특별시", null, "11680", 150, 20);
         given(policyExplorationService.findRecommendationLatestCandidates(condition))
                 .willReturn(List.of(service));
 

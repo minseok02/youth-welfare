@@ -311,11 +311,7 @@ public class NormalizedPolicySidecarBackfillService {
 
     private BackfillResult backfillGov24SupportConditionSource(int limitPerSource) {
         List<NormalizedPolicySidecarBackfillTarget> targets = normalizedPolicySidecarBackfillReadRepository
-                .findTargetsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
-                        WelfareService.SourceType.GOV24,
-                        RawApiPayload.ApiCategory.SUPPORT,
-                        limitPerSource
-                );
+                .findGov24SupportConditionTargetsMissingFactsOrderByFetchedAtAsc(limitPerSource);
 
         int scanned = 0;
         int upserted = 0;

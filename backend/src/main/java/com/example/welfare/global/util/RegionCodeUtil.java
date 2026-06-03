@@ -1,5 +1,10 @@
 package com.example.welfare.global.util;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -19,6 +24,9 @@ import java.util.Map;
  */
 public final class RegionCodeUtil {
 
+    private static final String GOV24_LOCAL_AGENCY_REGION_LOOKUP_RESOURCE =
+            "reference/official-codes/gov24-local-agency-region-lookup.tsv";
+
     private RegionCodeUtil() {}
 
     // 시도 단축명 → 행정구역 앞 2자리 코드
@@ -32,10 +40,10 @@ public final class RegionCodeUtil {
             Map.entry("울산", "31"),
             Map.entry("세종", "36"),
             Map.entry("경기", "41"),
-            Map.entry("강원", "42"),
+            Map.entry("강원", "51"),
             Map.entry("충북", "43"),
             Map.entry("충남", "44"),
-            Map.entry("전북", "45"),
+            Map.entry("전북", "52"),
             Map.entry("전남", "46"),
             Map.entry("경북", "47"),
             Map.entry("경남", "48"),
@@ -111,7 +119,8 @@ public final class RegionCodeUtil {
             Map.entry("부산/연제구", "26470"), Map.entry("부산/영도구", "26200"),
             Map.entry("부산/중구", "26110"), Map.entry("부산/해운대구", "26350"),
             // 대구
-            Map.entry("대구/남구", "27200"), Map.entry("대구/달서구", "27290"),
+            Map.entry("대구/군위군", "27720"), Map.entry("대구/남구", "27200"),
+            Map.entry("대구/달서구", "27290"),
             Map.entry("대구/달성군", "27710"), Map.entry("대구/동구", "27140"),
             Map.entry("대구/북구", "27230"), Map.entry("대구/서구", "27170"),
             Map.entry("대구/수성구", "27260"), Map.entry("대구/중구", "27110"),
@@ -137,37 +146,48 @@ public final class RegionCodeUtil {
             Map.entry("세종/세종시", "36110"),
             // 경기
             Map.entry("경기/가평군", "41820"), Map.entry("경기/고양시", "41280"),
+            Map.entry("경기/고양시 덕양구", "41281"), Map.entry("경기/고양시 일산동구", "41285"),
+            Map.entry("경기/고양시 일산서구", "41287"),
             Map.entry("경기/과천시", "41290"), Map.entry("경기/광명시", "41210"),
             Map.entry("경기/광주시", "41610"), Map.entry("경기/구리시", "41310"),
             Map.entry("경기/군포시", "41410"), Map.entry("경기/김포시", "41570"),
             Map.entry("경기/남양주시", "41360"), Map.entry("경기/동두천시", "41250"),
             Map.entry("경기/부천시", "41190"), Map.entry("경기/성남시", "41130"),
-            Map.entry("경기/수원시", "41110"), Map.entry("경기/시흥시", "41390"),
-            Map.entry("경기/안산시", "41270"), Map.entry("경기/안성시", "41550"),
+            Map.entry("경기/성남시 수정구", "41131"), Map.entry("경기/성남시 중원구", "41133"),
+            Map.entry("경기/성남시 분당구", "41135"), Map.entry("경기/수원시", "41110"),
+            Map.entry("경기/수원시 장안구", "41111"), Map.entry("경기/수원시 권선구", "41113"),
+            Map.entry("경기/수원시 팔달구", "41115"), Map.entry("경기/수원시 영통구", "41117"),
+            Map.entry("경기/시흥시", "41390"), Map.entry("경기/안산시", "41270"),
+            Map.entry("경기/안산시 상록구", "41271"), Map.entry("경기/안산시 단원구", "41273"),
+            Map.entry("경기/안성시", "41550"),
             Map.entry("경기/안양시", "41170"), Map.entry("경기/양주시", "41630"),
             Map.entry("경기/양평군", "41830"), Map.entry("경기/여주시", "41670"),
             Map.entry("경기/연천군", "41800"), Map.entry("경기/오산시", "41370"),
-            Map.entry("경기/용인시", "41460"), Map.entry("경기/의왕시", "41430"),
+            Map.entry("경기/용인시", "41460"), Map.entry("경기/용인시 처인구", "41461"),
+            Map.entry("경기/용인시 기흥구", "41463"), Map.entry("경기/용인시 수지구", "41465"),
+            Map.entry("경기/의왕시", "41430"),
             Map.entry("경기/의정부시", "41150"), Map.entry("경기/이천시", "41500"),
             Map.entry("경기/파주시", "41480"), Map.entry("경기/평택시", "41220"),
             Map.entry("경기/포천시", "41650"), Map.entry("경기/하남시", "41450"),
             Map.entry("경기/화성시", "41590"),
             // 강원
-            Map.entry("강원/강릉시", "42150"), Map.entry("강원/고성군", "42820"),
-            Map.entry("강원/동해시", "42170"), Map.entry("강원/삼척시", "42230"),
-            Map.entry("강원/속초시", "42210"), Map.entry("강원/양구군", "42800"),
-            Map.entry("강원/양양군", "42830"), Map.entry("강원/영월군", "42750"),
-            Map.entry("강원/원주시", "42130"), Map.entry("강원/인제군", "42810"),
-            Map.entry("강원/정선군", "42770"), Map.entry("강원/철원군", "42780"),
-            Map.entry("강원/춘천시", "42110"), Map.entry("강원/태백시", "42190"),
-            Map.entry("강원/평창군", "42760"), Map.entry("강원/홍천군", "42720"),
-            Map.entry("강원/화천군", "42790"), Map.entry("강원/횡성군", "42730"),
+            Map.entry("강원/강릉시", "51150"), Map.entry("강원/고성군", "51820"),
+            Map.entry("강원/동해시", "51170"), Map.entry("강원/삼척시", "51230"),
+            Map.entry("강원/속초시", "51210"), Map.entry("강원/양구군", "51800"),
+            Map.entry("강원/양양군", "51830"), Map.entry("강원/영월군", "51750"),
+            Map.entry("강원/원주시", "51130"), Map.entry("강원/인제군", "51810"),
+            Map.entry("강원/정선군", "51770"), Map.entry("강원/철원군", "51780"),
+            Map.entry("강원/춘천시", "51110"), Map.entry("강원/태백시", "51190"),
+            Map.entry("강원/평창군", "51760"), Map.entry("강원/홍천군", "51720"),
+            Map.entry("강원/화천군", "51790"), Map.entry("강원/횡성군", "51730"),
             // 충북
             Map.entry("충북/괴산군", "43760"), Map.entry("충북/단양군", "43800"),
             Map.entry("충북/보은군", "43720"), Map.entry("충북/영동군", "43740"),
             Map.entry("충북/옥천군", "43730"), Map.entry("충북/음성군", "43770"),
             Map.entry("충북/제천시", "43150"), Map.entry("충북/증평군", "43745"),
             Map.entry("충북/진천군", "43750"), Map.entry("충북/청주시", "43110"),
+            Map.entry("충북/청주시 상당구", "43111"), Map.entry("충북/청주시 서원구", "43112"),
+            Map.entry("충북/청주시 흥덕구", "43113"), Map.entry("충북/청주시 청원구", "43114"),
             Map.entry("충북/충주시", "43130"),
             // 충남
             Map.entry("충남/공주시", "44150"), Map.entry("충남/금산군", "44710"),
@@ -175,17 +195,19 @@ public final class RegionCodeUtil {
             Map.entry("충남/보령시", "44180"), Map.entry("충남/부여군", "44760"),
             Map.entry("충남/서산시", "44210"), Map.entry("충남/서천군", "44770"),
             Map.entry("충남/아산시", "44200"), Map.entry("충남/예산군", "44810"),
-            Map.entry("충남/천안시", "44130"), Map.entry("충남/청양군", "44790"),
+            Map.entry("충남/천안시", "44130"), Map.entry("충남/천안시 동남구", "44131"),
+            Map.entry("충남/천안시 서북구", "44133"), Map.entry("충남/청양군", "44790"),
             Map.entry("충남/태안군", "44825"), Map.entry("충남/홍성군", "44800"),
             Map.entry("충남/계룡시", "44250"),
             // 전북
-            Map.entry("전북/고창군", "45790"), Map.entry("전북/군산시", "45130"),
-            Map.entry("전북/김제시", "45210"), Map.entry("전북/남원시", "45190"),
-            Map.entry("전북/무주군", "45730"), Map.entry("전북/부안군", "45800"),
-            Map.entry("전북/순창군", "45770"), Map.entry("전북/완주군", "45710"),
-            Map.entry("전북/익산시", "45140"), Map.entry("전북/임실군", "45750"),
-            Map.entry("전북/장수군", "45740"), Map.entry("전북/전주시", "45110"),
-            Map.entry("전북/정읍시", "45180"), Map.entry("전북/진안군", "45720"),
+            Map.entry("전북/고창군", "52790"), Map.entry("전북/군산시", "52130"),
+            Map.entry("전북/김제시", "52210"), Map.entry("전북/남원시", "52190"),
+            Map.entry("전북/무주군", "52730"), Map.entry("전북/부안군", "52800"),
+            Map.entry("전북/순창군", "52770"), Map.entry("전북/완주군", "52710"),
+            Map.entry("전북/익산시", "52140"), Map.entry("전북/임실군", "52750"),
+            Map.entry("전북/장수군", "52740"), Map.entry("전북/전주시", "52110"),
+            Map.entry("전북/전주시 완산구", "52111"), Map.entry("전북/전주시 덕진구", "52113"),
+            Map.entry("전북/정읍시", "52180"), Map.entry("전북/진안군", "52720"),
             // 전남
             Map.entry("전남/강진군", "46810"), Map.entry("전남/고흥군", "46770"),
             Map.entry("전남/곡성군", "46720"), Map.entry("전남/광양시", "46230"),
@@ -210,6 +232,7 @@ public final class RegionCodeUtil {
             Map.entry("경북/울진군", "47930"), Map.entry("경북/의성군", "47730"),
             Map.entry("경북/청도군", "47820"), Map.entry("경북/청송군", "47750"),
             Map.entry("경북/칠곡군", "47850"), Map.entry("경북/포항시", "47110"),
+            Map.entry("경북/포항시 남구", "47111"), Map.entry("경북/포항시 북구", "47113"),
             // 경남
             Map.entry("경남/거제시", "48310"), Map.entry("경남/거창군", "48880"),
             Map.entry("경남/고성군", "48820"), Map.entry("경남/김해시", "48250"),
@@ -217,7 +240,10 @@ public final class RegionCodeUtil {
             Map.entry("경남/사천시", "48240"), Map.entry("경남/산청군", "48860"),
             Map.entry("경남/양산시", "48330"), Map.entry("경남/의령군", "48720"),
             Map.entry("경남/진주시", "48170"), Map.entry("경남/창녕군", "48740"),
-            Map.entry("경남/창원시", "48120"), Map.entry("경남/통영시", "48220"),
+            Map.entry("경남/창원시", "48120"), Map.entry("경남/창원시 의창구", "48121"),
+            Map.entry("경남/창원시 성산구", "48123"), Map.entry("경남/창원시 마산합포구", "48125"),
+            Map.entry("경남/창원시 마산회원구", "48127"), Map.entry("경남/창원시 진해구", "48129"),
+            Map.entry("경남/통영시", "48220"),
             Map.entry("경남/하동군", "48850"), Map.entry("경남/함안군", "48730"),
             Map.entry("경남/함양군", "48870"), Map.entry("경남/합천군", "48890"),
             // 제주
@@ -227,7 +253,10 @@ public final class RegionCodeUtil {
     // 전국에 중복되지 않는 시군구명 → 5자리 코드 (host_org 역매핑용)
     private static final Map<String, String> UNIQUE_SGG_CODE_MAP = buildUniqueSggCodeMap();
     private static final Map<String, String> UNIQUE_SGG_STEM_CODE_MAP = buildUniqueSggStemCodeMap();
+    private static final Map<String, List<String>> NESTED_CHILD_CODES_BY_PARENT_CODE = buildNestedChildCodesByParentCode();
     private static final Map<String, RegionName> REGION_NAME_BY_CODE = buildRegionNameByCode();
+    private static final Map<String, AgencyRegionLookup> GOV24_LOCAL_AGENCY_REGION_LOOKUP =
+            loadGov24LocalAgencyRegionLookup();
 
     private static Map<String, String> buildUniqueSggCodeMap() {
         Map<String, Integer> nameCount = new HashMap<>();
@@ -286,6 +315,28 @@ public final class RegionCodeUtil {
             ));
         }
         return Collections.unmodifiableMap(result);
+    }
+
+    private static Map<String, List<String>> buildNestedChildCodesByParentCode() {
+        Map<String, List<String>> result = new LinkedHashMap<>();
+        for (Map.Entry<String, String> entry : SGG_CODE_MAP.entrySet()) {
+            String key = entry.getKey();
+            String[] parts = key.split("/", 2);
+            if (parts.length != 2 || !parts[1].contains(" ")) {
+                continue;
+            }
+            String parentSgg = parts[1].substring(0, parts[1].lastIndexOf(' '));
+            String parentCode = SGG_CODE_MAP.get(parts[0] + "/" + parentSgg);
+            if (parentCode == null) {
+                continue;
+            }
+            result.computeIfAbsent(parentCode, ignored -> new ArrayList<>()).add(entry.getValue());
+        }
+        Map<String, List<String>> unmodifiable = new LinkedHashMap<>();
+        for (Map.Entry<String, List<String>> entry : result.entrySet()) {
+            unmodifiable.put(entry.getKey(), List.copyOf(entry.getValue()));
+        }
+        return Collections.unmodifiableMap(unmodifiable);
     }
 
     /**
@@ -382,12 +433,12 @@ public final class RegionCodeUtil {
         String haystack = agencyName.trim();
         for (Map.Entry<String, String> entry : UNIQUE_SGG_CODE_MAP.entrySet()) {
             if (haystack.contains(entry.getKey())) {
-                putRegion(result, entry.getValue());
+                putExpandedRegions(result, entry.getValue());
             }
         }
         for (Map.Entry<String, String> entry : UNIQUE_SGG_STEM_CODE_MAP.entrySet()) {
             if (haystack.contains(entry.getKey())) {
-                putRegion(result, entry.getValue());
+                putExpandedRegions(result, entry.getValue());
             }
         }
         if (!result.isEmpty()) {
@@ -402,6 +453,24 @@ public final class RegionCodeUtil {
             if (haystack.contains(shortSido)) {
                 addAllSidoRegions(result, shortSido);
             }
+        }
+        return List.copyOf(result.values());
+    }
+
+    public static List<RegionName> inferRegionNamesFromAgencyCode(String agencyCode) {
+        if (agencyCode == null || agencyCode.isBlank()) {
+            return List.of();
+        }
+        AgencyRegionLookup lookup = GOV24_LOCAL_AGENCY_REGION_LOOKUP.get(agencyCode.trim());
+        if (lookup == null) {
+            return List.of();
+        }
+
+        Map<String, RegionName> result = new LinkedHashMap<>();
+        if ("sgg".equals(lookup.scope())) {
+            putExpandedRegions(result, lookup.regionKey());
+        } else if ("sido".equals(lookup.scope())) {
+            addAllSidoRegions(result, lookup.regionKey());
         }
         return List.copyOf(result.values());
     }
@@ -445,6 +514,54 @@ public final class RegionCodeUtil {
         }
     }
 
+    private static void putExpandedRegions(Map<String, RegionName> result, String regionCode) {
+        List<String> expandedCodes = NESTED_CHILD_CODES_BY_PARENT_CODE.get(regionCode);
+        if (expandedCodes == null || expandedCodes.isEmpty()) {
+            putRegion(result, regionCode);
+            return;
+        }
+        for (String expandedCode : expandedCodes) {
+            putRegion(result, expandedCode);
+        }
+    }
+
+    private static Map<String, AgencyRegionLookup> loadGov24LocalAgencyRegionLookup() {
+        InputStream stream = RegionCodeUtil.class.getClassLoader()
+                .getResourceAsStream(GOV24_LOCAL_AGENCY_REGION_LOOKUP_RESOURCE);
+        if (stream == null) {
+            return Map.of();
+        }
+
+        Map<String, AgencyRegionLookup> result = new LinkedHashMap<>();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
+            String line;
+            boolean headerSkipped = false;
+            while ((line = reader.readLine()) != null) {
+                if (!headerSkipped) {
+                    headerSkipped = true;
+                    continue;
+                }
+                if (line.isBlank()) {
+                    continue;
+                }
+                String[] parts = line.split("\t", -1);
+                if (parts.length < 3) {
+                    continue;
+                }
+                String agencyCode = parts[0].trim();
+                String scope = parts[1].trim();
+                String regionKey = parts[2].trim();
+                if (agencyCode.isEmpty() || scope.isEmpty() || regionKey.isEmpty()) {
+                    continue;
+                }
+                result.putIfAbsent(agencyCode, new AgencyRegionLookup(scope, regionKey));
+            }
+        } catch (IOException e) {
+            throw new IllegalStateException("failed to load gov24 local agency region lookup", e);
+        }
+        return Collections.unmodifiableMap(result);
+    }
+
     /**
      * zipCd가 전국 수준일 때 host_org(주관기관명)에서 실제 운영 지역 코드를 추정한다.
      *
@@ -463,7 +580,10 @@ public final class RegionCodeUtil {
         // 1. 전국 고유 시군구명 매칭 (예: "서산시청" → "44210")
         for (Map.Entry<String, String> entry : UNIQUE_SGG_CODE_MAP.entrySet()) {
             if (trimmed.contains(entry.getKey())) {
-                return List.of(entry.getValue());
+                List<String> expandedCodes = NESTED_CHILD_CODES_BY_PARENT_CODE.get(entry.getValue());
+                return expandedCodes != null && !expandedCodes.isEmpty()
+                        ? expandedCodes
+                        : List.of(entry.getValue());
             }
         }
 
@@ -503,9 +623,30 @@ public final class RegionCodeUtil {
         if (normalizedSido == null || normalizedSido.isBlank()) {
             return null;
         }
-        return SGG_CODE_MAP.get(normalizedSido + "/" + sgg.trim());
+        String trimmedSgg = sgg.trim();
+        String directCode = SGG_CODE_MAP.get(normalizedSido + "/" + trimmedSgg);
+        if (directCode != null) {
+            return directCode;
+        }
+
+        String nestedMatchCode = null;
+        String nestedSuffix = " " + trimmedSgg;
+        for (Map.Entry<String, String> entry : SGG_CODE_MAP.entrySet()) {
+            String key = entry.getKey();
+            if (!key.startsWith(normalizedSido + "/") || !key.endsWith(nestedSuffix)) {
+                continue;
+            }
+            if (nestedMatchCode != null && !nestedMatchCode.equals(entry.getValue())) {
+                return null;
+            }
+            nestedMatchCode = entry.getValue();
+        }
+        return nestedMatchCode;
     }
 
     public record RegionName(String regionCode, String sidoName, String sggName) {
+    }
+
+    private record AgencyRegionLookup(String scope, String regionKey) {
     }
 }

@@ -23,6 +23,7 @@ public class Gov24CollectSourceAdapter extends AbstractListCollectSourceAdapter<
     private final CollectItemSaver saver;
     private final RawApiPayloadService rawApiPayloadService;
     private final CollectListResponsePolicy collectListResponsePolicy;
+    private final Gov24StaleServiceCleanupService gov24StaleServiceCleanupService;
 
     private ListCollectSourceBinding<Gov24ServiceListDto.Item> binding() {
         return CollectSourceRegistry.GOV24.listBinding(welfareServiceMapper);
@@ -71,5 +72,31 @@ public class Gov24CollectSourceAdapter extends AbstractListCollectSourceAdapter<
     @Override
     protected void handleEmptyItems(List<Gov24ServiceListDto.Item> items) {
         collectListResponsePolicy.ensureNonEmpty(source(), items);
+    }
+
+    @Override
+    protected void afterCollect(List<Gov24ServiceListDto.Item> items, CollectResult result) {
+        try {
+            Gov24StaleServiceCleanupService.CleanupResult cleanupResult =
+                    gov24StaleServiceCleanupService.cleanupAgainstLiveInventory(
+                            items.stream().map(Gov24ServiceListDto.Item::getServiceId).toList()
+                    );
+            if (cleanupResult.skipped()) {
+                log.warn("[Gov24CollectSourceAdapter] stale cleanup skipped reason={} existing={} live={} stale={}",
+                        cleanupResult.reason(),
+                        cleanupResult.existingCount(),
+                        cleanupResult.liveCount(),
+                        cleanupResult.staleCount());
+                return;
+            }
+            log.info("[Gov24CollectSourceAdapter] stale cleanup deleted={} stale={} existing={} live={} sample={}",
+                    cleanupResult.deletedCount(),
+                    cleanupResult.staleCount(),
+                    cleanupResult.existingCount(),
+                    cleanupResult.liveCount(),
+                    cleanupResult.staleSourceIds().stream().limit(10).toList());
+        } catch (Exception e) {
+            log.warn("[Gov24CollectSourceAdapter] stale cleanup failed err={}", e.getMessage());
+        }
     }
 }

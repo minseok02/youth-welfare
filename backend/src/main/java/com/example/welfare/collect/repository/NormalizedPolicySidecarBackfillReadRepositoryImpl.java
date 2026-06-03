@@ -41,6 +41,50 @@ public class NormalizedPolicySidecarBackfillReadRepositoryImpl implements Normal
     }
 
     @Override
+    public List<NormalizedPolicySidecarBackfillTarget> findGov24SupportConditionTargetsMissingFactsOrderByFetchedAtAsc(
+            int limitPerSource
+    ) {
+        var query = entityManager.createNativeQuery("""
+                SELECT rap.id
+                FROM raw_api_payloads rap
+                JOIN welfare_services ws
+                  ON ws.source_type = rap.source_type
+                 AND ws.source_id = rap.source_id
+                WHERE rap.source_type = :sourceType
+                  AND rap.api_category = :apiCategory
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM service_facts sf
+                      WHERE sf.service_id = ws.id
+                        AND sf.fact_code_set_key = 'GOV24_SUPPORT_CONDITION'
+                  )
+                ORDER BY rap.fetched_at ASC, rap.id ASC
+                """)
+                .setParameter("sourceType", WelfareService.SourceType.GOV24.name())
+                .setParameter("apiCategory", RawApiPayload.ApiCategory.SUPPORT.name());
+        if (limitPerSource > 0) {
+            query.setMaxResults(limitPerSource);
+        }
+
+        @SuppressWarnings("unchecked")
+        List<Number> rawIds = query.getResultList();
+        List<Long> ids = rawIds.stream()
+                .map(Number::longValue)
+                .toList();
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, RawApiPayload> payloadsById = rawApiPayloadRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(RawApiPayload::getId, Function.identity()));
+        return ids.stream()
+                .map(payloadsById::get)
+                .filter(java.util.Objects::nonNull)
+                .map(this::toTarget)
+                .toList();
+    }
+
+    @Override
     public List<NormalizedPolicySidecarBackfillRegionTarget> findRegionTargetsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
             WelfareService.SourceType sourceType,
             RawApiPayload.ApiCategory apiCategory,

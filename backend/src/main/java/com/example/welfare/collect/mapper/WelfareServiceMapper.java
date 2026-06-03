@@ -645,6 +645,9 @@ public class WelfareServiceMapper {
                         item.getApplyMethod()
                 );
         if (regions.isEmpty()) {
+            regions = RegionCodeUtil.inferRegionNamesFromAgencyCode(item.getManagingOrganizationCode());
+        }
+        if (regions.isEmpty()) {
             regions = RegionCodeUtil.inferRegionNamesFromLocalAgency(
                     item.getManagingOrganizationType(),
                     item.getManagingOrganizationName()

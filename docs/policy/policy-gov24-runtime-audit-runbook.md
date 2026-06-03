@@ -64,11 +64,24 @@
   - education signal: `fresh_batch_rows=32`, `gov24_rows=32`, `gov24_top10_rows=10`, `gov24_top2_rows=2`
 - latest artifact: `tmp/gov24-acceptance-suite/latest`
 
-2026-06-02 regionless follow-up 해석:
+2026-06-03 regionless follow-up 해석:
 
-- 지방 계열 기관명에서 전국 유일 시군구명/어간을 먼저 추론해 `20`개 서비스를 추가 복구했습니다.
-- regionless service는 `1160 -> 1140` 으로 줄었습니다.
-- 직접 분류한 true local-agency 잔여는 `3`건입니다. `고성교육재단`은 강원/경남 `고성`이 모호하고, `(재)한국전통문화전당`은 기관명/본문만으로 안전한 지역이 없으며, `온라인 신청 시연 테스트(운영)`은 테스트성 행정안전부 row라 자동 추론 대상에서 제외합니다.
+- 지방 계열 기관명에서 전국 유일 시군구명/어간을 먼저 추론해 `20`개 서비스를 추가 복구한 뒤,
+  `소관기관코드 -> 로컬정부 기관코드 lookup` 을 더해 `2`건을 추가 복구했습니다.
+- regionless service는 `1160 -> 1140 -> 1138` 로 줄었습니다.
+- 직접 분류한 true local-agency 잔여는 `3 -> 1` 로 줄었습니다.
+- 새로 복구된 케이스:
+  - `재단법인고성교육재단` → `소관기관코드=5420000` → `경상남도 고성군(48820)`
+  - `(재)한국전통문화전당` → `소관기관코드=4641000` → `전주시 하위 구(52111, 52113)`
+- 남은 true local-agency 잔여 `1`건은 `온라인 신청 시연 테스트(운영)` 하나이고,
+  테스트성 행정안전부 row라 자동 추론 대상에서 계속 제외합니다.
+
+2026-06-03 local runtime 적용 순서:
+
+1. 앱 재기동 또는 재배포로 `gov24-local-agency-region-lookup.tsv` classpath 반영
+2. `bash deploy/smoke/run-local-gov24-region-backfill-smoke.sh`
+3. `bash deploy/smoke/run-local-gov24-region-coverage-audit.sh`
+4. 필요하면 `bash deploy/smoke/run-local-gov24-acceptance-suite.sh` 로 전체 Gov24 guard 재확인
 
 ## 2. 한 번에 보는 기본 명령
 
@@ -85,9 +98,49 @@ bash deploy/smoke/run-local-gov24-acceptance-suite.sh
 3. `run-local-gov24-collect-embedding-boundary-smoke.sh`
 4. `run-local-gov24-sidecar-backfill-smoke.sh`
 5. `run-local-gov24-quality-audit.sh`
-6. `run-local-gov24-filter-axis-audit.sh`
-7. `run-local-gov24-recommend-surface-audit.sh`
-8. `run-local-gov24-recommend-score-audit.sh`
+6. `run-local-gov24-support-conditions-validation.sh`
+7. `run-local-gov24-taxonomy-validation.sh`
+8. `run-local-gov24-filter-axis-audit.sh`
+9. `run-local-gov24-recommend-surface-audit.sh`
+10. `run-local-gov24-recommend-score-audit.sh`
+
+3축 canonical seed/code map drift만 빠르게 확인하려면 아래 wrapper를 따로 돌린다.
+
+```bash
+bash deploy/smoke/run-local-gov24-taxonomy-validation.sh
+```
+
+이 wrapper는 아래를 순서대로 수행한다.
+
+1. live `serviceList` 기준 `서비스분야 / 사용자구분 / 지원유형` inventory 재수집
+2. live inventory 와 `Gov24TaxonomyCodeSupport.java` code map 비교
+3. live inventory 와 `V2026_06_01_01__seed_gov24_taxonomy_codes.sql` seed 비교
+4. latest summary/json/note artifact publish
+
+artifact:
+
+- `tmp/gov24-taxonomy-validation/latest-gov24-taxonomy-validation-summary.txt`
+- `tmp/gov24-taxonomy-validation/latest-gov24-taxonomy-validation-summary.json`
+- `tmp/gov24-taxonomy-validation/latest-gov24-taxonomy-validation-note.md`
+
+`supportConditions` 공식 Swagger inventory와 mapper/quality-audit 목록 drift를 빠르게 보려면 아래 wrapper를 쓴다.
+
+```bash
+bash deploy/smoke/run-local-gov24-support-conditions-validation.sh
+```
+
+이 wrapper는 아래를 수행한다.
+
+1. hidden Swagger `supportConditions_model` 에서 official `JA*` field + description 재조회
+2. `WelfareServiceMapper` 의 support condition definition 비교
+3. `run-local-gov24-quality-audit.sh` 의 mapped code 목록 비교
+4. latest summary/json/note artifact publish
+
+artifact:
+
+- `tmp/gov24-support-conditions-validation/latest-gov24-support-conditions-validation-summary.txt`
+- `tmp/gov24-support-conditions-validation/latest-gov24-support-conditions-validation-summary.json`
+- `tmp/gov24-support-conditions-validation/latest-gov24-support-conditions-validation-note.md`
 
 교육/주거 signal smoke까지 포함하려면 아래처럼 켭니다.
 

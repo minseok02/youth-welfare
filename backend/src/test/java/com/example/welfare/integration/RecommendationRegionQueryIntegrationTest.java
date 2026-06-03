@@ -126,6 +126,7 @@ class RecommendationRegionQueryIntegrationTest {
                 5,
                 "11680",
                 "서울특별시",
+                null,
                 PageRequest.of(0, 5000)
         );
 
@@ -156,6 +157,7 @@ class RecommendationRegionQueryIntegrationTest {
                 5,
                 PRIORITY_TEST_REGION_CODE,
                 PRIORITY_TEST_SIDO,
+                null,
                 PageRequest.of(0, 10)
         );
 
@@ -201,6 +203,7 @@ class RecommendationRegionQueryIntegrationTest {
                 5,
                 PRIORITY_TEST_REGION_CODE,
                 PRIORITY_TEST_SIDO,
+                null,
                 PageRequest.of(0, 10)
         );
 
@@ -244,6 +247,7 @@ class RecommendationRegionQueryIntegrationTest {
                 5,
                 PRIORITY_TEST_REGION_CODE,
                 PRIORITY_TEST_SIDO,
+                null,
                 PageRequest.of(0, 20)
         );
 
@@ -288,6 +292,7 @@ class RecommendationRegionQueryIntegrationTest {
                 5,
                 PRIORITY_TEST_REGION_CODE,
                 PRIORITY_TEST_SIDO,
+                null,
                 PageRequest.of(0, 20)
         );
 
@@ -327,6 +332,7 @@ class RecommendationRegionQueryIntegrationTest {
                 5,
                 "28110",
                 "인천광역시",
+                null,
                 PageRequest.of(0, 20)
         );
 
@@ -369,6 +375,7 @@ class RecommendationRegionQueryIntegrationTest {
                 5,
                 "11680",
                 "서울특별시",
+                null,
                 PageRequest.of(0, 5000)
         );
 
@@ -399,6 +406,7 @@ class RecommendationRegionQueryIntegrationTest {
                 5,
                 PRIORITY_TEST_REGION_CODE,
                 PRIORITY_TEST_SIDO,
+                null,
                 PageRequest.of(0, 10)
         );
 
@@ -444,6 +452,7 @@ class RecommendationRegionQueryIntegrationTest {
                 5,
                 PRIORITY_TEST_REGION_CODE,
                 PRIORITY_TEST_SIDO,
+                null,
                 PageRequest.of(0, 10)
         );
 
@@ -487,6 +496,7 @@ class RecommendationRegionQueryIntegrationTest {
                 5,
                 PRIORITY_TEST_REGION_CODE,
                 PRIORITY_TEST_SIDO,
+                null,
                 PageRequest.of(0, 20)
         );
 
@@ -531,6 +541,7 @@ class RecommendationRegionQueryIntegrationTest {
                 5,
                 PRIORITY_TEST_REGION_CODE,
                 PRIORITY_TEST_SIDO,
+                null,
                 PageRequest.of(0, 20)
         );
 
@@ -570,6 +581,7 @@ class RecommendationRegionQueryIntegrationTest {
                 5,
                 "28110",
                 "인천광역시",
+                null,
                 PageRequest.of(0, 20)
         );
 

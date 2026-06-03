@@ -16,6 +16,10 @@ public interface NormalizedPolicySidecarBackfillReadRepository {
             int limitPerSource
     );
 
+    List<NormalizedPolicySidecarBackfillTarget> findGov24SupportConditionTargetsMissingFactsOrderByFetchedAtAsc(
+            int limitPerSource
+    );
+
     List<NormalizedPolicySidecarBackfillRegionTarget> findRegionTargetsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
             WelfareService.SourceType sourceType,
             RawApiPayload.ApiCategory apiCategory,

@@ -21,6 +21,8 @@ RUN_GOV24_REGION_COVERAGE="${RUN_GOV24_REGION_COVERAGE:-true}"
 RUN_GOV24_COLLECT_EMBEDDING_BOUNDARY="${RUN_GOV24_COLLECT_EMBEDDING_BOUNDARY:-true}"
 RUN_GOV24_SIDECAR_BACKFILL="${RUN_GOV24_SIDECAR_BACKFILL:-true}"
 RUN_GOV24_QUALITY_AUDIT="${RUN_GOV24_QUALITY_AUDIT:-true}"
+RUN_GOV24_SUPPORT_CONDITIONS_VALIDATION="${RUN_GOV24_SUPPORT_CONDITIONS_VALIDATION:-true}"
+RUN_GOV24_TAXONOMY_VALIDATION="${RUN_GOV24_TAXONOMY_VALIDATION:-true}"
 RUN_GOV24_FILTER_AXIS_AUDIT="${RUN_GOV24_FILTER_AXIS_AUDIT:-true}"
 RUN_GOV24_RECOMMEND_SURFACE_AUDIT="${RUN_GOV24_RECOMMEND_SURFACE_AUDIT:-true}"
 RUN_GOV24_RECOMMEND_SCORE_AUDIT="${RUN_GOV24_RECOMMEND_SCORE_AUDIT:-true}"
@@ -54,6 +56,8 @@ RUN_GOV24_REGION_COVERAGE="$(smoke_normalize_bool "${RUN_GOV24_REGION_COVERAGE}"
 RUN_GOV24_COLLECT_EMBEDDING_BOUNDARY="$(smoke_normalize_bool "${RUN_GOV24_COLLECT_EMBEDDING_BOUNDARY}")"
 RUN_GOV24_SIDECAR_BACKFILL="$(smoke_normalize_bool "${RUN_GOV24_SIDECAR_BACKFILL}")"
 RUN_GOV24_QUALITY_AUDIT="$(smoke_normalize_bool "${RUN_GOV24_QUALITY_AUDIT}")"
+RUN_GOV24_SUPPORT_CONDITIONS_VALIDATION="$(smoke_normalize_bool "${RUN_GOV24_SUPPORT_CONDITIONS_VALIDATION}")"
+RUN_GOV24_TAXONOMY_VALIDATION="$(smoke_normalize_bool "${RUN_GOV24_TAXONOMY_VALIDATION}")"
 RUN_GOV24_FILTER_AXIS_AUDIT="$(smoke_normalize_bool "${RUN_GOV24_FILTER_AXIS_AUDIT}")"
 RUN_GOV24_RECOMMEND_SURFACE_AUDIT="$(smoke_normalize_bool "${RUN_GOV24_RECOMMEND_SURFACE_AUDIT}")"
 RUN_GOV24_RECOMMEND_SCORE_AUDIT="$(smoke_normalize_bool "${RUN_GOV24_RECOMMEND_SCORE_AUDIT}")"
@@ -104,6 +108,28 @@ if [[ "${RUN_GOV24_QUALITY_AUDIT}" == "true" ]]; then
     "${ARTIFACT_DIR}/gov24-quality-audit.txt" \
     env APP_BASE_URL="${APP_BASE_URL}" \
     bash "${ROOT_DIR}/deploy/smoke/run-local-gov24-quality-audit.sh"
+fi
+
+if [[ "${RUN_GOV24_SUPPORT_CONDITIONS_VALIDATION}" == "true" ]]; then
+  mkdir -p "${ARTIFACT_DIR}/gov24-support-conditions-validation-artifacts"
+  run_step \
+    "gov24_support_conditions_validation" \
+    "${ARTIFACT_DIR}/gov24-support-conditions-validation.txt" \
+    env APP_BASE_URL="${APP_BASE_URL}" \
+    KEEP_ARTIFACTS=true \
+    ARTIFACT_DIR="${ARTIFACT_DIR}/gov24-support-conditions-validation-artifacts" \
+    bash "${ROOT_DIR}/deploy/smoke/run-local-gov24-support-conditions-validation.sh"
+fi
+
+if [[ "${RUN_GOV24_TAXONOMY_VALIDATION}" == "true" ]]; then
+  mkdir -p "${ARTIFACT_DIR}/gov24-taxonomy-validation-artifacts"
+  run_step \
+    "gov24_taxonomy_validation" \
+    "${ARTIFACT_DIR}/gov24-taxonomy-validation.txt" \
+    env APP_BASE_URL="${APP_BASE_URL}" \
+    KEEP_ARTIFACTS=true \
+    ARTIFACT_DIR="${ARTIFACT_DIR}/gov24-taxonomy-validation-artifacts" \
+    bash "${ROOT_DIR}/deploy/smoke/run-local-gov24-taxonomy-validation.sh"
 fi
 
 if [[ "${RUN_GOV24_FILTER_AXIS_AUDIT}" == "true" ]]; then

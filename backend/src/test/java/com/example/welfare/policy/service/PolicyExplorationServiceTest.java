@@ -134,30 +134,30 @@ class PolicyExplorationServiceTest {
     @DisplayName("recommendation base 탐색은 regionCode 경로를 유지한다")
     void findRecommendationBaseCandidatesUsesRegionCodeQuery() {
         RecommendationCandidateReadCondition condition =
-                new RecommendationCandidateReadCondition(26, 5, "서울특별시", "11680", 150, 20);
+                new RecommendationCandidateReadCondition(26, 5, "서울특별시", null, "11680", 150, 20);
         WelfareService candidate = service(3L, "서울 청년 지원", null);
-        when(welfareServiceRepository.findCandidatesWithRegionCode(eq(26), eq(5), eq("11680"), eq("서울특별시"), any(Pageable.class)))
+        when(welfareServiceRepository.findCandidatesWithRegionCode(eq(26), eq(5), eq("11680"), eq("서울특별시"), eq(null), any(Pageable.class)))
                 .thenReturn(List.of(candidate));
 
         List<WelfareService> candidates = policyExplorationService.findRecommendationBaseCandidates(condition);
 
         assertThat(candidates).containsExactly(candidate);
-        verify(welfareServiceRepository).findCandidatesWithRegionCode(eq(26), eq(5), eq("11680"), eq("서울특별시"), any(Pageable.class));
+        verify(welfareServiceRepository).findCandidatesWithRegionCode(eq(26), eq(5), eq("11680"), eq("서울특별시"), eq(null), any(Pageable.class));
     }
 
     @Test
     @DisplayName("recommendation latest 탐색은 regionCode 경로를 유지한다")
     void findRecommendationLatestCandidatesUsesRegionCodeQuery() {
         RecommendationCandidateReadCondition condition =
-                new RecommendationCandidateReadCondition(26, 5, "서울특별시", "11680", 150, 20);
+                new RecommendationCandidateReadCondition(26, 5, "서울특별시", null, "11680", 150, 20);
         WelfareService candidate = service(4L, "최신 서울 청년 지원", null);
-        when(welfareServiceRepository.findLatestCandidatesWithRegionCode(eq(26), eq(5), eq("11680"), eq("서울특별시"), any(Pageable.class)))
+        when(welfareServiceRepository.findLatestCandidatesWithRegionCode(eq(26), eq(5), eq("11680"), eq("서울특별시"), eq(null), any(Pageable.class)))
                 .thenReturn(List.of(candidate));
 
         List<WelfareService> candidates = policyExplorationService.findRecommendationLatestCandidates(condition);
 
         assertThat(candidates).containsExactly(candidate);
-        verify(welfareServiceRepository).findLatestCandidatesWithRegionCode(eq(26), eq(5), eq("11680"), eq("서울특별시"), any(Pageable.class));
+        verify(welfareServiceRepository).findLatestCandidatesWithRegionCode(eq(26), eq(5), eq("11680"), eq("서울특별시"), eq(null), any(Pageable.class));
     }
 
     private WelfareService service(Long id, String title, String category) {

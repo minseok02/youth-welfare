@@ -129,6 +129,19 @@ runtime audit 기준으로 정리합니다.
 현재 이 문서의 역할은 deferred 판단 기록이 아니라,
 과거 gap의 원인과 현재 제외 대상의 근거를 보존하는 것입니다.
 
+추가로 `2026-06-02` 기준 official Swagger inventory drift guard도 붙였다.
+
+- [run-local-gov24-support-conditions-validation.sh](/home/minseok/youth-welfare/deploy/smoke/run-local-gov24-support-conditions-validation.sh:1)
+- artifact: `tmp/gov24-support-conditions-validation/latest-gov24-support-conditions-validation-summary.json`
+
+이 guard의 current 기준은 아래다.
+
+1. official `JA*` code `48개`
+2. 현재 handled code는 `45개`
+3. intentional deferred official code는 `JA0301`, `JA0302`, `JA0303`
+4. `JA1201` 공식 label `음식적업` 은 내부에서 `음식업` 으로 정정
+5. `JA2202` 공식 label `농업,임업 및 어업` 은 내부에서 공백만 정규화
+
 ## 지금 단계에서 아직 하지 않는 것
 
 이 문서를 만들었다고 해서 아래를 바로 여는 것은 아닙니다.

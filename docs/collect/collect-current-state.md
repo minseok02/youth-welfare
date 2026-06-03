@@ -367,6 +367,29 @@ host_org에서 지역 코드를 추정하는 순서:
 - **중앙부처 주관 + 지역 한정 정책**: host_org가 “고용노동부” 등 중앙부처면 추정 불가 → 전국 노출로 처리됨
 - 온통청년 API 자체에 명확한 지역 구분 필드가 없어 현재로서는 이 방식이 최선
 
+### 2026-06-02 current code validation 메모
+
+윈도우에서 받은 `법정동코드 전체자료.txt` 와 실제 온통청년 live API `zipCd` 를 대조한 결과,
+`RegionCodeUtil` 을 최신 법정동 코드로 그대로 치환하면 안 된다.
+
+확인된 사실:
+
+1. 온통청년 live API는 `강원특별자치도` 를 기존 `42***` 가 아니라 `51***` 로 준다.
+2. 온통청년 live API는 `전북특별자치도` 를 기존 `45***` 가 아니라 `52***` 로 준다.
+3. `군위군` 은 더 이상 경북이 아니라 `대구(27720)` 로 응답된다.
+4. 반대로 `수원시`, `성남시`, `청주시`, `전주시`, `창원시` 처럼 구가 있는 도시는
+   city-level 5자리 코드보다 ward-level 5자리 코드가 실제 `zipCd` 에 더 자주 등장한다.
+
+즉 practical 결론은 아래와 같다.
+
+- `강원/전북 prefix`, `대구 군위군` 같이 current API와 명확히 어긋난 값은 즉시 반영한다.
+- `법정동코드 전체자료.txt` 를 generated source로 바로 치환하지는 않는다.
+- multi-district city는 profile UX와 query semantics를 함께 봐야 하므로 별도 active 트랙으로 분리한다.
+
+stable artifact:
+
+- `tmp/youth-region-code-validation/latest-youth-region-code-validation.json`
+
 ### 적용 방법
 
 코드 수정 후 `POST /api/admin/collect/youth`로 재수집하면 반영된다.

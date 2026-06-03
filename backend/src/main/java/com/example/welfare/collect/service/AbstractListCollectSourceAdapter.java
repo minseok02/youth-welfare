@@ -49,7 +49,9 @@ public abstract class AbstractListCollectSourceAdapter<T> implements CollectSour
 
         log.info("[CollectSourceAdapter][{}] 저장 완료: {}건 (skip: {}건, filtered: {}건, failed: {}건)",
                 source().jobName(), saved, skipped, filteredOut, failed);
-        return CollectResult.of(items.size(), saved, skipped, filteredOut, failed);
+        CollectResult result = CollectResult.of(items.size(), saved, skipped, filteredOut, failed);
+        afterCollect(items, result);
+        return result;
     }
 
     protected abstract List<T> fetchItems();
@@ -71,5 +73,8 @@ public abstract class AbstractListCollectSourceAdapter<T> implements CollectSour
     protected abstract String failureIdLabel();
 
     protected void handleEmptyItems(List<T> items) {
+    }
+
+    protected void afterCollect(List<T> items, CollectResult result) {
     }
 }

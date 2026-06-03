@@ -103,6 +103,42 @@ class NormalizedPolicySidecarBackfillServiceTest {
     }
 
     @Test
+    @DisplayName("Gov24 list region backfill은 애매한 기관명보다 소관기관코드 lookup을 우선 사용한다")
+    void backfillGov24ListRegionsFromAgencyCodeLookup() throws Exception {
+        Gov24ServiceListDto.Item item = new Gov24ServiceListDto.Item();
+        ReflectionTestUtils.setField(item, "serviceId", "GOV24-REGION-2");
+        ReflectionTestUtils.setField(item, "serviceName", "한국전통문화전당 대관시설 사용료 감면");
+        ReflectionTestUtils.setField(item, "managingOrganizationType", "지방출자_출연기관");
+        ReflectionTestUtils.setField(item, "managingOrganizationName", "(재)한국전통문화전당");
+        ReflectionTestUtils.setField(item, "managingOrganizationCode", "4641000");
+
+        given(normalizedPolicySidecarBackfillReadRepository.findRegionTargetsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
+                WelfareService.SourceType.GOV24,
+                RawApiPayload.ApiCategory.LIST,
+                10
+        )).willReturn(List.of(new NormalizedPolicySidecarBackfillRegionTarget(
+                222L,
+                "GOV24-REGION-2",
+                objectMapper.writeValueAsString(item)
+        )));
+
+        NormalizedPolicySidecarBackfillService.BackfillResult result = service.backfillGov24ListRegions(10);
+
+        assertThat(result.scannedCount()).isEqualTo(1);
+        assertThat(result.upsertedCount()).isEqualTo(1);
+        assertThat(result.missingServiceCount()).isZero();
+        assertThat(result.failedCount()).isZero();
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<com.example.welfare.policy.entity.ServiceRegion>> regionsCaptor =
+                ArgumentCaptor.forClass(List.class);
+        verify(collectItemRegionCommandRepository).replaceAllBatch(eq(List.of(222L)), regionsCaptor.capture());
+        assertThat(regionsCaptor.getValue())
+                .extracting(region -> region.getRegionCode())
+                .containsExactlyInAnyOrder("52111", "52113");
+    }
+
+    @Test
     @DisplayName("복지로 list raw payload를 읽어 taxonomy/facts aggregate를 다시 sidecar writer로 보낸다")
     void backfillBokjiroListSidecars() throws Exception {
         BokjiroLocalDto.Item item = new BokjiroLocalDto.Item();
@@ -426,11 +462,8 @@ class NormalizedPolicySidecarBackfillServiceTest {
                 .status(WelfareService.ServiceStatus.ACTIVE)
                 .build();
 
-        given(normalizedPolicySidecarBackfillReadRepository.findTargetsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
-                WelfareService.SourceType.GOV24,
-                RawApiPayload.ApiCategory.SUPPORT,
-                10
-        )).willReturn(List.of(new NormalizedPolicySidecarBackfillTarget(raw, saved)));
+        given(normalizedPolicySidecarBackfillReadRepository.findGov24SupportConditionTargetsMissingFactsOrderByFetchedAtAsc(10))
+                .willReturn(List.of(new NormalizedPolicySidecarBackfillTarget(raw, saved)));
 
         NormalizedPolicySidecarBackfillService.BackfillResult result = service.backfillGov24SupportConditionSidecars(10);
 
