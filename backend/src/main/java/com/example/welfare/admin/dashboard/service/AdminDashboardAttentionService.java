@@ -82,8 +82,10 @@ public class AdminDashboardAttentionService {
                     "notification-backlog",
                     dashboardSummary.notification().terminalFailedNotifications() > 0 ? "warning" : "info",
                     "알림 backlog 확인",
-                    "안 읽은 알림 %d건 · 재시도 대기 %d건 · 종결 실패 %d건".formatted(
+                    "안 읽은 알림 %d건 · stale 7일 %d건 · stale 14일 %d건 · 재시도 대기 %d건 · 종결 실패 %d건".formatted(
                             dashboardSummary.notification().unreadAlerts(),
+                            dashboardSummary.notification().staleUnread7d(),
+                            dashboardSummary.notification().staleUnread14d(),
                             dashboardSummary.notification().retryableFailedNotifications(),
                             dashboardSummary.notification().terminalFailedNotifications()
                     ),

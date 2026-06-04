@@ -204,7 +204,7 @@ class AdminDashboardSummaryServiceTest {
         given(adminDashboardNotificationReadRepository.fetchNotificationSummary(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any()
-        )).willReturn(new AdminDashboardReadRows.NotificationSummaryRow(4, 1, 14, 2, 9, 3, 1));
+        )).willReturn(new AdminDashboardReadRows.NotificationSummaryRow(4, 1, 14, 2, 9, 6, 2, 3, 1));
         given(adminDashboardSearchReadRepository.fetchSearchSummary(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any()
@@ -378,6 +378,8 @@ class AdminDashboardSummaryServiceTest {
         assertThat(response.notification().sentInWindow()).isEqualTo(14);
         assertThat(response.notification().failedInWindow()).isEqualTo(2);
         assertThat(response.notification().unreadAlerts()).isEqualTo(9);
+        assertThat(response.notification().staleUnread7d()).isEqualTo(6);
+        assertThat(response.notification().staleUnread14d()).isEqualTo(2);
         assertThat(response.notification().retryableFailedNotifications()).isEqualTo(3);
         assertThat(response.notification().terminalFailedNotifications()).isEqualTo(1);
         assertThat(response.search().windowDays()).isEqualTo(7);
@@ -483,7 +485,7 @@ class AdminDashboardSummaryServiceTest {
         given(adminDashboardNotificationReadRepository.fetchNotificationSummary(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any()
-        )).willReturn(new AdminDashboardReadRows.NotificationSummaryRow(0, 0, 0, 0, 0, 0, 0));
+        )).willReturn(new AdminDashboardReadRows.NotificationSummaryRow(0, 0, 0, 0, 0, 0, 0, 0, 0));
         given(adminDashboardSearchReadRepository.fetchSearchSummary(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any()
@@ -689,7 +691,7 @@ class AdminDashboardSummaryServiceTest {
         given(adminDashboardNotificationReadRepository.fetchNotificationSummary(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any()
-        )).willReturn(new AdminDashboardReadRows.NotificationSummaryRow(0, 0, 0, 0, 0, 0, 0));
+        )).willReturn(new AdminDashboardReadRows.NotificationSummaryRow(0, 0, 0, 0, 0, 0, 0, 0, 0));
         given(adminDashboardSearchReadRepository.fetchSearchSummary(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any()

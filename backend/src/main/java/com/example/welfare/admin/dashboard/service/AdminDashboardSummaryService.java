@@ -473,6 +473,8 @@ public class AdminDashboardSummaryService {
                         notificationSummary.sentInWindow(),
                         notificationSummary.failedInWindow(),
                         notificationSummary.unreadAlerts(),
+                        notificationSummary.staleUnread7d(),
+                        notificationSummary.staleUnread14d(),
                         notificationSummary.retryableFailedNotifications(),
                         notificationSummary.terminalFailedNotifications()
                 ),

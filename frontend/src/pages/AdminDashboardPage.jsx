@@ -2970,7 +2970,7 @@ export default function AdminDashboardPage() {
                   />
                 </Box>
 
-                <Box id="admin-notification-summary" sx={{ display: "grid", gap: 2, mt: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(5, 1fr)" }, scrollMarginTop: 96 }}>
+                <Box id="admin-notification-summary" sx={{ display: "grid", gap: 2, mt: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(6, 1fr)" }, scrollMarginTop: 96 }}>
                   <MetricCard
                     title="수집 실패(24시간)"
                     value={formatNumber(summaryData.collect.failedJobsLast24h)}
@@ -2985,6 +2985,16 @@ export default function AdminDashboardPage() {
                     title="안 읽은 알림"
                     value={formatNumber(summaryData.notification.unreadAlerts)}
                     description={`재시도 대기 ${formatNumber(summaryData.notification.retryableFailedNotifications)} / 종결 실패 ${formatNumber(summaryData.notification.terminalFailedNotifications)}`}
+                  />
+                  <MetricCard
+                    title="stale unread 7일"
+                    value={formatNumber(summaryData.notification.staleUnread7d)}
+                    description={`미열람 ${formatNumber(summaryData.notification.unreadAlerts)} / 14일 초과 ${formatNumber(summaryData.notification.staleUnread14d)}`}
+                  />
+                  <MetricCard
+                    title="stale unread 14일"
+                    value={formatNumber(summaryData.notification.staleUnread14d)}
+                    description={`7일 초과 ${formatNumber(summaryData.notification.staleUnread7d)} / 숨김 후보`}
                   />
                   <MetricCard
                     title="알림 재시도 대기"

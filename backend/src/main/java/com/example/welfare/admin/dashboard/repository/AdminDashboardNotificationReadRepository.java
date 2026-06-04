@@ -27,6 +27,8 @@ public class AdminDashboardNotificationReadRepository {
                        notification_summary.sent_in_window,
                        notification_summary.failed_in_window,
                        user_alert_summary.unread_alerts,
+                       user_alert_summary.stale_unread_7d,
+                       user_alert_summary.stale_unread_14d,
                        notification_summary.retryable_failed_notifications,
                        notification_summary.terminal_failed_notifications
                   from (
@@ -40,18 +42,24 @@ public class AdminDashboardNotificationReadRepository {
                   ) notification_summary
                   cross join (
                         select coalesce(sum(case when status = 'UNREAD' then 1 else 0 end), 0) as unread_alerts
+                             , coalesce(sum(case when status = 'UNREAD' and created_at < :stale7dCutoff then 1 else 0 end), 0) as stale_unread_7d
+                             , coalesce(sum(case when status = 'UNREAD' and created_at < :stale14dCutoff then 1 else 0 end), 0) as stale_unread_14d
                           from user_alerts
                   ) user_alert_summary
                 """,
                 new MapSqlParameterSource()
                         .addValue("dayAgo", dayAgo)
-                        .addValue("weekAgo", weekAgo),
+                        .addValue("weekAgo", weekAgo)
+                        .addValue("stale7dCutoff", LocalDateTime.now().minusDays(7))
+                        .addValue("stale14dCutoff", LocalDateTime.now().minusDays(14)),
                 (rs, rowNum) -> new AdminDashboardReadRows.NotificationSummaryRow(
                         rs.getLong("sent_last_24h"),
                         rs.getLong("failed_last_24h"),
                         rs.getLong("sent_in_window"),
                         rs.getLong("failed_in_window"),
                         rs.getLong("unread_alerts"),
+                        rs.getLong("stale_unread_7d"),
+                        rs.getLong("stale_unread_14d"),
                         rs.getLong("retryable_failed_notifications"),
                         rs.getLong("terminal_failed_notifications")
                 )

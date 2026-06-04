@@ -81,7 +81,7 @@ class AdminDashboardAttentionServiceTest {
                 LocalDateTime.of(2026, 6, 3, 14, 0),
                 null,
                 null,
-                new AdminDashboardResponse.NotificationSection(0, 0, 7, 0, 0, 0, 0, 0),
+                new AdminDashboardResponse.NotificationSection(0, 0, 7, 0, 0, 0, 0, 0, 0, 0),
                 null,
                 null,
                 null
@@ -187,7 +187,7 @@ class AdminDashboardAttentionServiceTest {
                 LocalDateTime.of(2026, 6, 4, 10, 0),
                 null,
                 null,
-                new AdminDashboardResponse.NotificationSection(0, 0, 7, 0, 0, 0, 0, 0),
+                new AdminDashboardResponse.NotificationSection(0, 0, 7, 0, 0, 0, 0, 0, 0, 0),
                 null,
                 null,
                 null
@@ -346,7 +346,7 @@ class AdminDashboardAttentionServiceTest {
                 LocalDateTime.of(2026, 6, 4, 11, 0),
                 null,
                 null,
-                new AdminDashboardResponse.NotificationSection(2, 1, 7, 14, 3, 11, 2, 1),
+                new AdminDashboardResponse.NotificationSection(2, 1, 7, 14, 3, 11, 7, 2, 2, 1),
                 null,
                 null,
                 null
@@ -406,7 +406,12 @@ class AdminDashboardAttentionServiceTest {
 
         assertThat(response.items()).extracting("key").contains("notification-backlog");
         assertThat(response.items()).extracting("message", String.class)
-                .anySatisfy(message -> assertThat(message).contains("안 읽은 알림 11건").contains("재시도 대기 2건").contains("종결 실패 1건"));
+                .anySatisfy(message -> assertThat(message)
+                        .contains("안 읽은 알림 11건")
+                        .contains("stale 7일 7건")
+                        .contains("stale 14일 2건")
+                        .contains("재시도 대기 2건")
+                        .contains("종결 실패 1건"));
     }
 
     @Test
@@ -432,7 +437,7 @@ class AdminDashboardAttentionServiceTest {
                 LocalDateTime.of(2026, 6, 4, 11, 30),
                 null,
                 null,
-                new AdminDashboardResponse.NotificationSection(0, 0, 4, 0, 0, 0, 0, 0),
+                new AdminDashboardResponse.NotificationSection(0, 0, 4, 0, 0, 0, 0, 0, 0, 0),
                 null,
                 null,
                 null

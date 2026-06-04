@@ -60,6 +60,8 @@ export const adminDashboardFixtures = {
       sentInWindow: 12,
       failedLast24h: 0,
       unreadAlerts: 5,
+      staleUnread7d: 3,
+      staleUnread14d: 1,
       retryableFailedNotifications: 1,
       terminalFailedNotifications: 0,
     },

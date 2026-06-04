@@ -211,6 +211,8 @@ public record AdminDashboardResponse(
             long sentInWindow,
             long failedInWindow,
             long unreadAlerts,
+            long staleUnread7d,
+            long staleUnread14d,
             long retryableFailedNotifications,
             long terminalFailedNotifications
     ) {

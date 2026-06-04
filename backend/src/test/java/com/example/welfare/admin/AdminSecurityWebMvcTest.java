@@ -1455,7 +1455,7 @@ class AdminSecurityWebMvcTest {
                                         )
                                 )
                         ),
-                        new AdminDashboardResponse.NotificationSection(1, 0, 7, 5, 1, 4, 2, 1),
+                        new AdminDashboardResponse.NotificationSection(1, 0, 7, 5, 1, 4, 2, 0, 2, 1),
                         new AdminDashboardResponse.SearchSection(4, 7, 12, 2, 7, java.math.BigDecimal.valueOf(5.25), List.of(
                                 new AdminDashboardResponse.SearchKeywordSnapshot("월세", 5)
                         ), List.of(
@@ -1582,6 +1582,8 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.notification.windowDays").value(7))
                 .andExpect(jsonPath("$.data.notification.sentInWindow").value(5))
                 .andExpect(jsonPath("$.data.notification.unreadAlerts").value(4))
+                .andExpect(jsonPath("$.data.notification.staleUnread7d").value(2))
+                .andExpect(jsonPath("$.data.notification.staleUnread14d").value(0))
                 .andExpect(jsonPath("$.data.notification.retryableFailedNotifications").value(2))
                 .andExpect(jsonPath("$.data.notification.terminalFailedNotifications").value(1))
                 .andExpect(jsonPath("$.data.search.windowDays").value(7))
@@ -1740,7 +1742,7 @@ class AdminSecurityWebMvcTest {
                                 "REAL_USER_TRAFFIC_GATE_NOT_READY",
                                 List.of()
                         ),
-                        new AdminDashboardResponse.NotificationSection(0, 0, 14, 0, 0, 0, 0, 0),
+                        new AdminDashboardResponse.NotificationSection(0, 0, 14, 0, 0, 0, 0, 0, 0, 0),
                         new AdminDashboardResponse.SearchSection(0, 14, 0, 0, 0, java.math.BigDecimal.ZERO, List.of(), List.of()),
                         new AdminDashboardResponse.UserPiiSyncSection(0, 0, 0, null),
                         new AdminDashboardResponse.TrendSection(
