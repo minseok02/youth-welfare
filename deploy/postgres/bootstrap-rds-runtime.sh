@@ -337,6 +337,7 @@ shopt -u nullglob
 for patch in "${patches[@]}"; do
   echo "applying $(basename "${patch}")"
   "${psql_base[@]}" \
+    -v "app_username=${DB_USERNAME}" \
     -v "admin_ro_username=${DB_ADMIN_RO_USERNAME}" \
     -v "admin_ro_password=${DB_ADMIN_RO_PASSWORD}" \
     -v "recommendation_review_gate_command_username=${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME}" \

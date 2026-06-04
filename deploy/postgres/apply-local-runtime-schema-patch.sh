@@ -45,7 +45,8 @@ load_env_value() {
   printf '%s' "${fallback}"
 }
 
-ADMIN_RO_USERNAME="${DB_ADMIN_RO_USERNAME:-$(load_env_value DB_ADMIN_RO_USERNAME admin_dashboard_ro)}"
+ADMIN_RO_USERNAME="$(load_env_value DB_ADMIN_RO_USERNAME "${DB_ADMIN_RO_USERNAME:-admin_dashboard_ro}")"
+APP_USERNAME="$(load_env_value DB_USERNAME "${DB_USERNAME:-app_core_rw}")"
 DB_PASSWORD_VALUE="$(load_env_value DB_PASSWORD '')"
 ADMIN_RO_PASSWORD="${DB_ADMIN_RO_PASSWORD:-$(load_env_value DB_ADMIN_RO_PASSWORD "${DB_PASSWORD_VALUE}")}"
 RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME="${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME:-$(load_env_value DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME recommendation_review_gate_command_rw)}"
@@ -75,6 +76,7 @@ for patch in "${patches[@]}"; do
   echo "applying $(basename "${patch}")"
   docker exec -i "${DB_CONTAINER}" psql \
     -v ON_ERROR_STOP=1 \
+    -v "app_username=${APP_USERNAME}" \
     -v "admin_ro_username=${ADMIN_RO_USERNAME}" \
     -v "admin_ro_password=${ADMIN_RO_PASSWORD}" \
     -v "recommendation_review_gate_command_username=${RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME}" \

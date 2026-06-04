@@ -95,7 +95,7 @@ public class AdminPolicyLinkReviewReadRepository {
                 from candidate c
                 left join policy_link_review_records plrr on plrr.service_id = c.service_id
                 where 1=1
-                """ + statusWhere + """
+                """ + "\n" + statusWhere + "\n" + """
                 order by c.created_at desc, c.service_id desc
                 limit ?
                 """;
