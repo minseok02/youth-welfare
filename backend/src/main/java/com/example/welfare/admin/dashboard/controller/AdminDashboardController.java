@@ -16,6 +16,8 @@ import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGateProm
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
+import com.example.welfare.admin.dashboard.dto.AdminNotificationStaleHideRequest;
+import com.example.welfare.admin.dashboard.dto.AdminNotificationStaleHideResponse;
 import com.example.welfare.admin.dashboard.dto.AdminStandardCodeEffectObservationResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSupportInquiryResponse;
 import com.example.welfare.admin.dashboard.dto.AdminUserProfileStandardCodeCoverageResponse;
@@ -30,6 +32,7 @@ import com.example.welfare.admin.dashboard.service.AdminDashboardStandardCodeObs
 import com.example.welfare.admin.dashboard.service.AdminDashboardSummaryService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardUserProfileService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardWrapperObservationService;
+import com.example.welfare.admin.dashboard.service.AdminNotificationBacklogService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyErrorReportService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyDuplicateGroupService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyLinkReviewService;
@@ -71,6 +74,7 @@ public class AdminDashboardController {
     private final AdminDashboardUserProfileService adminDashboardUserProfileService;
     private final AdminDashboardStandardCodeObservationService adminDashboardStandardCodeObservationService;
     private final AdminDashboardWrapperObservationService adminDashboardWrapperObservationService;
+    private final AdminNotificationBacklogService adminNotificationBacklogService;
     private final AdminPolicyErrorReportService adminPolicyErrorReportService;
     private final AdminPolicyDuplicateGroupService adminPolicyDuplicateGroupService;
     private final AdminPolicyLinkReviewService adminPolicyLinkReviewService;
@@ -328,6 +332,19 @@ public class AdminDashboardController {
                         authenticatedUser != null ? authenticatedUser.userKey() : null,
                         request != null ? request.reviewNote() : null
                 )
+        ));
+    }
+
+    @PostMapping("/notification-backlog/hide-stale")
+    public ResponseEntity<ApiResponse<AdminNotificationStaleHideResponse>> hideStaleNotificationBacklog(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @RequestBody AdminNotificationStaleHideRequest request
+    ) {
+        log.info("[Admin] dashboard notification backlog hide kind={} title={} deeplink={} actorUserKey={}",
+                request.kind(), request.title(), request.deeplinkUrl(),
+                authenticatedUser != null ? authenticatedUser.userKey() : null);
+        return ResponseEntity.ok(ApiResponse.success(
+                adminNotificationBacklogService.hideStaleAlerts(request)
         ));
     }
 

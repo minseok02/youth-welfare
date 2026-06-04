@@ -172,6 +172,8 @@ bash deploy/smoke/run-local-ops-baseline-suite.sh
   - `unreadAlerts`
   - `retryableFailedNotifications`
   - `terminalFailedNotifications`
+  - unread/failed triage는 [notification-backlog-audit-runbook.md](./notification-backlog-audit-runbook.md) 기준으로 다시 본다.
+  - stale target cluster maintenance가 필요하면 `POST /api/admin/dashboard/notification-backlog/hide-stale` 로 title/deeplink 단위 hide를 수행한다.
 
 ### collect failures
 

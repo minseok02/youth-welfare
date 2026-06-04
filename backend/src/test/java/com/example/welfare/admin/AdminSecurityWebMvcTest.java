@@ -17,6 +17,7 @@ import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminStandardCodeEffectObservationResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSupportInquiryResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
+import com.example.welfare.admin.dashboard.dto.AdminNotificationStaleHideResponse;
 import com.example.welfare.admin.dashboard.dto.AdminUserProfileStandardCodeCoverageResponse;
 import com.example.welfare.admin.dashboard.dto.AdminWrapperObservationResponse;
 import com.example.welfare.collect.dto.InvertedAgeBackfillResponse;
@@ -30,6 +31,7 @@ import com.example.welfare.admin.dashboard.service.AdminDashboardStandardCodeObs
 import com.example.welfare.admin.dashboard.service.AdminDashboardSummaryService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardUserProfileService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardWrapperObservationService;
+import com.example.welfare.admin.dashboard.service.AdminNotificationBacklogService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyErrorReportService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyDuplicateGroupService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyLinkReviewService;
@@ -173,6 +175,8 @@ class AdminSecurityWebMvcTest {
     private AdminDashboardStandardCodeObservationService adminDashboardStandardCodeObservationService;
     @MockitoBean
     private AdminDashboardWrapperObservationService adminDashboardWrapperObservationService;
+    @MockitoBean
+    private AdminNotificationBacklogService adminNotificationBacklogService;
     @MockitoBean
     private AdminPolicyErrorReportService adminPolicyErrorReportService;
     @MockitoBean
@@ -3120,6 +3124,40 @@ class AdminSecurityWebMvcTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("C001"));
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 stale notification backlog hide API를 호출할 수 있다")
+    void adminEndpointAllowsStaleNotificationHide() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(adminNotificationBacklogService.hideStaleAlerts(org.mockito.ArgumentMatchers.any()))
+                .willReturn(new AdminNotificationStaleHideResponse(
+                        5,
+                        "DEADLINE_REMINDER",
+                        "북마크한 정책 마감이 임박했어요",
+                        "/policies/2622",
+                        14
+                ));
+
+        mockMvc.perform(post("/api/admin/dashboard/notification-backlog/hide-stale")
+                        .header("Authorization", "Bearer admin-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "kind": "DEADLINE_REMINDER",
+                                  "title": "북마크한 정책 마감이 임박했어요",
+                                  "deeplinkUrl": "/policies/2622",
+                                  "olderThanDays": 14
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.hiddenCount").value(5))
+                .andExpect(jsonPath("$.data.kind").value("DEADLINE_REMINDER"))
+                .andExpect(jsonPath("$.data.deeplinkUrl").value("/policies/2622"));
     }
 
     private void mockAuthenticatedToken(String token,

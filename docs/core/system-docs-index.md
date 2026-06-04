@@ -30,6 +30,10 @@ cross-cutting 문서가 흩어져 있어도
 - [openai-runtime-contract.md](./openai-runtime-contract.md)
 - [notification-channel-expansion-plan.md](./notification-channel-expansion-plan.md)
 - [notification-channel-expansion-checklist.md](./notification-channel-expansion-checklist.md)
+- [notification-backlog-audit-runbook.md](./notification-backlog-audit-runbook.md)
+- [notification-backlog-sample-audit-runbook.md](./notification-backlog-sample-audit-runbook.md)
+- [notification-stale-target-audit-runbook.md](./notification-stale-target-audit-runbook.md)
+  - stale unread cluster는 `hide-stale` admin maintenance 경로와 같이 읽는다.
 
 ## 문서 역할
 
@@ -108,8 +112,11 @@ cross-cutting 문서가 흩어져 있어도
 1. [chatbot-plan.md](./chatbot-plan.md)
 2. [openai-runtime-contract.md](./openai-runtime-contract.md)
 3. [notification-channel-expansion-plan.md](./notification-channel-expansion-plan.md)
-4. [notification-channel-expansion-checklist.md](./notification-channel-expansion-checklist.md)
-5. 필요하면 [phase-plan.md](../phase-plan.md)
+4. [notification-backlog-audit-runbook.md](./notification-backlog-audit-runbook.md)
+5. [notification-backlog-sample-audit-runbook.md](./notification-backlog-sample-audit-runbook.md)
+6. [notification-stale-target-audit-runbook.md](./notification-stale-target-audit-runbook.md)
+7. [notification-channel-expansion-checklist.md](./notification-channel-expansion-checklist.md)
+8. 필요하면 [phase-plan.md](../phase-plan.md)
 
 ## 요약
 
@@ -117,4 +124,5 @@ cross-cutting 문서가 흩어져 있어도
 2. DB/schema 판단은 [db-migration.md](./db-migration.md) 과 [user-data-separation-design.md](./user-data-separation-design.md) 를 봅니다.
 3. 챗봇과 OpenAI 경계는 [chatbot-plan.md](./chatbot-plan.md), [openai-runtime-contract.md](./openai-runtime-contract.md) 를 같이 봅니다.
 4. 알림 채널 확장은 [notification-channel-expansion-plan.md](./notification-channel-expansion-plan.md) 부터 봅니다.
-5. 실제 작업 범위는 [notification-channel-expansion-checklist.md](./notification-channel-expansion-checklist.md) 로 고정합니다.
+5. backlog 운영 triage는 [notification-backlog-audit-runbook.md](./notification-backlog-audit-runbook.md) 를 봅니다.
+6. 실제 작업 범위는 [notification-channel-expansion-checklist.md](./notification-channel-expansion-checklist.md) 로 고정합니다.

@@ -66,6 +66,18 @@
     - 안 읽은 알림 수
     - 재시도 대기 failed notification 수
     - 종결 failed notification 수
+- notification backlog 세부 triage는 `bash deploy/smoke/run-local-notification-backlog-audit.sh` 로 다시 읽습니다.
+  - unread를 `digest`, `deadline`, `system`, 장기 미열람으로 나눠 봅니다.
+  - failed는 `retry due`, `retry scheduled later`, `terminal` 로 나눠 봅니다.
+  - 운영 기준은 [core/notification-backlog-audit-runbook.md](./core/notification-backlog-audit-runbook.md) 를 봅니다.
+- sample title triage는 `bash deploy/smoke/run-local-notification-backlog-sample-audit.sh` 로 다시 읽습니다.
+  - stale unread가 실제로 어떤 제목/종류에 몰리는지 `digest/deadline/system` 기준으로 봅니다.
+  - 운영 기준은 [core/notification-backlog-sample-audit-runbook.md](./core/notification-backlog-sample-audit-runbook.md) 를 봅니다.
+- target cluster triage는 `bash deploy/smoke/run-local-notification-stale-target-audit.sh` 로 다시 읽습니다.
+  - `2주 이상 unread` 가 특정 정책/링크 target에 몰리는지 확인합니다.
+  - 운영 기준은 [core/notification-stale-target-audit-runbook.md](./core/notification-stale-target-audit-runbook.md) 를 봅니다.
+  - 첫 local triage target이었던 `/policies/2622` stale deadline reminder cluster (`5 users / 5 rows`) 는 `hide-stale` 경로로 정리됐습니다.
+  - 현재 latest 기준은 `stale_14d_total=0`, `decision_class=NO_STALE_TARGETS` 이고, 남은 unread backlog는 `unread_total=4`, `stale_unread_7d=2` 수준의 deadline tail 입니다.
 
 ## 작업 전 기본 검증 기준
 
