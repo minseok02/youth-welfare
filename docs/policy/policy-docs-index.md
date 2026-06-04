@@ -36,6 +36,9 @@
 - [policy-admin-runtime-runbook.md](./policy-admin-runtime-runbook.md)
 - [policy-quality-summary-runbook.md](./policy-quality-summary-runbook.md)
 - [policy-data-quality-audit-runbook.md](./policy-data-quality-audit-runbook.md)
+- [policy-link-quality-audit-runbook.md](./policy-link-quality-audit-runbook.md)
+- [policy-application-period-quality-audit-runbook.md](./policy-application-period-quality-audit-runbook.md)
+- [policy-host-org-quality-audit-runbook.md](./policy-host-org-quality-audit-runbook.md)
 - [policy-post-local-closeout-track-split.md](./policy-post-local-closeout-track-split.md)
 
 현재 practical runtime wrapper:
@@ -124,11 +127,14 @@
 13. retrieval/category 상태를 daily operator 관점으로 compact하게 다시 읽고 싶을 때는 먼저 `bash deploy/smoke/run-local-policy-quality-observation-suite.sh` 를 쓰고, stable artifact `tmp/policy-quality-observation/latest-policy-quality-observation-summary.txt`, `latest-policy-quality-observation-note.md`, `latest-policy-quality-observation.json` 을 먼저 봅니다.
 14. retrieval/category raw baseline 숫자와 category 분포까지 같이 기록하려면 [policy-quality-summary-runbook.md](./policy-quality-summary-runbook.md) 을 먼저 보고, `dataset_key / scenario_count / gate / category summary` 를 같이 남깁니다. 이 문서가 current one-shot summary smoke runbook 입니다.
 15. 지역 외 정책 데이터 품질 축을 다시 볼 때는 [policy-data-quality-audit-runbook.md](./policy-data-quality-audit-runbook.md) 을 먼저 보고, source contract 성격의 필드 누락과 실제 duplicate review queue를 분리해서 읽습니다.
-16. duplicate review를 실제 운영 queue로 다시 볼 때는 [policy-duplicate-review-runbook.md](./policy-duplicate-review-runbook.md) 를 먼저 보고, `YOUTH/BOKJIRO_LOCAL` title+host 묶음과 review 상태를 확인합니다.
-17. 신규 API를 어떻게 꽂을지 큰 구조는 [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md)를 먼저 봅니다.
-18. 실제로 새 source를 받을 때는 [policy-source-onboarding-checklist.md](./policy-source-onboarding-checklist.md) 순서대로 판단합니다.
-19. 실제 코드에서 어디를 열지 찾으려면 [policy-source-code-entrypoints.md](./policy-source-code-entrypoints.md)를 봅니다.
-20. 실제 새 source note를 만들 때는 [policy-source-onboarding-template.md](./policy-source-onboarding-template.md)를 복사해서 씁니다.
-21. `phase-plan.md` 나 개별 `policy-*` history 문서는 현재 계약이 아니라 설계/전환 이력일 수 있으므로, 실행 판단은 위 current-state/runbook 문서를 먼저 봅니다.
-22. 실행 결과를 남길 때는 숫자 요약만 적지 말고 wrapper/command, query override, `data.*` 핵심 필드, baseline과 달라진 점까지 같이 적습니다.
-23. `policy-*` 파일 수가 많은 이유는 문서가 과한 것보다, local-first로 잘게 검증한 흔적이 누적된 결과에 가깝습니다.
+16. 링크 품질은 [policy-link-quality-audit-runbook.md](./policy-link-quality-audit-runbook.md) 으로 다시 보고, `detail_url + reference_urls_json` 이 모두 비는 row가 어느 source에 몰리는지 먼저 확인합니다.
+17. 신청기간 품질은 [policy-application-period-quality-audit-runbook.md](./policy-application-period-quality-audit-runbook.md) 으로 다시 보고, source contract 누락보다 `ACTIVE/UPCOMING + 과거 마감일` 같은 status/date mismatch를 먼저 봅니다.
+18. 기관명 품질은 [policy-host-org-quality-audit-runbook.md](./policy-host-org-quality-audit-runbook.md) 으로 다시 보고, `BOKJIRO_LOCAL` 의 `host_org` 공백은 parser bug보다 source contract 성격으로 읽습니다.
+19. duplicate review를 실제 운영 queue로 다시 볼 때는 [policy-duplicate-review-runbook.md](./policy-duplicate-review-runbook.md) 를 먼저 보고, `YOUTH/BOKJIRO_LOCAL` title+host 묶음과 review 상태를 확인합니다.
+20. 신규 API를 어떻게 꽂을지 큰 구조는 [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md)를 먼저 봅니다.
+21. 실제로 새 source를 받을 때는 [policy-source-onboarding-checklist.md](./policy-source-onboarding-checklist.md) 순서대로 판단합니다.
+22. 실제 코드에서 어디를 열지 찾으려면 [policy-source-code-entrypoints.md](./policy-source-code-entrypoints.md)를 봅니다.
+23. 실제 새 source note를 만들 때는 [policy-source-onboarding-template.md](./policy-source-onboarding-template.md)를 복사해서 씁니다.
+24. `phase-plan.md` 나 개별 `policy-*` history 문서는 현재 계약이 아니라 설계/전환 이력일 수 있으므로, 실행 판단은 위 current-state/runbook 문서를 먼저 봅니다.
+25. 실행 결과를 남길 때는 숫자 요약만 적지 말고 wrapper/command, query override, `data.*` 핵심 필드, baseline과 달라진 점까지 같이 적습니다.
+26. `policy-*` 파일 수가 많은 이유는 문서가 과한 것보다, local-first로 잘게 검증한 흔적이 누적된 결과에 가깝습니다.

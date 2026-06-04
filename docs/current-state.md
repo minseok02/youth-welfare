@@ -144,6 +144,12 @@
 - keyword/region scenario audit: `APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-policy-search-scenario-audit.sh`
   - `월세/청약/면접비/자격증` 실검색어와 `서울특별시` region filter 샘플을 다시 읽는다.
   - 현재 최신 기준은 `missing_provider_count=0`, `missing_status_count=0`, `missing_region_for_local_count=0`, `region_filter_mismatch_count=0`, `decision_class=BASELINE_HEALTHY` 이다.
+- policy link quality audit: `bash deploy/smoke/run-local-policy-link-quality-audit.sh`
+  - 현재 최신 기준은 `missing_any_link_youth=558`, 나머지 source `0`, `decision_class=LINK_REVIEW_PRIORITY` 이다.
+- policy application period quality audit: `bash deploy/smoke/run-local-policy-application-period-quality-audit.sh`
+  - 현재 최신 기준은 `active_past_end_youth=215`, `active_past_end_gov24=5`, `closed_future_end_total=4`, `decision_class=STATUS_DATE_REVIEW_PRIORITY` 이다.
+- policy host/org quality audit: `bash deploy/smoke/run-local-policy-host-org-quality-audit.sh`
+  - 현재 최신 기준은 `missing_host_bokjiro_local=1224`, `missing_operating_youth=1507`, `placeholder_host_total=0`, `decision_class=SOURCE_CONTRACT_DOMINANT` 이다.
 
 ## 작업 전/후 읽는 법
 
