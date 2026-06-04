@@ -36,6 +36,7 @@ class StatusUpdateServiceTest {
     void updateStatusesDeletesExpiredClusterAiCache() {
         given(statusUpdateReadRepository.findActiveServices()).willReturn(List.of());
         given(statusUpdateReadRepository.findUpcomingServices()).willReturn(List.of());
+        given(statusUpdateReadRepository.findClosedServices()).willReturn(List.of());
 
         statusUpdateService.updateStatuses();
 
@@ -59,15 +60,43 @@ class StatusUpdateServiceTest {
                 .status(WelfareService.ServiceStatus.UPCOMING)
                 .applyStartDate(LocalDate.now())
                 .build();
+        WelfareService reopenUpcoming = WelfareService.builder()
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("reopen-upcoming")
+                .title("reopen-upcoming")
+                .status(WelfareService.ServiceStatus.CLOSED)
+                .applyEndDate(LocalDate.now().plusDays(5))
+                .startDate(LocalDate.now().plusDays(3))
+                .build();
+        WelfareService reopenActive = WelfareService.builder()
+                .sourceType(WelfareService.SourceType.GOV24)
+                .sourceId("reopen-active")
+                .title("reopen-active")
+                .status(WelfareService.ServiceStatus.CLOSED)
+                .applyEndDate(LocalDate.now().plusDays(7))
+                .build();
+        WelfareService keepClosed = WelfareService.builder()
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("keep-closed")
+                .title("keep-closed")
+                .status(WelfareService.ServiceStatus.CLOSED)
+                .applyEndDate(LocalDate.now().plusDays(30))
+                .endDate(LocalDate.now().minusDays(1))
+                .build();
         given(statusUpdateReadRepository.findActiveServices()).willReturn(List.of(expiredActive));
         given(statusUpdateReadRepository.findUpcomingServices()).willReturn(List.of(upcomingNowActive));
+        given(statusUpdateReadRepository.findClosedServices()).willReturn(List.of(reopenUpcoming, reopenActive, keepClosed));
 
         StatusUpdateService.StatusSyncResult result = statusUpdateService.runStatusSync();
 
         assertThat(expiredActive.getStatus()).isEqualTo(WelfareService.ServiceStatus.CLOSED);
         assertThat(upcomingNowActive.getStatus()).isEqualTo(WelfareService.ServiceStatus.ACTIVE);
+        assertThat(reopenUpcoming.getStatus()).isEqualTo(WelfareService.ServiceStatus.UPCOMING);
+        assertThat(reopenActive.getStatus()).isEqualTo(WelfareService.ServiceStatus.ACTIVE);
+        assertThat(keepClosed.getStatus()).isEqualTo(WelfareService.ServiceStatus.CLOSED);
         assertThat(result.closedCount()).isEqualTo(1);
         assertThat(result.activatedCount()).isEqualTo(1);
+        assertThat(result.reopenedCount()).isEqualTo(2);
         assertThat(result.clusterAiCacheCleanupExecuted()).isTrue();
         then(clusterAiResultCommandRepository).should().deleteExpiredBefore(any(LocalDateTime.class));
     }

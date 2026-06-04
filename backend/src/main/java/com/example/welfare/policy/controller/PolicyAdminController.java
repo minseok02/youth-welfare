@@ -98,9 +98,10 @@ public class PolicyAdminController {
     @PostMapping("/status-sync")
     public ResponseEntity<ApiResponse<PolicyStatusSyncResponse>> syncPolicyStatuses() {
         StatusUpdateService.StatusSyncResult result = statusUpdateService.runStatusSync();
-        log.info("[Admin] 정책 상태 sync 트리거 closedCount={} activatedCount={} cacheCleanup={}",
+        log.info("[Admin] 정책 상태 sync 트리거 closedCount={} activatedCount={} reopenedCount={} cacheCleanup={}",
                 result.closedCount(),
                 result.activatedCount(),
+                result.reopenedCount(),
                 result.clusterAiCacheCleanupExecuted());
         return ResponseEntity.ok(ApiResponse.success(PolicyStatusSyncResponse.from(result)));
     }

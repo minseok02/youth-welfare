@@ -147,11 +147,13 @@
 - policy link quality audit: `bash deploy/smoke/run-local-policy-link-quality-audit.sh`
   - 현재 최신 기준은 `missing_any_link_youth=558`, 나머지 source `0`, `decision_class=LINK_REVIEW_PRIORITY` 이다.
 - policy application period quality audit: `bash deploy/smoke/run-local-policy-application-period-quality-audit.sh`
-  - 현재 최신 기준은 `active_past_end_youth=215`, `active_past_end_gov24=5`, `closed_future_end_total=4`, `decision_class=STATUS_DATE_REVIEW_PRIORITY` 이다.
+  - 현재 최신 기준은 `active_past_end_youth=208`, `active_past_end_gov24=0`, `active_past_end_youth_future_end_tail=208`, `active_past_end_youth_true_review=0`, `closed_future_end_total=2` 이다.
+  - 즉 남은 `YOUTH` 잔량은 대부분 `end_date` 가 아직 미래인 source tail 이고, 사용자-facing `ACTIVE_ONLY` 경계에서는 이미 숨겨진다.
 - policy host/org quality audit: `bash deploy/smoke/run-local-policy-host-org-quality-audit.sh`
   - 현재 최신 기준은 `missing_host_bokjiro_local=1224`, `missing_operating_youth=1507`, `placeholder_host_total=0`, `decision_class=SOURCE_CONTRACT_DOMINANT` 이다.
 - policy status sync smoke: `bash deploy/smoke/run-local-policy-status-sync-smoke.sh`
   - `POST /api/admin/policies/status-sync` 를 수동 실행해 stale status/date mismatch를 실제로 줄이는 운영 경로다.
+  - 현재는 `reopened_count=2` 까지 확인됐고, 남은 `closed_future_end` 는 `end_date` 가 이미 지난 `YOUTH` 2건 수준이다.
 
 ## 작업 전/후 읽는 법
 

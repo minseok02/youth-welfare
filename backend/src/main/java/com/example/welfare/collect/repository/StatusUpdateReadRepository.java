@@ -9,4 +9,6 @@ public interface StatusUpdateReadRepository {
     List<WelfareService> findActiveServices();
 
     List<WelfareService> findUpcomingServices();
+
+    List<WelfareService> findClosedServices();
 }

@@ -38,6 +38,7 @@ public class StatusUpdateService {
         LocalDate today = LocalDate.now();
         int closedCount = 0;
         int activatedCount = 0;
+        int reopenedCount = 0;
 
         // ACTIVE → CLOSED: endDate 또는 applyEndDate가 어제 이전
         List<WelfareService> actives = statusUpdateReadRepository.findActiveServices();
@@ -57,12 +58,22 @@ public class StatusUpdateService {
             }
         }
 
-        log.info("[StatusUpdateService] 완료 — CLOSED: {}건, ACTIVE 전환: {}건", closedCount, activatedCount);
+        // CLOSED → ACTIVE/UPCOMING: 미래 applyEndDate 가 남아 있고 사업 종료일이 아직 지나지 않은 경우
+        List<WelfareService> closeds = statusUpdateReadRepository.findClosedServices();
+        for (WelfareService ws : closeds) {
+            WelfareService.ServiceStatus reopenStatus = resolveReopenStatus(ws, today);
+            if (reopenStatus != null) {
+                ws.updateStatus(reopenStatus);
+                reopenedCount++;
+            }
+        }
+
+        log.info("[StatusUpdateService] 완료 — CLOSED: {}건, ACTIVE 전환: {}건, 재오픈: {}건", closedCount, activatedCount, reopenedCount);
 
         // 군집 AI 캐시 TTL 정리 — 25시간 이상된 캐시 삭제 (매일 수집 주기에 맞춤)
         clusterAiResultCommandRepository.deleteExpiredBefore(LocalDateTime.now().minusHours(25));
         log.info("[StatusUpdateService] 군집 AI 캐시 만료 항목 정리 완료");
-        return new StatusSyncResult(closedCount, activatedCount, true);
+        return new StatusSyncResult(closedCount, activatedCount, reopenedCount, true);
     }
 
     private boolean isClosed(WelfareService ws, LocalDate today) {
@@ -89,9 +100,30 @@ public class StatusUpdateService {
         return false;
     }
 
+    private WelfareService.ServiceStatus resolveReopenStatus(WelfareService ws, LocalDate today) {
+        if (ws.getApplyEndDate() == null || ws.getApplyEndDate().isBefore(today)) {
+            return null;
+        }
+        if (ws.getEndDate() != null && ws.getEndDate().isBefore(today)) {
+            return null;
+        }
+        if (ws.getStartDate() != null) {
+            return ws.getStartDate().isAfter(today)
+                    ? WelfareService.ServiceStatus.UPCOMING
+                    : WelfareService.ServiceStatus.ACTIVE;
+        }
+        if (ws.getApplyStartDate() != null) {
+            return ws.getApplyStartDate().isAfter(today)
+                    ? WelfareService.ServiceStatus.UPCOMING
+                    : WelfareService.ServiceStatus.ACTIVE;
+        }
+        return WelfareService.ServiceStatus.ACTIVE;
+    }
+
     public record StatusSyncResult(
             int closedCount,
             int activatedCount,
+            int reopenedCount,
             boolean clusterAiCacheCleanupExecuted
     ) {
     }

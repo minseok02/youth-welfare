@@ -32,6 +32,9 @@ bash deploy/smoke/run-local-policy-application-period-quality-audit.sh
 - `invalid_range_total`
 - `active_past_end_youth`
 - `active_past_end_gov24`
+- `active_past_end_youth_future_end_tail`
+- `active_past_end_youth_true_review`
+- `active_past_end_gov24_true_review`
 - `closed_future_end_total`
 - `decision_class`
 
@@ -39,6 +42,10 @@ bash deploy/smoke/run-local-policy-application-period-quality-audit.sh
 
 - `STATUS_DATE_REVIEW_PRIORITY`
   - 단순 누락보다 status/date 불일치가 더 actionable 합니다.
-  - 특히 `ACTIVE/UPCOMING` + 과거 `apply_end_date` row를 먼저 review 합니다.
+  - `active_past_end_*_true_review > 0` 이면 `ACTIVE/UPCOMING` + 과거 `apply_end_date` row를 먼저 review 합니다.
+  - 이 값이 `0` 이고 `closed_future_end_total > 0` 이면, 실제 남은 조치 대상은 `CLOSED + 미래 apply_end_date` 입니다.
+- `EXPECTED_WINDOW_CLOSED_TAIL`
+  - `ACTIVE/UPCOMING + 과거 apply_end_date` 가 남아 보여도, `end_date` 가 아직 미래인 source tail 입니다.
+  - 현재 사용자-facing `ACTIVE_ONLY` 검색/목록에서는 이미 숨겨지므로 broad 장애로 보기보다 bounded source 해석 이슈로 읽는 편이 맞습니다.
 - `SOURCE_CONTRACT_DOMINANT`
   - broad 문제보다 source contract 누락이 주된 상태입니다.

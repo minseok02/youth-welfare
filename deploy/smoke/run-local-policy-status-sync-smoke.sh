@@ -25,6 +25,7 @@ smoke_require_command python3
 
 before_active_past_end_youth="$(smoke_db_query "select count(*) from welfare_services where source_type = 'YOUTH' and status in ('ACTIVE','UPCOMING') and apply_end_date is not null and apply_end_date < current_date;")"
 before_active_past_end_gov24="$(smoke_db_query "select count(*) from welfare_services where source_type = 'GOV24' and status in ('ACTIVE','UPCOMING') and apply_end_date is not null and apply_end_date < current_date;")"
+before_closed_future_end_total="$(smoke_db_query "select count(*) from welfare_services where status = 'CLOSED' and apply_end_date is not null and apply_end_date >= current_date;")"
 
 smoke_resolve_admin_credentials "${ROOT_DIR}"
 smoke_resolve_admin_access_token "${ROOT_DIR}"
@@ -63,22 +64,27 @@ with open(sys.argv[1], encoding='utf-8') as f:
     data = json.load(f)["data"]
 print(data["closedCount"])
 print(data["activatedCount"])
+print(data["reopenedCount"])
 print(str(data["clusterAiCacheCleanupExecuted"]).lower())
 PY
 )
 
 after_active_past_end_youth="$(smoke_db_query "select count(*) from welfare_services where source_type = 'YOUTH' and status in ('ACTIVE','UPCOMING') and apply_end_date is not null and apply_end_date < current_date;")"
 after_active_past_end_gov24="$(smoke_db_query "select count(*) from welfare_services where source_type = 'GOV24' and status in ('ACTIVE','UPCOMING') and apply_end_date is not null and apply_end_date < current_date;")"
+after_closed_future_end_total="$(smoke_db_query "select count(*) from welfare_services where status = 'CLOSED' and apply_end_date is not null and apply_end_date >= current_date;")"
 
 cat > "${SUMMARY_OUT}" <<EOF
 policy_status_sync_smoke=passed
 closed_count=${STATUS_VALUES[0]}
 activated_count=${STATUS_VALUES[1]}
-cluster_ai_cache_cleanup_executed=${STATUS_VALUES[2]}
+reopened_count=${STATUS_VALUES[2]}
+cluster_ai_cache_cleanup_executed=${STATUS_VALUES[3]}
 before_active_past_end_youth=${before_active_past_end_youth}
 after_active_past_end_youth=${after_active_past_end_youth}
 before_active_past_end_gov24=${before_active_past_end_gov24}
 after_active_past_end_gov24=${after_active_past_end_gov24}
+before_closed_future_end_total=${before_closed_future_end_total}
+after_closed_future_end_total=${after_closed_future_end_total}
 artifact_dir=${ARTIFACT_DIR}
 EOF
 

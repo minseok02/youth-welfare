@@ -19,13 +19,15 @@ POST /api/admin/policies/status-sync
 
 - `closedCount`
 - `activatedCount`
+- `reopenedCount`
 - `clusterAiCacheCleanupExecuted`
 
 이 API는 내부적으로 `StatusUpdateService` 를 즉시 실행해:
 
 1. 만료된 `ACTIVE` 정책을 `CLOSED` 로 내리고
 2. 시작된 `UPCOMING` 정책을 `ACTIVE` 로 올리고
-3. cluster AI cache TTL cleanup을 같이 실행합니다.
+3. 미래 신청기간이 남아 있는 `CLOSED` 정책을 `ACTIVE/UPCOMING` 으로 다시 열고
+4. cluster AI cache TTL cleanup을 같이 실행합니다.
 
 ## smoke
 
@@ -46,5 +48,7 @@ bash deploy/smoke/run-local-policy-status-sync-smoke.sh
   - 수동 sync가 실제로 mismatch를 줄였습니다.
 - `closedCount > 0`
   - 상태가 stale 했던 정책이 즉시 정리됐습니다.
+- `reopenedCount > 0`
+  - `CLOSED + 미래 apply_end_date` row 중 reopen 가능한 정책이 다시 노출 상태로 복구됐습니다.
 - `clusterAiCacheCleanupExecuted=true`
   - scheduled path와 같은 TTL cleanup도 함께 실행됐습니다.

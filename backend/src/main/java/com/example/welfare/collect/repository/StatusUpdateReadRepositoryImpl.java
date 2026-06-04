@@ -22,4 +22,9 @@ public class StatusUpdateReadRepositoryImpl implements StatusUpdateReadRepositor
     public List<WelfareService> findUpcomingServices() {
         return welfareServiceRepository.findByStatus(WelfareService.ServiceStatus.UPCOMING);
     }
+
+    @Override
+    public List<WelfareService> findClosedServices() {
+        return welfareServiceRepository.findByStatus(WelfareService.ServiceStatus.CLOSED);
+    }
 }

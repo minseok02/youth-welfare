@@ -238,7 +238,7 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
         given(statusUpdateService.runStatusSync())
-                .willReturn(new StatusUpdateService.StatusSyncResult(7, 2, true));
+                .willReturn(new StatusUpdateService.StatusSyncResult(7, 2, 3, true));
 
         mockMvc.perform(post("/api/admin/policies/status-sync")
                         .header("Authorization", "Bearer admin-token"))
@@ -246,6 +246,7 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.closedCount").value(7))
                 .andExpect(jsonPath("$.data.activatedCount").value(2))
+                .andExpect(jsonPath("$.data.reopenedCount").value(3))
                 .andExpect(jsonPath("$.data.clusterAiCacheCleanupExecuted").value(true));
     }
 
