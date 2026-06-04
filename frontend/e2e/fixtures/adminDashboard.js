@@ -552,6 +552,40 @@ export const adminDashboardFixtures = {
       },
     ],
   },
+  notificationStaleTargets7d: {
+    olderThanDays: 7,
+    staleRowCount: 11,
+    staleGroupCount: 4,
+    recentTargets: [
+      {
+        kind: "DEADLINE_REMINDER",
+        title: "북마크한 정책 마감이 임박했어요",
+        deeplinkUrl: "/policies/2622",
+        rowCount: 5,
+        userCount: 5,
+        oldestCreatedAt: "2026-05-16T05:55:31Z",
+        newestCreatedAt: "2026-05-17T04:13:16Z",
+      },
+      {
+        kind: "RECOMMENDATION_DIGEST",
+        title: "맞춤 정책 추천이 도착했어요",
+        deeplinkUrl: "/policies/2571",
+        rowCount: 2,
+        userCount: 2,
+        oldestCreatedAt: "2026-05-16T05:55:31Z",
+        newestCreatedAt: "2026-05-16T16:21:15Z",
+      },
+      {
+        kind: "DEADLINE_REMINDER",
+        title: "북마크한 정책 신청 마감 7일 전이에요",
+        deeplinkUrl: "/policies/2852",
+        rowCount: 2,
+        userCount: 2,
+        oldestCreatedAt: "2026-05-21T05:55:31Z",
+        newestCreatedAt: "2026-05-22T16:21:15Z",
+      },
+    ],
+  },
   officialCodebooks: [
     {
       codeSetKey: "LOCAL_HOUSING_TYPE",

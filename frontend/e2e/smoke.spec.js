@@ -205,7 +205,6 @@ async function mockAdminDashboardApis(page) {
     ["**/api/admin/dashboard/support-inquiries*", adminDashboardFixtures.supportInquiries],
     ["**/api/admin/dashboard/policy-duplicate-groups*", adminDashboardFixtures.policyDuplicateGroups],
     ["**/api/admin/dashboard/policy-link-reviews*", adminDashboardFixtures.policyLinkReviews],
-    ["**/api/admin/dashboard/notification-stale-targets*", adminDashboardFixtures.notificationStaleTargets],
   ];
 
   await Promise.all(routes.map(([url, data]) => page.route(url, (route) => route.fulfill({
@@ -213,6 +212,19 @@ async function mockAdminDashboardApis(page) {
     contentType: "application/json; charset=utf-8",
     body: JSON.stringify(buildAdminDashboardApiPayload(data)),
   }))));
+
+  await page.route("**/api/admin/dashboard/notification-stale-targets*", (route) => {
+    const url = new URL(route.request().url());
+    const olderThanDays = Number(url.searchParams.get("olderThanDays") || "14");
+    const payload = olderThanDays === 7
+      ? adminDashboardFixtures.notificationStaleTargets7d
+      : adminDashboardFixtures.notificationStaleTargets;
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify(buildAdminDashboardApiPayload(payload)),
+    });
+  });
 
   await page.route("**/api/reference/official-codes", (route) => route.fulfill({
     status: 200,
@@ -862,6 +874,12 @@ test("admin dashboard stale notification target 섹션은 오래된 unread targe
   await expect(staleTargetSection.getByText(/\/policies\/2622/)).toBeVisible();
   await expect(staleTargetSection.getByText("5건 / 5명", { exact: true })).toBeVisible();
   await expect(staleTargetSection.getByRole("button", { name: "14일 초과 숨기기" }).first()).toBeVisible();
+
+  await staleTargetSection.getByText("7일 초과", { exact: true }).click();
+  await expect(staleTargetSection.getByText("11", { exact: true }).first()).toBeVisible();
+  await expect(staleTargetSection.getByText("4", { exact: true }).first()).toBeVisible();
+  await expect(staleTargetSection.getByText("북마크한 정책 신청 마감 7일 전이에요", { exact: true })).toBeVisible();
+  await expect(staleTargetSection.getByRole("button", { name: "7일 초과 숨기기" }).first()).toBeVisible();
 });
 
 test("admin dashboard 표준코드 추천 효과 섹션은 matrix 결과를 보여준다 @admin-required", async ({ page }) => {

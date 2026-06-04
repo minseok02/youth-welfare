@@ -92,6 +92,8 @@ const POLICY_LINK_REVIEW_BUCKET_LABELS = {
   other: "기타",
 };
 
+const NOTIFICATION_STALE_DAY_OPTIONS = [7, 14];
+
 const REVIEW_GATE_TONE = {
   DEFERRED_EMPTY_COHORT: { label: "추천 데이터 없음", bg: WARNING_BG, border: WARNING_BORDER, color: WARNING_TEXT },
   DEFERRED_NO_REAL_USER_TRAFFIC: { label: "실사용자 이용 데이터 없음", bg: WARNING_BG, border: WARNING_BORDER, color: WARNING_TEXT },
@@ -971,7 +973,7 @@ export default function AdminDashboardPage() {
   const [supportInquiryStatusFilter, setSupportInquiryStatusFilter] = useState("OPEN");
   const [policyDuplicateStatusFilter, setPolicyDuplicateStatusFilter] = useState("OPEN");
   const [policyLinkStatusFilter, setPolicyLinkStatusFilter] = useState("OPEN");
-  const [notificationStaleDays] = useState(14);
+  const [notificationStaleDays, setNotificationStaleDays] = useState(14);
   const [reviewSubmittingKey, setReviewSubmittingKey] = useState(null);
   const queryBaseOptions = {
     staleTime: 30_000,
@@ -3017,10 +3019,31 @@ export default function AdminDashboardPage() {
                           </Typography>
                         </Box>
 
+                        <Stack direction="row" spacing={1} flexWrap="wrap">
+                          {NOTIFICATION_STALE_DAY_OPTIONS.map((days) => {
+                            const active = notificationStaleDays === days;
+                            return (
+                              <Chip
+                                key={days}
+                                label={`${days}일 초과`}
+                                clickable
+                                onClick={() => setNotificationStaleDays(days)}
+                                variant={active ? "filled" : "outlined"}
+                                sx={{
+                                  fontWeight: 700,
+                                  bgcolor: active ? INFO_BG : "#fff",
+                                  color: active ? INFO_TEXT : INK2,
+                                  border: `1px solid ${active ? INFO_BORDER : PANEL_LINE}`,
+                                }}
+                              />
+                            );
+                          })}
+                        </Stack>
+
                         {notificationStaleTargetsQuery.isLoading && (
                           <SectionLoadingCard
                             title="stale notification target 로딩 중"
-                            description="2주 이상 unread target cluster를 읽는 중입니다."
+                            description={`${formatNumber(notificationStaleDays)}일 이상 unread target cluster를 읽는 중입니다.`}
                           />
                         )}
 
