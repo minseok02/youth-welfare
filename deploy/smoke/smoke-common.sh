@@ -274,6 +274,7 @@ smoke_resolve_admin_access_token() {
   local root_dir="$1"
   local env_file
   local admin_access_token_file="${ADMIN_ACCESS_TOKEN_FILE:-/tmp/youth-welfare-admin-smoke-access-token}"
+  local allow_admin_jwt_mint
   local jwt_secret
   local access_expiration_ms
   local admin_lookup_hash
@@ -287,6 +288,11 @@ smoke_resolve_admin_access_token() {
   fi
 
   if [[ -n "${ADMIN_ACCESS_TOKEN:-}" ]]; then
+    return 0
+  fi
+
+  allow_admin_jwt_mint="$(smoke_normalize_bool "${ALLOW_ADMIN_JWT_MINT:-false}")"
+  if [[ "${allow_admin_jwt_mint}" != "true" ]]; then
     return 0
   fi
 
@@ -341,6 +347,73 @@ smoke_resolve_admin_access_token() {
 
   export ADMIN_ACCESS_TOKEN
   ADMIN_ACCESS_TOKEN="$(smoke_mint_access_token "${jwt_secret}" "${user_key}" "${user_id}" "ROLE_USER,ROLE_ADMIN" "${access_expiration_ms}")"
+}
+
+smoke_login_admin_access_token() {
+  local root_dir="$1"
+  local app_base_url="$2"
+  local login_dir
+  local login_body
+  local login_response
+  local login_status
+  local roles_csv
+
+  smoke_resolve_admin_credentials "${root_dir}"
+  smoke_resolve_admin_access_token "${root_dir}"
+
+  if [[ -n "${ADMIN_ACCESS_TOKEN:-}" ]]; then
+    return 0
+  fi
+
+  : "${ADMIN_EMAIL:?ADMIN_EMAIL is empty; export ADMIN_EMAIL or set SECURITY_ADMIN_EMAILS/.env or /tmp/youth-welfare-admin-smoke-email}"
+  : "${ADMIN_PASSWORD:?ADMIN_PASSWORD is empty; export ADMIN_PASSWORD or set /tmp/youth-welfare-admin-smoke-password}"
+
+  smoke_require_command python3
+
+  login_dir="$(mktemp -d)"
+  login_body="${login_dir}/admin-login-body.json"
+  login_response="${login_dir}/admin-login-response.json"
+
+  python3 - "${ADMIN_EMAIL}" "${ADMIN_PASSWORD}" "${login_body}" <<'PY'
+import json
+import sys
+
+email, password, output_path = sys.argv[1:4]
+with open(output_path, "w", encoding="utf-8") as fp:
+    json.dump({"email": email, "password": password}, fp, ensure_ascii=False)
+PY
+
+  login_status="$(
+    smoke_http_status POST "${app_base_url}/api/auth/login" "${login_response}" \
+      -H "Content-Type: application/json" \
+      --data-binary "@${login_body}"
+  )"
+  if [[ "${login_status}" != "200" ]]; then
+    echo "admin smoke login failed: expected 200, got ${login_status}" >&2
+    cat "${login_response}" >&2
+    rm -rf "${login_dir}"
+    return 1
+  fi
+
+  ADMIN_ACCESS_TOKEN="$(
+    python3 - "${login_response}" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as fp:
+    print(json.load(fp)["data"]["accessToken"])
+PY
+  )"
+  export ADMIN_ACCESS_TOKEN
+
+  roles_csv="$(smoke_extract_jwt_roles_from_token "${ADMIN_ACCESS_TOKEN}")"
+  if [[ ",${roles_csv}," != *",ROLE_ADMIN,"* ]]; then
+    echo "admin smoke login succeeded but ROLE_ADMIN is missing for ${ADMIN_EMAIL}" >&2
+    rm -rf "${login_dir}"
+    return 1
+  fi
+
+  rm -rf "${login_dir}"
 }
 
 smoke_require_command() {

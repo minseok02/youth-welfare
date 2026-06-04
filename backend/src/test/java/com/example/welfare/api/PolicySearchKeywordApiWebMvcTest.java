@@ -4,6 +4,7 @@ import com.example.welfare.global.web.ClientFingerprintService;
 import com.example.welfare.policy.controller.PolicyController;
 import com.example.welfare.policy.service.PolicyBookmarkCommandService;
 import com.example.welfare.policy.service.PolicyDetailService;
+import com.example.welfare.policy.service.PolicyErrorReportCommandService;
 import com.example.welfare.policy.service.PolicyListService;
 import com.example.welfare.policy.service.PolicyRankingService;
 import com.example.welfare.policy.service.PolicySearchKeywordReadService;
@@ -42,6 +43,8 @@ class PolicySearchKeywordApiWebMvcTest {
     private PolicyListService policyListService;
     @MockitoBean
     private PolicyDetailService policyDetailService;
+    @MockitoBean
+    private PolicyErrorReportCommandService policyErrorReportCommandService;
     @MockitoBean
     private PolicyBookmarkCommandService policyBookmarkCommandService;
     @MockitoBean

@@ -12,11 +12,12 @@ DB_CONTAINER_NAME="${DB_CONTAINER_NAME:-youth-welfare-db}"
 DB_NAME="${DB_NAME:-youth_welfare}"
 
 smoke_resolve_admin_credentials "${ROOT_DIR}"
+smoke_resolve_admin_access_token "${ROOT_DIR}"
 if [[ -z "${ADMIN_EMAIL:-}" ]]; then
   echo "ADMIN_EMAIL is empty; set ADMIN_EMAIL, SECURITY_ADMIN_EMAILS in ${ENV_FILE:-${ROOT_DIR}/.env}, or /tmp/youth-welfare-admin-smoke-email" >&2
   exit 1
 fi
-if [[ -z "${ADMIN_PASSWORD:-}" ]]; then
+if [[ -z "${ADMIN_ACCESS_TOKEN:-}" && -z "${ADMIN_PASSWORD:-}" ]]; then
   echo "ADMIN_PASSWORD is empty; set ADMIN_PASSWORD, ADMIN_PASSWORD in ${ENV_FILE:-${ROOT_DIR}/.env}, or /tmp/youth-welfare-admin-smoke-password" >&2
   exit 1
 fi
@@ -31,8 +32,13 @@ SMOKE_INCOME_LEVEL="${SMOKE_INCOME_LEVEL:-5}"
 SMOKE_EMPLOYMENT_STATUS="${SMOKE_EMPLOYMENT_STATUS:-미취업}"
 SMOKE_HOUSEHOLD_TYPE="${SMOKE_HOUSEHOLD_TYPE:-1인 가구}"
 
-DB_QUERY_USERNAME="${DB_QUERY_USERNAME:-migration_admin}"
-DB_QUERY_PASSWORD="${DB_QUERY_PASSWORD:-welfare1234!}"
+ENV_FILE_RESOLVED="$(smoke_resolve_env_file "${ENV_FILE:-${ROOT_DIR}/.env}" "${ROOT_DIR}")"
+DB_QUERY_USERNAME="${DB_QUERY_USERNAME:-$(smoke_load_env_value "${ENV_FILE_RESOLVED}" DB_QUERY_USERNAME)}"
+DB_QUERY_USERNAME="${DB_QUERY_USERNAME:-$(smoke_load_env_value "${ENV_FILE_RESOLVED}" DB_MIGRATION_USERNAME)}"
+DB_QUERY_USERNAME="${DB_QUERY_USERNAME:-$(smoke_load_env_value "${ENV_FILE_RESOLVED}" DB_USERNAME migration_admin)}"
+DB_QUERY_PASSWORD="${DB_QUERY_PASSWORD:-$(smoke_load_env_value "${ENV_FILE_RESOLVED}" DB_QUERY_PASSWORD)}"
+DB_QUERY_PASSWORD="${DB_QUERY_PASSWORD:-$(smoke_load_env_value "${ENV_FILE_RESOLVED}" DB_MIGRATION_PASSWORD)}"
+DB_QUERY_PASSWORD="${DB_QUERY_PASSWORD:-$(smoke_load_env_value "${ENV_FILE_RESOLVED}" DB_PASSWORD welfare1234!)}"
 HEALTH_RETRY_COUNT="${HEALTH_RETRY_COUNT:-15}"
 HEALTH_RETRY_DELAY_SECONDS="${HEALTH_RETRY_DELAY_SECONDS:-1}"
 
@@ -156,21 +162,26 @@ if [[ -z "${USER_KEY}" ]]; then
   exit 1
 fi
 
-smoke_print_step "ensure admin account"
-smoke_ensure_admin_account "${APP_BASE_URL}" "${ADMIN_EMAIL}" "${ADMIN_PASSWORD}"
+if [[ -n "${ADMIN_ACCESS_TOKEN:-}" ]]; then
+  smoke_print_step "admin access token reuse (${ADMIN_EMAIL})"
+  ADMIN_TOKEN="${ADMIN_ACCESS_TOKEN}"
+else
+  smoke_print_step "ensure admin account"
+  smoke_ensure_admin_account "${APP_BASE_URL}" "${ADMIN_EMAIL}" "${ADMIN_PASSWORD}"
 
-smoke_print_step "admin login (${ADMIN_EMAIL})"
-ADMIN_LOGIN_STATUS="$(
-  smoke_http_status POST "${APP_BASE_URL}/api/auth/login" "${ADMIN_LOGIN_RESPONSE}" \
-    -c "${ADMIN_COOKIE_JAR}" \
-    -H 'Content-Type: application/json' \
-    -d "{
-      \"email\": \"${ADMIN_EMAIL}\",
-      \"password\": \"${ADMIN_PASSWORD}\"
-    }"
-)"
-smoke_assert_status 200 "${ADMIN_LOGIN_STATUS}" "admin login" "${ADMIN_LOGIN_RESPONSE}"
-ADMIN_TOKEN="$(extract_access_token "${ADMIN_LOGIN_RESPONSE}")"
+  smoke_print_step "admin login (${ADMIN_EMAIL})"
+  ADMIN_LOGIN_STATUS="$(
+    smoke_http_status POST "${APP_BASE_URL}/api/auth/login" "${ADMIN_LOGIN_RESPONSE}" \
+      -c "${ADMIN_COOKIE_JAR}" \
+      -H 'Content-Type: application/json' \
+      -d "{
+        \"email\": \"${ADMIN_EMAIL}\",
+        \"password\": \"${ADMIN_PASSWORD}\"
+      }"
+  )"
+  smoke_assert_status 200 "${ADMIN_LOGIN_STATUS}" "admin login" "${ADMIN_LOGIN_RESPONSE}"
+  ADMIN_TOKEN="$(extract_access_token "${ADMIN_LOGIN_RESPONSE}")"
+fi
 
 smoke_print_step "forced logout userKey=${USER_KEY}"
 FORCED_LOGOUT_STATUS="$(

@@ -890,7 +890,7 @@ function GuidePromptBanner({ source, navigate, onDismiss }) {
             padding: "12px 14px",
             borderRadius: 12,
             border: `1px solid ${LINE}`,
-            background: WHITE,
+            background: "white",
             color: INK2,
             fontSize: 14,
             fontWeight: 700,

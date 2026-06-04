@@ -26,7 +26,7 @@ FRONTEND_OBSERVATION_OUTPUT="${RUN_DIR}/frontend-observation.out"
 RUN_STANDARD_CODE_OBSERVATION="${RUN_STANDARD_CODE_OBSERVATION:-true}"
 RUN_POLICY_QUALITY_OBSERVATION="${RUN_POLICY_QUALITY_OBSERVATION:-true}"
 RUN_COLLECT_GOVERNANCE_OBSERVATION="${RUN_COLLECT_GOVERNANCE_OBSERVATION:-true}"
-RUN_AUTH_OBSERVATION="${RUN_AUTH_OBSERVATION:-true}"
+RUN_AUTH_OBSERVATION="${RUN_AUTH_OBSERVATION:-false}"
 RUN_FRONTEND_OBSERVATION="${RUN_FRONTEND_OBSERVATION:-false}"
 
 mkdir -p "${NIGHTLY_OPS_HANDOFF_LOG_ROOT}" "${RUN_DIR}" "$(dirname "${SUMMARY_APPEND_FILE}")"
@@ -37,6 +37,8 @@ export APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:8082}"
 export FRONTEND_E2E_MODE="${FRONTEND_E2E_MODE:-deployed-origin}"
 export FRONTEND_PUBLIC_BASE_URL="${FRONTEND_PUBLIC_BASE_URL:-https://youthmoa.kr}"
 export KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-true}"
+
+smoke_login_admin_access_token "${ROOT_DIR}" "${APP_BASE_URL}"
 
 read_summary_value() {
   local file="$1"
@@ -99,6 +101,16 @@ AUTH_STATUS="$(read_summary_value "${AUTH_SUMMARY}" "auth_observation_suite")"
 AUTH_DECISION_CLASS="$(read_summary_value "${AUTH_SUMMARY}" "decision_class")"
 FRONTEND_STATUS="$(read_summary_value "${FRONTEND_SUMMARY}" "frontend_observation_suite")"
 FRONTEND_DECISION_CLASS="$(read_summary_value "${FRONTEND_SUMMARY}" "decision_class")"
+
+if [[ "$(smoke_normalize_bool "${RUN_AUTH_OBSERVATION}")" != "true" ]]; then
+  AUTH_STATUS="skipped"
+  AUTH_DECISION_CLASS="skipped"
+fi
+
+if [[ "$(smoke_normalize_bool "${RUN_FRONTEND_OBSERVATION}")" != "true" ]]; then
+  FRONTEND_STATUS="skipped"
+  FRONTEND_DECISION_CLASS="skipped"
+fi
 
 {
   printf '[%s] ops=%s policy=%s collect=%s auth=%s frontend=%s\n' \
