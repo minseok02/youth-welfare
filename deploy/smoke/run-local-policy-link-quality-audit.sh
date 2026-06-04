@@ -58,6 +58,41 @@ from base where has_reference_urls = 1 group by source_type
 union all
 select 'missing_any_link', source_type, count(*)::text
 from base where detail_url = '' and has_reference_urls = 0 group by source_type
+union all
+select 'missing_any_link_active_visible', source_type, count(*)::text
+from (
+  select
+    ws.source_type,
+    coalesce(ws.detail_url, '') as detail_url,
+    case when coalesce(wsd.reference_urls_json::text, '') <> '' and coalesce(wsd.reference_urls_json::text, '') <> '[]' then 1 else 0 end as has_reference_urls,
+    ws.status,
+    ws.apply_end_date
+  from welfare_services ws
+  left join welfare_service_details wsd on wsd.service_id = ws.id
+) visible_base
+where detail_url = ''
+  and has_reference_urls = 0
+  and status in ('ACTIVE', 'UPCOMING')
+  and (apply_end_date is null or apply_end_date >= current_date)
+group by source_type
+union all
+select 'missing_any_link_active_past_end_tail', source_type, count(*)::text
+from (
+  select
+    ws.source_type,
+    coalesce(ws.detail_url, '') as detail_url,
+    case when coalesce(wsd.reference_urls_json::text, '') <> '' and coalesce(wsd.reference_urls_json::text, '') <> '[]' then 1 else 0 end as has_reference_urls,
+    ws.status,
+    ws.apply_end_date
+  from welfare_services ws
+  left join welfare_service_details wsd on wsd.service_id = ws.id
+) tail_base
+where detail_url = ''
+  and has_reference_urls = 0
+  and status in ('ACTIVE', 'UPCOMING')
+  and apply_end_date is not null
+  and apply_end_date < current_date
+group by source_type
 order by 1, 2;
 " > "${RAW_METRICS_OUT}"
 
@@ -111,13 +146,22 @@ with samples_path.open(encoding="utf-8") as f:
         })
 
 missing_any_link = metrics.get("missing_any_link", {})
+missing_any_link_active_visible = metrics.get("missing_any_link_active_visible", {})
+missing_any_link_active_past_end_tail = metrics.get("missing_any_link_active_past_end_tail", {})
 decision_class = "BASELINE_HEALTHY"
 operator_reading = (
     "대표 detail_url 또는 referenceUrlsJson 기준으로 바로 볼 broad link quality regression은 두드러지지 않습니다."
 )
 next_action = "bash deploy/smoke/run-local-policy-search-scenario-audit.sh"
 
-if missing_any_link.get("YOUTH", 0) > 0 or missing_any_link.get("BOKJIRO_LOCAL", 0) > 0:
+if missing_any_link_active_visible.get("YOUTH", 0) > 0 or missing_any_link_active_visible.get("BOKJIRO_LOCAL", 0) > 0:
+    decision_class = "ACTIVE_LINK_REVIEW_PRIORITY"
+    operator_reading = (
+        "대표 링크가 비는 row 전체보다, 현재 사용자에게 노출될 수 있는 ACTIVE/UPCOMING 정책의 "
+        "missing-any-link row를 먼저 review 하는 편이 낫습니다."
+    )
+    next_action = "docs/policy/policy-link-quality-audit-runbook.md"
+elif missing_any_link.get("YOUTH", 0) > 0 or missing_any_link.get("BOKJIRO_LOCAL", 0) > 0:
     decision_class = "LINK_REVIEW_PRIORITY"
     operator_reading = (
         "source contract 때문에 대표 링크가 비는 row는 남아 있지만, 실제 정책 상세 CTA 품질 관점에서는 "
@@ -132,6 +176,9 @@ summary_lines = [
     f"missing_any_link_bokjiro_local={missing_any_link.get('BOKJIRO_LOCAL', 0)}",
     f"missing_any_link_bokjiro_central={missing_any_link.get('BOKJIRO_CENTRAL', 0)}",
     f"missing_any_link_gov24={missing_any_link.get('GOV24', 0)}",
+    f"missing_any_link_active_visible_youth={missing_any_link_active_visible.get('YOUTH', 0)}",
+    f"missing_any_link_active_visible_bokjiro_local={missing_any_link_active_visible.get('BOKJIRO_LOCAL', 0)}",
+    f"missing_any_link_active_past_end_tail_youth={missing_any_link_active_past_end_tail.get('YOUTH', 0)}",
     f"decision_class={decision_class}",
     f"operator_reading={operator_reading}",
     f"next_action={next_action}",
@@ -156,6 +203,9 @@ note_lines = [
     f"- `missing_any_link_bokjiro_local`: `{missing_any_link.get('BOKJIRO_LOCAL', 0)}`",
     f"- `missing_any_link_bokjiro_central`: `{missing_any_link.get('BOKJIRO_CENTRAL', 0)}`",
     f"- `missing_any_link_gov24`: `{missing_any_link.get('GOV24', 0)}`",
+    f"- `missing_any_link_active_visible_youth`: `{missing_any_link_active_visible.get('YOUTH', 0)}`",
+    f"- `missing_any_link_active_visible_bokjiro_local`: `{missing_any_link_active_visible.get('BOKJIRO_LOCAL', 0)}`",
+    f"- `missing_any_link_active_past_end_tail_youth`: `{missing_any_link_active_past_end_tail.get('YOUTH', 0)}`",
     "",
     "## Operator Reading",
     "",

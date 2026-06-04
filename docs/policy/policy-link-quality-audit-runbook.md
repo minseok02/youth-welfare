@@ -29,10 +29,16 @@ bash deploy/smoke/run-local-policy-link-quality-audit.sh
 - `missing_any_link_bokjiro_local`
 - `missing_any_link_bokjiro_central`
 - `missing_any_link_gov24`
+- `missing_any_link_active_visible_youth`
+- `missing_any_link_active_visible_bokjiro_local`
+- `missing_any_link_active_past_end_tail_youth`
 - `decision_class`
 
 ## 해석
 
+- `ACTIVE_LINK_REVIEW_PRIORITY`
+  - source contract tail 전체보다, 현재 사용자에게 노출될 수 있는 `ACTIVE/UPCOMING` missing-any-link row가 우선입니다.
+  - local 기준으로는 `YOUTH active visible` 축을 먼저 봅니다.
 - `LINK_REVIEW_PRIORITY`
   - broad regression보다 source contract 때문에 대표 링크가 비는 sample review가 더 중요합니다.
   - 현재 local 기준으로는 `YOUTH` missing-any-link row가 먼저 보입니다.
