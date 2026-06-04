@@ -248,6 +248,7 @@ class AdminDashboardAttentionServiceTest {
                         "청년 창업 실험실 지원사업",
                         "YOUTH",
                         "20260504005400113130",
+                        "program_event",
                         "청년정책관",
                         "충청남도 및 충남경제진흥원",
                         "일자리",

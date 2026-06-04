@@ -42,6 +42,7 @@ public class AdminPolicyLinkReviewService {
                         row.title(),
                         row.sourceType(),
                         row.sourceId(),
+                        row.reviewBucket(),
                         blankToNull(row.hostOrg()),
                         blankToNull(row.operatingOrg()),
                         blankToNull(row.categoryMain()),

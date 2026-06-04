@@ -841,6 +841,8 @@ test("admin dashboard 정책 링크 review 섹션은 열린 링크 review queue�
   await expect(linkReviewSection.getByText("청년 창업 실험실 지원사업", { exact: true })).toBeVisible();
   await expect(linkReviewSection.getByText("지역 청년 문화기획단 모집", { exact: true })).toBeVisible();
   await expect(linkReviewSection.getByText("대표 링크 비어있음", { exact: true }).first()).toBeVisible();
+  await expect(linkReviewSection.getByText("프로그램형", { exact: true })).toBeVisible();
+  await expect(linkReviewSection.getByText("공고/모집형", { exact: true })).toBeVisible();
   await expect(linkReviewSection.getByText("처리완료 · admin-user-key")).toBeVisible();
 });
 

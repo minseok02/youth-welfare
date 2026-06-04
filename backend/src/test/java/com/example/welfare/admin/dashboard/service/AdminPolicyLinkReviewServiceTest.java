@@ -48,6 +48,7 @@ class AdminPolicyLinkReviewServiceTest {
                         "청년인턴 사업",
                         "YOUTH",
                         "20260504005400113130",
+                        "benefit_support",
                         "청년정책관",
                         "충청남도 및 충남경제진흥원",
                         "일자리",
@@ -66,6 +67,7 @@ class AdminPolicyLinkReviewServiceTest {
         assertThat(response.recentOpenCount24h()).isEqualTo(12L);
         assertThat(response.recentReviews()).hasSize(1);
         assertThat(response.recentReviews().get(0).status()).isEqualTo("OPEN");
+        assertThat(response.recentReviews().get(0).reviewBucket()).isEqualTo("benefit_support");
     }
 
     @Test

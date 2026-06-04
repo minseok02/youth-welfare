@@ -84,6 +84,14 @@ const SEARCH_SORT_KEY_LABELS = {
   POPULAR: "인기순",
 };
 
+const POLICY_LINK_REVIEW_BUCKET_LABELS = {
+  announcement_recruitment: "공고/모집형",
+  benefit_support: "지원금/급부형",
+  program_event: "프로그램형",
+  event_culture: "행사/문화형",
+  other: "기타",
+};
+
 const REVIEW_GATE_TONE = {
   DEFERRED_EMPTY_COHORT: { label: "추천 데이터 없음", bg: WARNING_BG, border: WARNING_BORDER, color: WARNING_TEXT },
   DEFERRED_NO_REAL_USER_TRAFFIC: { label: "실사용자 이용 데이터 없음", bg: WARNING_BG, border: WARNING_BORDER, color: WARNING_TEXT },
@@ -450,6 +458,7 @@ const formatSourceType = (value) => SOURCE_TYPE_LABELS[value] ?? (value ? format
 const formatActorType = (value) => ACTOR_TYPE_LABELS[value] ?? formatStatusLabel(value);
 const formatSearchStatusFilter = (value) => SEARCH_STATUS_FILTER_LABELS[value] ?? (value ? formatStatusLabel(value) : "전체");
 const formatSortKey = (value) => SEARCH_SORT_KEY_LABELS[value] ?? (value ? formatStatusLabel(value) : "기본 정렬");
+const formatPolicyLinkReviewBucket = (value) => POLICY_LINK_REVIEW_BUCKET_LABELS[value] ?? (value ? formatStatusLabel(value) : "기타");
 const formatBooleanLabel = (value, trueLabel, falseLabel) => (value ? trueLabel : falseLabel);
 const formatCodeOrStatus = (value) => value ? formatStatusLabel(value) : "미분류";
 const formatCollectJobName = (value) => COLLECT_JOB_LABELS[value] ?? formatStatusLabel(value);
@@ -2408,6 +2417,13 @@ export default function AdminDashboardPage() {
                                 <Typography sx={{ fontSize: 12, color: INK3 }}>
                                   신청 종료 {formatDate(item.applyEndDate)} · 사업 종료 {formatDate(item.endDate)}
                                 </Typography>
+                                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                                  <Chip
+                                    label={formatPolicyLinkReviewBucket(item.reviewBucket)}
+                                    size="small"
+                                    variant="outlined"
+                                  />
+                                </Stack>
                                 {item.status === "REVIEWED" && (
                                   <Alert severity="success" sx={{ py: 0 }}>
                                     {`처리완료 · ${item.reviewedByUserKey || "운영자"} · ${formatDateTime(item.reviewedAt)}`}

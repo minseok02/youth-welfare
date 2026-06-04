@@ -14,6 +14,7 @@ public record AdminPolicyLinkReviewResponse(
             String policyTitle,
             String sourceType,
             String sourceId,
+            String reviewBucket,
             String hostOrgLabel,
             String operatingOrgLabel,
             String categoryMain,
