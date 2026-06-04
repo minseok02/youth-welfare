@@ -59,6 +59,10 @@
   - `policy-error-report-backlog`
   - `support-inquiry-backlog`
   - `policy-duplicate-backlog`
+  - `notification-backlog`
+    - 안 읽은 알림 수
+    - 재시도 대기 failed notification 수
+    - 종결 failed notification 수
 
 ## 작업 전 기본 검증 기준
 
@@ -114,6 +118,7 @@
 - server/RDS ops observation suite: `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-ops-observation-suite.sh`
   - latest artifact: `tmp/ops-observation/latest-ops-observation-summary.txt`, `tmp/ops-observation/latest-ops-observation-note.md`, `tmp/ops-observation/latest-ops-observation.json`
   - attention feed is included in the same summary/json (`attention_feed_*`, `attention_feed.items`)
+  - admin dashboard summary notification section now includes `notification_unread_alerts`, `notification_retryable_failed_notifications`, `notification_terminal_failed_notifications`
   - standard code coverage is included in the same summary/json (`user_profile_standard_code_*`)
   - recommendation standard code effect/matrix is included in the same summary/json (`recommendation_standard_code_*`)
   - adoption audit is included in the same summary/json (`recommendation_standard_code_adoption_*`)

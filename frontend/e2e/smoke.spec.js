@@ -909,9 +909,10 @@ test("admin dashboard 운영 알림 카드는 상위 주의 항목을 스크롤 
 
   const alertsCard = page.locator(section("admin-ops-alerts"));
   await expect(alertsCard.getByText("운영 알림", { exact: true })).toBeVisible();
-  await expect(alertsCard.getByText(/지금 바로 볼 우선 신호 2건/)).toBeVisible();
+  await expect(alertsCard.getByText(/지금 바로 볼 우선 신호 4건/)).toBeVisible();
   await expect(alertsCard.getByText("수집 drift 확인", { exact: true })).toBeVisible();
   await expect(alertsCard.getByText("표준코드 입력 backlog", { exact: true })).toBeVisible();
+  await expect(alertsCard.getByText("정책 중복 review backlog", { exact: true })).toBeVisible();
   await expect(alertsCard.getByRole("button", { name: "주의 항목 큐 보기", exact: true })).toBeVisible();
 });
 
@@ -923,7 +924,8 @@ test("admin dashboard 주의 항목 큐는 collect와 표준코드 backlog를 �
   await expect(queueSection.getByText("지금 먼저 볼 주의 항목", { exact: true })).toBeVisible();
   await expect(queueSection.getByText("수집 drift 확인", { exact: true })).toBeVisible();
   await expect(queueSection.getByText("표준코드 입력 backlog", { exact: true })).toBeVisible();
-  await expect(queueSection.getByRole("button", { name: "해당 섹션 보기" })).toHaveCount(2);
+  await expect(queueSection.getByText("알림 backlog 확인", { exact: true })).toBeVisible();
+  await expect(queueSection.getByRole("button", { name: "해당 섹션 보기" })).toHaveCount(4);
 });
 
 test("admin dashboard attention 진입 버튼은 올바른 섹션과 focus target을 활성화한다 @admin-required", async ({ page }) => {
@@ -1034,7 +1036,7 @@ test("admin dashboard 운영 알림 카드는 warning 상태일 때 wrapper 경�
     contentType: "application/json; charset=utf-8",
     body: JSON.stringify(buildAdminDashboardApiPayload({
       generatedAt: adminDashboardFixtures.attentionFeed.generatedAt,
-      itemCount: 3,
+      itemCount: 5,
       items: [
         ...adminDashboardFixtures.attentionFeed.items,
         {
@@ -1071,7 +1073,7 @@ test("admin dashboard 운영 알림 카드는 warning 상태일 때 wrapper 경�
   await loginFromProtectedRoute(page, "/admin/dashboard", adminCredentials);
 
   const alertsCard = page.locator(section("admin-ops-alerts"));
-  await expect(alertsCard.getByText(/지금 바로 볼 우선 신호 3건/)).toBeVisible();
+  await expect(alertsCard.getByText(/지금 바로 볼 우선 신호 5건/)).toBeVisible();
   await expect(alertsCard.getByText("운영 주시 포인트", { exact: true })).toBeVisible();
   await expect(alertsCard.getByText(/표준코드 미입력 5 증가/)).toBeVisible();
   await expect(alertsCard.getByText(/priority 관측 passed -> failed/)).toBeVisible();

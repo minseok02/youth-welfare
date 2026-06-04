@@ -147,6 +147,34 @@ else:
 PY
 }
 
+bookmark_with_retry() {
+  local max_attempts="${1:-10}"
+  local sleep_seconds="${2:-1}"
+  local attempt=1
+  local bookmark_status=""
+  local bookmark_error=""
+
+  while (( attempt <= max_attempts )); do
+    bookmark_status="$(
+      smoke_http_status POST "${APP_BASE_URL}/api/recommendations/${RECOMMENDATION_ID}/bookmark" "${BOOKMARK_RESPONSE}" \
+        -H "Authorization: Bearer ${ACCESS_TOKEN}"
+    )"
+    if [[ "${bookmark_status}" == "200" ]]; then
+      return 0
+    fi
+
+    bookmark_error="$(json_read "${BOOKMARK_RESPONSE}" "errorCode" 2>/dev/null || true)"
+    if [[ "${bookmark_status}" != "409" || "${bookmark_error}" != "R003" ]]; then
+      smoke_assert_status 200 "${bookmark_status}" "bookmark recommendation" "${BOOKMARK_RESPONSE}"
+    fi
+
+    sleep "${sleep_seconds}"
+    attempt=$((attempt + 1))
+  done
+
+  smoke_assert_status 200 "${bookmark_status}" "bookmark recommendation" "${BOOKMARK_RESPONSE}"
+}
+
 assert_equals() {
   local expected="$1"
   local actual="$2"
@@ -222,6 +250,7 @@ smoke_assert_status 200 "$(smoke_wait_for_health "${HEALTH_RETRY_COUNT}" "${HEAL
 SMOKE_EMAIL="$(smoke_build_email "${SMOKE_EMAIL_PREFIX}")"
 login_admin
 capture_original_profile
+smoke_clear_recommendation_refresh_rate_limit "${USER_KEY}"
 
 smoke_print_step "recommendations refresh"
 smoke_assert_status 200 "$(
@@ -241,10 +270,7 @@ fi
 
 if [[ "${ORIGINAL_IS_BOOKMARKED}" != "true" ]]; then
   smoke_print_step "bookmark first recommendation"
-  smoke_assert_status 200 "$(
-    smoke_http_status POST "${APP_BASE_URL}/api/recommendations/${RECOMMENDATION_ID}/bookmark" "${BOOKMARK_RESPONSE}" \
-      -H "Authorization: Bearer ${ACCESS_TOKEN}"
-  )" "bookmark recommendation" "${BOOKMARK_RESPONSE}"
+  bookmark_with_retry 10 1
   RESTORE_BOOKMARK="true"
 fi
 

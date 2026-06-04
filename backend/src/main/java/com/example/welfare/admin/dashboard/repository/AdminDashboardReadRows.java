@@ -325,7 +325,10 @@ public final class AdminDashboardReadRows {
             long sentLast24h,
             long failedLast24h,
             long sentInWindow,
-            long failedInWindow
+            long failedInWindow,
+            long unreadAlerts,
+            long retryableFailedNotifications,
+            long terminalFailedNotifications
     ) {
     }
 

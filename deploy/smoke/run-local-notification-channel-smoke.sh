@@ -181,6 +181,7 @@ refresh_recommendations() {
   local scenario_key="$1"
   local refresh_response="${ARTIFACT_DIR}/${scenario_key}.recommend-refresh.json"
 
+  smoke_clear_recommendation_refresh_rate_limit "${ADMIN_USER_KEY}"
   smoke_print_step "${scenario_key}: recommendations refresh"
   local refresh_status
   refresh_status="$(

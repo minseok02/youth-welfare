@@ -1,6 +1,7 @@
 package com.example.welfare.admin.dashboard.service;
 
 import com.example.welfare.admin.dashboard.dto.AdminCollectFailureResponse;
+import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
 import com.example.welfare.admin.dashboard.dto.AdminPolicyDuplicateGroupResponse;
 import com.example.welfare.admin.dashboard.dto.AdminPolicyErrorReportResponse;
 import com.example.welfare.admin.dashboard.dto.AdminPolicyLinkReviewResponse;
@@ -20,6 +21,7 @@ import static org.mockito.Mockito.mock;
 class AdminDashboardAttentionServiceTest {
 
     private final AdminDashboardCollectService collectService = mock(AdminDashboardCollectService.class);
+    private final AdminDashboardSummaryService summaryService = mock(AdminDashboardSummaryService.class);
     private final AdminDashboardUserProfileService userProfileService = mock(AdminDashboardUserProfileService.class);
     private final AdminDashboardWrapperObservationService wrapperObservationService = mock(AdminDashboardWrapperObservationService.class);
     private final AdminPolicyDuplicateGroupService policyDuplicateGroupService = mock(AdminPolicyDuplicateGroupService.class);
@@ -28,6 +30,7 @@ class AdminDashboardAttentionServiceTest {
     private final AdminSupportInquiryService supportInquiryService = mock(AdminSupportInquiryService.class);
     private final AdminDashboardAttentionService service = new AdminDashboardAttentionService(
             collectService,
+            summaryService,
             userProfileService,
             wrapperObservationService,
             policyDuplicateGroupService,
@@ -70,6 +73,15 @@ class AdminDashboardAttentionServiceTest {
                 0,
                 0,
                 0
+        ));
+        given(summaryService.getSummary(null, null)).willReturn(new AdminDashboardResponse(
+                LocalDateTime.of(2026, 6, 3, 14, 0),
+                null,
+                null,
+                new AdminDashboardResponse.NotificationSection(0, 0, 7, 0, 0, 0, 0, 0),
+                null,
+                null,
+                null
         ));
         given(wrapperObservationService.getLatestObservation()).willReturn(new AdminWrapperObservationResponse(
                 true,
@@ -166,6 +178,15 @@ class AdminDashboardAttentionServiceTest {
                 0,
                 0,
                 0
+        ));
+        given(summaryService.getSummary(null, null)).willReturn(new AdminDashboardResponse(
+                LocalDateTime.of(2026, 6, 4, 10, 0),
+                null,
+                null,
+                new AdminDashboardResponse.NotificationSection(0, 0, 7, 0, 0, 0, 0, 0),
+                null,
+                null,
+                null
         ));
         given(wrapperObservationService.getLatestObservation()).willReturn(new AdminWrapperObservationResponse(
                 false,
@@ -279,5 +300,106 @@ class AdminDashboardAttentionServiceTest {
                 .contains("policy-duplicate-backlog", "policy-error-report-backlog", "policy-link-review-backlog", "support-inquiry-backlog");
         assertThat(response.items()).extracting("message", String.class)
                 .anySatisfy(message -> assertThat(message).contains("최근 24시간 1건"));
+    }
+
+    @Test
+    @DisplayName("안 읽은 알림이나 실패 backlog가 있으면 attention feed에 알림 backlog를 승격한다")
+    void includesNotificationBacklog() {
+        given(collectService.getCollectFailures(null, null)).willReturn(new AdminCollectFailureResponse(
+                LocalDateTime.of(2026, 6, 4, 11, 0),
+                7,
+                0,
+                0,
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of()
+        ));
+        given(userProfileService.getUserProfileStandardCodeCoverage()).willReturn(new AdminUserProfileStandardCodeCoverageResponse(
+                LocalDateTime.of(2026, 6, 4, 11, 0),
+                10,
+                10,
+                0,
+                10,
+                0,
+                0,
+                10,
+                10,
+                10,
+                10,
+                10,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+        ));
+        given(summaryService.getSummary(null, null)).willReturn(new AdminDashboardResponse(
+                LocalDateTime.of(2026, 6, 4, 11, 0),
+                null,
+                null,
+                new AdminDashboardResponse.NotificationSection(2, 1, 7, 14, 3, 11, 2, 1),
+                null,
+                null,
+                null
+        ));
+        given(wrapperObservationService.getLatestObservation()).willReturn(new AdminWrapperObservationResponse(
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                0,
+                0,
+                null,
+                null,
+                0,
+                0,
+                null,
+                0,
+                0,
+                0.0,
+                false,
+                null,
+                null,
+                null,
+                false,
+                null,
+                0,
+                0,
+                null,
+                null,
+                0,
+                0,
+                null,
+                0,
+                0,
+                0,
+                0.0,
+                false,
+                null,
+                null,
+                0,
+                0,
+                "이전값 없음",
+                null,
+                false,
+                "이전 상태 없음",
+                null
+        ));
+        given(policyDuplicateGroupService.getRecentGroups(1)).willReturn(new AdminPolicyDuplicateGroupResponse(0, 0, 0, List.of()));
+        given(policyErrorReportService.getRecentReports(1)).willReturn(new AdminPolicyErrorReportResponse(0, 0, List.of()));
+        given(adminPolicyLinkReviewService.getRecentReviews(1)).willReturn(new AdminPolicyLinkReviewResponse(0, 0, List.of()));
+        given(supportInquiryService.getRecentInquiries(1)).willReturn(new AdminSupportInquiryResponse(0, 0, List.of()));
+
+        var response = service.getAttentionFeed();
+
+        assertThat(response.items()).extracting("key").contains("notification-backlog");
+        assertThat(response.items()).extracting("message", String.class)
+                .anySatisfy(message -> assertThat(message).contains("안 읽은 알림 11건").contains("재시도 대기 2건").contains("종결 실패 1건"));
     }
 }

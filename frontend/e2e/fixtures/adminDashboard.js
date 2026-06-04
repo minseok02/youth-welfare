@@ -59,6 +59,9 @@ export const adminDashboardFixtures = {
       failedInWindow: 0,
       sentInWindow: 12,
       failedLast24h: 0,
+      unreadAlerts: 5,
+      retryableFailedNotifications: 1,
+      terminalFailedNotifications: 0,
     },
     search: {
       zeroResultSearchesInWindow: 3,
@@ -284,7 +287,7 @@ export const adminDashboardFixtures = {
   },
   attentionFeed: {
     generatedAt,
-    itemCount: 3,
+    itemCount: 4,
     items: [
       {
         key: "collect-drift",
@@ -301,6 +304,14 @@ export const adminDashboardFixtures = {
         message: "789명이 주거·복지 표준코드 4개를 모두 비워둔 상태입니다.",
         targetId: "admin-standard-code-coverage",
         source: "user-profile-standard-codes",
+      },
+      {
+        key: "notification-backlog",
+        severity: "info",
+        title: "알림 backlog 확인",
+        message: "안 읽은 알림 5건 · 재시도 대기 1건 · 종결 실패 0건",
+        targetId: "admin-notification-summary",
+        source: "notification",
       },
       {
         key: "policy-duplicate-backlog",

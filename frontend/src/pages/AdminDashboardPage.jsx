@@ -202,6 +202,24 @@ const SECTION_FLASH_TONE = {
   },
 };
 
+const ATTENTION_PROMOTION_RANK = {
+  warning: 0,
+  info: 1,
+  success: 2,
+};
+
+const ATTENTION_PROMOTION_KEY_RANK = {
+  "section-failures": 0,
+  "collect-drift": 1,
+  "wrapper-warning": 2,
+  "standard-code-backlog": 3,
+  "notification-backlog": 4,
+  "policy-duplicate-backlog": 5,
+  "policy-error-report-backlog": 6,
+  "policy-link-review-backlog": 7,
+  "support-inquiry-backlog": 8,
+};
+
 const ACTIVE_CARD_SX = {
   transition: "border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease",
   [`&[${ADMIN_DASHBOARD_TEST_ATTRS.jumpActive}="true"]`]: {
@@ -1281,7 +1299,18 @@ export default function AdminDashboardPage() {
     ...localAttentionQueueItems,
     ...(attentionFeed?.items ?? []),
   ];
-  const promotedAttentionItems = attentionQueueItems.slice(0, 3);
+  const promotedAttentionItems = [...attentionQueueItems]
+    .sort((left, right) => {
+      const leftRank = ATTENTION_PROMOTION_RANK[left.severity] ?? 99;
+      const rightRank = ATTENTION_PROMOTION_RANK[right.severity] ?? 99;
+      if (leftRank !== rightRank) {
+        return leftRank - rightRank;
+      }
+      const leftKeyRank = ATTENTION_PROMOTION_KEY_RANK[left.key] ?? 99;
+      const rightKeyRank = ATTENTION_PROMOTION_KEY_RANK[right.key] ?? 99;
+      return leftKeyRank - rightKeyRank;
+    })
+    .slice(0, 3);
   const refetchAll = () => {
     summaryQuery.refetch();
     breakdownQuery.refetch();
@@ -2898,7 +2927,7 @@ export default function AdminDashboardPage() {
                   />
                 </Box>
 
-                <Box sx={{ display: "grid", gap: 2, mt: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" } }}>
+                <Box id="admin-notification-summary" sx={{ display: "grid", gap: 2, mt: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(5, 1fr)" }, scrollMarginTop: 96 }}>
                   <MetricCard
                     title="수집 실패(24시간)"
                     value={formatNumber(summaryData.collect.failedJobsLast24h)}
@@ -2908,6 +2937,16 @@ export default function AdminDashboardPage() {
                     title="알림 실패(기간)"
                     value={formatNumber(summaryData.notification.failedInWindow)}
                     description={`발송 ${formatNumber(summaryData.notification.sentInWindow)} / 최근 24시간 실패 ${formatNumber(summaryData.notification.failedLast24h)}`}
+                  />
+                  <MetricCard
+                    title="안 읽은 알림"
+                    value={formatNumber(summaryData.notification.unreadAlerts)}
+                    description={`재시도 대기 ${formatNumber(summaryData.notification.retryableFailedNotifications)} / 종결 실패 ${formatNumber(summaryData.notification.terminalFailedNotifications)}`}
+                  />
+                  <MetricCard
+                    title="알림 재시도 대기"
+                    value={formatNumber(summaryData.notification.retryableFailedNotifications)}
+                    description={`안 읽은 알림 ${formatNumber(summaryData.notification.unreadAlerts)} / 종결 실패 ${formatNumber(summaryData.notification.terminalFailedNotifications)}`}
                   />
                   <MetricCard
                     title="0건 검색(기간)"

@@ -22,6 +22,7 @@ import java.util.List;
 public class AdminDashboardAttentionService {
 
     private final AdminDashboardCollectService adminDashboardCollectService;
+    private final AdminDashboardSummaryService adminDashboardSummaryService;
     private final AdminDashboardUserProfileService adminDashboardUserProfileService;
     private final AdminDashboardWrapperObservationService adminDashboardWrapperObservationService;
     private final AdminPolicyDuplicateGroupService adminPolicyDuplicateGroupService;
@@ -33,6 +34,7 @@ public class AdminDashboardAttentionService {
         AdminCollectFailureResponse collectFailures = adminDashboardCollectService.getCollectFailures(null, null);
         AdminUserProfileStandardCodeCoverageResponse standardCodeCoverage =
                 adminDashboardUserProfileService.getUserProfileStandardCodeCoverage();
+        var dashboardSummary = adminDashboardSummaryService.getSummary(null, null);
         AdminWrapperObservationResponse wrapperObservation =
                 adminDashboardWrapperObservationService.getLatestObservation();
         AdminPolicyDuplicateGroupResponse duplicateGroups = adminPolicyDuplicateGroupService.getRecentGroups(1);
@@ -69,6 +71,22 @@ public class AdminDashboardAttentionService {
                             .formatted(standardCodeCoverage.usersMissingAllStandardCodes()),
                     "admin-standard-code-coverage",
                     "user-profile-standard-codes"
+            ));
+        }
+        if (dashboardSummary.notification().unreadAlerts() > 0
+                || dashboardSummary.notification().retryableFailedNotifications() > 0
+                || dashboardSummary.notification().terminalFailedNotifications() > 0) {
+            items.add(new AdminDashboardAttentionResponse.AttentionItem(
+                    "notification-backlog",
+                    dashboardSummary.notification().terminalFailedNotifications() > 0 ? "warning" : "info",
+                    "알림 backlog 확인",
+                    "안 읽은 알림 %d건 · 재시도 대기 %d건 · 종결 실패 %d건".formatted(
+                            dashboardSummary.notification().unreadAlerts(),
+                            dashboardSummary.notification().retryableFailedNotifications(),
+                            dashboardSummary.notification().terminalFailedNotifications()
+                    ),
+                    "admin-notification-summary",
+                    "notification"
             ));
         }
         if (wrapperObservation.promotedAlert() != null && "warning".equals(wrapperObservation.promotedAlert().severity())) {

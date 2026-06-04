@@ -209,7 +209,10 @@ public record AdminDashboardResponse(
             long failedLast24h,
             int windowDays,
             long sentInWindow,
-            long failedInWindow
+            long failedInWindow,
+            long unreadAlerts,
+            long retryableFailedNotifications,
+            long terminalFailedNotifications
     ) {
     }
 

@@ -22,11 +22,26 @@ public class AdminDashboardNotificationReadRepository {
 
     public AdminDashboardReadRows.NotificationSummaryRow fetchNotificationSummary(LocalDateTime dayAgo, LocalDateTime weekAgo) {
         return jdbcTemplate.queryForObject("""
-                select coalesce(sum(case when status = 'SENT' and sent_at >= :dayAgo then 1 else 0 end), 0) as sent_last_24h,
-                       coalesce(sum(case when status = 'FAILED' and created_at >= :dayAgo then 1 else 0 end), 0) as failed_last_24h,
-                       coalesce(sum(case when status = 'SENT' and sent_at >= :weekAgo then 1 else 0 end), 0) as sent_in_window,
-                       coalesce(sum(case when status = 'FAILED' and created_at >= :weekAgo then 1 else 0 end), 0) as failed_in_window
-                  from notifications
+                select notification_summary.sent_last_24h,
+                       notification_summary.failed_last_24h,
+                       notification_summary.sent_in_window,
+                       notification_summary.failed_in_window,
+                       user_alert_summary.unread_alerts,
+                       notification_summary.retryable_failed_notifications,
+                       notification_summary.terminal_failed_notifications
+                  from (
+                        select coalesce(sum(case when status = 'SENT' and sent_at >= :dayAgo then 1 else 0 end), 0) as sent_last_24h,
+                               coalesce(sum(case when status = 'FAILED' and created_at >= :dayAgo then 1 else 0 end), 0) as failed_last_24h,
+                               coalesce(sum(case when status = 'SENT' and sent_at >= :weekAgo then 1 else 0 end), 0) as sent_in_window,
+                               coalesce(sum(case when status = 'FAILED' and created_at >= :weekAgo then 1 else 0 end), 0) as failed_in_window,
+                               coalesce(sum(case when status = 'FAILED' and next_retry_at is not null then 1 else 0 end), 0) as retryable_failed_notifications,
+                               coalesce(sum(case when status = 'FAILED' and next_retry_at is null then 1 else 0 end), 0) as terminal_failed_notifications
+                          from notifications
+                  ) notification_summary
+                  cross join (
+                        select coalesce(sum(case when status = 'UNREAD' then 1 else 0 end), 0) as unread_alerts
+                          from user_alerts
+                  ) user_alert_summary
                 """,
                 new MapSqlParameterSource()
                         .addValue("dayAgo", dayAgo)
@@ -35,7 +50,10 @@ public class AdminDashboardNotificationReadRepository {
                         rs.getLong("sent_last_24h"),
                         rs.getLong("failed_last_24h"),
                         rs.getLong("sent_in_window"),
-                        rs.getLong("failed_in_window")
+                        rs.getLong("failed_in_window"),
+                        rs.getLong("unread_alerts"),
+                        rs.getLong("retryable_failed_notifications"),
+                        rs.getLong("terminal_failed_notifications")
                 )
         );
     }

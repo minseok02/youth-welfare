@@ -471,7 +471,10 @@ public class AdminDashboardSummaryService {
                         notificationSummary.failedLast24h(),
                         summaryWindowDays,
                         notificationSummary.sentInWindow(),
-                        notificationSummary.failedInWindow()
+                        notificationSummary.failedInWindow(),
+                        notificationSummary.unreadAlerts(),
+                        notificationSummary.retryableFailedNotifications(),
+                        notificationSummary.terminalFailedNotifications()
                 ),
                 new AdminDashboardResponse.SearchSection(
                         searchSummary.searchesLast24h(),

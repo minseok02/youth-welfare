@@ -1039,6 +1039,21 @@ smoke_seed_verified_email() {
     redis-cli SETEX "email-verify:verified:${hash}" "${verified_ttl_seconds}" 1 >/dev/null
 }
 
+smoke_clear_recommendation_refresh_rate_limit() {
+  local user_key="$1"
+  local redis_container_name="${REDIS_CONTAINER_NAME:-youth-welfare-redis}"
+
+  if [[ -z "${user_key}" ]]; then
+    return 0
+  fi
+
+  smoke_require_command docker
+
+  docker exec "${redis_container_name}" redis-cli DEL \
+    "recommend:rate-limit:refresh:personal:${user_key}" \
+    "recommend:rate-limit:refresh:shared:${user_key}" >/dev/null
+}
+
 smoke_ensure_admin_account() {
   local app_base_url="$1"
   local admin_email="$2"

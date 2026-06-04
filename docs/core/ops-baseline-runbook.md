@@ -168,6 +168,10 @@ bash deploy/smoke/run-local-ops-baseline-suite.sh
 - `generatedAt`
 - collect/recommendation/search/notification 요약 필드
 - trend window
+- notification 운영 품질 핵심 backlog
+  - `unreadAlerts`
+  - `retryableFailedNotifications`
+  - `terminalFailedNotifications`
 
 ### collect failures
 
