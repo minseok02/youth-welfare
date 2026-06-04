@@ -52,6 +52,7 @@ import com.example.welfare.policy.controller.PolicyAdminController;
 import com.example.welfare.policy.dto.PolicyCategoryAuditResponse;
 import com.example.welfare.policy.dto.PolicyEmbeddingRefreshResponse;
 import com.example.welfare.policy.dto.PolicyReferenceUrlBackfillResponse;
+import com.example.welfare.policy.dto.PolicyStatusSyncResponse;
 import com.example.welfare.policy.dto.PolicyRetrievalEvaluationCompareResponse;
 import com.example.welfare.policy.dto.PolicyRetrievalEvaluationResponse;
 import com.example.welfare.policy.dto.PolicyRetrievalQualityGateResponse;
@@ -63,6 +64,7 @@ import com.example.welfare.policy.service.PolicyRetrievalEvaluationExportService
 import com.example.welfare.policy.service.PolicyRetrievalEvaluationService;
 import com.example.welfare.policy.service.PolicyRetrievalQualityGateService;
 import com.example.welfare.policy.service.SearchYouthRelevanceService;
+import com.example.welfare.collect.service.StatusUpdateService;
 import com.example.welfare.user.controller.UserAdminController;
 import com.example.welfare.user.dto.response.UserMetadataUserKeyBackfillResponse;
 import com.example.welfare.user.dto.response.UserPiiBackfillResponse;
@@ -127,6 +129,8 @@ class AdminSecurityWebMvcTest {
     private PolicyEmbeddingAdminService policyEmbeddingAdminService;
     @MockitoBean
     private PolicyReferenceUrlAdminService policyReferenceUrlAdminService;
+    @MockitoBean
+    private StatusUpdateService statusUpdateService;
     @MockitoBean
     private PolicyRetrievalEvaluationService policyRetrievalEvaluationService;
     @MockitoBean
@@ -224,6 +228,25 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data").value("온통청년 수집 완료"));
 
         then(collectAdminService).should().collect(CollectSource.YOUTH);
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 정책 상태 sync API를 호출할 수 있다")
+    void adminEndpointAllowsPolicyStatusSync() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(statusUpdateService.runStatusSync())
+                .willReturn(new StatusUpdateService.StatusSyncResult(7, 2, true));
+
+        mockMvc.perform(post("/api/admin/policies/status-sync")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.closedCount").value(7))
+                .andExpect(jsonPath("$.data.activatedCount").value(2))
+                .andExpect(jsonPath("$.data.clusterAiCacheCleanupExecuted").value(true));
     }
 
     @Test

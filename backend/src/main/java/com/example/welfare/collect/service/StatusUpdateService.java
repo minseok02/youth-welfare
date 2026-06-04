@@ -28,6 +28,11 @@ public class StatusUpdateService {
     @Scheduled(cron = "0 0 3 * * *", zone = "Asia/Seoul")
     @Transactional
     public void updateStatuses() {
+        runStatusSync();
+    }
+
+    @Transactional
+    public StatusSyncResult runStatusSync() {
         log.info("[StatusUpdateService] 정책 상태 업데이트 시작");
 
         LocalDate today = LocalDate.now();
@@ -57,6 +62,7 @@ public class StatusUpdateService {
         // 군집 AI 캐시 TTL 정리 — 25시간 이상된 캐시 삭제 (매일 수집 주기에 맞춤)
         clusterAiResultCommandRepository.deleteExpiredBefore(LocalDateTime.now().minusHours(25));
         log.info("[StatusUpdateService] 군집 AI 캐시 만료 항목 정리 완료");
+        return new StatusSyncResult(closedCount, activatedCount, true);
     }
 
     private boolean isClosed(WelfareService ws, LocalDate today) {
@@ -81,5 +87,12 @@ public class StatusUpdateService {
             return true;
         }
         return false;
+    }
+
+    public record StatusSyncResult(
+            int closedCount,
+            int activatedCount,
+            boolean clusterAiCacheCleanupExecuted
+    ) {
     }
 }

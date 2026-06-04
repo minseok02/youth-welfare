@@ -6,6 +6,7 @@ import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.policy.dto.PolicyCategoryAuditResponse;
 import com.example.welfare.policy.dto.PolicyEmbeddingRefreshResponse;
 import com.example.welfare.policy.dto.PolicyReferenceUrlBackfillResponse;
+import com.example.welfare.policy.dto.PolicyStatusSyncResponse;
 import com.example.welfare.policy.dto.PolicyRetrievalEvaluationCompareRequest;
 import com.example.welfare.policy.dto.PolicyRetrievalEvaluationCompareResponse;
 import com.example.welfare.policy.dto.PolicyRetrievalEvaluationResponse;
@@ -19,6 +20,7 @@ import com.example.welfare.policy.service.PolicyRetrievalEvaluationExportService
 import com.example.welfare.policy.service.PolicyRetrievalEvaluationService;
 import com.example.welfare.policy.service.PolicyRetrievalQualityGateService;
 import com.example.welfare.policy.service.SearchYouthRelevanceService;
+import com.example.welfare.collect.service.StatusUpdateService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -48,6 +50,7 @@ public class PolicyAdminController {
     private final PolicyRetrievalQualityGateService policyRetrievalQualityGateService;
     private final PolicyCategoryAuditService policyCategoryAuditService;
     private final PolicyReferenceUrlAdminService policyReferenceUrlAdminService;
+    private final StatusUpdateService statusUpdateService;
 
     @PostMapping("/search-youth-relevance/rebuild")
     public ResponseEntity<ApiResponse<SearchYouthRelevanceBackfillResponse>> rebuildSearchYouthRelevance() {
@@ -90,6 +93,16 @@ public class PolicyAdminController {
                 response.missingServiceCount(),
                 response.failedCount());
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PostMapping("/status-sync")
+    public ResponseEntity<ApiResponse<PolicyStatusSyncResponse>> syncPolicyStatuses() {
+        StatusUpdateService.StatusSyncResult result = statusUpdateService.runStatusSync();
+        log.info("[Admin] 정책 상태 sync 트리거 closedCount={} activatedCount={} cacheCleanup={}",
+                result.closedCount(),
+                result.activatedCount(),
+                result.clusterAiCacheCleanupExecuted());
+        return ResponseEntity.ok(ApiResponse.success(PolicyStatusSyncResponse.from(result)));
     }
 
     private int normalizeReferenceUrlLimitPerSource(int limitPerSource) {

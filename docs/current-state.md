@@ -150,6 +150,8 @@
   - 현재 최신 기준은 `active_past_end_youth=215`, `active_past_end_gov24=5`, `closed_future_end_total=4`, `decision_class=STATUS_DATE_REVIEW_PRIORITY` 이다.
 - policy host/org quality audit: `bash deploy/smoke/run-local-policy-host-org-quality-audit.sh`
   - 현재 최신 기준은 `missing_host_bokjiro_local=1224`, `missing_operating_youth=1507`, `placeholder_host_total=0`, `decision_class=SOURCE_CONTRACT_DOMINANT` 이다.
+- policy status sync smoke: `bash deploy/smoke/run-local-policy-status-sync-smoke.sh`
+  - `POST /api/admin/policies/status-sync` 를 수동 실행해 stale status/date mismatch를 실제로 줄이는 운영 경로다.
 
 ## 작업 전/후 읽는 법
 
