@@ -1,6 +1,7 @@
 package com.example.welfare.admin.dashboard.service;
 
 import com.example.welfare.admin.dashboard.dto.AdminPolicyErrorReportResponse;
+import com.example.welfare.admin.dashboard.dto.AdminQueueStatusFilter;
 import com.example.welfare.admin.dashboard.dto.AdminReviewActionResponse;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
@@ -22,14 +23,18 @@ public class AdminPolicyErrorReportService {
 
     @Transactional(readOnly = true)
     public AdminPolicyErrorReportResponse getRecentReports(Integer requestedLimit) {
+        return getRecentReports(requestedLimit, AdminQueueStatusFilter.OPEN);
+    }
+
+    @Transactional(readOnly = true)
+    public AdminPolicyErrorReportResponse getRecentReports(Integer requestedLimit, AdminQueueStatusFilter statusFilter) {
         int limit = requestedLimit == null ? 10 : Math.max(1, Math.min(requestedLimit, 20));
         long openCount = policyErrorReportRepository.countByStatus(PolicyErrorReport.Status.OPEN);
         long recentOpenCount24h = policyErrorReportRepository.countByStatusAndCreatedAtAfter(
                 PolicyErrorReport.Status.OPEN,
                 LocalDateTime.now().minusHours(24)
         );
-        List<AdminPolicyErrorReportResponse.Item> items = policyErrorReportRepository
-                .findByStatusOrderByCreatedAtDesc(PolicyErrorReport.Status.OPEN, PageRequest.of(0, limit))
+        List<AdminPolicyErrorReportResponse.Item> items = selectReports(statusFilter, limit)
                 .stream()
                 .map(report -> new AdminPolicyErrorReportResponse.Item(
                         report.getId(),
@@ -49,6 +54,21 @@ public class AdminPolicyErrorReportService {
                 ))
                 .toList();
         return new AdminPolicyErrorReportResponse(openCount, recentOpenCount24h, items);
+    }
+
+    private List<PolicyErrorReport> selectReports(AdminQueueStatusFilter statusFilter, int limit) {
+        PageRequest pageRequest = PageRequest.of(0, limit);
+        return switch (statusFilter) {
+            case OPEN -> policyErrorReportRepository.findByStatusOrderByCreatedAtDesc(
+                    PolicyErrorReport.Status.OPEN,
+                    pageRequest
+            );
+            case REVIEWED -> policyErrorReportRepository.findByStatusOrderByCreatedAtDesc(
+                    PolicyErrorReport.Status.REVIEWED,
+                    pageRequest
+            );
+            case ALL -> policyErrorReportRepository.findAllByOrderByCreatedAtDesc(pageRequest);
+        };
     }
 
     @Transactional

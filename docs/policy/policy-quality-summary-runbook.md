@@ -30,6 +30,8 @@ bash deploy/smoke/run-nightly-policy-quality-observation.sh
 
 이 wrapper는 기존 `run-local-policy-quality-summary.sh` child artifact를 재사용해
 `decision_class`, `operator_reading`, `next_action` 을 summary/json/note artifact로 다시 남깁니다.
+추가로 `run-local-policy-search-scenario-audit.sh` 를 함께 실행해서 `월세`, `청약`, `면접비`, `자격증`
+검색어와 `서울특별시` 지역 필터 기준의 `provider/status/region` 품질도 compact nightly line에 같이 남깁니다.
 즉 이 문서는 raw baseline 숫자를 읽는 runbook이고,
 compact handoff entrypoint는 observation wrapper라고 구분하는 편이 맞습니다.
 

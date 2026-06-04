@@ -6,6 +6,7 @@ import com.example.welfare.admin.dashboard.dto.AdminDashboardAttentionResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationCandidateDiagnosticResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
 import com.example.welfare.admin.dashboard.dto.AdminPolicyErrorReportResponse;
+import com.example.welfare.admin.dashboard.dto.AdminQueueStatusFilter;
 import com.example.welfare.admin.dashboard.dto.AdminReviewActionResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordClearResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordResponse;
@@ -227,7 +228,7 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        given(adminPolicyErrorReportService.getRecentReports(5))
+        given(adminPolicyErrorReportService.getRecentReports(5, AdminQueueStatusFilter.OPEN))
                 .willReturn(new AdminPolicyErrorReportResponse(2, 1, List.of()));
 
         mockMvc.perform(get("/api/admin/dashboard/policy-error-reports")
@@ -245,7 +246,7 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        given(adminSupportInquiryService.getRecentInquiries(5))
+        given(adminSupportInquiryService.getRecentInquiries(5, AdminQueueStatusFilter.OPEN))
                 .willReturn(new AdminSupportInquiryResponse(3, 1, List.of()));
 
         mockMvc.perform(get("/api/admin/dashboard/support-inquiries")

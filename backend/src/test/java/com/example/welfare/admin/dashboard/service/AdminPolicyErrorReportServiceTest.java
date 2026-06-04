@@ -1,6 +1,7 @@
 package com.example.welfare.admin.dashboard.service;
 
 import com.example.welfare.admin.dashboard.dto.AdminPolicyErrorReportResponse;
+import com.example.welfare.admin.dashboard.dto.AdminQueueStatusFilter;
 import com.example.welfare.admin.dashboard.dto.AdminReviewActionResponse;
 import com.example.welfare.policy.entity.PolicyErrorReport;
 import com.example.welfare.policy.entity.WelfareService;
@@ -59,6 +60,36 @@ class AdminPolicyErrorReportServiceTest {
         assertThat(response.recentReports()).hasSize(1);
         assertThat(response.recentReports().get(0).policyTitle()).isEqualTo("청년 교통비 지원");
         assertThat(response.recentReports().get(0).reasonLabel()).isEqualTo("링크나 원문이 열리지 않습니다");
+    }
+
+    @Test
+    @DisplayName("처리완료 필터로 조회하면 REVIEWED queue를 반환한다")
+    void getRecentReportsReturnsReviewedQueue() {
+        WelfareService policy = WelfareService.builder()
+                .id(35L)
+                .sourceType(WelfareService.SourceType.GOV24)
+                .sourceId("SRC-35")
+                .title("청년 전세 지원")
+                .build();
+        PolicyErrorReport report = PolicyErrorReport.builder()
+                .id(11L)
+                .policy(policy)
+                .userKey("user-key-11")
+                .reasonCode(PolicyErrorReport.ReasonCode.PERIOD_MISMATCH)
+                .note("기간 수정 반영 완료")
+                .status(PolicyErrorReport.Status.REVIEWED)
+                .build();
+
+        given(policyErrorReportRepository.countByStatus(PolicyErrorReport.Status.OPEN)).willReturn(4L);
+        given(policyErrorReportRepository.countByStatusAndCreatedAtAfter(any(), any())).willReturn(2L);
+        given(policyErrorReportRepository.findByStatusOrderByCreatedAtDesc(any(), any(Pageable.class)))
+                .willReturn(List.of(report));
+
+        AdminPolicyErrorReportResponse response = adminPolicyErrorReportService.getRecentReports(5, AdminQueueStatusFilter.REVIEWED);
+
+        assertThat(response.openCount()).isEqualTo(4L);
+        assertThat(response.recentReports()).hasSize(1);
+        assertThat(response.recentReports().get(0).status()).isEqualTo("REVIEWED");
     }
 
     @Test

@@ -49,8 +49,9 @@
   - `정책 오류 제보 recent queue`
   - `서비스 문의 recent queue`
 - 두 queue 모두 `OPEN -> REVIEWED` 처리와 운영 메모를 지원합니다.
-  - `POST /api/admin/dashboard/policy-error-reports/{reportId}/review`
-  - `POST /api/admin/dashboard/support-inquiries/{inquiryId}/review`
+- `POST /api/admin/dashboard/policy-error-reports/{reportId}/review`
+- `POST /api/admin/dashboard/support-inquiries/{inquiryId}/review`
+- recent queue는 `status=OPEN|REVIEWED|ALL` query로 운영 필터를 바꿔 볼 수 있습니다.
 - admin attention feed는 열린 backlog를 아래 key로 승격합니다.
   - `policy-error-report-backlog`
   - `support-inquiry-backlog`
@@ -132,6 +133,7 @@
 - policy quality observation suite: `APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-policy-quality-observation-suite.sh`
 - server/RDS policy quality observation suite: `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-policy-quality-observation-suite.sh`
 - nightly server/RDS policy quality wrapper: `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-nightly-policy-quality-observation.sh`
+  - retrieval/category summary뿐 아니라 `policy-search-scenario-audit` 도 같이 실행해 검색어/지역 필터 품질을 compact nightly line에 남깁니다.
   - latest artifact: `tmp/policy-quality-observation/latest-policy-quality-observation-summary.txt`, `tmp/policy-quality-observation/latest-policy-quality-observation-note.md`, `tmp/policy-quality-observation/latest-policy-quality-observation.json`
   - `KEEP_ARTIFACTS=false` 기본값에서도 latest summary/json 과 `tmp/policy-quality-observation/latest/` snapshot은 남습니다.
   - search/detail convenience field baseline도 같이 본다. 현재 API read model은 `providerName`, `regionLabel`, `applicationPeriod`, `statusLabel` 을 summary/detail 응답에 직접 내려서, 프론트가 raw field를 다시 조합하지 않아도 핵심 품질 필드를 바로 읽을 수 있다.

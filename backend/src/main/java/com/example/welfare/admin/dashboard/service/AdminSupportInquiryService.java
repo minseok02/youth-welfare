@@ -1,5 +1,6 @@
 package com.example.welfare.admin.dashboard.service;
 
+import com.example.welfare.admin.dashboard.dto.AdminQueueStatusFilter;
 import com.example.welfare.admin.dashboard.dto.AdminSupportInquiryResponse;
 import com.example.welfare.admin.dashboard.dto.AdminReviewActionResponse;
 import com.example.welfare.global.exception.CustomException;
@@ -22,14 +23,18 @@ public class AdminSupportInquiryService {
 
     @Transactional(readOnly = true)
     public AdminSupportInquiryResponse getRecentInquiries(Integer requestedLimit) {
+        return getRecentInquiries(requestedLimit, AdminQueueStatusFilter.OPEN);
+    }
+
+    @Transactional(readOnly = true)
+    public AdminSupportInquiryResponse getRecentInquiries(Integer requestedLimit, AdminQueueStatusFilter statusFilter) {
         int limit = requestedLimit == null ? 10 : Math.max(1, Math.min(requestedLimit, 20));
         long openCount = supportInquiryRepository.countByStatus(SupportInquiry.Status.OPEN);
         long recentOpenCount24h = supportInquiryRepository.countByStatusAndCreatedAtAfter(
                 SupportInquiry.Status.OPEN,
                 LocalDateTime.now().minusHours(24)
         );
-        List<AdminSupportInquiryResponse.Item> items = supportInquiryRepository
-                .findByStatusOrderByCreatedAtDesc(SupportInquiry.Status.OPEN, PageRequest.of(0, limit))
+        List<AdminSupportInquiryResponse.Item> items = selectInquiries(statusFilter, limit)
                 .stream()
                 .map(inquiry -> new AdminSupportInquiryResponse.Item(
                         inquiry.getId(),
@@ -47,6 +52,21 @@ public class AdminSupportInquiryService {
                 ))
                 .toList();
         return new AdminSupportInquiryResponse(openCount, recentOpenCount24h, items);
+    }
+
+    private List<SupportInquiry> selectInquiries(AdminQueueStatusFilter statusFilter, int limit) {
+        PageRequest pageRequest = PageRequest.of(0, limit);
+        return switch (statusFilter) {
+            case OPEN -> supportInquiryRepository.findByStatusOrderByCreatedAtDesc(
+                    SupportInquiry.Status.OPEN,
+                    pageRequest
+            );
+            case REVIEWED -> supportInquiryRepository.findByStatusOrderByCreatedAtDesc(
+                    SupportInquiry.Status.REVIEWED,
+                    pageRequest
+            );
+            case ALL -> supportInquiryRepository.findAllByOrderByCreatedAtDesc(pageRequest);
+        };
     }
 
     @Transactional

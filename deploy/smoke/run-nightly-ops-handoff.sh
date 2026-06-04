@@ -88,6 +88,7 @@ FRONTEND_SUMMARY="${ROOT_DIR}/tmp/frontend-observation/latest-frontend-observati
 
 OPS_STATUS="$(read_summary_value "${OPS_SUMMARY}" "ops_observation_suite")"
 OPS_ATTENTION_KEYS="$(read_summary_value "${OPS_SUMMARY}" "attention_feed_item_keys")"
+OPS_ATTENTION_TITLES="$(read_summary_value "${OPS_SUMMARY}" "attention_feed_item_titles")"
 OPS_STANDARD_CODE_MISSING_ALL="$(read_summary_value "${OPS_SUMMARY}" "user_profile_standard_code_users_missing_all_standard_codes")"
 OPS_ADOPTION_SHARE="$(read_summary_value "${OPS_SUMMARY}" "recommendation_standard_code_adoption_latest_batch_users_with_any_standard_code_share_pct")"
 POLICY_STATUS="$(read_summary_value "${POLICY_SUMMARY}" "policy_quality_observation_suite")"
@@ -111,6 +112,7 @@ FRONTEND_DECISION_CLASS="$(read_summary_value "${FRONTEND_SUMMARY}" "decision_cl
     "${OPS_ATTENTION_KEYS:-}" \
     "${OPS_STANDARD_CODE_MISSING_ALL:-}" \
     "${OPS_ADOPTION_SHARE:-}"
+  printf '  attention_titles=%s\n' "${OPS_ATTENTION_TITLES:-}"
   printf '  policy_decision=%s collect_decision=%s auth_decision=%s frontend_decision=%s\n' \
     "${POLICY_DECISION_CLASS:-}" \
     "${COLLECT_DECISION_CLASS:-}" \

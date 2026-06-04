@@ -773,6 +773,9 @@ test("admin dashboard 정책 오류 제보 섹션은 열린 제보 recent queue�
   await expect(policyErrorReportsSection.getByText("열린 제보", { exact: true })).toBeVisible();
   await expect(policyErrorReportsSection.getByText("최근 24시간 신규", { exact: true })).toBeVisible();
   await expect(policyErrorReportsSection.getByText("표시 제보", { exact: true })).toBeVisible();
+  await expect(policyErrorReportsSection.getByText("열린 건", { exact: true })).toBeVisible();
+  await expect(policyErrorReportsSection.getByText("처리완료", { exact: true }).first()).toBeVisible();
+  await expect(policyErrorReportsSection.getByText("전체", { exact: true }).first()).toBeVisible();
   await expect(policyErrorReportsSection.getByText("2", { exact: true }).first()).toBeVisible();
   await expect(policyErrorReportsSection.getByText("청년 월세 한시 특별지원", { exact: true })).toBeVisible();
   await expect(policyErrorReportsSection.getByText("지역 정보가 다릅니다", { exact: true })).toBeVisible();
@@ -790,6 +793,9 @@ test("admin dashboard 서비스 문의 섹션은 열린 문의 recent queue를 �
   await expect(supportInquiriesSection.getByText("열린 문의", { exact: true })).toBeVisible();
   await expect(supportInquiriesSection.getByText("최근 24시간 신규", { exact: true })).toBeVisible();
   await expect(supportInquiriesSection.getByText("표시 문의", { exact: true })).toBeVisible();
+  await expect(supportInquiriesSection.getByText("열린 건", { exact: true })).toBeVisible();
+  await expect(supportInquiriesSection.getByText("처리완료", { exact: true }).first()).toBeVisible();
+  await expect(supportInquiriesSection.getByText("전체", { exact: true }).first()).toBeVisible();
   await expect(supportInquiriesSection.getByText("1", { exact: true }).first()).toBeVisible();
   await expect(supportInquiriesSection.getByText("추천/챗봇", { exact: true }).first()).toBeVisible();
   await expect(supportInquiriesSection.getByText("챗봇이 이전 질문 맥락을 잘 못 이어갑니다.", { exact: true })).toBeVisible();

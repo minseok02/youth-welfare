@@ -5,6 +5,7 @@ import com.example.welfare.admin.dashboard.dto.AdminDashboardAttentionResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationCandidateDiagnosticResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
 import com.example.welfare.admin.dashboard.dto.AdminPolicyErrorReportResponse;
+import com.example.welfare.admin.dashboard.dto.AdminQueueStatusFilter;
 import com.example.welfare.admin.dashboard.dto.AdminReviewActionRequest;
 import com.example.welfare.admin.dashboard.dto.AdminReviewActionResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordClearResponse;
@@ -198,12 +199,14 @@ public class AdminDashboardController {
             @RequestParam(name = "limit", required = false)
             @Min(value = 1, message = "limit는 1 이상이어야 합니다.")
             @Max(value = 20, message = "limit는 20 이하여야 합니다.")
-            Integer limit
+            Integer limit,
+            @RequestParam(name = "status", required = false) String status
     ) {
         validateDashboardLimit(limit);
-        log.info("[Admin] dashboard policy error reports 조회 limit={}", limit);
+        AdminQueueStatusFilter statusFilter = AdminQueueStatusFilter.fromNullable(status);
+        log.info("[Admin] dashboard policy error reports 조회 limit={} status={}", limit, statusFilter);
         return ResponseEntity.ok(ApiResponse.success(
-                adminPolicyErrorReportService.getRecentReports(limit)
+                adminPolicyErrorReportService.getRecentReports(limit, statusFilter)
         ));
     }
 
@@ -229,12 +232,14 @@ public class AdminDashboardController {
             @RequestParam(name = "limit", required = false)
             @Min(value = 1, message = "limit는 1 이상이어야 합니다.")
             @Max(value = 20, message = "limit는 20 이하여야 합니다.")
-            Integer limit
+            Integer limit,
+            @RequestParam(name = "status", required = false) String status
     ) {
         validateDashboardLimit(limit);
-        log.info("[Admin] dashboard support inquiries 조회 limit={}", limit);
+        AdminQueueStatusFilter statusFilter = AdminQueueStatusFilter.fromNullable(status);
+        log.info("[Admin] dashboard support inquiries 조회 limit={} status={}", limit, statusFilter);
         return ResponseEntity.ok(ApiResponse.success(
-                adminSupportInquiryService.getRecentInquiries(limit)
+                adminSupportInquiryService.getRecentInquiries(limit, statusFilter)
         ));
     }
 

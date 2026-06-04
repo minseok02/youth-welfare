@@ -14,4 +14,6 @@ public interface PolicyErrorReportRepository extends JpaRepository<PolicyErrorRe
     long countByStatusAndCreatedAtAfter(PolicyErrorReport.Status status, LocalDateTime createdAt);
 
     List<PolicyErrorReport> findByStatusOrderByCreatedAtDesc(PolicyErrorReport.Status status, Pageable pageable);
+
+    List<PolicyErrorReport> findAllByOrderByCreatedAtDesc(Pageable pageable);
 }

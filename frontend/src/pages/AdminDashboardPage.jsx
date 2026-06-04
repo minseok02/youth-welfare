@@ -135,6 +135,12 @@ const ATTENTION_SOURCE_LABELS = {
   "wrapper-observation": "wrapper",
 };
 
+const ADMIN_QUEUE_STATUS_OPTIONS = [
+  { value: "OPEN", label: "열린 건" },
+  { value: "REVIEWED", label: "처리완료" },
+  { value: "ALL", label: "전체" },
+];
+
 function formatAttentionSource(sourceOrKey) {
   if (!sourceOrKey) {
     return "attention";
@@ -570,16 +576,16 @@ const fetchWrapperObservation = async () => {
   return data?.data;
 };
 
-const fetchPolicyErrorReports = async () => {
+const fetchPolicyErrorReports = async (status = "OPEN") => {
   const { data } = await api.get("/api/admin/dashboard/policy-error-reports", {
-    params: { limit: 5 },
+    params: { limit: 5, status },
   });
   return data?.data;
 };
 
-const fetchSupportInquiries = async () => {
+const fetchSupportInquiries = async (status = "OPEN") => {
   const { data } = await api.get("/api/admin/dashboard/support-inquiries", {
-    params: { limit: 5 },
+    params: { limit: 5, status },
   });
   return data?.data;
 };
@@ -892,6 +898,8 @@ export default function AdminDashboardPage() {
   const [codebookQueryText, setCodebookQueryText] = useState("");
   const [policyErrorReviewNotes, setPolicyErrorReviewNotes] = useState({});
   const [supportInquiryReviewNotes, setSupportInquiryReviewNotes] = useState({});
+  const [policyErrorStatusFilter, setPolicyErrorStatusFilter] = useState("OPEN");
+  const [supportInquiryStatusFilter, setSupportInquiryStatusFilter] = useState("OPEN");
   const [reviewSubmittingKey, setReviewSubmittingKey] = useState(null);
   const queryBaseOptions = {
     staleTime: 30_000,
@@ -947,14 +955,14 @@ export default function AdminDashboardPage() {
   });
 
   const policyErrorReportsQuery = useQuery({
-    queryKey: ["admin-dashboard-policy-error-reports"],
-    queryFn: fetchPolicyErrorReports,
+    queryKey: ["admin-dashboard-policy-error-reports", policyErrorStatusFilter],
+    queryFn: () => fetchPolicyErrorReports(policyErrorStatusFilter),
     ...queryBaseOptions,
   });
 
   const supportInquiriesQuery = useQuery({
-    queryKey: ["admin-dashboard-support-inquiries"],
-    queryFn: fetchSupportInquiries,
+    queryKey: ["admin-dashboard-support-inquiries", supportInquiryStatusFilter],
+    queryFn: () => fetchSupportInquiries(supportInquiryStatusFilter),
     ...queryBaseOptions,
   });
 
@@ -1740,6 +1748,19 @@ export default function AdminDashboardPage() {
                     </Typography>
                   </Box>
 
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    {ADMIN_QUEUE_STATUS_OPTIONS.map((option) => (
+                      <Chip
+                        key={option.value}
+                        label={option.label}
+                        clickable
+                        color={policyErrorStatusFilter === option.value ? "primary" : "default"}
+                        variant={policyErrorStatusFilter === option.value ? "filled" : "outlined"}
+                        onClick={() => setPolicyErrorStatusFilter(option.value)}
+                      />
+                    ))}
+                  </Stack>
+
                   {policyErrorReportsQuery.isLoading && (
                     <SectionLoadingCard
                       title="정책 오류 제보 로딩 중"
@@ -1776,8 +1797,14 @@ export default function AdminDashboardPage() {
                         />
                       </Box>
 
-                      {policyErrorReports.openCount === 0 ? (
-                        <Alert severity="success">현재 열린 정책 오류 제보가 없습니다.</Alert>
+                      {(policyErrorReports.recentReports?.length ?? 0) === 0 ? (
+                        <Alert severity="success">
+                          {policyErrorStatusFilter === "OPEN"
+                            ? "현재 열린 정책 오류 제보가 없습니다."
+                            : policyErrorStatusFilter === "REVIEWED"
+                              ? "표시할 처리완료 정책 오류 제보가 없습니다."
+                              : "표시할 정책 오류 제보가 없습니다."}
+                        </Alert>
                       ) : (
                         <CompactListCard
                           title="최근 정책 오류 제보"
@@ -1813,6 +1840,12 @@ export default function AdminDashboardPage() {
                                 <Typography sx={{ fontSize: 13, color: INK2 }}>
                                   제보자 {item.userKey || "익명"}{item.note ? ` · ${item.note}` : " · 추가 메모 없음"}
                                 </Typography>
+                                {item.status === "REVIEWED" && (
+                                  <Alert severity="success" sx={{ py: 0 }}>
+                                    {`처리완료 · ${item.reviewedByUserKey || "운영자"} · ${formatDateTime(item.reviewedAt)}`}
+                                    {item.reviewNote ? ` · ${item.reviewNote}` : ""}
+                                  </Alert>
+                                )}
                                 <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ xs: "stretch", md: "center" }}>
                                   <TextField
                                     size="small"
@@ -1823,15 +1856,18 @@ export default function AdminDashboardPage() {
                                       [item.reportId]: event.target.value,
                                     }))}
                                     sx={{ flex: 1 }}
+                                    disabled={item.status === "REVIEWED"}
                                   />
                                   <Button
                                     size="small"
                                     variant="outlined"
-                                    disabled={reviewSubmittingKey === `policy-${item.reportId}`}
+                                    disabled={item.status === "REVIEWED" || reviewSubmittingKey === `policy-${item.reportId}`}
                                     onClick={() => handleReviewPolicyErrorReport(item.reportId)}
                                     sx={{ textTransform: "none", borderRadius: 999, whiteSpace: "nowrap" }}
                                   >
-                                    {reviewSubmittingKey === `policy-${item.reportId}` ? "처리 중..." : "처리완료"}
+                                    {item.status === "REVIEWED"
+                                      ? "처리완료됨"
+                                      : reviewSubmittingKey === `policy-${item.reportId}` ? "처리 중..." : "처리완료"}
                                   </Button>
                                 </Stack>
                               </Stack>
@@ -1861,6 +1897,19 @@ export default function AdminDashboardPage() {
                       로그인, 추천, 챗봇, 검색, 알림처럼 서비스를 쓰다가 막힌 내용을 최근 열린 순서대로 봅니다. 정책 데이터 오류 제보와는 별도 queue입니다.
                     </Typography>
                   </Box>
+
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    {ADMIN_QUEUE_STATUS_OPTIONS.map((option) => (
+                      <Chip
+                        key={option.value}
+                        label={option.label}
+                        clickable
+                        color={supportInquiryStatusFilter === option.value ? "primary" : "default"}
+                        variant={supportInquiryStatusFilter === option.value ? "filled" : "outlined"}
+                        onClick={() => setSupportInquiryStatusFilter(option.value)}
+                      />
+                    ))}
+                  </Stack>
 
                   {supportInquiriesQuery.isLoading && (
                     <SectionLoadingCard
@@ -1898,8 +1947,14 @@ export default function AdminDashboardPage() {
                         />
                       </Box>
 
-                      {supportInquiries.openCount === 0 ? (
-                        <Alert severity="success">현재 열린 서비스 문의가 없습니다.</Alert>
+                      {(supportInquiries.recentInquiries?.length ?? 0) === 0 ? (
+                        <Alert severity="success">
+                          {supportInquiryStatusFilter === "OPEN"
+                            ? "현재 열린 서비스 문의가 없습니다."
+                            : supportInquiryStatusFilter === "REVIEWED"
+                              ? "표시할 처리완료 서비스 문의가 없습니다."
+                              : "표시할 서비스 문의가 없습니다."}
+                        </Alert>
                       ) : (
                         <CompactListCard
                           title="최근 서비스 문의"
@@ -1938,6 +1993,12 @@ export default function AdminDashboardPage() {
                                 <Typography sx={{ fontSize: 12, color: INK3 }}>
                                   문의자 {item.userKey || "비로그인/미연결"}
                                 </Typography>
+                                {item.status === "REVIEWED" && (
+                                  <Alert severity="success" sx={{ py: 0 }}>
+                                    {`처리완료 · ${item.reviewedByUserKey || "운영자"} · ${formatDateTime(item.reviewedAt)}`}
+                                    {item.reviewNote ? ` · ${item.reviewNote}` : ""}
+                                  </Alert>
+                                )}
                                 <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ xs: "stretch", md: "center" }}>
                                   <TextField
                                     size="small"
@@ -1948,15 +2009,18 @@ export default function AdminDashboardPage() {
                                       [item.inquiryId]: event.target.value,
                                     }))}
                                     sx={{ flex: 1 }}
+                                    disabled={item.status === "REVIEWED"}
                                   />
                                   <Button
                                     size="small"
                                     variant="outlined"
-                                    disabled={reviewSubmittingKey === `support-${item.inquiryId}`}
+                                    disabled={item.status === "REVIEWED" || reviewSubmittingKey === `support-${item.inquiryId}`}
                                     onClick={() => handleReviewSupportInquiry(item.inquiryId)}
                                     sx={{ textTransform: "none", borderRadius: 999, whiteSpace: "nowrap" }}
                                   >
-                                    {reviewSubmittingKey === `support-${item.inquiryId}` ? "처리 중..." : "처리완료"}
+                                    {item.status === "REVIEWED"
+                                      ? "처리완료됨"
+                                      : reviewSubmittingKey === `support-${item.inquiryId}` ? "처리 중..." : "처리완료"}
                                   </Button>
                                 </Stack>
                               </Stack>
