@@ -344,7 +344,17 @@ public class ReRankingService {
                     : candidate.getService().getSourceType().name();
             bySource.computeIfAbsent(source, ignored -> new ArrayList<>()).add(candidate);
         }
-        return bySource;
+        if (bySource.size() >= 2) {
+            return bySource;
+        }
+
+        LinkedHashMap<String, List<ScoredCandidate>> byService = new LinkedHashMap<>();
+        for (ScoredCandidate candidate : eligible) {
+            Long serviceId = candidate.getService().getId();
+            String serviceBucket = serviceId == null ? candidate.getService().getTitle() : "SERVICE:" + serviceId;
+            byService.computeIfAbsent(serviceBucket, ignored -> new ArrayList<>()).add(candidate);
+        }
+        return byService;
     }
 
     private String normalizeNoPriorityBucket(String raw) {

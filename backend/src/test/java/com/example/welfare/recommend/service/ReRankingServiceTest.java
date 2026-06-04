@@ -351,6 +351,56 @@ class ReRankingServiceTest {
         assertThat(rankedForUserB.get(0).getService().getId()).isEqualTo(71L);
     }
 
+    @Test
+    @DisplayName("같은 category와 source가 상위 구간을 독점해도 서비스 단위 fallback bucket으로 top1을 회전시킨다")
+    void rerankRotatesAcrossServicesWhenCategoryAndSourceAreSame() {
+        ReRankingService reRankingService = new ReRankingService(
+                new ScoreNormalizer(),
+                scoreWeightService,
+                new RecommendationDiversityService()
+        );
+
+        when(scoreWeightService.getActiveWeight()).thenReturn(ScoreWeight.builder()
+                .weightKey("COLD_START")
+                .ruleWeight(BigDecimal.valueOf(0.8))
+                .aiWeight(BigDecimal.valueOf(0.2))
+                .minLogCount(0)
+                .isActive(true)
+                .build());
+
+        ScoredCandidate financeTop = candidate(
+                service(81L, WelfareService.SourceType.BOKJIRO_LOCAL, "금융·생활지원", LocalDate.now().plusDays(20), 100, 1000L, LocalDateTime.of(2026, 1, 1, 0, 0)),
+                100.0,
+                null
+        );
+        ScoredCandidate financeSecond = candidate(
+                service(82L, WelfareService.SourceType.BOKJIRO_LOCAL, "금융·생활지원", LocalDate.now().plusDays(20), 100, 1000L, LocalDateTime.of(2026, 1, 1, 0, 0)),
+                97.0,
+                null
+        );
+        ScoredCandidate financeThird = candidate(
+                service(83L, WelfareService.SourceType.BOKJIRO_LOCAL, "금융·생활지원", LocalDate.now().plusDays(20), 100, 1000L, LocalDateTime.of(2026, 1, 1, 0, 0)),
+                96.0,
+                null
+        );
+
+        List<ScoredCandidate> rankedForUserA = reRankingService.rerank(
+                List.of(financeTop, financeSecond, financeThird),
+                noPrioritySnapshot("user-a")
+        );
+        List<ScoredCandidate> rankedForUserB = reRankingService.rerank(
+                List.of(financeTop, financeSecond, financeThird),
+                noPrioritySnapshot("user-b")
+        );
+
+        assertThat(rankedForUserA.get(0).getService().getId())
+                .isNotEqualTo(rankedForUserB.get(0).getService().getId());
+        assertThat(rankedForUserA.get(0).getService().getSourceType())
+                .isEqualTo(WelfareService.SourceType.BOKJIRO_LOCAL);
+        assertThat(rankedForUserB.get(0).getService().getSourceType())
+                .isEqualTo(WelfareService.SourceType.BOKJIRO_LOCAL);
+    }
+
     private ScoredCandidate candidate(WelfareService service,
                                       double ruleWeightedScore,
                                       Double aiScore,
