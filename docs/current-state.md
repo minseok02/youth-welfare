@@ -50,6 +50,9 @@
   - `서비스 문의 recent queue`
 - 정책 데이터 품질 review는 별도 `정책 중복 review queue` 로 봅니다.
   - `YOUTH / BOKJIRO_LOCAL` duplicate title/host 묶음
+- `BOKJIRO_LOCAL` duplicate는 title-only false positive가 많아서 기본값을 `지역별 개별 사업 유지`로 둡니다.
+- `YOUTH` duplicate는 `같은 기관 + 같은 기간 + 같은 URL` 반복이면 진짜 수집 중복 후보로 먼저 봅니다.
+- 이 `YOUTH` true duplicate candidate는 `bash deploy/smoke/run-local-youth-duplicate-candidate-audit.sh` 로 먼저 좁혀서 봅니다.
 - 두 queue 모두 `OPEN -> REVIEWED` 처리와 운영 메모를 지원합니다.
 - `POST /api/admin/dashboard/policy-error-reports/{reportId}/review`
 - `POST /api/admin/dashboard/support-inquiries/{inquiryId}/review`
