@@ -134,6 +134,32 @@ bash deploy/smoke/run-local-notification-stale-target-audit.sh
 
 수준의 `7일 초과 deadline tail` 로 읽는 편이 맞다.
 
+## 7일 초과 tail 운영 기준
+
+`2주 이상` stale target cluster가 없는 상태에서 남는 unread는 보통
+
+- `DEADLINE_REMINDER`
+- `7일 초과`
+- target cluster까지는 아닌 tail
+
+수준이다.
+
+이 상태는 broad backlog가 아니라 아래 기준으로 읽는다.
+
+1. `정책이 아직 ACTIVE`
+   - hide보다 유지 검토를 먼저 한다.
+   - reminder cadence가 너무 이른지, 사용자가 bookmark를 유지한 채 unread로 남긴 것인지 본다.
+2. `정책이 종료/마감`
+   - stale tail 정리 후보로 본다.
+3. `같은 target으로 여러 사용자에게 다시 몰리기 시작함`
+   - 14일을 기다리기보다 stale target cluster 재발 조짐으로 본다.
+
+운영 메모 예시:
+
+- `7일 초과 deadline tail, ACTIVE 정책이라 유지`
+- `7일 초과 unread tail, 종료 정책이라 hide 후보`
+- `7일 초과 reminder가 동일 target에 다시 누적되는지 관찰`
+
 ## 관련 문서
 
 1. [notification-backlog-audit-runbook.md](./notification-backlog-audit-runbook.md)

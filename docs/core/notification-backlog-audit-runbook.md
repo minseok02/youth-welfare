@@ -89,6 +89,39 @@ bash deploy/smoke/run-local-notification-backlog-audit.sh
 - terminal failed가 있으면
   - `채널 장애 또는 영구 실패 원인 확인 필요`
 
+## stale unread 7일/14일 해석
+
+### 14일 초과
+
+- 기본적으로 `hide-stale` 후보로 먼저 봅니다.
+- 특히 같은 `title + deeplink` target cluster가 2주 이상 유지되면
+  - broad unread 총량보다
+  - stale target cluster maintenance 문제로 읽는 편이 맞습니다.
+
+운영 메모 예시:
+
+- `14일 초과 stale target cluster, hide 후보`
+- `2주 이상 unread 유지, title/deeplink 단위 backlog 정리`
+
+### 7일 초과 ~ 14일 미만
+
+- 바로 hide하기보다 `deadline tail` 인지 먼저 봅니다.
+- 특히 `DEADLINE_REMINDER` 는 정책이 아직 `ACTIVE` 인데도 7일 이상 unread가 남을 수 있으므로,
+  - 잘못 발송된 알림으로 닫지 말고
+  - cadence/가치 문제인지 먼저 본다.
+
+우선순위:
+
+1. 같은 정책 target에 여러 사용자가 몰렸는지
+2. 정책이 이미 종료됐는지
+3. digest가 아니라 deadline reminder인지
+
+운영 메모 예시:
+
+- `7일 초과 deadline tail, cadence 재검토 후보`
+- `ACTIVE 정책 reminder unread tail, 즉시 hide보다 유지 검토`
+- `7일 초과 unread이나 target cluster는 아님`
+
 ## 관련 문서
 
 1. [ops-baseline-runbook.md](./ops-baseline-runbook.md)

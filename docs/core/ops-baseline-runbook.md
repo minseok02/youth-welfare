@@ -170,9 +170,12 @@ bash deploy/smoke/run-local-ops-baseline-suite.sh
 - trend window
 - notification 운영 품질 핵심 backlog
   - `unreadAlerts`
+  - `staleUnread7d`
+  - `staleUnread14d`
   - `retryableFailedNotifications`
   - `terminalFailedNotifications`
   - unread/failed triage는 [notification-backlog-audit-runbook.md](./notification-backlog-audit-runbook.md) 기준으로 다시 본다.
+  - `staleUnread14d` 는 hide 후보로, `staleUnread7d` 는 deadline tail/cadence 재검토 대상으로 먼저 읽는다.
   - stale target cluster maintenance가 필요하면 `POST /api/admin/dashboard/notification-backlog/hide-stale` 로 title/deeplink 단위 hide를 수행한다.
 
 ### collect failures
