@@ -150,6 +150,9 @@
 - policy link review sample audit: `bash deploy/smoke/run-local-policy-link-review-sample-audit.sh`
   - 현재 최신 기준은 `active_visible_youth_total=164`, `benefit_support=30`, `announcement_recruitment=12`, `program_event=9`, `event_culture=5`, `other=108`, `decision_class=MIXED_LINK_REVIEW_PRIORITY` 이다.
   - 즉 `정책 링크 review queue`는 단일 기준으로 닫기보다 `급부형`, `공고/프로그램형`, 나머지 `other` tail을 나눠 review 하는 편이 맞다.
+- policy link review queue runbook: `docs/policy/policy-link-review-queue-runbook.md`
+  - 운영자는 `지원금/급부형 -> 공고/모집형 -> 프로그램형 -> 행사/문화형 -> 기타` 순서로 보는 편이 맞다.
+  - `REVIEWED` 는 “고쳤다”가 아니라 “운영자가 한 번 판단과 note를 남겼다”는 뜻으로 읽는다.
 - policy application period quality audit: `bash deploy/smoke/run-local-policy-application-period-quality-audit.sh`
   - 현재 최신 기준은 `active_past_end_youth=208`, `active_past_end_gov24=0`, `active_past_end_youth_future_end_tail=208`, `active_past_end_youth_true_review=0`, `closed_future_end_total=2` 이다.
   - 즉 남은 `YOUTH` 잔량은 대부분 `end_date` 가 아직 미래인 source tail 이고, 사용자-facing `ACTIVE_ONLY` 경계에서는 이미 숨겨진다.
