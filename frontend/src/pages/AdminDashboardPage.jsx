@@ -178,6 +178,8 @@ function formatAttentionActionLabel(source) {
       return "표준코드 입력률 보기";
     case "wrapper":
       return "상위 wrapper 보기";
+    case "notification":
+      return "stale 알림 보기";
     case "duplicates":
       return "중복 리뷰 보기";
     case "links":
@@ -214,10 +216,11 @@ const ATTENTION_PROMOTION_KEY_RANK = {
   "wrapper-warning": 2,
   "standard-code-backlog": 3,
   "notification-backlog": 4,
-  "policy-duplicate-backlog": 5,
-  "policy-error-report-backlog": 6,
-  "policy-link-review-backlog": 7,
-  "support-inquiry-backlog": 8,
+  "notification-stale-backlog": 5,
+  "policy-duplicate-backlog": 6,
+  "policy-error-report-backlog": 7,
+  "policy-link-review-backlog": 8,
+  "support-inquiry-backlog": 9,
 };
 
 const ACTIVE_CARD_SX = {
@@ -647,6 +650,13 @@ const fetchPolicyLinkReviews = async (status = "OPEN") => {
   return data?.data;
 };
 
+const fetchNotificationStaleTargets = async (olderThanDays = 14) => {
+  const { data } = await api.get("/api/admin/dashboard/notification-stale-targets", {
+    params: { limit: 5, olderThanDays },
+  });
+  return data?.data;
+};
+
 const fetchOfficialCodebooks = async () => {
   const { data } = await api.get("/api/reference/official-codes");
   return data?.data ?? [];
@@ -961,6 +971,7 @@ export default function AdminDashboardPage() {
   const [supportInquiryStatusFilter, setSupportInquiryStatusFilter] = useState("OPEN");
   const [policyDuplicateStatusFilter, setPolicyDuplicateStatusFilter] = useState("OPEN");
   const [policyLinkStatusFilter, setPolicyLinkStatusFilter] = useState("OPEN");
+  const [notificationStaleDays] = useState(14);
   const [reviewSubmittingKey, setReviewSubmittingKey] = useState(null);
   const queryBaseOptions = {
     staleTime: 30_000,
@@ -1039,6 +1050,12 @@ export default function AdminDashboardPage() {
     ...queryBaseOptions,
   });
 
+  const notificationStaleTargetsQuery = useQuery({
+    queryKey: ["admin-dashboard-notification-stale-targets", notificationStaleDays],
+    queryFn: () => fetchNotificationStaleTargets(notificationStaleDays),
+    ...queryBaseOptions,
+  });
+
   const officialCodebooksQuery = useQuery({
     queryKey: ["official-codebooks"],
     queryFn: fetchOfficialCodebooks,
@@ -1069,6 +1086,7 @@ export default function AdminDashboardPage() {
   const supportInquiries = supportInquiriesQuery.data;
   const policyDuplicateGroups = policyDuplicateGroupsQuery.data;
   const policyLinkReviews = policyLinkReviewsQuery.data;
+  const notificationStaleTargets = notificationStaleTargetsQuery.data;
   const selectedCodebookSummary = officialCodebooks.find((item) => item.codeSetKey === effectiveSelectedCodeSetKey) ?? null;
   const officialCodebookDetail = officialCodebookDetailQuery.data;
   const detailRows = officialCodebookDetail?.rows ?? officialCodebookDetail?.metadata?.sampleRows ?? [];
@@ -1092,6 +1110,8 @@ export default function AdminDashboardPage() {
     policyDuplicateGroupsQuery.error?.response?.data?.message ?? "정책 중복 review 목록을 불러오지 못했습니다.";
   const policyLinkReviewsErrorMessage =
     policyLinkReviewsQuery.error?.response?.data?.message ?? "정책 링크 review 목록을 불러오지 못했습니다.";
+  const notificationStaleTargetsErrorMessage =
+    notificationStaleTargetsQuery.error?.response?.data?.message ?? "stale notification target 목록을 불러오지 못했습니다.";
   const officialCodebooksErrorMessage = officialCodebooksQuery.error?.response?.data?.message ?? "공식 코드북 목록을 불러오지 못했습니다.";
   const officialCodebookDetailErrorMessage = officialCodebookDetailQuery.error?.response?.data?.message ?? "선택한 코드북 상세를 불러오지 못했습니다.";
   const animateJumpTarget = (target, tone, duration = 1400) => {
@@ -1164,6 +1184,7 @@ export default function AdminDashboardPage() {
     supportInquiriesQuery.isError,
     policyDuplicateGroupsQuery.isError,
     policyLinkReviewsQuery.isError,
+    notificationStaleTargetsQuery.isError,
     officialCodebooksQuery.isError,
     officialCodebookDetailQuery.isError,
   ].filter(Boolean).length;
@@ -1180,6 +1201,7 @@ export default function AdminDashboardPage() {
     supportInquiriesQuery.isFetching,
     policyDuplicateGroupsQuery.isFetching,
     policyLinkReviewsQuery.isFetching,
+    notificationStaleTargetsQuery.isFetching,
     officialCodebooksQuery.isFetching,
     officialCodebookDetailQuery.isFetching,
   ].some(Boolean);
@@ -1324,6 +1346,7 @@ export default function AdminDashboardPage() {
     supportInquiriesQuery.refetch();
     policyDuplicateGroupsQuery.refetch();
     policyLinkReviewsQuery.refetch();
+    notificationStaleTargetsQuery.refetch();
     officialCodebooksQuery.refetch();
     if (effectiveSelectedCodeSetKey) {
       officialCodebookDetailQuery.refetch();
@@ -1401,6 +1424,24 @@ export default function AdminDashboardPage() {
         return next;
       });
       policyLinkReviewsQuery.refetch();
+      attentionFeedQuery.refetch();
+    } finally {
+      setReviewSubmittingKey(null);
+    }
+  };
+
+  const handleHideNotificationStaleTarget = async (item) => {
+    const requestKey = `notification-stale-${item.kind}-${item.deeplinkUrl}`;
+    setReviewSubmittingKey(requestKey);
+    try {
+      await api.post("/api/admin/dashboard/notification-backlog/hide-stale", {
+        kind: item.kind,
+        title: item.title,
+        deeplinkUrl: item.deeplinkUrl,
+        olderThanDays: notificationStaleTargets?.olderThanDays ?? notificationStaleDays,
+      });
+      notificationStaleTargetsQuery.refetch();
+      summaryQuery.refetch();
       attentionFeedQuery.refetch();
     } finally {
       setReviewSubmittingKey(null);
@@ -2958,6 +2999,123 @@ export default function AdminDashboardPage() {
                     value={formatNumber(summaryData.userPiiSync.failedCount)}
                     description={`대기 ${formatNumber(summaryData.userPiiSync.pendingCount)} · 최근 동기화 ${formatDateTime(summaryData.userPiiSync.latestSyncedAt)}`}
                   />
+                </Box>
+
+                <Box id="admin-notification-stale-targets" sx={{ mt: 2, scrollMarginTop: 96 }}>
+                  <Card sx={{ background: PANEL_BG, border: `1px solid ${PANEL_LINE}`, boxShadow: "0 10px 28px rgba(15,23,42,0.04)" }}>
+                    <CardContent sx={{ p: 2.5 }}>
+                      <Stack spacing={2}>
+                        <Box>
+                          <Typography sx={{ fontSize: 12, fontWeight: 800, color: ACCENT, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                            알림 backlog triage
+                          </Typography>
+                          <Typography sx={{ fontSize: 20, fontWeight: 900, color: INK, mt: 0.75, letterSpacing: "-0.02em" }}>
+                            stale notification target queue
+                          </Typography>
+                          <Typography sx={{ fontSize: 13, color: INK3, mt: 0.75 }}>
+                            {formatNumber(notificationStaleTargets?.olderThanDays ?? notificationStaleDays)}일 이상 unread 인 알림을 title/deeplink target 단위로 묶어 보여줍니다. broad unread 총량보다 실제 stale cluster를 먼저 정리할 때 쓰는 운영 경계입니다.
+                          </Typography>
+                        </Box>
+
+                        {notificationStaleTargetsQuery.isLoading && (
+                          <SectionLoadingCard
+                            title="stale notification target 로딩 중"
+                            description="2주 이상 unread target cluster를 읽는 중입니다."
+                          />
+                        )}
+
+                        {notificationStaleTargetsQuery.isError && (
+                          <SectionErrorCard
+                            title="stale notification target 로드 실패"
+                            description="오래된 unread 알림 target cluster를 읽지 못했습니다."
+                            message={notificationStaleTargetsErrorMessage}
+                            onRetry={() => notificationStaleTargetsQuery.refetch()}
+                          />
+                        )}
+
+                        {notificationStaleTargets && !notificationStaleTargetsQuery.isLoading && !notificationStaleTargetsQuery.isError && (
+                          <Stack spacing={2}>
+                            <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" } }}>
+                              <MetricCard
+                                title="stale unread"
+                                value={formatNumber(notificationStaleTargets.staleRowCount)}
+                                description={`${formatNumber(notificationStaleTargets.olderThanDays)}일 이상 unread row`}
+                              />
+                              <MetricCard
+                                title="stale target 묶음"
+                                value={formatNumber(notificationStaleTargets.staleGroupCount)}
+                                description="title / deeplink 기준 cluster 수"
+                              />
+                              <MetricCard
+                                title="표시 target"
+                                value={formatNumber(notificationStaleTargets.recentTargets?.length ?? 0)}
+                                description="최근 stale target 샘플"
+                              />
+                            </Box>
+
+                            {(notificationStaleTargets.recentTargets?.length ?? 0) === 0 ? (
+                              <Alert severity="success">
+                                현재 {formatNumber(notificationStaleTargets.olderThanDays)}일 이상 stale notification target cluster가 없습니다.
+                              </Alert>
+                            ) : (
+                              <CompactListCard
+                                title="최근 stale notification target"
+                                description="rowCount가 큰 오래된 unread target부터 표시합니다."
+                                items={notificationStaleTargets.recentTargets ?? []}
+                                renderItem={(item) => {
+                                  const requestKey = `notification-stale-${item.kind}-${item.deeplinkUrl}`;
+                                  return (
+                                    <Box
+                                      key={requestKey}
+                                      sx={{ p: 1.75, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}
+                                    >
+                                      <Stack spacing={1}>
+                                        <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" spacing={1.5}>
+                                          <Box sx={{ minWidth: 0 }}>
+                                            <Typography sx={{ fontSize: 14, fontWeight: 800, color: INK, overflowWrap: "anywhere", wordBreak: "break-word" }}>
+                                              {item.title}
+                                            </Typography>
+                                            <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25, overflowWrap: "anywhere", wordBreak: "break-word" }}>
+                                              {formatStatusLabel(item.kind)} · {item.deeplinkUrl || "deeplink 없음"} · 가장 오래된 row {formatDateTime(item.oldestCreatedAt)}
+                                            </Typography>
+                                          </Box>
+                                          <Chip
+                                            label={`${formatNumber(item.rowCount)}건 / ${formatNumber(item.userCount)}명`}
+                                            size="small"
+                                            sx={{
+                                              bgcolor: WARNING_BG,
+                                              color: WARNING_TEXT,
+                                              border: `1px solid ${WARNING_BORDER}`,
+                                              fontWeight: 700,
+                                              alignSelf: { xs: "flex-start", md: "center" },
+                                            }}
+                                          />
+                                        </Stack>
+                                        <Typography sx={{ fontSize: 13, color: INK2 }}>
+                                          최근 row {formatDateTime(item.newestCreatedAt)}
+                                        </Typography>
+                                        <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ xs: "stretch", md: "center" }}>
+                                          <Button
+                                            size="small"
+                                            variant="outlined"
+                                            disabled={reviewSubmittingKey === requestKey}
+                                            onClick={() => handleHideNotificationStaleTarget(item)}
+                                            sx={{ textTransform: "none", borderRadius: 999, whiteSpace: "nowrap", alignSelf: { xs: "stretch", md: "flex-start" } }}
+                                          >
+                                            {reviewSubmittingKey === requestKey ? "처리 중..." : `${formatNumber(notificationStaleTargets.olderThanDays)}일 초과 숨기기`}
+                                          </Button>
+                                        </Stack>
+                                      </Stack>
+                                    </Box>
+                                  );
+                                }}
+                              />
+                            )}
+                          </Stack>
+                        )}
+                      </Stack>
+                    </CardContent>
+                  </Card>
                 </Box>
 
                 <Card sx={{ mt: 2, background: PANEL_BG, border: `1px solid ${PANEL_LINE}`, boxShadow: "0 8px 24px rgba(15,23,42,0.04)" }}>

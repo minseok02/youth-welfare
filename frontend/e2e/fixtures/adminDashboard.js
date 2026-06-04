@@ -287,7 +287,7 @@ export const adminDashboardFixtures = {
   },
   attentionFeed: {
     generatedAt,
-    itemCount: 4,
+    itemCount: 5,
     items: [
       {
         key: "collect-drift",
@@ -311,6 +311,14 @@ export const adminDashboardFixtures = {
         title: "알림 backlog 확인",
         message: "안 읽은 알림 5건 · 재시도 대기 1건 · 종결 실패 0건",
         targetId: "admin-notification-summary",
+        source: "notification",
+      },
+      {
+        key: "notification-stale-backlog",
+        severity: "warning",
+        title: "stale 알림 target backlog",
+        message: "9건 stale unread · 3묶음 · 대표 target: /policies/2622",
+        targetId: "admin-notification-stale-targets",
         source: "notification",
       },
       {
@@ -516,6 +524,31 @@ export const adminDashboardFixtures = {
         reviewNote: "대표 링크 누락 source contract 확인",
         reviewedByUserKey: "admin-user-key",
         reviewedAt: generatedAt,
+      },
+    ],
+  },
+  notificationStaleTargets: {
+    olderThanDays: 14,
+    staleRowCount: 9,
+    staleGroupCount: 3,
+    recentTargets: [
+      {
+        kind: "DEADLINE_REMINDER",
+        title: "북마크한 정책 마감이 임박했어요",
+        deeplinkUrl: "/policies/2622",
+        rowCount: 5,
+        userCount: 5,
+        oldestCreatedAt: "2026-05-16T05:55:31Z",
+        newestCreatedAt: "2026-05-17T04:13:16Z",
+      },
+      {
+        kind: "RECOMMENDATION_DIGEST",
+        title: "맞춤 정책 추천이 도착했어요",
+        deeplinkUrl: "/policies/2571",
+        rowCount: 2,
+        userCount: 2,
+        oldestCreatedAt: "2026-05-16T05:55:31Z",
+        newestCreatedAt: "2026-05-16T16:21:15Z",
       },
     ],
   },

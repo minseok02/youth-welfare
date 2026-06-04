@@ -205,6 +205,7 @@ async function mockAdminDashboardApis(page) {
     ["**/api/admin/dashboard/support-inquiries*", adminDashboardFixtures.supportInquiries],
     ["**/api/admin/dashboard/policy-duplicate-groups*", adminDashboardFixtures.policyDuplicateGroups],
     ["**/api/admin/dashboard/policy-link-reviews*", adminDashboardFixtures.policyLinkReviews],
+    ["**/api/admin/dashboard/notification-stale-targets*", adminDashboardFixtures.notificationStaleTargets],
   ];
 
   await Promise.all(routes.map(([url, data]) => page.route(url, (route) => route.fulfill({
@@ -844,6 +845,23 @@ test("admin dashboard 정책 링크 review 섹션은 열린 링크 review queue�
   await expect(linkReviewSection.getByText("프로그램형", { exact: true })).toBeVisible();
   await expect(linkReviewSection.getByText("공고/모집형", { exact: true })).toBeVisible();
   await expect(linkReviewSection.getByText("처리완료 · admin-user-key")).toBeVisible();
+});
+
+test("admin dashboard stale notification target 섹션은 오래된 unread target cluster를 보여준다 @admin-required", async ({ page }) => {
+  await mockAdminDashboardApis(page);
+  await loginFromProtectedRoute(page, "/admin/dashboard", adminCredentials);
+
+  const staleTargetSection = page.locator(section("admin-notification-stale-targets"));
+
+  await expect(staleTargetSection.getByText("stale notification target queue", { exact: true })).toBeVisible();
+  await expect(staleTargetSection.getByText("stale unread", { exact: true })).toBeVisible();
+  await expect(staleTargetSection.getByText("stale target 묶음", { exact: true })).toBeVisible();
+  await expect(staleTargetSection.getByText("표시 target", { exact: true })).toBeVisible();
+  await expect(staleTargetSection.getByText("북마크한 정책 마감이 임박했어요", { exact: true })).toBeVisible();
+  await expect(staleTargetSection.getByText("맞춤 정책 추천이 도착했어요", { exact: true })).toBeVisible();
+  await expect(staleTargetSection.getByText(/\/policies\/2622/)).toBeVisible();
+  await expect(staleTargetSection.getByText("5건 / 5명", { exact: true })).toBeVisible();
+  await expect(staleTargetSection.getByRole("button", { name: "14일 초과 숨기기" }).first()).toBeVisible();
 });
 
 test("admin dashboard 표준코드 추천 효과 섹션은 matrix 결과를 보여준다 @admin-required", async ({ page }) => {

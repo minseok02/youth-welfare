@@ -18,6 +18,7 @@ import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
 import com.example.welfare.admin.dashboard.dto.AdminNotificationStaleHideRequest;
 import com.example.welfare.admin.dashboard.dto.AdminNotificationStaleHideResponse;
+import com.example.welfare.admin.dashboard.dto.AdminNotificationStaleTargetResponse;
 import com.example.welfare.admin.dashboard.dto.AdminStandardCodeEffectObservationResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSupportInquiryResponse;
 import com.example.welfare.admin.dashboard.dto.AdminUserProfileStandardCodeCoverageResponse;
@@ -33,6 +34,7 @@ import com.example.welfare.admin.dashboard.service.AdminDashboardSummaryService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardUserProfileService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardWrapperObservationService;
 import com.example.welfare.admin.dashboard.service.AdminNotificationBacklogService;
+import com.example.welfare.admin.dashboard.service.AdminNotificationStaleTargetService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyErrorReportService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyDuplicateGroupService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyLinkReviewService;
@@ -75,6 +77,7 @@ public class AdminDashboardController {
     private final AdminDashboardStandardCodeObservationService adminDashboardStandardCodeObservationService;
     private final AdminDashboardWrapperObservationService adminDashboardWrapperObservationService;
     private final AdminNotificationBacklogService adminNotificationBacklogService;
+    private final AdminNotificationStaleTargetService adminNotificationStaleTargetService;
     private final AdminPolicyErrorReportService adminPolicyErrorReportService;
     private final AdminPolicyDuplicateGroupService adminPolicyDuplicateGroupService;
     private final AdminPolicyLinkReviewService adminPolicyLinkReviewService;
@@ -345,6 +348,24 @@ public class AdminDashboardController {
                 authenticatedUser != null ? authenticatedUser.userKey() : null);
         return ResponseEntity.ok(ApiResponse.success(
                 adminNotificationBacklogService.hideStaleAlerts(request)
+        ));
+    }
+
+    @GetMapping("/notification-stale-targets")
+    public ResponseEntity<ApiResponse<AdminNotificationStaleTargetResponse>> getNotificationStaleTargets(
+            @RequestParam(name = "limit", required = false)
+            @Min(value = 1, message = "limit는 1 이상이어야 합니다.")
+            @Max(value = 20, message = "limit는 20 이하여야 합니다.")
+            Integer limit,
+            @RequestParam(name = "olderThanDays", required = false)
+            @Min(value = 1, message = "olderThanDays는 1 이상이어야 합니다.")
+            @Max(value = 365, message = "olderThanDays는 365 이하여야 합니다.")
+            Integer olderThanDays
+    ) {
+        validateDashboardLimit(limit);
+        log.info("[Admin] dashboard notification stale targets 조회 limit={} olderThanDays={}", limit, olderThanDays);
+        return ResponseEntity.ok(ApiResponse.success(
+                adminNotificationStaleTargetService.getRecentTargets(limit, olderThanDays)
         ));
     }
 

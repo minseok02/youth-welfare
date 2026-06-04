@@ -11,6 +11,7 @@ import com.example.welfare.admin.dashboard.dto.AdminPolicyDuplicateGroupReviewRe
 import com.example.welfare.admin.dashboard.dto.AdminPolicyLinkReviewResponse;
 import com.example.welfare.admin.dashboard.dto.AdminQueueStatusFilter;
 import com.example.welfare.admin.dashboard.dto.AdminReviewActionResponse;
+import com.example.welfare.admin.dashboard.dto.AdminNotificationStaleTargetResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordClearResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
@@ -32,6 +33,7 @@ import com.example.welfare.admin.dashboard.service.AdminDashboardSummaryService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardUserProfileService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardWrapperObservationService;
 import com.example.welfare.admin.dashboard.service.AdminNotificationBacklogService;
+import com.example.welfare.admin.dashboard.service.AdminNotificationStaleTargetService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyErrorReportService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyDuplicateGroupService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyLinkReviewService;
@@ -178,6 +180,8 @@ class AdminSecurityWebMvcTest {
     @MockitoBean
     private AdminNotificationBacklogService adminNotificationBacklogService;
     @MockitoBean
+    private AdminNotificationStaleTargetService adminNotificationStaleTargetService;
+    @MockitoBean
     private AdminPolicyErrorReportService adminPolicyErrorReportService;
     @MockitoBean
     private AdminPolicyDuplicateGroupService adminPolicyDuplicateGroupService;
@@ -310,6 +314,40 @@ class AdminSecurityWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.openCount").value(4));
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 stale notification target 목록을 조회할 수 있다")
+    void adminEndpointAllowsNotificationStaleTargetsDashboard() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(adminNotificationStaleTargetService.getRecentTargets(5, 14))
+                .willReturn(new AdminNotificationStaleTargetResponse(
+                        14,
+                        9,
+                        3,
+                        List.of(new AdminNotificationStaleTargetResponse.Item(
+                                "DEADLINE_REMINDER",
+                                "북마크한 정책 마감이 임박했어요",
+                                "/policies/2622",
+                                5,
+                                5,
+                                LocalDateTime.of(2026, 5, 16, 5, 55, 31),
+                                LocalDateTime.of(2026, 5, 17, 4, 13, 16)
+                        ))
+                ));
+
+        mockMvc.perform(get("/api/admin/dashboard/notification-stale-targets")
+                        .param("limit", "5")
+                        .param("olderThanDays", "14")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.staleRowCount").value(9))
+                .andExpect(jsonPath("$.data.staleGroupCount").value(3))
+                .andExpect(jsonPath("$.data.recentTargets[0].deeplinkUrl").value("/policies/2622"));
     }
 
     @Test

@@ -5,6 +5,7 @@ import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
 import com.example.welfare.admin.dashboard.dto.AdminPolicyDuplicateGroupResponse;
 import com.example.welfare.admin.dashboard.dto.AdminPolicyErrorReportResponse;
 import com.example.welfare.admin.dashboard.dto.AdminPolicyLinkReviewResponse;
+import com.example.welfare.admin.dashboard.dto.AdminNotificationStaleTargetResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSupportInquiryResponse;
 import com.example.welfare.admin.dashboard.dto.AdminUserProfileStandardCodeCoverageResponse;
 import com.example.welfare.admin.dashboard.dto.AdminWrapperObservationResponse;
@@ -27,6 +28,7 @@ class AdminDashboardAttentionServiceTest {
     private final AdminPolicyDuplicateGroupService policyDuplicateGroupService = mock(AdminPolicyDuplicateGroupService.class);
     private final AdminPolicyErrorReportService policyErrorReportService = mock(AdminPolicyErrorReportService.class);
     private final AdminPolicyLinkReviewService adminPolicyLinkReviewService = mock(AdminPolicyLinkReviewService.class);
+    private final AdminNotificationStaleTargetService adminNotificationStaleTargetService = mock(AdminNotificationStaleTargetService.class);
     private final AdminSupportInquiryService supportInquiryService = mock(AdminSupportInquiryService.class);
     private final AdminDashboardAttentionService service = new AdminDashboardAttentionService(
             collectService,
@@ -36,6 +38,7 @@ class AdminDashboardAttentionServiceTest {
             policyDuplicateGroupService,
             policyErrorReportService,
             adminPolicyLinkReviewService,
+            adminNotificationStaleTargetService,
             supportInquiryService
     );
 
@@ -135,6 +138,7 @@ class AdminDashboardAttentionServiceTest {
         given(policyDuplicateGroupService.getRecentGroups(1)).willReturn(new AdminPolicyDuplicateGroupResponse(0, 0, 0, List.of()));
         given(policyErrorReportService.getRecentReports(1)).willReturn(new AdminPolicyErrorReportResponse(0, 0, List.of()));
         given(adminPolicyLinkReviewService.getRecentReviews(1)).willReturn(new AdminPolicyLinkReviewResponse(0, 0, List.of()));
+        given(adminNotificationStaleTargetService.getRecentTargets(1, 14)).willReturn(new AdminNotificationStaleTargetResponse(14, 0, 0, List.of()));
         given(supportInquiryService.getRecentInquiries(1)).willReturn(new AdminSupportInquiryResponse(0, 0, List.of()));
 
         var response = service.getAttentionFeed();
@@ -283,6 +287,7 @@ class AdminDashboardAttentionServiceTest {
                         null
                 ))
         ));
+        given(adminNotificationStaleTargetService.getRecentTargets(1, 14)).willReturn(new AdminNotificationStaleTargetResponse(14, 0, 0, List.of()));
         given(supportInquiryService.getRecentInquiries(1)).willReturn(new AdminSupportInquiryResponse(
                 1,
                 1,
@@ -394,6 +399,7 @@ class AdminDashboardAttentionServiceTest {
         given(policyDuplicateGroupService.getRecentGroups(1)).willReturn(new AdminPolicyDuplicateGroupResponse(0, 0, 0, List.of()));
         given(policyErrorReportService.getRecentReports(1)).willReturn(new AdminPolicyErrorReportResponse(0, 0, List.of()));
         given(adminPolicyLinkReviewService.getRecentReviews(1)).willReturn(new AdminPolicyLinkReviewResponse(0, 0, List.of()));
+        given(adminNotificationStaleTargetService.getRecentTargets(1, 14)).willReturn(new AdminNotificationStaleTargetResponse(14, 0, 0, List.of()));
         given(supportInquiryService.getRecentInquiries(1)).willReturn(new AdminSupportInquiryResponse(0, 0, List.of()));
 
         var response = service.getAttentionFeed();
@@ -401,5 +407,62 @@ class AdminDashboardAttentionServiceTest {
         assertThat(response.items()).extracting("key").contains("notification-backlog");
         assertThat(response.items()).extracting("message", String.class)
                 .anySatisfy(message -> assertThat(message).contains("안 읽은 알림 11건").contains("재시도 대기 2건").contains("종결 실패 1건"));
+    }
+
+    @Test
+    @DisplayName("2주 이상 stale notification target cluster가 있으면 attention feed에 stale backlog를 승격한다")
+    void includesNotificationStaleBacklog() {
+        given(collectService.getCollectFailures(null, null)).willReturn(new AdminCollectFailureResponse(
+                LocalDateTime.of(2026, 6, 4, 11, 30),
+                7,
+                0,
+                0,
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of()
+        ));
+        given(userProfileService.getUserProfileStandardCodeCoverage()).willReturn(new AdminUserProfileStandardCodeCoverageResponse(
+                LocalDateTime.of(2026, 6, 4, 11, 30),
+                10, 10, 0, 10, 0, 0, 10, 10, 10, 10, 10, 0, 0, 0, 0, 0, 0
+        ));
+        given(summaryService.getSummary(null, null)).willReturn(new AdminDashboardResponse(
+                LocalDateTime.of(2026, 6, 4, 11, 30),
+                null,
+                null,
+                new AdminDashboardResponse.NotificationSection(0, 0, 4, 0, 0, 0, 0, 0),
+                null,
+                null,
+                null
+        ));
+        given(wrapperObservationService.getLatestObservation()).willReturn(new AdminWrapperObservationResponse(
+                false, null, null, null, null, null, 0, 0, null, null, 0, 0, null, 0, 0, 0.0,
+                false, null, null, null, false, null, 0, 0, null, null, 0, 0, null, 0, 0, 0, 0.0,
+                false, null, null, 0, 0, "이전값 없음", null, false, "이전 상태 없음", null
+        ));
+        given(policyDuplicateGroupService.getRecentGroups(1)).willReturn(new AdminPolicyDuplicateGroupResponse(0, 0, 0, List.of()));
+        given(policyErrorReportService.getRecentReports(1)).willReturn(new AdminPolicyErrorReportResponse(0, 0, List.of()));
+        given(adminPolicyLinkReviewService.getRecentReviews(1)).willReturn(new AdminPolicyLinkReviewResponse(0, 0, List.of()));
+        given(adminNotificationStaleTargetService.getRecentTargets(1, 14)).willReturn(new AdminNotificationStaleTargetResponse(
+                14,
+                9,
+                3,
+                List.of(new AdminNotificationStaleTargetResponse.Item(
+                        "DEADLINE_REMINDER",
+                        "북마크한 정책 마감이 임박했어요",
+                        "/policies/2622",
+                        5,
+                        5,
+                        LocalDateTime.of(2026, 5, 16, 5, 55, 31),
+                        LocalDateTime.of(2026, 5, 17, 4, 13, 16)
+                ))
+        ));
+        given(supportInquiryService.getRecentInquiries(1)).willReturn(new AdminSupportInquiryResponse(0, 0, List.of()));
+
+        var response = service.getAttentionFeed();
+
+        assertThat(response.items()).extracting("key").contains("notification-stale-backlog");
     }
 }

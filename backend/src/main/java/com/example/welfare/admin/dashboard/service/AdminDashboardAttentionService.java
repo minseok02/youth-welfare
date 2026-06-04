@@ -28,6 +28,7 @@ public class AdminDashboardAttentionService {
     private final AdminPolicyDuplicateGroupService adminPolicyDuplicateGroupService;
     private final AdminPolicyErrorReportService adminPolicyErrorReportService;
     private final AdminPolicyLinkReviewService adminPolicyLinkReviewService;
+    private final AdminNotificationStaleTargetService adminNotificationStaleTargetService;
     private final AdminSupportInquiryService adminSupportInquiryService;
 
     public AdminDashboardAttentionResponse getAttentionFeed() {
@@ -40,6 +41,7 @@ public class AdminDashboardAttentionService {
         AdminPolicyDuplicateGroupResponse duplicateGroups = adminPolicyDuplicateGroupService.getRecentGroups(1);
         AdminPolicyErrorReportResponse policyErrorReports = adminPolicyErrorReportService.getRecentReports(1);
         AdminPolicyLinkReviewResponse policyLinkReviews = adminPolicyLinkReviewService.getRecentReviews(1);
+        var staleNotificationTargets = adminNotificationStaleTargetService.getRecentTargets(1, 14);
         AdminSupportInquiryResponse supportInquiries = adminSupportInquiryService.getRecentInquiries(1);
 
         List<AdminDashboardAttentionResponse.AttentionItem> items = new ArrayList<>();
@@ -86,6 +88,23 @@ public class AdminDashboardAttentionService {
                             dashboardSummary.notification().terminalFailedNotifications()
                     ),
                     "admin-notification-summary",
+                    "notification"
+            ));
+        }
+        if (staleNotificationTargets.staleGroupCount() > 0) {
+            String headline = staleNotificationTargets.recentTargets().isEmpty()
+                    ? "대표 stale target 없음"
+                    : staleNotificationTargets.recentTargets().get(0).deeplinkUrl();
+            items.add(new AdminDashboardAttentionResponse.AttentionItem(
+                    "notification-stale-backlog",
+                    "warning",
+                    "stale 알림 target backlog",
+                    "%d건 stale unread · %d묶음 · 대표 target: %s".formatted(
+                            staleNotificationTargets.staleRowCount(),
+                            staleNotificationTargets.staleGroupCount(),
+                            headline
+                    ),
+                    "admin-notification-stale-targets",
                     "notification"
             ));
         }
