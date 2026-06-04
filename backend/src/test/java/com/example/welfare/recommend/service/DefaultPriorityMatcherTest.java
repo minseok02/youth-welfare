@@ -80,7 +80,7 @@ class DefaultPriorityMatcherTest {
     }
 
     @Test
-    @DisplayName("Gov24 read-model priority bucket이 있으면 matcher hard condition을 연다")
+    @DisplayName("Gov24 read-model priority bucket은 serviceField와 같은 상위 분류에만 hard condition을 연다")
     void gov24ReadModelPriorityBucketOpensMatcherHardCondition() {
         WelfareService service = WelfareService.builder()
                 .id(4L)
@@ -100,7 +100,32 @@ class DefaultPriorityMatcherTest {
                 .build();
 
         assertThat(matcher.matches(priority("HOUSING"), service, projection)).isTrue();
-        assertThat(matcher.matches(priority("FINANCE"), service, projection)).isTrue();
+        assertThat(matcher.matches(priority("FINANCE"), service, projection)).isFalse();
+    }
+
+    @Test
+    @DisplayName("Gov24 benefitType priority bucket은 serviceField 상위 분류와 충돌하면 hard condition을 열지 않는다")
+    void gov24BenefitTypeBucketDoesNotOpenHardConditionWhenServiceFieldConflicts() {
+        WelfareService service = WelfareService.builder()
+                .id(5L)
+                .sourceType(WelfareService.SourceType.GOV24)
+                .sourceId("G5")
+                .title("창업 교육 운영")
+                .unifiedCategory("일자리")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+
+        RecommendationCandidateProjection projection = RecommendationCandidateProjection.builder()
+                .serviceId(service.getId())
+                .unifiedCategoryCompat("일자리")
+                .compatPriorityBucket("JOB")
+                .gov24ServiceFieldLabel("고용·창업")
+                .gov24BenefitTypeTokens(java.util.List.of("기타(교육)"))
+                .priorityBuckets(Set.of("JOB", "EDUCATION"))
+                .build();
+
+        assertThat(matcher.matches(priority("JOB"), service, projection)).isTrue();
+        assertThat(matcher.matches(priority("EDUCATION"), service, projection)).isFalse();
     }
 
     private PriorityPreference priority(String code) {

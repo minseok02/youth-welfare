@@ -4,6 +4,7 @@ import com.example.welfare.policy.support.CompatCategorySupport;
 import com.example.welfare.recommend.dto.PriorityPreference;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.recommend.support.RecommendationProjectionHeuristicSupport;
 import com.example.welfare.recommend.support.RecommendationRuntimeSupport;
 import org.springframework.stereotype.Component;
 
@@ -39,7 +40,8 @@ public class DefaultPriorityMatcher implements PriorityMatcher {
                                           WelfareService service,
                                           RecommendationCandidateProjection projection) {
         if (projection != null) {
-            if (projection.priorityBuckets().contains(priorityCode)) {
+            if (projection.priorityBuckets().contains(priorityCode)
+                    && !hasGov24ConflictingBenefitOnlyMatch(priorityCode, projection)) {
                 return true;
             }
             if (projection.compatPriorityBucket() != null) {
@@ -48,6 +50,19 @@ public class DefaultPriorityMatcher implements PriorityMatcher {
             return false;
         }
         return priorityCode.equals(CompatCategorySupport.priorityBucket(service.getUnifiedCategory()));
+    }
+
+    private boolean hasGov24ConflictingBenefitOnlyMatch(String priorityCode,
+                                                        RecommendationCandidateProjection projection) {
+        String serviceFieldBucket = RecommendationProjectionHeuristicSupport.gov24ServiceFieldPriorityBucket(
+                projection.gov24ServiceFieldLabel()
+        );
+        if (serviceFieldBucket == null || serviceFieldBucket.equals(priorityCode)) {
+            return false;
+        }
+        return projection.gov24BenefitTypeTokens().stream()
+                .map(RecommendationProjectionHeuristicSupport::gov24BenefitTypePriorityBucket)
+                .anyMatch(priorityCode::equals);
     }
 
     private boolean isDeadlineSoon(WelfareService service, RecommendationCandidateProjection projection) {
