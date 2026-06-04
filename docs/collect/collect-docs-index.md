@@ -19,6 +19,7 @@
 - [collect-ops.md](./collect-ops.md)
 - [collect-governance-observation-runbook.md](./collect-governance-observation-runbook.md)
 - [collect-source-resilience-audit-runbook.md](./collect-source-resilience-audit-runbook.md)
+- [youth-regionless-audit-runbook.md](./youth-regionless-audit-runbook.md)
 - `Gov24 async collect smoke`: `bash deploy/smoke/run-local-gov24-async-collect-smoke.sh`
 
 ### 같이 보면 좋은 기준 문서
@@ -94,13 +95,26 @@
 
 을 compact하게 다시 읽는 audit entrypoint 입니다.
 
-### 6. 실행/장애 기록 템플릿
+### 6. youth regionless audit
+
+- [youth-regionless-audit-runbook.md](./youth-regionless-audit-runbook.md)
+
+이 문서는
+
+- `YOUTH` source의 남은 `regionless` row가
+- 누락 필드 문제인지
+- 전국형 `zipCd` 해석 문제인지
+- local suspicious subset이 얼마나 되는지
+
+를 compact하게 다시 읽는 audit entrypoint 입니다.
+
+### 7. 실행/장애 기록 템플릿
 
 - [collect-incident-template.md](./collect-incident-template.md)
 
 수집 실행이나 장애를 기록할 때 복사해서 쓰는 템플릿입니다.
 
-### 7. collect closeout / quality audit
+### 8. collect closeout / quality audit
 
 - [policy-gov24-runtime-audit-runbook.md](../policy/policy-gov24-runtime-audit-runbook.md)
 - [policy-quality-summary-runbook.md](../policy/policy-quality-summary-runbook.md)
@@ -125,8 +139,9 @@
 2. [collect-ops.md](./collect-ops.md)
 3. [collect-governance-observation-runbook.md](./collect-governance-observation-runbook.md)
 4. [collect-source-resilience-audit-runbook.md](./collect-source-resilience-audit-runbook.md)
-5. [policy-gov24-runtime-audit-runbook.md](../policy/policy-gov24-runtime-audit-runbook.md)
-6. 필요하면 [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
+5. [youth-regionless-audit-runbook.md](./youth-regionless-audit-runbook.md)
+6. [policy-gov24-runtime-audit-runbook.md](../policy/policy-gov24-runtime-audit-runbook.md)
+7. 필요하면 [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
 
 ### collect closeout / quality baseline을 다시 확인할 때
 
@@ -146,6 +161,7 @@
 3. 운영 해석은 [collect-ops.md](./collect-ops.md) 에 더 자세히 적혀 있습니다.
 4. daily operator 관찰은 [collect-governance-observation-runbook.md](./collect-governance-observation-runbook.md) 를 먼저 봅니다.
 5. source별 보호 장치 inventory는 [collect-source-resilience-audit-runbook.md](./collect-source-resilience-audit-runbook.md) 를 먼저 봅니다.
-6. `Gov24` manual list 수집은 이제 동기 endpoint보다 `async trigger/status + run-local-gov24-async-collect-smoke.sh` 를 기본 운영 경로로 봅니다.
-7. collect closeout / quality baseline은 `Gov24 runtime closeout/deferred inventory audit` 과 `policy quality summary` runbook을 먼저 봅니다.
-8. 기록은 [collect-incident-template.md](./collect-incident-template.md) 를 기준으로 남기고, 오래된 전환 로그는 `phase-plan` 을 보조 참고로만 봅니다.
+6. `YOUTH` 지역 품질 잔여 이슈는 [youth-regionless-audit-runbook.md](./youth-regionless-audit-runbook.md) 로 먼저 봅니다.
+7. `Gov24` manual list 수집은 이제 동기 endpoint보다 `async trigger/status + run-local-gov24-async-collect-smoke.sh` 를 기본 운영 경로로 봅니다.
+8. collect closeout / quality baseline은 `Gov24 runtime closeout/deferred inventory audit` 과 `policy quality summary` runbook을 먼저 봅니다.
+9. 기록은 [collect-incident-template.md](./collect-incident-template.md) 를 기준으로 남기고, 오래된 전환 로그는 `phase-plan` 을 보조 참고로만 봅니다.

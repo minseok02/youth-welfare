@@ -7,6 +7,7 @@
 - [collect-ops.md](./collect-ops.md)
 - [collect-governance-observation-runbook.md](./collect-governance-observation-runbook.md)
 - [collect-source-resilience-audit-runbook.md](./collect-source-resilience-audit-runbook.md)
+- [youth-regionless-audit-runbook.md](./youth-regionless-audit-runbook.md)
 - [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
 - [phase-plan.md](../phase-plan.md)
 
@@ -420,6 +421,33 @@ host_org에서 지역 코드를 추정하는 순서:
 stable artifact:
 
 - `tmp/youth-region-code-validation/latest-youth-region-code-validation.json`
+
+### 2026-06-04 YOUTH regionless current-state 메모
+
+`YOUTH` 쪽 지역 품질에서 지금 남은 핵심 이슈는 `zipCd` 누락보다 **전국형 `zipCd` 해석 정책**이다.
+
+local 기준 최근 audit를 다시 보면:
+
+- `YOUTH total=2619`
+- `region services=2275`
+- `regionless=344`
+- `regionless empty zipCd=0`
+- `regionless csv zipCd=344`
+- `regionless nationwide zipCd=344`
+
+즉 남은 `regionless` 는 `zipCd` 가 비어서가 아니라, 긴 CSV 지역코드 목록이 current code에서 전국형 입력으로 해석되고 `host_org` 추정으로 넘어간 결과다.
+
+이때 `host_org` 가 중앙/전국성으로 읽히면 빈 `service_regions` 로 남는 것이 현재 정상 경계다. 따라서 지금은 `GOV24` 보다 `YOUTH` 의 `nationwide zipCd interpretation` 을 별도 audit로 다시 읽는 편이 맞다.
+
+운영자가 먼저 볼 bounded entrypoint:
+
+- `bash deploy/smoke/run-local-youth-regionless-audit.sh`
+- [youth-regionless-audit-runbook.md](./youth-regionless-audit-runbook.md)
+
+stable artifact:
+
+- `tmp/youth-regionless-audit/latest-youth-regionless-summary.txt`
+- `tmp/youth-regionless-audit/latest-youth-regionless-summary.json`
 
 ### 적용 방법
 
