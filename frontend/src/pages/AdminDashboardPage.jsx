@@ -1765,6 +1765,11 @@ export default function AdminDashboardPage() {
                           description="아직 운영 확인이 필요한 오류 제보"
                         />
                         <MetricCard
+                          title="최근 24시간 신규"
+                          value={formatNumber(policyErrorReports.recentOpenCount24h)}
+                          description="지난 24시간 동안 새로 열린 오류 제보"
+                        />
+                        <MetricCard
                           title="표시 제보"
                           value={formatNumber(policyErrorReports.recentReports?.length ?? 0)}
                           description="최근 열린 제보 샘플"
@@ -1880,6 +1885,11 @@ export default function AdminDashboardPage() {
                           title="열린 문의"
                           value={formatNumber(supportInquiries.openCount)}
                           description="아직 운영 확인이 필요한 서비스 문의"
+                        />
+                        <MetricCard
+                          title="최근 24시간 신규"
+                          value={formatNumber(supportInquiries.recentOpenCount24h)}
+                          description="지난 24시간 동안 새로 열린 서비스 문의"
                         />
                         <MetricCard
                           title="표시 문의"

@@ -377,6 +377,7 @@ export const adminDashboardFixtures = {
   },
   policyErrorReports: {
     openCount: 3,
+    recentOpenCount24h: 2,
     recentReports: [
       {
         reportId: 301,
@@ -406,6 +407,7 @@ export const adminDashboardFixtures = {
   },
   supportInquiries: {
     openCount: 2,
+    recentOpenCount24h: 1,
     recentInquiries: [
       {
         inquiryId: 501,

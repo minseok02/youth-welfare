@@ -48,12 +48,14 @@ class AdminPolicyErrorReportServiceTest {
                 .build();
 
         given(policyErrorReportRepository.countByStatus(PolicyErrorReport.Status.OPEN)).willReturn(4L);
+        given(policyErrorReportRepository.countByStatusAndCreatedAtAfter(any(), any())).willReturn(2L);
         given(policyErrorReportRepository.findByStatusOrderByCreatedAtDesc(any(), any(Pageable.class)))
                 .willReturn(List.of(report));
 
         AdminPolicyErrorReportResponse response = adminPolicyErrorReportService.getRecentReports(5);
 
         assertThat(response.openCount()).isEqualTo(4L);
+        assertThat(response.recentOpenCount24h()).isEqualTo(2L);
         assertThat(response.recentReports()).hasSize(1);
         assertThat(response.recentReports().get(0).policyTitle()).isEqualTo("청년 교통비 지원");
         assertThat(response.recentReports().get(0).reasonLabel()).isEqualTo("링크나 원문이 열리지 않습니다");

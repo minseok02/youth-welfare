@@ -24,6 +24,10 @@ public class AdminPolicyErrorReportService {
     public AdminPolicyErrorReportResponse getRecentReports(Integer requestedLimit) {
         int limit = requestedLimit == null ? 10 : Math.max(1, Math.min(requestedLimit, 20));
         long openCount = policyErrorReportRepository.countByStatus(PolicyErrorReport.Status.OPEN);
+        long recentOpenCount24h = policyErrorReportRepository.countByStatusAndCreatedAtAfter(
+                PolicyErrorReport.Status.OPEN,
+                LocalDateTime.now().minusHours(24)
+        );
         List<AdminPolicyErrorReportResponse.Item> items = policyErrorReportRepository
                 .findByStatusOrderByCreatedAtDesc(PolicyErrorReport.Status.OPEN, PageRequest.of(0, limit))
                 .stream()
@@ -44,7 +48,7 @@ public class AdminPolicyErrorReportService {
                         report.getReviewedAt()
                 ))
                 .toList();
-        return new AdminPolicyErrorReportResponse(openCount, items);
+        return new AdminPolicyErrorReportResponse(openCount, recentOpenCount24h, items);
     }
 
     @Transactional

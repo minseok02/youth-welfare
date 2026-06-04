@@ -228,7 +228,7 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
         given(adminPolicyErrorReportService.getRecentReports(5))
-                .willReturn(new AdminPolicyErrorReportResponse(2, List.of()));
+                .willReturn(new AdminPolicyErrorReportResponse(2, 1, List.of()));
 
         mockMvc.perform(get("/api/admin/dashboard/policy-error-reports")
                         .param("limit", "5")
@@ -246,7 +246,7 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
         given(adminSupportInquiryService.getRecentInquiries(5))
-                .willReturn(new AdminSupportInquiryResponse(3, List.of()));
+                .willReturn(new AdminSupportInquiryResponse(3, 1, List.of()));
 
         mockMvc.perform(get("/api/admin/dashboard/support-inquiries")
                         .param("limit", "5")

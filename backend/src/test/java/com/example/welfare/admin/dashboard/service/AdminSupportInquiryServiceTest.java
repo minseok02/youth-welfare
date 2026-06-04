@@ -43,12 +43,14 @@ class AdminSupportInquiryServiceTest {
                 .build();
 
         given(supportInquiryRepository.countByStatus(SupportInquiry.Status.OPEN)).willReturn(6L);
+        given(supportInquiryRepository.countByStatusAndCreatedAtAfter(any(), any())).willReturn(3L);
         given(supportInquiryRepository.findByStatusOrderByCreatedAtDesc(any(), any(Pageable.class)))
                 .willReturn(List.of(inquiry));
 
         AdminSupportInquiryResponse response = adminSupportInquiryService.getRecentInquiries(5);
 
         assertEquals(6L, response.openCount());
+        assertEquals(3L, response.recentOpenCount24h());
         assertEquals(1, response.recentInquiries().size());
         assertEquals("SEARCH_FILTER", response.recentInquiries().get(0).categoryCode());
     }

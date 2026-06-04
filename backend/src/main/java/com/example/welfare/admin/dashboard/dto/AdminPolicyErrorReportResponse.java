@@ -5,6 +5,7 @@ import java.util.List;
 
 public record AdminPolicyErrorReportResponse(
         long openCount,
+        long recentOpenCount24h,
         List<Item> recentReports
 ) {
     public record Item(

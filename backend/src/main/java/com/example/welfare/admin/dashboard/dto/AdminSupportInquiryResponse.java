@@ -5,6 +5,7 @@ import java.util.List;
 
 public record AdminSupportInquiryResponse(
         long openCount,
+        long recentOpenCount24h,
         List<Item> recentInquiries
 ) {
     public record Item(

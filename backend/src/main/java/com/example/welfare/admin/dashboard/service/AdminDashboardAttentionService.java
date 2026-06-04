@@ -83,7 +83,11 @@ public class AdminDashboardAttentionService {
                     "policy-error-report-backlog",
                     "warning",
                     "정책 오류 제보 backlog",
-                    "%d건 열림 · 최근 정책: %s".formatted(policyErrorReports.openCount(), headline),
+                    "%d건 열림 · 최근 24시간 %d건 · 최근 정책: %s".formatted(
+                            policyErrorReports.openCount(),
+                            policyErrorReports.recentOpenCount24h(),
+                            headline
+                    ),
                     "admin-policy-error-reports",
                     "policy-error-reports"
             ));
@@ -96,7 +100,11 @@ public class AdminDashboardAttentionService {
                     "support-inquiry-backlog",
                     "info",
                     "서비스 문의 backlog",
-                    "%d건 열림 · 최근 문의 유형: %s".formatted(supportInquiries.openCount(), headline),
+                    "%d건 열림 · 최근 24시간 %d건 · 최근 문의 유형: %s".formatted(
+                            supportInquiries.openCount(),
+                            supportInquiries.recentOpenCount24h(),
+                            headline
+                    ),
                     "admin-support-inquiries",
                     "support-inquiries"
             ));

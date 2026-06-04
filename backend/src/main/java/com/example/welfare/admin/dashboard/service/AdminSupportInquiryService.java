@@ -24,6 +24,10 @@ public class AdminSupportInquiryService {
     public AdminSupportInquiryResponse getRecentInquiries(Integer requestedLimit) {
         int limit = requestedLimit == null ? 10 : Math.max(1, Math.min(requestedLimit, 20));
         long openCount = supportInquiryRepository.countByStatus(SupportInquiry.Status.OPEN);
+        long recentOpenCount24h = supportInquiryRepository.countByStatusAndCreatedAtAfter(
+                SupportInquiry.Status.OPEN,
+                LocalDateTime.now().minusHours(24)
+        );
         List<AdminSupportInquiryResponse.Item> items = supportInquiryRepository
                 .findByStatusOrderByCreatedAtDesc(SupportInquiry.Status.OPEN, PageRequest.of(0, limit))
                 .stream()
@@ -42,7 +46,7 @@ public class AdminSupportInquiryService {
                         inquiry.getReviewedAt()
                 ))
                 .toList();
-        return new AdminSupportInquiryResponse(openCount, items);
+        return new AdminSupportInquiryResponse(openCount, recentOpenCount24h, items);
     }
 
     @Transactional

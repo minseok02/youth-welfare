@@ -114,8 +114,8 @@ class AdminDashboardAttentionServiceTest {
                         "표준코드 미입력 5 증가, priority 관측 passed -> failed"
                 )
         ));
-        given(policyErrorReportService.getRecentReports(1)).willReturn(new AdminPolicyErrorReportResponse(0, List.of()));
-        given(supportInquiryService.getRecentInquiries(1)).willReturn(new AdminSupportInquiryResponse(0, List.of()));
+        given(policyErrorReportService.getRecentReports(1)).willReturn(new AdminPolicyErrorReportResponse(0, 0, List.of()));
+        given(supportInquiryService.getRecentInquiries(1)).willReturn(new AdminSupportInquiryResponse(0, 0, List.of()));
 
         var response = service.getAttentionFeed();
 
@@ -206,6 +206,7 @@ class AdminDashboardAttentionServiceTest {
         ));
         given(policyErrorReportService.getRecentReports(1)).willReturn(new AdminPolicyErrorReportResponse(
                 2,
+                1,
                 List.of(new AdminPolicyErrorReportResponse.Item(
                         9L, 33L, "청년 교통비 지원", "GOV24", "SRC-33",
                         "BROKEN_LINK", "링크나 원문이 열리지 않습니다", "원문 링크가 404입니다.",
@@ -214,6 +215,7 @@ class AdminDashboardAttentionServiceTest {
                 ))
         ));
         given(supportInquiryService.getRecentInquiries(1)).willReturn(new AdminSupportInquiryResponse(
+                1,
                 1,
                 List.of(new AdminSupportInquiryResponse.Item(
                         21L, "SEARCH_FILTER", "정책 검색/필터", "user@example.com",
@@ -227,5 +229,7 @@ class AdminDashboardAttentionServiceTest {
 
         assertThat(response.items()).extracting("key")
                 .contains("policy-error-report-backlog", "support-inquiry-backlog");
+        assertThat(response.items()).extracting("message", String.class)
+                .anySatisfy(message -> assertThat(message).contains("최근 24시간 1건"));
     }
 }

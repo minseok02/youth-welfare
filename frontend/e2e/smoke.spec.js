@@ -375,6 +375,17 @@ test("정책 목록 검색 query는 상세 진입 후 브라우저 back과 상�
   await expect(page.getByText(firstPolicy.title, { exact: true }).first()).toBeVisible();
 });
 
+test("정책 상세는 요약 정보와 오류 제보 CTA를 보여준다", async ({ page, request }) => {
+  const firstPolicy = await openFirstSearchResult(page, request, "월세");
+
+  await expect(page.getByText(firstPolicy.title, { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("요약 정보", { exact: true })).toBeVisible();
+  await expect(page.getByText("지원지역", { exact: true })).toBeVisible();
+  await expect(page.getByText("소관기관", { exact: true })).toBeVisible();
+  await expect(page.getByText("신청기간", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "⚑ 정책 오류 제보", exact: true })).toBeVisible();
+});
+
 test("정책 필터는 데스크톱에서 선택 즉시 반영되고 별도 적용 버튼을 요구하지 않는다", async ({ page }) => {
   await page.goto("/policies");
 
@@ -760,7 +771,9 @@ test("admin dashboard 정책 오류 제보 섹션은 열린 제보 recent queue�
 
   await expect(policyErrorReportsSection.getByText("정책 오류 제보 recent queue", { exact: true })).toBeVisible();
   await expect(policyErrorReportsSection.getByText("열린 제보", { exact: true })).toBeVisible();
+  await expect(policyErrorReportsSection.getByText("최근 24시간 신규", { exact: true })).toBeVisible();
   await expect(policyErrorReportsSection.getByText("표시 제보", { exact: true })).toBeVisible();
+  await expect(policyErrorReportsSection.getByText("2", { exact: true }).first()).toBeVisible();
   await expect(policyErrorReportsSection.getByText("청년 월세 한시 특별지원", { exact: true })).toBeVisible();
   await expect(policyErrorReportsSection.getByText("지역 정보가 다릅니다", { exact: true })).toBeVisible();
   await expect(policyErrorReportsSection.getByText("청년 자격시험 응시료 지원사업", { exact: true })).toBeVisible();
@@ -775,7 +788,9 @@ test("admin dashboard 서비스 문의 섹션은 열린 문의 recent queue를 �
 
   await expect(supportInquiriesSection.getByText("서비스 문의 recent queue", { exact: true })).toBeVisible();
   await expect(supportInquiriesSection.getByText("열린 문의", { exact: true })).toBeVisible();
+  await expect(supportInquiriesSection.getByText("최근 24시간 신규", { exact: true })).toBeVisible();
   await expect(supportInquiriesSection.getByText("표시 문의", { exact: true })).toBeVisible();
+  await expect(supportInquiriesSection.getByText("1", { exact: true }).first()).toBeVisible();
   await expect(supportInquiriesSection.getByText("추천/챗봇", { exact: true }).first()).toBeVisible();
   await expect(supportInquiriesSection.getByText("챗봇이 이전 질문 맥락을 잘 못 이어갑니다.", { exact: true })).toBeVisible();
   await expect(supportInquiriesSection.getByText("정책 검색/필터", { exact: true }).first()).toBeVisible();
