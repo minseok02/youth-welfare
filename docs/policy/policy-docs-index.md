@@ -35,6 +35,7 @@
 - [policy-gov24-canonical-promotion-plan.md](./policy-gov24-canonical-promotion-plan.md)
 - [policy-admin-runtime-runbook.md](./policy-admin-runtime-runbook.md)
 - [policy-quality-summary-runbook.md](./policy-quality-summary-runbook.md)
+- [policy-data-quality-audit-runbook.md](./policy-data-quality-audit-runbook.md)
 - [policy-post-local-closeout-track-split.md](./policy-post-local-closeout-track-split.md)
 
 현재 practical runtime wrapper:
@@ -122,10 +123,11 @@
 12. 정책 admin bounded runtime 경로(`reference-urls/rebuild`, `embeddings/rebuild`, `retrieval-evaluations/gate`, `category-audit`)를 한 장에서 다시 열 때는 [policy-admin-runtime-runbook.md](./policy-admin-runtime-runbook.md) 을 먼저 봅니다. 이 문서가 current one-page runtime runbook 입니다.
 13. retrieval/category 상태를 daily operator 관점으로 compact하게 다시 읽고 싶을 때는 먼저 `bash deploy/smoke/run-local-policy-quality-observation-suite.sh` 를 쓰고, stable artifact `tmp/policy-quality-observation/latest-policy-quality-observation-summary.txt`, `latest-policy-quality-observation-note.md`, `latest-policy-quality-observation.json` 을 먼저 봅니다.
 14. retrieval/category raw baseline 숫자와 category 분포까지 같이 기록하려면 [policy-quality-summary-runbook.md](./policy-quality-summary-runbook.md) 을 먼저 보고, `dataset_key / scenario_count / gate / category summary` 를 같이 남깁니다. 이 문서가 current one-shot summary smoke runbook 입니다.
-15. 신규 API를 어떻게 꽂을지 큰 구조는 [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md)를 먼저 봅니다.
-16. 실제로 새 source를 받을 때는 [policy-source-onboarding-checklist.md](./policy-source-onboarding-checklist.md) 순서대로 판단합니다.
-17. 실제 코드에서 어디를 열지 찾으려면 [policy-source-code-entrypoints.md](./policy-source-code-entrypoints.md)를 봅니다.
-18. 실제 새 source note를 만들 때는 [policy-source-onboarding-template.md](./policy-source-onboarding-template.md)를 복사해서 씁니다.
-19. `phase-plan.md` 나 개별 `policy-*` history 문서는 현재 계약이 아니라 설계/전환 이력일 수 있으므로, 실행 판단은 위 current-state/runbook 문서를 먼저 봅니다.
-20. 실행 결과를 남길 때는 숫자 요약만 적지 말고 wrapper/command, query override, `data.*` 핵심 필드, baseline과 달라진 점까지 같이 적습니다.
-21. `policy-*` 파일 수가 많은 이유는 문서가 과한 것보다, local-first로 잘게 검증한 흔적이 누적된 결과에 가깝습니다.
+15. 지역 외 정책 데이터 품질 축을 다시 볼 때는 [policy-data-quality-audit-runbook.md](./policy-data-quality-audit-runbook.md) 을 먼저 보고, source contract 성격의 필드 누락과 실제 duplicate review queue를 분리해서 읽습니다.
+16. 신규 API를 어떻게 꽂을지 큰 구조는 [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md)를 먼저 봅니다.
+17. 실제로 새 source를 받을 때는 [policy-source-onboarding-checklist.md](./policy-source-onboarding-checklist.md) 순서대로 판단합니다.
+18. 실제 코드에서 어디를 열지 찾으려면 [policy-source-code-entrypoints.md](./policy-source-code-entrypoints.md)를 봅니다.
+19. 실제 새 source note를 만들 때는 [policy-source-onboarding-template.md](./policy-source-onboarding-template.md)를 복사해서 씁니다.
+20. `phase-plan.md` 나 개별 `policy-*` history 문서는 현재 계약이 아니라 설계/전환 이력일 수 있으므로, 실행 판단은 위 current-state/runbook 문서를 먼저 봅니다.
+21. 실행 결과를 남길 때는 숫자 요약만 적지 말고 wrapper/command, query override, `data.*` 핵심 필드, baseline과 달라진 점까지 같이 적습니다.
+22. `policy-*` 파일 수가 많은 이유는 문서가 과한 것보다, local-first로 잘게 검증한 흔적이 누적된 결과에 가깝습니다.

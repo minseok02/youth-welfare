@@ -51,3 +51,12 @@ bash deploy/smoke/run-local-youth-regionless-audit.sh
 
 - `YOUTH` 는 `zipCd` 가 비어서 regionless가 되는 경우보다, 긴 CSV 코드 목록이 전국형으로 해석되는 경우가 훨씬 큽니다.
 - 따라서 이 audit는 `missing field` 문제보다 `nationwide zipCd interpretation` 문제를 다시 읽는 용도입니다.
+
+## 현재 local 수동 판정 메모
+
+- `2025년 울산광역시 남구 청년도전 지원사업(단기·중기)`
+  - title과 설명 모두 `울산광역시 남구` 지역 사업으로 읽혀 **true local override 후보**로 본다.
+- `"노벨 문학도시 장흥을 즐겨라!" 지역탐방 프로그램 운영`
+  - title과 설명 모두 `장흥` 현장 프로그램으로 읽혀 **전라남도 장흥군 local override 후보**로 본다.
+
+즉 현재 `local_suspicious_count=2` 는 broad parser failure가 아니라, bounded manual review/override 후보 두 건으로 읽는 것이 맞다.
