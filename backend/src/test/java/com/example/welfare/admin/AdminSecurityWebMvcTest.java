@@ -8,6 +8,7 @@ import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownRespo
 import com.example.welfare.admin.dashboard.dto.AdminPolicyErrorReportResponse;
 import com.example.welfare.admin.dashboard.dto.AdminPolicyDuplicateGroupResponse;
 import com.example.welfare.admin.dashboard.dto.AdminPolicyDuplicateGroupReviewRequest;
+import com.example.welfare.admin.dashboard.dto.AdminPolicyLinkReviewResponse;
 import com.example.welfare.admin.dashboard.dto.AdminQueueStatusFilter;
 import com.example.welfare.admin.dashboard.dto.AdminReviewActionResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordClearResponse;
@@ -31,6 +32,7 @@ import com.example.welfare.admin.dashboard.service.AdminDashboardUserProfileServ
 import com.example.welfare.admin.dashboard.service.AdminDashboardWrapperObservationService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyErrorReportService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyDuplicateGroupService;
+import com.example.welfare.admin.dashboard.service.AdminPolicyLinkReviewService;
 import com.example.welfare.admin.dashboard.service.AdminSupportInquiryService;
 import com.example.welfare.collect.controller.CollectAdminController;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillService;
@@ -176,6 +178,8 @@ class AdminSecurityWebMvcTest {
     @MockitoBean
     private AdminPolicyDuplicateGroupService adminPolicyDuplicateGroupService;
     @MockitoBean
+    private AdminPolicyLinkReviewService adminPolicyLinkReviewService;
+    @MockitoBean
     private AdminSupportInquiryService adminSupportInquiryService;
     @MockitoBean
     private JwtUtil jwtUtil;
@@ -287,6 +291,24 @@ class AdminSecurityWebMvcTest {
     }
 
     @Test
+    @DisplayName("관리자 토큰으로 정책 링크 review queue API를 호출할 수 있다")
+    void adminEndpointAllowsPolicyLinkReviewsDashboard() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(adminPolicyLinkReviewService.getRecentReviews(5, AdminQueueStatusFilter.OPEN))
+                .willReturn(new AdminPolicyLinkReviewResponse(4, 2, List.of()));
+
+        mockMvc.perform(get("/api/admin/dashboard/policy-link-reviews")
+                        .param("limit", "5")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.openCount").value(4));
+    }
+
+    @Test
     @DisplayName("관리자 토큰으로 정책 중복 묶음을 처리완료 할 수 있다")
     void adminEndpointAllowsPolicyDuplicateGroupReview() throws Exception {
         mockAuthenticatedToken("admin-token", List.of(
@@ -330,6 +352,37 @@ class AdminSecurityWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.openCount").value(3));
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 정책 링크 review API를 호출하면 review 상태를 기록한다")
+    void adminEndpointAllowsPolicyLinkReview() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(adminPolicyLinkReviewService.markReviewed(91L, "user-key-1", "대표 링크 없음 확인"))
+                .willReturn(new AdminReviewActionResponse(
+                        17L,
+                        "REVIEWED",
+                        "대표 링크 없음 확인",
+                        "user-key-1",
+                        LocalDateTime.of(2026, 6, 4, 11, 12)
+                ));
+
+        mockMvc.perform(post("/api/admin/dashboard/policy-link-reviews/91/review")
+                        .header("Authorization", "Bearer admin-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"reviewNote":"대표 링크 없음 확인"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.id").value(17))
+                .andExpect(jsonPath("$.data.status").value("REVIEWED"))
+                .andExpect(jsonPath("$.data.reviewedByUserKey").value("user-key-1"));
+
+        then(adminPolicyLinkReviewService).should().markReviewed(91L, "user-key-1", "대표 링크 없음 확인");
     }
 
     @Test

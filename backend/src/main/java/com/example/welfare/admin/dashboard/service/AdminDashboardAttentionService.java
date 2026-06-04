@@ -4,6 +4,7 @@ import com.example.welfare.admin.dashboard.dto.AdminCollectFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardAttentionResponse;
 import com.example.welfare.admin.dashboard.dto.AdminPolicyDuplicateGroupResponse;
 import com.example.welfare.admin.dashboard.dto.AdminPolicyErrorReportResponse;
+import com.example.welfare.admin.dashboard.dto.AdminPolicyLinkReviewResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSupportInquiryResponse;
 import com.example.welfare.admin.dashboard.dto.AdminUserProfileStandardCodeCoverageResponse;
 import com.example.welfare.admin.dashboard.dto.AdminWrapperObservationResponse;
@@ -25,6 +26,7 @@ public class AdminDashboardAttentionService {
     private final AdminDashboardWrapperObservationService adminDashboardWrapperObservationService;
     private final AdminPolicyDuplicateGroupService adminPolicyDuplicateGroupService;
     private final AdminPolicyErrorReportService adminPolicyErrorReportService;
+    private final AdminPolicyLinkReviewService adminPolicyLinkReviewService;
     private final AdminSupportInquiryService adminSupportInquiryService;
 
     public AdminDashboardAttentionResponse getAttentionFeed() {
@@ -35,6 +37,7 @@ public class AdminDashboardAttentionService {
                 adminDashboardWrapperObservationService.getLatestObservation();
         AdminPolicyDuplicateGroupResponse duplicateGroups = adminPolicyDuplicateGroupService.getRecentGroups(1);
         AdminPolicyErrorReportResponse policyErrorReports = adminPolicyErrorReportService.getRecentReports(1);
+        AdminPolicyLinkReviewResponse policyLinkReviews = adminPolicyLinkReviewService.getRecentReviews(1);
         AdminSupportInquiryResponse supportInquiries = adminSupportInquiryService.getRecentInquiries(1);
 
         List<AdminDashboardAttentionResponse.AttentionItem> items = new ArrayList<>();
@@ -111,6 +114,23 @@ public class AdminDashboardAttentionService {
                     ),
                     "admin-policy-error-reports",
                     "policy-error-reports"
+            ));
+        }
+        if (policyLinkReviews.openCount() > 0) {
+            String headline = policyLinkReviews.recentReviews().isEmpty()
+                    ? "최근 링크 review 있음"
+                    : policyLinkReviews.recentReviews().get(0).policyTitle();
+            items.add(new AdminDashboardAttentionResponse.AttentionItem(
+                    "policy-link-review-backlog",
+                    "warning",
+                    "정책 링크 review backlog",
+                    "%d건 열림 · 최근 24시간 %d건 · 최근 정책: %s".formatted(
+                            policyLinkReviews.openCount(),
+                            policyLinkReviews.recentOpenCount24h(),
+                            headline
+                    ),
+                    "admin-policy-link-reviews",
+                    "policy-link-reviews"
             ));
         }
         if (supportInquiries.openCount() > 0) {

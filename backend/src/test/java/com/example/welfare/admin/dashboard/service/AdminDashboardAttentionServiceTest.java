@@ -3,6 +3,7 @@ package com.example.welfare.admin.dashboard.service;
 import com.example.welfare.admin.dashboard.dto.AdminCollectFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminPolicyDuplicateGroupResponse;
 import com.example.welfare.admin.dashboard.dto.AdminPolicyErrorReportResponse;
+import com.example.welfare.admin.dashboard.dto.AdminPolicyLinkReviewResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSupportInquiryResponse;
 import com.example.welfare.admin.dashboard.dto.AdminUserProfileStandardCodeCoverageResponse;
 import com.example.welfare.admin.dashboard.dto.AdminWrapperObservationResponse;
@@ -23,6 +24,7 @@ class AdminDashboardAttentionServiceTest {
     private final AdminDashboardWrapperObservationService wrapperObservationService = mock(AdminDashboardWrapperObservationService.class);
     private final AdminPolicyDuplicateGroupService policyDuplicateGroupService = mock(AdminPolicyDuplicateGroupService.class);
     private final AdminPolicyErrorReportService policyErrorReportService = mock(AdminPolicyErrorReportService.class);
+    private final AdminPolicyLinkReviewService adminPolicyLinkReviewService = mock(AdminPolicyLinkReviewService.class);
     private final AdminSupportInquiryService supportInquiryService = mock(AdminSupportInquiryService.class);
     private final AdminDashboardAttentionService service = new AdminDashboardAttentionService(
             collectService,
@@ -30,6 +32,7 @@ class AdminDashboardAttentionServiceTest {
             wrapperObservationService,
             policyDuplicateGroupService,
             policyErrorReportService,
+            adminPolicyLinkReviewService,
             supportInquiryService
     );
 
@@ -119,6 +122,7 @@ class AdminDashboardAttentionServiceTest {
         ));
         given(policyDuplicateGroupService.getRecentGroups(1)).willReturn(new AdminPolicyDuplicateGroupResponse(0, 0, 0, List.of()));
         given(policyErrorReportService.getRecentReports(1)).willReturn(new AdminPolicyErrorReportResponse(0, 0, List.of()));
+        given(adminPolicyLinkReviewService.getRecentReviews(1)).willReturn(new AdminPolicyLinkReviewResponse(0, 0, List.of()));
         given(supportInquiryService.getRecentInquiries(1)).willReturn(new AdminSupportInquiryResponse(0, 0, List.of()));
 
         var response = service.getAttentionFeed();
@@ -236,6 +240,27 @@ class AdminDashboardAttentionServiceTest {
                         "OPEN", null, null, null
                 ))
         ));
+        given(adminPolicyLinkReviewService.getRecentReviews(1)).willReturn(new AdminPolicyLinkReviewResponse(
+                4,
+                2,
+                List.of(new AdminPolicyLinkReviewResponse.Item(
+                        88L,
+                        "청년 창업 실험실 지원사업",
+                        "YOUTH",
+                        "20260504005400113130",
+                        "청년정책관",
+                        "충청남도 및 충남경제진흥원",
+                        "일자리",
+                        "취업",
+                        null,
+                        null,
+                        LocalDateTime.of(2026, 6, 4, 9, 48),
+                        "OPEN",
+                        null,
+                        null,
+                        null
+                ))
+        ));
         given(supportInquiryService.getRecentInquiries(1)).willReturn(new AdminSupportInquiryResponse(
                 1,
                 1,
@@ -250,7 +275,7 @@ class AdminDashboardAttentionServiceTest {
         var response = service.getAttentionFeed();
 
         assertThat(response.items()).extracting("key")
-                .contains("policy-duplicate-backlog", "policy-error-report-backlog", "support-inquiry-backlog");
+                .contains("policy-duplicate-backlog", "policy-error-report-backlog", "policy-link-review-backlog", "support-inquiry-backlog");
         assertThat(response.items()).extracting("message", String.class)
                 .anySatisfy(message -> assertThat(message).contains("최근 24시간 1건"));
     }

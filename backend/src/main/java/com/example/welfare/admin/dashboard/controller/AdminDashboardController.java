@@ -7,6 +7,7 @@ import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownRespo
 import com.example.welfare.admin.dashboard.dto.AdminPolicyErrorReportResponse;
 import com.example.welfare.admin.dashboard.dto.AdminPolicyDuplicateGroupResponse;
 import com.example.welfare.admin.dashboard.dto.AdminPolicyDuplicateGroupReviewRequest;
+import com.example.welfare.admin.dashboard.dto.AdminPolicyLinkReviewResponse;
 import com.example.welfare.admin.dashboard.dto.AdminQueueStatusFilter;
 import com.example.welfare.admin.dashboard.dto.AdminReviewActionRequest;
 import com.example.welfare.admin.dashboard.dto.AdminReviewActionResponse;
@@ -31,6 +32,7 @@ import com.example.welfare.admin.dashboard.service.AdminDashboardUserProfileServ
 import com.example.welfare.admin.dashboard.service.AdminDashboardWrapperObservationService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyErrorReportService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyDuplicateGroupService;
+import com.example.welfare.admin.dashboard.service.AdminPolicyLinkReviewService;
 import com.example.welfare.admin.dashboard.service.AdminSupportInquiryService;
 import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.exception.CustomException;
@@ -71,6 +73,7 @@ public class AdminDashboardController {
     private final AdminDashboardWrapperObservationService adminDashboardWrapperObservationService;
     private final AdminPolicyErrorReportService adminPolicyErrorReportService;
     private final AdminPolicyDuplicateGroupService adminPolicyDuplicateGroupService;
+    private final AdminPolicyLinkReviewService adminPolicyLinkReviewService;
     private final AdminSupportInquiryService adminSupportInquiryService;
     private final AdminRecommendationReviewGatePromotionApprovalRecordService
             adminRecommendationReviewGatePromotionApprovalRecordService;
@@ -230,6 +233,22 @@ public class AdminDashboardController {
         ));
     }
 
+    @GetMapping("/policy-link-reviews")
+    public ResponseEntity<ApiResponse<AdminPolicyLinkReviewResponse>> getPolicyLinkReviews(
+            @RequestParam(name = "limit", required = false)
+            @Min(value = 1, message = "limit는 1 이상이어야 합니다.")
+            @Max(value = 20, message = "limit는 20 이하여야 합니다.")
+            Integer limit,
+            @RequestParam(name = "status", required = false) String status
+    ) {
+        validateDashboardLimit(limit);
+        AdminQueueStatusFilter statusFilter = AdminQueueStatusFilter.fromNullable(status);
+        log.info("[Admin] dashboard policy link reviews 조회 limit={} status={}", limit, statusFilter);
+        return ResponseEntity.ok(ApiResponse.success(
+                adminPolicyLinkReviewService.getRecentReviews(limit, statusFilter)
+        ));
+    }
+
     @PostMapping("/policy-error-reports/{reportId}/review")
     public ResponseEntity<ApiResponse<AdminReviewActionResponse>> reviewPolicyErrorReport(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
@@ -258,6 +277,23 @@ public class AdminDashboardController {
                 adminPolicyDuplicateGroupService.markReviewed(
                         request,
                         authenticatedUser != null ? authenticatedUser.userKey() : null
+                )
+        ));
+    }
+
+    @PostMapping("/policy-link-reviews/{serviceId}/review")
+    public ResponseEntity<ApiResponse<AdminReviewActionResponse>> reviewPolicyLink(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @org.springframework.web.bind.annotation.PathVariable Long serviceId,
+            @RequestBody(required = false) AdminReviewActionRequest request
+    ) {
+        log.info("[Admin] dashboard policy link review serviceId={} actorUserKey={}",
+                serviceId, authenticatedUser != null ? authenticatedUser.userKey() : null);
+        return ResponseEntity.ok(ApiResponse.success(
+                adminPolicyLinkReviewService.markReviewed(
+                        serviceId,
+                        authenticatedUser != null ? authenticatedUser.userKey() : null,
+                        request != null ? request.reviewNote() : null
                 )
         ));
     }

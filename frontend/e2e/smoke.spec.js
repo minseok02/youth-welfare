@@ -204,6 +204,7 @@ async function mockAdminDashboardApis(page) {
     ["**/api/admin/dashboard/policy-error-reports*", adminDashboardFixtures.policyErrorReports],
     ["**/api/admin/dashboard/support-inquiries*", adminDashboardFixtures.supportInquiries],
     ["**/api/admin/dashboard/policy-duplicate-groups*", adminDashboardFixtures.policyDuplicateGroups],
+    ["**/api/admin/dashboard/policy-link-reviews*", adminDashboardFixtures.policyLinkReviews],
   ];
 
   await Promise.all(routes.map(([url, data]) => page.route(url, (route) => route.fulfill({
@@ -822,6 +823,25 @@ test("admin dashboard 정책 중복 review 섹션은 duplicate queue를 보여�
   await expect(duplicateSection.getByText("공공근로사업", { exact: true })).toBeVisible();
   await expect(duplicateSection.getByText("12건 중복", { exact: true })).toBeVisible();
   await expect(duplicateSection.getByText("처리완료 · admin-user-key")).toBeVisible();
+});
+
+test("admin dashboard 정책 링크 review 섹션은 열린 링크 review queue를 보여준다 @admin-required", async ({ page }) => {
+  await mockAdminDashboardApis(page);
+  await loginFromProtectedRoute(page, "/admin/dashboard", adminCredentials);
+
+  const linkReviewSection = page.locator(section("admin-policy-link-reviews"));
+
+  await expect(linkReviewSection.getByText("정책 링크 review queue", { exact: true })).toBeVisible();
+  await expect(linkReviewSection.getByText("열린 링크 검토", { exact: true })).toBeVisible();
+  await expect(linkReviewSection.getByText("최근 24시간 신규", { exact: true })).toBeVisible();
+  await expect(linkReviewSection.getByText("표시 항목", { exact: true })).toBeVisible();
+  await expect(linkReviewSection.getByText("열린 건", { exact: true })).toBeVisible();
+  await expect(linkReviewSection.getByText("처리완료", { exact: true }).first()).toBeVisible();
+  await expect(linkReviewSection.getByText("전체", { exact: true }).first()).toBeVisible();
+  await expect(linkReviewSection.getByText("청년 창업 실험실 지원사업", { exact: true })).toBeVisible();
+  await expect(linkReviewSection.getByText("지역 청년 문화기획단 모집", { exact: true })).toBeVisible();
+  await expect(linkReviewSection.getByText("대표 링크 비어있음", { exact: true }).first()).toBeVisible();
+  await expect(linkReviewSection.getByText("처리완료 · admin-user-key")).toBeVisible();
 });
 
 test("admin dashboard 표준코드 추천 효과 섹션은 matrix 결과를 보여준다 @admin-required", async ({ page }) => {
