@@ -203,6 +203,7 @@ async function mockAdminDashboardApis(page) {
     ["**/api/admin/dashboard/wrapper-observation*", adminDashboardFixtures.wrapperObservation],
     ["**/api/admin/dashboard/policy-error-reports*", adminDashboardFixtures.policyErrorReports],
     ["**/api/admin/dashboard/support-inquiries*", adminDashboardFixtures.supportInquiries],
+    ["**/api/admin/dashboard/policy-duplicate-groups*", adminDashboardFixtures.policyDuplicateGroups],
   ];
 
   await Promise.all(routes.map(([url, data]) => page.route(url, (route) => route.fulfill({
@@ -801,6 +802,26 @@ test("admin dashboard 서비스 문의 섹션은 열린 문의 recent queue를 �
   await expect(supportInquiriesSection.getByText("챗봇이 이전 질문 맥락을 잘 못 이어갑니다.", { exact: true })).toBeVisible();
   await expect(supportInquiriesSection.getByText("정책 검색/필터", { exact: true }).first()).toBeVisible();
   await expect(supportInquiriesSection.getByText("필터가 바로 적용되는지 헷갈립니다.", { exact: true })).toBeVisible();
+});
+
+test("admin dashboard 정책 중복 review 섹션은 duplicate queue를 보여준다 @admin-required", async ({ page }) => {
+  await mockAdminDashboardApis(page);
+  await loginFromProtectedRoute(page, "/admin/dashboard", adminCredentials);
+
+  const duplicateSection = page.locator(section("admin-policy-duplicate-groups"));
+
+  await expect(duplicateSection.getByText("정책 중복 review queue", { exact: true })).toBeVisible();
+  await expect(duplicateSection.getByText("열린 중복 묶음", { exact: true })).toBeVisible();
+  await expect(duplicateSection.getByText("최근 24시간 신규", { exact: true })).toBeVisible();
+  await expect(duplicateSection.getByText("열린 관련 row", { exact: true })).toBeVisible();
+  await expect(duplicateSection.getByText("표시 묶음", { exact: true })).toBeVisible();
+  await expect(duplicateSection.getByText("열린 건", { exact: true })).toBeVisible();
+  await expect(duplicateSection.getByText("처리완료", { exact: true }).first()).toBeVisible();
+  await expect(duplicateSection.getByText("전체", { exact: true }).first()).toBeVisible();
+  await expect(duplicateSection.getByText("청년문화예술패스", { exact: true })).toBeVisible();
+  await expect(duplicateSection.getByText("공공근로사업", { exact: true })).toBeVisible();
+  await expect(duplicateSection.getByText("12건 중복", { exact: true })).toBeVisible();
+  await expect(duplicateSection.getByText("처리완료 · admin-user-key")).toBeVisible();
 });
 
 test("admin dashboard 표준코드 추천 효과 섹션은 matrix 결과를 보여준다 @admin-required", async ({ page }) => {

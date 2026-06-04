@@ -133,6 +133,7 @@ const ATTENTION_SOURCE_LABELS = {
   collect: "collect",
   "user-profile-standard-codes": "standard-codes",
   "wrapper-observation": "wrapper",
+  "policy-duplicate-groups": "duplicates",
 };
 
 const ADMIN_QUEUE_STATUS_OPTIONS = [
@@ -168,6 +169,8 @@ function formatAttentionActionLabel(source) {
       return "표준코드 입력률 보기";
     case "wrapper":
       return "상위 wrapper 보기";
+    case "duplicates":
+      return "중복 리뷰 보기";
     default:
       return "관련 섹션 보기";
   }
@@ -590,6 +593,13 @@ const fetchSupportInquiries = async (status = "OPEN") => {
   return data?.data;
 };
 
+const fetchPolicyDuplicateGroups = async (status = "OPEN") => {
+  const { data } = await api.get("/api/admin/dashboard/policy-duplicate-groups", {
+    params: { limit: 5, status },
+  });
+  return data?.data;
+};
+
 const fetchOfficialCodebooks = async () => {
   const { data } = await api.get("/api/reference/official-codes");
   return data?.data ?? [];
@@ -898,8 +908,10 @@ export default function AdminDashboardPage() {
   const [codebookQueryText, setCodebookQueryText] = useState("");
   const [policyErrorReviewNotes, setPolicyErrorReviewNotes] = useState({});
   const [supportInquiryReviewNotes, setSupportInquiryReviewNotes] = useState({});
+  const [policyDuplicateReviewNotes, setPolicyDuplicateReviewNotes] = useState({});
   const [policyErrorStatusFilter, setPolicyErrorStatusFilter] = useState("OPEN");
   const [supportInquiryStatusFilter, setSupportInquiryStatusFilter] = useState("OPEN");
+  const [policyDuplicateStatusFilter, setPolicyDuplicateStatusFilter] = useState("OPEN");
   const [reviewSubmittingKey, setReviewSubmittingKey] = useState(null);
   const queryBaseOptions = {
     staleTime: 30_000,
@@ -966,6 +978,12 @@ export default function AdminDashboardPage() {
     ...queryBaseOptions,
   });
 
+  const policyDuplicateGroupsQuery = useQuery({
+    queryKey: ["admin-dashboard-policy-duplicate-groups", policyDuplicateStatusFilter],
+    queryFn: () => fetchPolicyDuplicateGroups(policyDuplicateStatusFilter),
+    ...queryBaseOptions,
+  });
+
   const officialCodebooksQuery = useQuery({
     queryKey: ["official-codebooks"],
     queryFn: fetchOfficialCodebooks,
@@ -994,6 +1012,7 @@ export default function AdminDashboardPage() {
   const wrapperObservation = wrapperObservationQuery.data;
   const policyErrorReports = policyErrorReportsQuery.data;
   const supportInquiries = supportInquiriesQuery.data;
+  const policyDuplicateGroups = policyDuplicateGroupsQuery.data;
   const selectedCodebookSummary = officialCodebooks.find((item) => item.codeSetKey === effectiveSelectedCodeSetKey) ?? null;
   const officialCodebookDetail = officialCodebookDetailQuery.data;
   const detailRows = officialCodebookDetail?.rows ?? officialCodebookDetail?.metadata?.sampleRows ?? [];
@@ -1013,6 +1032,8 @@ export default function AdminDashboardPage() {
     policyErrorReportsQuery.error?.response?.data?.message ?? "정책 오류 제보 목록을 불러오지 못했습니다.";
   const supportInquiriesErrorMessage =
     supportInquiriesQuery.error?.response?.data?.message ?? "서비스 문의 목록을 불러오지 못했습니다.";
+  const policyDuplicateGroupsErrorMessage =
+    policyDuplicateGroupsQuery.error?.response?.data?.message ?? "정책 중복 review 목록을 불러오지 못했습니다.";
   const officialCodebooksErrorMessage = officialCodebooksQuery.error?.response?.data?.message ?? "공식 코드북 목록을 불러오지 못했습니다.";
   const officialCodebookDetailErrorMessage = officialCodebookDetailQuery.error?.response?.data?.message ?? "선택한 코드북 상세를 불러오지 못했습니다.";
   const animateJumpTarget = (target, tone, duration = 1400) => {
@@ -1083,6 +1104,7 @@ export default function AdminDashboardPage() {
     wrapperObservationQuery.isError,
     policyErrorReportsQuery.isError,
     supportInquiriesQuery.isError,
+    policyDuplicateGroupsQuery.isError,
     officialCodebooksQuery.isError,
     officialCodebookDetailQuery.isError,
   ].filter(Boolean).length;
@@ -1097,6 +1119,7 @@ export default function AdminDashboardPage() {
     wrapperObservationQuery.isFetching,
     policyErrorReportsQuery.isFetching,
     supportInquiriesQuery.isFetching,
+    policyDuplicateGroupsQuery.isFetching,
     officialCodebooksQuery.isFetching,
     officialCodebookDetailQuery.isFetching,
   ].some(Boolean);
@@ -1228,6 +1251,7 @@ export default function AdminDashboardPage() {
     wrapperObservationQuery.refetch();
     policyErrorReportsQuery.refetch();
     supportInquiriesQuery.refetch();
+    policyDuplicateGroupsQuery.refetch();
     officialCodebooksQuery.refetch();
     if (effectiveSelectedCodeSetKey) {
       officialCodebookDetailQuery.refetch();
@@ -1264,6 +1288,29 @@ export default function AdminDashboardPage() {
         return next;
       });
       supportInquiriesQuery.refetch();
+      attentionFeedQuery.refetch();
+    } finally {
+      setReviewSubmittingKey(null);
+    }
+  };
+
+  const handleReviewPolicyDuplicateGroup = async (item) => {
+    const requestKey = `duplicate-${item.sourceType}-${item.title}-${item.hostOrgKey ?? ""}`;
+    setReviewSubmittingKey(requestKey);
+    try {
+      await api.post("/api/admin/dashboard/policy-duplicate-groups/review", {
+        sourceType: item.sourceType,
+        title: item.title,
+        hostOrgKey: item.hostOrgKey ?? "",
+        hostOrgLabel: item.hostOrgLabel ?? null,
+        reviewNote: policyDuplicateReviewNotes[requestKey]?.trim() || null,
+      });
+      setPolicyDuplicateReviewNotes((prev) => {
+        const next = { ...prev };
+        delete next[requestKey];
+        return next;
+      });
+      policyDuplicateGroupsQuery.refetch();
       attentionFeedQuery.refetch();
     } finally {
       setReviewSubmittingKey(null);
@@ -2026,6 +2073,164 @@ export default function AdminDashboardPage() {
                               </Stack>
                             </Box>
                           )}
+                        />
+                      )}
+                    </Stack>
+                  )}
+                </Stack>
+              </CardContent>
+            </Card>
+          </Box>
+
+          <Box id="admin-policy-duplicate-groups" sx={{ scrollMarginTop: 96 }}>
+            <Card sx={{ background: PANEL_BG, border: `1px solid ${PANEL_LINE}`, boxShadow: "0 10px 28px rgba(15,23,42,0.04)" }}>
+              <CardContent sx={{ p: 2.5 }}>
+                <Stack spacing={2}>
+                  <Box>
+                    <Typography sx={{ fontSize: 12, fontWeight: 800, color: ACCENT, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                      데이터 품질 리뷰
+                    </Typography>
+                    <Typography sx={{ fontSize: 20, fontWeight: 900, color: INK, mt: 0.75, letterSpacing: "-0.02em" }}>
+                      정책 중복 review queue
+                    </Typography>
+                    <Typography sx={{ fontSize: 13, color: INK3, mt: 0.75 }}>
+                      `YOUTH`와 `BOKJIRO_LOCAL`에서 title/host 기준으로 반복되는 정책 묶음을 최근 review queue로 보여줍니다. broad parser 변경 전, 실제 운영자가 중복 검토 우선순위를 잡는 용도입니다.
+                    </Typography>
+                  </Box>
+
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    {ADMIN_QUEUE_STATUS_OPTIONS.map((option) => (
+                      <Chip
+                        key={option.value}
+                        label={option.label}
+                        clickable
+                        color={policyDuplicateStatusFilter === option.value ? "primary" : "default"}
+                        variant={policyDuplicateStatusFilter === option.value ? "filled" : "outlined"}
+                        onClick={() => setPolicyDuplicateStatusFilter(option.value)}
+                      />
+                    ))}
+                  </Stack>
+
+                  {policyDuplicateGroupsQuery.isLoading && (
+                    <SectionLoadingCard
+                      title="정책 중복 review 로딩 중"
+                      description="최근 duplicate title/host 묶음을 불러오는 중입니다."
+                    />
+                  )}
+
+                  {policyDuplicateGroupsQuery.isError && (
+                    <SectionErrorCard
+                      title="정책 중복 review 로드 실패"
+                      description="운영 duplicate review queue를 읽지 못했습니다."
+                      message={policyDuplicateGroupsErrorMessage}
+                      onRetry={() => policyDuplicateGroupsQuery.refetch()}
+                    />
+                  )}
+
+                  {policyDuplicateGroups && !policyDuplicateGroupsQuery.isLoading && !policyDuplicateGroupsQuery.isError && (
+                    <Stack spacing={2}>
+                      <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)" } }}>
+                        <MetricCard
+                          title="열린 중복 묶음"
+                          value={formatNumber(policyDuplicateGroups.openGroupCount)}
+                          description="아직 운영 검토가 필요한 duplicate title/host 묶음"
+                        />
+                        <MetricCard
+                          title="최근 24시간 신규"
+                          value={formatNumber(policyDuplicateGroups.recentOpenGroupCount24h)}
+                          description="지난 24시간 안에 새로 생긴 duplicate 묶음"
+                        />
+                        <MetricCard
+                          title="열린 관련 row"
+                          value={formatNumber(policyDuplicateGroups.openDuplicateRowCount)}
+                          description="현재 열린 duplicate 묶음에 포함된 row 수"
+                        />
+                        <MetricCard
+                          title="표시 묶음"
+                          value={formatNumber(policyDuplicateGroups.recentGroups?.length ?? 0)}
+                          description="최근 duplicate review 샘플"
+                        />
+                      </Box>
+
+                      {(policyDuplicateGroups.recentGroups?.length ?? 0) === 0 ? (
+                        <Alert severity="success">
+                          {policyDuplicateStatusFilter === "OPEN"
+                            ? "현재 열린 정책 중복 review 묶음이 없습니다."
+                            : policyDuplicateStatusFilter === "REVIEWED"
+                              ? "표시할 처리완료 중복 review 묶음이 없습니다."
+                              : "표시할 정책 중복 review 묶음이 없습니다."}
+                        </Alert>
+                      ) : (
+                        <CompactListCard
+                          title="최근 정책 중복 묶음"
+                          description="duplicate count가 큰 묶음부터 표시합니다."
+                          items={policyDuplicateGroups.recentGroups ?? []}
+                          renderItem={(item) => {
+                            const requestKey = `duplicate-${item.sourceType}-${item.title}-${item.hostOrgKey ?? ""}`;
+                            return (
+                              <Box
+                                key={requestKey}
+                                sx={{ p: 1.75, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}
+                              >
+                                <Stack spacing={1}>
+                                  <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" spacing={1.5}>
+                                    <Box sx={{ minWidth: 0 }}>
+                                      <Typography sx={{ fontSize: 14, fontWeight: 800, color: INK, overflowWrap: "anywhere", wordBreak: "break-word" }}>
+                                        {item.title}
+                                      </Typography>
+                                      <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25, overflowWrap: "anywhere", wordBreak: "break-word" }}>
+                                        {formatSourceType(item.sourceType)} · {item.hostOrgLabel || "기관명 없음"} · 최신 row {formatDateTime(item.latestCreatedAt)}
+                                      </Typography>
+                                    </Box>
+                                    <Chip
+                                      label={`${formatNumber(item.duplicateCount)}건 중복`}
+                                      size="small"
+                                      sx={{
+                                        bgcolor: WARNING_BG,
+                                        color: WARNING_TEXT,
+                                        border: `1px solid ${WARNING_BORDER}`,
+                                        fontWeight: 700,
+                                        alignSelf: { xs: "flex-start", md: "center" },
+                                      }}
+                                    />
+                                  </Stack>
+                                  <Typography sx={{ fontSize: 13, color: INK2, overflowWrap: "anywhere", wordBreak: "break-word" }}>
+                                    sourceIds {item.sourceIds}
+                                  </Typography>
+                                  {item.status === "REVIEWED" && (
+                                    <Alert severity="success" sx={{ py: 0 }}>
+                                      {`처리완료 · ${item.reviewedByUserKey || "운영자"} · ${formatDateTime(item.reviewedAt)}`}
+                                      {item.reviewNote ? ` · ${item.reviewNote}` : ""}
+                                    </Alert>
+                                  )}
+                                  <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ xs: "stretch", md: "center" }}>
+                                    <TextField
+                                      size="small"
+                                      placeholder="운영 메모 (선택)"
+                                      value={policyDuplicateReviewNotes[requestKey] ?? ""}
+                                      onChange={(event) => setPolicyDuplicateReviewNotes((prev) => ({
+                                        ...prev,
+                                        [requestKey]: event.target.value,
+                                      }))}
+                                      sx={{ flex: 1 }}
+                                      disabled={item.status === "REVIEWED"}
+                                    />
+                                    <Button
+                                      size="small"
+                                      variant="outlined"
+                                      disabled={item.status === "REVIEWED" || reviewSubmittingKey === requestKey}
+                                      onClick={() => handleReviewPolicyDuplicateGroup(item)}
+                                      sx={{ textTransform: "none", borderRadius: 999, whiteSpace: "nowrap" }}
+                                    >
+                                      {item.status === "REVIEWED"
+                                        ? "처리완료됨"
+                                        : reviewSubmittingKey === requestKey ? "처리 중..." : "처리완료"}
+                                    </Button>
+                                  </Stack>
+                                </Stack>
+                              </Box>
+                            );
+                          }}
                         />
                       )}
                     </Stack>

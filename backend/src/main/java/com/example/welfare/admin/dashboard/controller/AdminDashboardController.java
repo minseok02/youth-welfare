@@ -5,6 +5,8 @@ import com.example.welfare.admin.dashboard.dto.AdminDashboardAttentionResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationCandidateDiagnosticResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
 import com.example.welfare.admin.dashboard.dto.AdminPolicyErrorReportResponse;
+import com.example.welfare.admin.dashboard.dto.AdminPolicyDuplicateGroupResponse;
+import com.example.welfare.admin.dashboard.dto.AdminPolicyDuplicateGroupReviewRequest;
 import com.example.welfare.admin.dashboard.dto.AdminQueueStatusFilter;
 import com.example.welfare.admin.dashboard.dto.AdminReviewActionRequest;
 import com.example.welfare.admin.dashboard.dto.AdminReviewActionResponse;
@@ -28,6 +30,7 @@ import com.example.welfare.admin.dashboard.service.AdminDashboardSummaryService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardUserProfileService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardWrapperObservationService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyErrorReportService;
+import com.example.welfare.admin.dashboard.service.AdminPolicyDuplicateGroupService;
 import com.example.welfare.admin.dashboard.service.AdminSupportInquiryService;
 import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.exception.CustomException;
@@ -67,6 +70,7 @@ public class AdminDashboardController {
     private final AdminDashboardStandardCodeObservationService adminDashboardStandardCodeObservationService;
     private final AdminDashboardWrapperObservationService adminDashboardWrapperObservationService;
     private final AdminPolicyErrorReportService adminPolicyErrorReportService;
+    private final AdminPolicyDuplicateGroupService adminPolicyDuplicateGroupService;
     private final AdminSupportInquiryService adminSupportInquiryService;
     private final AdminRecommendationReviewGatePromotionApprovalRecordService
             adminRecommendationReviewGatePromotionApprovalRecordService;
@@ -210,6 +214,22 @@ public class AdminDashboardController {
         ));
     }
 
+    @GetMapping("/policy-duplicate-groups")
+    public ResponseEntity<ApiResponse<AdminPolicyDuplicateGroupResponse>> getPolicyDuplicateGroups(
+            @RequestParam(name = "limit", required = false)
+            @Min(value = 1, message = "limit는 1 이상이어야 합니다.")
+            @Max(value = 20, message = "limit는 20 이하여야 합니다.")
+            Integer limit,
+            @RequestParam(name = "status", required = false) String status
+    ) {
+        validateDashboardLimit(limit);
+        AdminQueueStatusFilter statusFilter = AdminQueueStatusFilter.fromNullable(status);
+        log.info("[Admin] dashboard policy duplicate groups 조회 limit={} status={}", limit, statusFilter);
+        return ResponseEntity.ok(ApiResponse.success(
+                adminPolicyDuplicateGroupService.getRecentGroups(limit, statusFilter)
+        ));
+    }
+
     @PostMapping("/policy-error-reports/{reportId}/review")
     public ResponseEntity<ApiResponse<AdminReviewActionResponse>> reviewPolicyErrorReport(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
@@ -223,6 +243,21 @@ public class AdminDashboardController {
                         reportId,
                         authenticatedUser != null ? authenticatedUser.userKey() : null,
                         request != null ? request.reviewNote() : null
+                )
+        ));
+    }
+
+    @PostMapping("/policy-duplicate-groups/review")
+    public ResponseEntity<ApiResponse<AdminReviewActionResponse>> reviewPolicyDuplicateGroup(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @RequestBody AdminPolicyDuplicateGroupReviewRequest request
+    ) {
+        log.info("[Admin] dashboard policy duplicate group review sourceType={} title={} actorUserKey={}",
+                request.sourceType(), request.title(), authenticatedUser != null ? authenticatedUser.userKey() : null);
+        return ResponseEntity.ok(ApiResponse.success(
+                adminPolicyDuplicateGroupService.markReviewed(
+                        request,
+                        authenticatedUser != null ? authenticatedUser.userKey() : null
                 )
         ));
     }

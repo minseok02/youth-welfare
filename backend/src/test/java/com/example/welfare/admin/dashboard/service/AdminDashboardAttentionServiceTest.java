@@ -1,6 +1,7 @@
 package com.example.welfare.admin.dashboard.service;
 
 import com.example.welfare.admin.dashboard.dto.AdminCollectFailureResponse;
+import com.example.welfare.admin.dashboard.dto.AdminPolicyDuplicateGroupResponse;
 import com.example.welfare.admin.dashboard.dto.AdminPolicyErrorReportResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSupportInquiryResponse;
 import com.example.welfare.admin.dashboard.dto.AdminUserProfileStandardCodeCoverageResponse;
@@ -20,12 +21,14 @@ class AdminDashboardAttentionServiceTest {
     private final AdminDashboardCollectService collectService = mock(AdminDashboardCollectService.class);
     private final AdminDashboardUserProfileService userProfileService = mock(AdminDashboardUserProfileService.class);
     private final AdminDashboardWrapperObservationService wrapperObservationService = mock(AdminDashboardWrapperObservationService.class);
+    private final AdminPolicyDuplicateGroupService policyDuplicateGroupService = mock(AdminPolicyDuplicateGroupService.class);
     private final AdminPolicyErrorReportService policyErrorReportService = mock(AdminPolicyErrorReportService.class);
     private final AdminSupportInquiryService supportInquiryService = mock(AdminSupportInquiryService.class);
     private final AdminDashboardAttentionService service = new AdminDashboardAttentionService(
             collectService,
             userProfileService,
             wrapperObservationService,
+            policyDuplicateGroupService,
             policyErrorReportService,
             supportInquiryService
     );
@@ -114,6 +117,7 @@ class AdminDashboardAttentionServiceTest {
                         "표준코드 미입력 5 증가, priority 관측 passed -> failed"
                 )
         ));
+        given(policyDuplicateGroupService.getRecentGroups(1)).willReturn(new AdminPolicyDuplicateGroupResponse(0, 0, 0, List.of()));
         given(policyErrorReportService.getRecentReports(1)).willReturn(new AdminPolicyErrorReportResponse(0, 0, List.of()));
         given(supportInquiryService.getRecentInquiries(1)).willReturn(new AdminSupportInquiryResponse(0, 0, List.of()));
 
@@ -204,6 +208,24 @@ class AdminDashboardAttentionServiceTest {
                 "이전 상태 없음",
                 null
         ));
+        given(policyDuplicateGroupService.getRecentGroups(1)).willReturn(new AdminPolicyDuplicateGroupResponse(
+                3,
+                1,
+                12,
+                List.of(new AdminPolicyDuplicateGroupResponse.Item(
+                        "YOUTH",
+                        "청년문화예술패스",
+                        "",
+                        null,
+                        3,
+                        "A, B, C",
+                        LocalDateTime.of(2026, 6, 4, 9, 40),
+                        "OPEN",
+                        null,
+                        null,
+                        null
+                ))
+        ));
         given(policyErrorReportService.getRecentReports(1)).willReturn(new AdminPolicyErrorReportResponse(
                 2,
                 1,
@@ -228,7 +250,7 @@ class AdminDashboardAttentionServiceTest {
         var response = service.getAttentionFeed();
 
         assertThat(response.items()).extracting("key")
-                .contains("policy-error-report-backlog", "support-inquiry-backlog");
+                .contains("policy-duplicate-backlog", "policy-error-report-backlog", "support-inquiry-backlog");
         assertThat(response.items()).extracting("message", String.class)
                 .anySatisfy(message -> assertThat(message).contains("최근 24시간 1건"));
     }

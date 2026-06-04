@@ -2,6 +2,7 @@ package com.example.welfare.admin.dashboard.service;
 
 import com.example.welfare.admin.dashboard.dto.AdminCollectFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardAttentionResponse;
+import com.example.welfare.admin.dashboard.dto.AdminPolicyDuplicateGroupResponse;
 import com.example.welfare.admin.dashboard.dto.AdminPolicyErrorReportResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSupportInquiryResponse;
 import com.example.welfare.admin.dashboard.dto.AdminUserProfileStandardCodeCoverageResponse;
@@ -22,6 +23,7 @@ public class AdminDashboardAttentionService {
     private final AdminDashboardCollectService adminDashboardCollectService;
     private final AdminDashboardUserProfileService adminDashboardUserProfileService;
     private final AdminDashboardWrapperObservationService adminDashboardWrapperObservationService;
+    private final AdminPolicyDuplicateGroupService adminPolicyDuplicateGroupService;
     private final AdminPolicyErrorReportService adminPolicyErrorReportService;
     private final AdminSupportInquiryService adminSupportInquiryService;
 
@@ -31,6 +33,7 @@ public class AdminDashboardAttentionService {
                 adminDashboardUserProfileService.getUserProfileStandardCodeCoverage();
         AdminWrapperObservationResponse wrapperObservation =
                 adminDashboardWrapperObservationService.getLatestObservation();
+        AdminPolicyDuplicateGroupResponse duplicateGroups = adminPolicyDuplicateGroupService.getRecentGroups(1);
         AdminPolicyErrorReportResponse policyErrorReports = adminPolicyErrorReportService.getRecentReports(1);
         AdminSupportInquiryResponse supportInquiries = adminSupportInquiryService.getRecentInquiries(1);
 
@@ -73,6 +76,24 @@ public class AdminDashboardAttentionService {
                     wrapperObservation.promotedAlert().message(),
                     "admin-wrapper-observation",
                     "wrapper-observation"
+            ));
+        }
+        if (duplicateGroups.openGroupCount() > 0) {
+            String headline = duplicateGroups.recentGroups().isEmpty()
+                    ? "중복 묶음 있음"
+                    : duplicateGroups.recentGroups().get(0).title();
+            items.add(new AdminDashboardAttentionResponse.AttentionItem(
+                    "policy-duplicate-backlog",
+                    "warning",
+                    "정책 중복 review backlog",
+                    "%d묶음 열림 · 최근 24시간 %d묶음 · 관련 row %d건 · 대표 정책: %s".formatted(
+                            duplicateGroups.openGroupCount(),
+                            duplicateGroups.recentOpenGroupCount24h(),
+                            duplicateGroups.openDuplicateRowCount(),
+                            headline
+                    ),
+                    "admin-policy-duplicate-groups",
+                    "policy-duplicate-groups"
             ));
         }
         if (policyErrorReports.openCount() > 0) {

@@ -6,6 +6,8 @@ import com.example.welfare.admin.dashboard.dto.AdminDashboardAttentionResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationCandidateDiagnosticResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
 import com.example.welfare.admin.dashboard.dto.AdminPolicyErrorReportResponse;
+import com.example.welfare.admin.dashboard.dto.AdminPolicyDuplicateGroupResponse;
+import com.example.welfare.admin.dashboard.dto.AdminPolicyDuplicateGroupReviewRequest;
 import com.example.welfare.admin.dashboard.dto.AdminQueueStatusFilter;
 import com.example.welfare.admin.dashboard.dto.AdminReviewActionResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordClearResponse;
@@ -28,6 +30,7 @@ import com.example.welfare.admin.dashboard.service.AdminDashboardSummaryService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardUserProfileService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardWrapperObservationService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyErrorReportService;
+import com.example.welfare.admin.dashboard.service.AdminPolicyDuplicateGroupService;
 import com.example.welfare.admin.dashboard.service.AdminSupportInquiryService;
 import com.example.welfare.collect.controller.CollectAdminController;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillService;
@@ -167,6 +170,8 @@ class AdminSecurityWebMvcTest {
     @MockitoBean
     private AdminPolicyErrorReportService adminPolicyErrorReportService;
     @MockitoBean
+    private AdminPolicyDuplicateGroupService adminPolicyDuplicateGroupService;
+    @MockitoBean
     private AdminSupportInquiryService adminSupportInquiryService;
     @MockitoBean
     private JwtUtil jwtUtil;
@@ -237,6 +242,52 @@ class AdminSecurityWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.openCount").value(2));
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 정책 중복 review queue API를 호출할 수 있다")
+    void adminEndpointAllowsPolicyDuplicateGroupsDashboard() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(adminPolicyDuplicateGroupService.getRecentGroups(5, AdminQueueStatusFilter.OPEN))
+                .willReturn(new AdminPolicyDuplicateGroupResponse(3, 1, 12, List.of()));
+
+        mockMvc.perform(get("/api/admin/dashboard/policy-duplicate-groups")
+                        .param("limit", "5")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.openGroupCount").value(3));
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 정책 중복 묶음을 처리완료 할 수 있다")
+    void adminEndpointAllowsPolicyDuplicateGroupReview() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(adminPolicyDuplicateGroupService.markReviewed(
+                new AdminPolicyDuplicateGroupReviewRequest("YOUTH", "청년문화예술패스", "", null, "중앙 중복 묶음 확인"),
+                "user-key-1"
+        )).willReturn(new AdminReviewActionResponse(77L, "REVIEWED", "중앙 중복 묶음 확인", "user-key-1", LocalDateTime.now()));
+
+        mockMvc.perform(post("/api/admin/dashboard/policy-duplicate-groups/review")
+                        .header("Authorization", "Bearer admin-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "sourceType": "YOUTH",
+                                  "title": "청년문화예술패스",
+                                  "hostOrgKey": "",
+                                  "reviewNote": "중앙 중복 묶음 확인"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.status").value("REVIEWED"));
     }
 
     @Test

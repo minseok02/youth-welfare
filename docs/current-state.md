@@ -45,16 +45,20 @@
 
 - 정책 데이터 오류는 정책 상세의 `정책 오류 제보`로 받습니다.
 - 서비스 사용 문의는 공개 `/support` 페이지에서 받습니다.
-- 관리자 대시보드는 두 recent queue를 모두 노출합니다.
+- 관리자 대시보드는 제보/문의 recent queue를 모두 노출합니다.
   - `정책 오류 제보 recent queue`
   - `서비스 문의 recent queue`
+- 정책 데이터 품질 review는 별도 `정책 중복 review queue` 로 봅니다.
+  - `YOUTH / BOKJIRO_LOCAL` duplicate title/host 묶음
 - 두 queue 모두 `OPEN -> REVIEWED` 처리와 운영 메모를 지원합니다.
 - `POST /api/admin/dashboard/policy-error-reports/{reportId}/review`
 - `POST /api/admin/dashboard/support-inquiries/{inquiryId}/review`
+- `POST /api/admin/dashboard/policy-duplicate-groups/review`
 - recent queue는 `status=OPEN|REVIEWED|ALL` query로 운영 필터를 바꿔 볼 수 있습니다.
 - admin attention feed는 열린 backlog를 아래 key로 승격합니다.
   - `policy-error-report-backlog`
   - `support-inquiry-backlog`
+  - `policy-duplicate-backlog`
 
 ## 작업 전 기본 검증 기준
 
