@@ -180,6 +180,10 @@ public class WelfareServiceMapper {
     // 온통청년 API는 "전국 노출" 정책에 255개 시군구 코드를 모두 부여한다.
     // zipCd가 이 수 이상의 시도에 걸쳐 있으면 전국 마커로 판단하고, host_org 기반 지역 추정으로 전환한다.
     private static final int NATIONWIDE_SIDO_THRESHOLD = 15;
+    private static final Map<String, List<String>> YOUTH_NATIONWIDE_REGION_OVERRIDE_MAP = Map.of(
+            "20250110005400210145", List.of("46800"),
+            "20250618005400211022", List.of("31140")
+    );
 
     // [지역 추정 한계]
     // host_org가 중앙부처(고용노동부 등)인 경우 inferFromHostOrg가 빈 리스트를 반환한다.
@@ -206,6 +210,16 @@ public class WelfareServiceMapper {
         // zipCd가 전국 수준이면 host_org로 실제 운영 지역 추정
         // 추정 불가(중앙부처 등)이면 빈 리스트 → 전국 정책으로 처리
         if (distinctSido >= NATIONWIDE_SIDO_THRESHOLD) {
+            List<String> overrideCodes = YOUTH_NATIONWIDE_REGION_OVERRIDE_MAP.get(service.getSourceId());
+            if (overrideCodes != null && !overrideCodes.isEmpty()) {
+                for (String code : overrideCodes) {
+                    regions.add(ServiceRegion.builder()
+                            .service(service)
+                            .regionCode(code)
+                            .build());
+                }
+                return regions;
+            }
             List<String> inferred = RegionCodeUtil.inferFromHostOrg(item.getSprvsnInstCdNm());
             for (String code : inferred) {
                 regions.add(ServiceRegion.builder()

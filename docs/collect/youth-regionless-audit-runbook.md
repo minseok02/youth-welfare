@@ -60,3 +60,14 @@ bash deploy/smoke/run-local-youth-regionless-audit.sh
   - title과 설명 모두 `장흥` 현장 프로그램으로 읽혀 **전라남도 장흥군 local override 후보**로 본다.
 
 즉 현재 `local_suspicious_count=2` 는 broad parser failure가 아니라, bounded manual review/override 후보 두 건으로 읽는 것이 맞다.
+
+### 2026-06-04 bounded override 검증 메모
+
+- code override:
+  - `20250110005400210145 -> 46800 (전라남도 장흥군)`
+  - `20250618005400211022 -> 31140 (울산광역시 남구)`
+- local DB bounded patch로 검증한 결과:
+  - `regionless 344 -> 342`
+  - `local_suspicious_count 2 -> 0`
+
+즉 이 두 건은 broad nationwide zipCd rule을 흔들기보다, sourceId 기반 bounded override로 닫는 쪽이 맞다.

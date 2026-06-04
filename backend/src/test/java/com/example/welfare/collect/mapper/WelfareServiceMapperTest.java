@@ -407,6 +407,38 @@ class WelfareServiceMapperTest {
     }
 
     @Test
+    void regionsFromYouth_usesBoundedOverrideForKnownNationwideZipLocalProgram() throws Exception {
+        YouthApiDto.Item item = new YouthApiDto.Item();
+        setField(item, "plcyNo", "20250618005400211022");
+        setField(item, "plcyNm", "2025년 울산광역시 남구 청년도전 지원사업(단기·중기)");
+        setField(item, "lclsfNm", "일자리");
+        setField(item, "sprvsnInstCdNm", "구청장");
+        setField(item, "zipCd", buildNationwideZipCd());
+
+        WelfareService service = mapper.fromYouth(item);
+
+        assertThat(mapper.regionsFromYouth(item, service))
+                .singleElement()
+                .satisfies(region -> assertThat(region.getRegionCode()).isEqualTo("31140"));
+    }
+
+    @Test
+    void regionsFromYouth_usesBoundedOverrideForKnownNationwideZipJangheungProgram() throws Exception {
+        YouthApiDto.Item item = new YouthApiDto.Item();
+        setField(item, "plcyNo", "20250110005400210145");
+        setField(item, "plcyNm", "\"노벨 문학도시 장흥을 즐겨라!\" 지역탐방 프로그램 운영");
+        setField(item, "lclsfNm", "복지문화");
+        setField(item, "sprvsnInstCdNm", "인구청년정책과");
+        setField(item, "zipCd", buildNationwideZipCd());
+
+        WelfareService service = mapper.fromYouth(item);
+
+        assertThat(mapper.regionsFromYouth(item, service))
+                .singleElement()
+                .satisfies(region -> assertThat(region.getRegionCode()).isEqualTo("46800"));
+    }
+
+    @Test
     void fromBokjiroLocal_setsSupportContentAndApplyEndDateFallback() throws Exception {
         BokjiroLocalDto.Item item = new BokjiroLocalDto.Item();
         setField(item, "servId", "L002");
@@ -473,5 +505,11 @@ class WelfareServiceMapperTest {
         Field field = target.getClass().getDeclaredField(name);
         field.setAccessible(true);
         field.set(target, value);
+    }
+
+    private String buildNationwideZipCd() {
+        return String.join(",",
+                "11110", "26110", "27110", "28110", "29110", "30110", "31110", "36110",
+                "41111", "43111", "44131", "46110", "47111", "48121", "50110", "51110", "52111");
     }
 }

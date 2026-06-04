@@ -449,6 +449,14 @@ stable artifact:
 - `tmp/youth-regionless-audit/latest-youth-regionless-summary.txt`
 - `tmp/youth-regionless-audit/latest-youth-regionless-summary.json`
 
+bounded override 검증 메모:
+
+- `20250110005400210145 -> 46800 (전라남도 장흥군)`
+- `20250618005400211022 -> 31140 (울산광역시 남구)`
+- local DB bounded verification 기준:
+  - `regionless 344 -> 342`
+  - `local_suspicious_count 2 -> 0`
+
 ### 적용 방법
 
 코드 수정 후 `POST /api/admin/collect/youth`로 재수집하면 반영된다.
