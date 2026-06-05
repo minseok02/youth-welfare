@@ -16,10 +16,12 @@
 - 현재 프론트엔드에는 repo-native `Playwright` browser smoke가 있습니다.
 - 따라서 프론트 QA는 현재 단계에서 `정적 검증(build/lint) + Playwright smoke + 수동 브라우저 시나리오 검증` 기준으로 봅니다.
 - 핵심 검증 축은 아래 네 가지입니다.
+- 핵심 검증 축은 아래 다섯 가지입니다.
   - 라우팅/뒤로가기/재진입
   - 로그인 필요 경로와 로그인 후 복귀
   - 세션 만료 후 refresh 실패와 로그인 화면 복귀
   - 북마크/마이페이지/추천 흐름의 상태 일관성
+  - 로그인 직후 메인의 `가이드 배너 / 추천 보강 CTA`
   - `/guide` / `/support` / `정책 오류 제보` 도움 경로 구분
 
 ## 현재 코드 기준 QA 핵심 경계
@@ -108,6 +110,19 @@
 
 로 역할이 나뉘어야 합니다.
 
+### 10. 로그인 직후 메인 보강 흐름
+
+- [LoginPage.jsx](../frontend/src/pages/LoginPage.jsx)
+  - 로그인 성공 후 `postLoginRecommendationNudge`, `postLoginGuideNudge` 를 메인으로 넘깁니다.
+- [MainPage.jsx](../frontend/src/pages/MainPage.jsx)
+  - guide nudge가 오면 `처음 시작 가이드` 배너가 보여야 합니다.
+  - 우선순위/표준코드 공백 상태에 따라 `추천 품질 우선 개선`, `추천 정확도 보강` CTA가 보여야 합니다.
+  - `맞춤 재추천 →` 는
+    - 우선순위 공백이면 `/mypage?tab=1`
+    - 표준코드 공백이면 `/mypage?tab=0`
+    으로 이어져야 합니다.
+  - `이용가이드 보기 →` 는 `/guide` 로 이어져야 합니다.
+
 ## 현재 QA 기준선
 
 2026-05-29 기준 프론트엔드 QA 기준선은 아래와 같습니다.
@@ -132,6 +147,7 @@
 - 일반 사용자 `/admin/dashboard` 접근 차단
 - `/support` 는 `정책 오류 제보와는 다릅니다` 안내를 노출
 - 정책 상세는 `⚑ 정책 오류 제보` CTA 유지
+- 로그인 직후 메인은 `처음 시작 가이드` 와 추천 보강 CTA를 동시에 유지
 
 opt-in admin Playwright smoke 범위:
 
