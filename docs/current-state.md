@@ -51,6 +51,7 @@
 - 정책 데이터 품질 review는 별도 `정책 중복 review queue` 로 봅니다.
   - `YOUTH / BOKJIRO_LOCAL` duplicate title/host 묶음
 - `BOKJIRO_LOCAL` duplicate는 title-only false positive가 많아서 기본값을 `지역별 개별 사업 유지`로 둡니다.
+- admin duplicate queue는 현재 `reviewClass` 를 노출하고 `exact -> mirror -> drift -> title-only 주의` 순서로 정렬해, `YOUTH` 진짜 중복 후보를 먼저 보게 합니다.
 - `YOUTH` duplicate는 `같은 기관 + 같은 기간 + 같은 URL` 반복이면 진짜 수집 중복 후보로 먼저 봅니다.
 - 이 `YOUTH` true duplicate candidate는 `bash deploy/smoke/run-local-youth-duplicate-candidate-audit.sh` 로 먼저 좁혀서 봅니다.
 - queue를 실제로 줄일 때는 [policy/policy-data-quality-triage-runbook.md](policy/policy-data-quality-triage-runbook.md) 기준으로 `오류 제보 -> 링크 review -> 중복 review` 순서와 1회 처리량을 그대로 따릅니다.
@@ -171,7 +172,7 @@
   - 현재 최신 기준은 `missing_any_link_youth=558`, `missing_any_link_active_visible_youth=164`, `missing_any_link_active_past_end_tail_youth=15`, 나머지 source `0`, `decision_class=ACTIVE_LINK_REVIEW_PRIORITY` 이다.
   - 즉 broad source tail 전체보다, 실제로 노출될 수 있는 `YOUTH active visible` 164건이 더 actionable 하다.
 - policy link review sample audit: `bash deploy/smoke/run-local-policy-link-review-sample-audit.sh`
-  - 현재 최신 기준은 `active_visible_youth_total=164`, `benefit_support=30`, `announcement_recruitment=12`, `program_event=9`, `event_culture=5`, `other=108`, `decision_class=MIXED_LINK_REVIEW_PRIORITY` 이다.
+  - 현재 최신 기준은 `active_visible_youth_total=164`, `benefit_support=33`, `announcement_recruitment=12`, `program_event=9`, `event_culture=5`, `other=105`, `decision_class=MIXED_LINK_REVIEW_PRIORITY` 이다.
   - 즉 `정책 링크 review queue`는 단일 기준으로 닫기보다 `급부형`, `공고/프로그램형`, 나머지 `other` tail을 나눠 review 하는 편이 맞다.
 - policy link review queue runbook: `docs/policy/policy-link-review-queue-runbook.md`
   - 운영자는 `지원금/급부형 -> 공고/모집형 -> 프로그램형 -> 행사/문화형 -> 기타` 순서로 보는 편이 맞다.

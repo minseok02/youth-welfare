@@ -42,6 +42,7 @@ public class AdminPolicyDuplicateGroupService {
                         row.title(),
                         row.hostOrgKey(),
                         row.hostOrgLabel(),
+                        row.reviewClass(),
                         row.duplicateCount(),
                         row.sourceIds(),
                         row.latestCreatedAt(),

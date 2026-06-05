@@ -24,6 +24,7 @@ public class AdminPolicyDuplicateGroupReadRepository {
             rs.getString("title"),
             rs.getString("host_org_key"),
             rs.getString("host_org_label"),
+            rs.getString("review_class"),
             rs.getInt("duplicate_count"),
             rs.getString("source_ids"),
             toLocalDateTime(rs.getTimestamp("latest_created_at")),
@@ -41,6 +42,9 @@ public class AdminPolicyDuplicateGroupReadRepository {
                         ws.title,
                         coalesce(ws.host_org, '') as host_org_key,
                         nullif(max(coalesce(ws.host_org, '')), '') as host_org_label,
+                        count(distinct coalesce(ws.detail_url, '')) as distinct_detail_url_count,
+                        count(distinct coalesce(ws.apply_start_date::text, '')) as distinct_apply_start_count,
+                        count(distinct coalesce(ws.apply_end_date::text, '')) as distinct_apply_end_count,
                         count(*) as duplicate_count,
                         string_agg(ws.source_id, ', ' order by ws.source_id) as source_ids,
                         max(ws.created_at) as latest_created_at
@@ -48,19 +52,41 @@ public class AdminPolicyDuplicateGroupReadRepository {
                     where ws.source_type in ('YOUTH', 'BOKJIRO_LOCAL')
                     group by ws.source_type, ws.title, coalesce(ws.host_org, '')
                     having count(*) > 1
+                ),
+                classified_groups as (
+                    select
+                        dg.*,
+                        case
+                            when dg.source_type = 'YOUTH'
+                                and dg.distinct_apply_start_count <= 1
+                                and dg.distinct_apply_end_count <= 1
+                                and dg.distinct_detail_url_count <= 1
+                                then 'exact_duplicate_candidate'
+                            when dg.source_type = 'YOUTH'
+                                and dg.distinct_apply_start_count <= 1
+                                and dg.distinct_apply_end_count <= 1
+                                and dg.distinct_detail_url_count > 1
+                                then 'mirror_or_channel_variant_candidate'
+                            when dg.source_type = 'BOKJIRO_LOCAL'
+                                and dg.host_org_key = ''
+                                then 'title_only_false_positive_risk'
+                            else 'date_or_contract_drift_candidate'
+                        end as review_class
+                    from duplicate_groups dg
                 )
                 select
                     dg.source_type,
                     dg.title,
                     dg.host_org_key,
                     dg.host_org_label,
+                    dg.review_class,
                     dg.duplicate_count,
                     dg.source_ids,
                     dg.latest_created_at,
                     pr.review_note,
                     pr.reviewed_by_user_key,
                     pr.reviewed_at
-                from duplicate_groups dg
+                from classified_groups dg
                 left join policy_duplicate_review_records pr
                   on pr.source_type = dg.source_type
                  and pr.title = dg.title
@@ -70,7 +96,17 @@ public class AdminPolicyDuplicateGroupReadRepository {
                     or (:statusFilter = 'OPEN' and pr.id is null)
                     or (:statusFilter = 'REVIEWED' and pr.id is not null)
                 )
-                order by dg.duplicate_count desc, dg.source_type asc, dg.title asc
+                order by
+                    case dg.review_class
+                        when 'exact_duplicate_candidate' then 1
+                        when 'mirror_or_channel_variant_candidate' then 2
+                        when 'date_or_contract_drift_candidate' then 3
+                        when 'title_only_false_positive_risk' then 4
+                        else 5
+                    end asc,
+                    dg.duplicate_count desc,
+                    dg.source_type asc,
+                    dg.title asc
                 limit :limit
                 """, params, ROW_MAPPER);
     }
@@ -146,6 +182,7 @@ public class AdminPolicyDuplicateGroupReadRepository {
             String title,
             String hostOrgKey,
             String hostOrgLabel,
+            String reviewClass,
             int duplicateCount,
             String sourceIds,
             LocalDateTime latestCreatedAt,

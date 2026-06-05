@@ -47,7 +47,7 @@ with candidate as (
     ws.created_at,
     case
       when ws.title ~ '(모집|공고|선발|접수|신청자|참여자|참가자|추가모집|수강생)' then 'announcement_recruitment'
-      when ws.title ~ '(지원금|지원사업|지원 프로그램|수당|장학금|이자 지원|응시료|바우처|급여|보조금)' then 'benefit_support'
+      when ws.title ~ '(지원금|지원사업|지원 프로그램|수당|장학금|이자 지원|응시료|바우처|급여|보조금|축하금|조리비(용)? 지원|보험( 가입| 지원)?)' then 'benefit_support'
       when ws.title ~ '(프로그램|교육|아카데미|캠프|멘토링|기획단|탐방|실험실|클래스|강좌)' then 'program_event'
       when ws.title ~ '(대회|축제|행사|공연|전시|페스티벌)' then 'event_culture'
       else 'other'
@@ -81,7 +81,7 @@ with candidate as (
     ws.created_at,
     case
       when ws.title ~ '(모집|공고|선발|접수|신청자|참여자|참가자|추가모집|수강생)' then 'announcement_recruitment'
-      when ws.title ~ '(지원금|지원사업|지원 프로그램|수당|장학금|이자 지원|응시료|바우처|급여|보조금)' then 'benefit_support'
+      when ws.title ~ '(지원금|지원사업|지원 프로그램|수당|장학금|이자 지원|응시료|바우처|급여|보조금|축하금|조리비(용)? 지원|보험( 가입| 지원)?)' then 'benefit_support'
       when ws.title ~ '(프로그램|교육|아카데미|캠프|멘토링|기획단|탐방|실험실|클래스|강좌)' then 'program_event'
       when ws.title ~ '(대회|축제|행사|공연|전시|페스티벌)' then 'event_culture'
       else 'other'

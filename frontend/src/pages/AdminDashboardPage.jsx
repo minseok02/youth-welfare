@@ -92,6 +92,13 @@ const POLICY_LINK_REVIEW_BUCKET_LABELS = {
   other: "기타",
 };
 
+const POLICY_DUPLICATE_REVIEW_CLASS_LABELS = {
+  exact_duplicate_candidate: "exact 후보",
+  mirror_or_channel_variant_candidate: "mirror 후보",
+  date_or_contract_drift_candidate: "drift tail",
+  title_only_false_positive_risk: "title-only 주의",
+};
+
 const NOTIFICATION_STALE_DAY_OPTIONS = [7, 14];
 
 const REVIEW_GATE_TONE = {
@@ -482,6 +489,8 @@ const formatActorType = (value) => ACTOR_TYPE_LABELS[value] ?? formatStatusLabel
 const formatSearchStatusFilter = (value) => SEARCH_STATUS_FILTER_LABELS[value] ?? (value ? formatStatusLabel(value) : "전체");
 const formatSortKey = (value) => SEARCH_SORT_KEY_LABELS[value] ?? (value ? formatStatusLabel(value) : "기본 정렬");
 const formatPolicyLinkReviewBucket = (value) => POLICY_LINK_REVIEW_BUCKET_LABELS[value] ?? (value ? formatStatusLabel(value) : "기타");
+const formatPolicyDuplicateReviewClass = (value) =>
+  POLICY_DUPLICATE_REVIEW_CLASS_LABELS[value] ?? (value ? formatStatusLabel(value) : "분류 없음");
 const formatBooleanLabel = (value, trueLabel, falseLabel) => (value ? trueLabel : falseLabel);
 const formatCodeOrStatus = (value) => value ? formatStatusLabel(value) : "미분류";
 const formatCollectJobName = (value) => COLLECT_JOB_LABELS[value] ?? formatStatusLabel(value);
@@ -2315,17 +2324,32 @@ export default function AdminDashboardPage() {
                                         {formatSourceType(item.sourceType)} · {item.hostOrgLabel || "기관명 없음"} · 최신 row {formatDateTime(item.latestCreatedAt)}
                                       </Typography>
                                     </Box>
-                                    <Chip
-                                      label={`${formatNumber(item.duplicateCount)}건 중복`}
-                                      size="small"
-                                      sx={{
-                                        bgcolor: WARNING_BG,
-                                        color: WARNING_TEXT,
-                                        border: `1px solid ${WARNING_BORDER}`,
-                                        fontWeight: 700,
-                                        alignSelf: { xs: "flex-start", md: "center" },
-                                      }}
-                                    />
+                                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap justifyContent={{ xs: "flex-start", md: "flex-end" }}>
+                                      {item.reviewClass && (
+                                        <Chip
+                                          label={formatPolicyDuplicateReviewClass(item.reviewClass)}
+                                          size="small"
+                                          sx={{
+                                            bgcolor: INFO_BG,
+                                            color: INFO_TEXT,
+                                            border: `1px solid ${INFO_BORDER}`,
+                                            fontWeight: 700,
+                                            alignSelf: { xs: "flex-start", md: "center" },
+                                          }}
+                                        />
+                                      )}
+                                      <Chip
+                                        label={`${formatNumber(item.duplicateCount)}건 중복`}
+                                        size="small"
+                                        sx={{
+                                          bgcolor: WARNING_BG,
+                                          color: WARNING_TEXT,
+                                          border: `1px solid ${WARNING_BORDER}`,
+                                          fontWeight: 700,
+                                          alignSelf: { xs: "flex-start", md: "center" },
+                                        }}
+                                      />
+                                    </Stack>
                                   </Stack>
                                   <Typography sx={{ fontSize: 13, color: INK2, overflowWrap: "anywhere", wordBreak: "break-word" }}>
                                     sourceIds {item.sourceIds}

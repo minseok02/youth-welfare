@@ -1,5 +1,6 @@
 package com.example.welfare.admin.dashboard.repository;
 
+import com.example.welfare.admin.dashboard.PolicyLinkReviewBucketClassifier;
 import com.example.welfare.admin.dashboard.dto.AdminQueueStatusFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -23,7 +24,7 @@ public class AdminPolicyLinkReviewReadRepository {
             rs.getString("title"),
             rs.getString("source_type"),
             rs.getString("source_id"),
-            rs.getString("review_bucket"),
+            PolicyLinkReviewBucketClassifier.classify(rs.getString("title")),
             rs.getString("host_org"),
             rs.getString("operating_org"),
             rs.getString("category_main"),
@@ -56,13 +57,6 @@ public class AdminPolicyLinkReviewReadRepository {
                          ws.title,
                          ws.source_type,
                          ws.source_id,
-                         case
-                           when ws.title ~ '(모집|공고|선발|접수|신청자|참여자|참가자|추가모집|수강생)' then 'announcement_recruitment'
-                           when ws.title ~ '(지원금|지원사업|지원 프로그램|수당|장학금|이자 지원|응시료|바우처|급여|보조금)' then 'benefit_support'
-                           when ws.title ~ '(프로그램|교육|아카데미|캠프|멘토링|기획단|탐방|실험실|클래스|강좌)' then 'program_event'
-                           when ws.title ~ '(대회|축제|행사|공연|전시|페스티벌)' then 'event_culture'
-                           else 'other'
-                         end as review_bucket,
                          coalesce(ws.host_org, '') as host_org,
                          coalesce(ws.operating_org, '') as operating_org,
                          coalesce(ws.category_main, '') as category_main,
@@ -81,7 +75,6 @@ public class AdminPolicyLinkReviewReadRepository {
                        c.title,
                        c.source_type,
                        c.source_id,
-                       c.review_bucket,
                        c.host_org,
                        c.operating_org,
                        c.category_main,

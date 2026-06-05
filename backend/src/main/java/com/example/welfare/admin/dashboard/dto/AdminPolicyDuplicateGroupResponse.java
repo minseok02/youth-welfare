@@ -14,6 +14,7 @@ public record AdminPolicyDuplicateGroupResponse(
             String title,
             String hostOrgKey,
             String hostOrgLabel,
+            String reviewClass,
             int duplicateCount,
             String sourceIds,
             LocalDateTime latestCreatedAt,

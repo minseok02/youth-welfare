@@ -45,6 +45,7 @@ class AdminPolicyDuplicateGroupServiceTest {
                         "청년문화예술패스",
                         "",
                         null,
+                        "exact_duplicate_candidate",
                         3,
                         "A, B, C",
                         LocalDateTime.of(2026, 6, 4, 10, 0),
@@ -60,6 +61,7 @@ class AdminPolicyDuplicateGroupServiceTest {
         assertThat(response.openDuplicateRowCount()).isEqualTo(17L);
         assertThat(response.recentGroups()).hasSize(1);
         assertThat(response.recentGroups().get(0).status()).isEqualTo("OPEN");
+        assertThat(response.recentGroups().get(0).reviewClass()).isEqualTo("exact_duplicate_candidate");
     }
 
     @Test

@@ -246,6 +246,7 @@ class AdminDashboardAttentionServiceTest {
                         "청년문화예술패스",
                         "",
                         null,
+                        "exact_duplicate_candidate",
                         3,
                         "A, B, C",
                         LocalDateTime.of(2026, 6, 4, 9, 40),

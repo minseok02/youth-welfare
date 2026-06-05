@@ -45,3 +45,8 @@ bash deploy/smoke/run-local-policy-link-review-sample-audit.sh
 - `MIXED_LINK_REVIEW_PRIORITY`
   - 급부형과 공고/프로그램형이 섞여 있습니다.
   - `정책 링크 review queue`를 bucket 기준으로 나눠 review 하는 편이 맞습니다.
+
+## 현재 메모
+
+- 최근 운영 review 기준으로 `출산가정 산후조리비용 지원`, `임신축하금 지원사업`, `군복무 청년 상해보험 가입` 같은 제목은 `other` 가 아니라 `지원금/급부형` 으로 보는 편이 맞습니다.
+- 따라서 bucket 분류는 `축하금`, `조리비(용) 지원`, `보험 가입/지원` 같은 급부형 title 패턴을 포함하도록 유지합니다.

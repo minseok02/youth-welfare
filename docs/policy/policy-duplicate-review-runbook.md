@@ -72,6 +72,19 @@ bash deploy/smoke/run-local-policy-data-quality-audit.sh
 
 - [policy-youth-duplicate-candidate-audit-runbook.md](./policy-youth-duplicate-candidate-audit-runbook.md)
 
+현재 admin queue는 이 운영 기준을 그대로 `reviewClass` 로 노출합니다.
+
+- `exact_duplicate_candidate`
+  - `YOUTH` 동일 기관 + 동일 기간 + 동일 URL 반복
+- `mirror_or_channel_variant_candidate`
+  - `YOUTH` 동일 기관 + 동일 기간 반복, 대표 링크만 상이
+- `title_only_false_positive_risk`
+  - `BOKJIRO_LOCAL` host_org 빈 값 + title-only 묶음
+- `date_or_contract_drift_candidate`
+  - 위 둘에 바로 들어가지 않는 drift tail
+
+운영 queue 정렬도 `exact -> mirror -> drift -> title-only 주의` 순서로 읽습니다.
+
 ## 메모
 
 - 이 queue는 실제 중복 row가 사라지면 대시보드에서도 자연스럽게 빠집니다.
