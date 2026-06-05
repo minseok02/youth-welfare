@@ -1006,6 +1006,24 @@ test("admin dashboard 정책 링크 review 섹션은 열린 링크 review queue�
   await expect(linkReviewSection.getByText("처리완료 · admin-user-key")).toBeVisible();
 });
 
+test("admin dashboard policy triage 요약은 duplicate/link 우선순위를 상단 카드에 보여준다 @admin-required", async ({ page }) => {
+  await mockAdminDashboardApis(page);
+  await loginFromProtectedRoute(page, "/admin/dashboard", adminCredentials);
+
+  const triageSummarySection = page.locator(section("admin-policy-triage-summary"));
+
+  await expect(triageSummarySection.getByText("policy triage", { exact: true })).toBeVisible();
+  await expect(triageSummarySection.getByText("중복 우선", { exact: true })).toBeVisible();
+  await expect(triageSummarySection.getByText("exact duplicate", { exact: true })).toBeVisible();
+  await expect(triageSummarySection.getByText("12", { exact: true }).first()).toBeVisible();
+  await expect(triageSummarySection.getByText("mirror 16 · 열린 중복 139", { exact: true })).toBeVisible();
+  await expect(triageSummarySection.getByText("급부형 링크 review", { exact: true })).toBeVisible();
+  await expect(triageSummarySection.getByText("33", { exact: true }).first()).toBeVisible();
+  await expect(triageSummarySection.getByText("모집형 12 · 열린 링크 164", { exact: true })).toBeVisible();
+  await expect(triageSummarySection.getByText("현재 처리 순서", { exact: true })).toBeVisible();
+  await expect(triageSummarySection.getByText("exact -> mirror -> link", { exact: true })).toBeVisible();
+});
+
 test("admin dashboard stale notification target 섹션은 오래된 unread target cluster를 보여준다 @admin-required", async ({ page }) => {
   await mockAdminDashboardApis(page);
   await loginFromProtectedRoute(page, "/admin/dashboard", adminCredentials);
