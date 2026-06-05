@@ -21,6 +21,7 @@
 - 핵심 검증 축은 아래 일곱 가지입니다.
 - 핵심 검증 축은 아래 여덟 가지입니다.
 - 핵심 검증 축은 아래 아홉 가지입니다.
+- 핵심 검증 축은 아래 열 가지입니다.
   - 라우팅/뒤로가기/재진입
   - 로그인 필요 경로와 로그인 후 복귀
   - 세션 만료 후 refresh 실패와 로그인 화면 복귀
@@ -30,6 +31,7 @@
   - reset-password query/hash/invalid token 경계
   - 알림함 / 북마크 재방문 유지
   - 비밀번호 변경 후 재로그인 / account tab 복귀
+  - admin dashboard operator flow
   - `/guide` / `/support` / `정책 오류 제보` 도움 경로 구분
 
 ## 현재 코드 기준 QA 핵심 경계
@@ -165,6 +167,19 @@
 - [MyPage.jsx](../frontend/src/pages/MyPage.jsx)
   - 비밀번호 변경 성공 후 `/login` 으로 이동시키고, 재로그인 후 `?tab=5` 로 복귀해야 합니다.
 - 즉 계정 생성 후 비밀번호 변경/재설정이 로그인 복귀와 섞여도 흐름이 끊기지 않아야 합니다.
+
+### 15. admin operator flow
+
+- 일반 사용자는 `/admin/dashboard` 접근 시 홈으로 돌려보내야 합니다.
+- admin 사용자는 dashboard 진입 후 recommendation overview, collect/search triage, attention queue를 봐야 합니다.
+- queue 축은
+  - 정책 오류 제보
+  - 서비스 문의
+  - 정책 중복 review
+  - 정책 링크 review
+  - stale notification target
+  로 나뉘며, 각각 `OPEN / REVIEWED / ALL` 필터와 recent metric을 유지해야 합니다.
+- summary/breakdown 한 섹션 실패가 페이지 전체 blank로 번지면 안 됩니다.
 
 ## 현재 QA 기준선
 

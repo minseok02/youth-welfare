@@ -23,6 +23,7 @@
 - [frontend-session-recovery-runbook.md](./frontend-session-recovery-runbook.md)
 - [frontend-retention-flow-runbook.md](./frontend-retention-flow-runbook.md)
 - [frontend-account-lifecycle-runbook.md](./frontend-account-lifecycle-runbook.md)
+- [frontend-admin-operator-flow-runbook.md](./frontend-admin-operator-flow-runbook.md)
 - [frontend-help-surface-runbook.md](./frontend-help-surface-runbook.md)
 
 ### 같이 보면 좋은 기준 문서
@@ -51,6 +52,7 @@
 - 세션 만료 / reset-password 복구
 - 알림 / 북마크 재방문 유지
 - 계정 생성 / 비밀번호 변경 / 재로그인
+- 운영자 대시보드 진입 / queue / attention
 
 을 브라우저 기준으로 빠르게 보는 current-state 문서입니다.
 
@@ -93,7 +95,8 @@
 6. 세션 복구 흐름은 [frontend-session-recovery-runbook.md](./frontend-session-recovery-runbook.md)
 7. 개인 유지 흐름은 [frontend-retention-flow-runbook.md](./frontend-retention-flow-runbook.md)
 8. 계정 라이프사이클은 [frontend-account-lifecycle-runbook.md](./frontend-account-lifecycle-runbook.md)
-9. 도움 경로는 [frontend-help-surface-runbook.md](./frontend-help-surface-runbook.md)
+9. admin 운영 흐름은 [frontend-admin-operator-flow-runbook.md](./frontend-admin-operator-flow-runbook.md)
+10. 도움 경로는 [frontend-help-surface-runbook.md](./frontend-help-surface-runbook.md)
 
 ### 실제 수동 QA를 돌릴 때
 
@@ -105,9 +108,10 @@
 6. 세션 복구 흐름은 [frontend-session-recovery-runbook.md](./frontend-session-recovery-runbook.md)
 7. 개인 유지 흐름은 [frontend-retention-flow-runbook.md](./frontend-retention-flow-runbook.md)
 8. 계정 라이프사이클은 [frontend-account-lifecycle-runbook.md](./frontend-account-lifecycle-runbook.md)
-9. 도움 경로는 [frontend-help-surface-runbook.md](./frontend-help-surface-runbook.md)
-10. 필요하면 [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
-11. 시간이 제한되면 checklist의 `권장 실행 순서 -> 1차 고위험 동선` 다섯 개를 먼저 돌립니다.
+9. admin 운영 흐름은 [frontend-admin-operator-flow-runbook.md](./frontend-admin-operator-flow-runbook.md)
+10. 도움 경로는 [frontend-help-surface-runbook.md](./frontend-help-surface-runbook.md)
+11. 필요하면 [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
+12. 시간이 제한되면 checklist의 `권장 실행 순서 -> 1차 고위험 동선` 다섯 개를 먼저 돌립니다.
 
 ### 결과를 남길 때
 
@@ -129,5 +133,6 @@
 7. 세션 만료와 reset-password는 [frontend-session-recovery-runbook.md](./frontend-session-recovery-runbook.md) 를 먼저 봅니다.
 8. 알림/북마크 재방문은 [frontend-retention-flow-runbook.md](./frontend-retention-flow-runbook.md) 를 먼저 봅니다.
 9. 계정 생성/비밀번호 재설정/재로그인은 [frontend-account-lifecycle-runbook.md](./frontend-account-lifecycle-runbook.md) 를 먼저 봅니다.
-10. `/guide` / `/support` / `정책 오류 제보` 구분은 [frontend-help-surface-runbook.md](./frontend-help-surface-runbook.md) 를 먼저 봅니다.
-11. 결과 기록은 [frontend-qa-template.md](./frontend-qa-template.md) 를 기준으로 남기고, pass/fail보다 URL/query/state 증거를 먼저 적습니다.
+10. admin 운영 경로는 [frontend-admin-operator-flow-runbook.md](./frontend-admin-operator-flow-runbook.md) 를 먼저 봅니다.
+11. `/guide` / `/support` / `정책 오류 제보` 구분은 [frontend-help-surface-runbook.md](./frontend-help-surface-runbook.md) 를 먼저 봅니다.
+12. 결과 기록은 [frontend-qa-template.md](./frontend-qa-template.md) 를 기준으로 남기고, pass/fail보다 URL/query/state 증거를 먼저 적습니다.

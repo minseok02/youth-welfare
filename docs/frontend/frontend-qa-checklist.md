@@ -41,11 +41,12 @@
 9. 세션 만료 -> `/login` -> 재로그인 / reset-password deep link
 10. 알림함 빈 상태 / unread 알림 / 북마크 재방문
 11. 계정 생성 / 비밀번호 변경 후 재로그인
-12. `/guide` -> `/support` -> 정책 상세 `오류 제보` 역할 구분
-13. 프로필/우선순위 저장 후 새로고침 유지
-14. 추천 refresh/loading/중복 클릭 방지
-15. 챗 세션 생성/메시지 전송/삭제와 `?session=` 정리
-16. 비밀번호 변경 / 회원탈퇴
+12. admin dashboard 진입 / queue / 부분 실패 격리
+13. `/guide` -> `/support` -> 정책 상세 `오류 제보` 역할 구분
+14. 프로필/우선순위 저장 후 새로고침 유지
+15. 추천 refresh/loading/중복 클릭 방지
+16. 챗 세션 생성/메시지 전송/삭제와 `?session=` 정리
+17. 비밀번호 변경 / 회원탈퇴
 
 즉 시간이 제한되면 1차 고위험 동선부터 먼저 돌리고, 2차 보강 동선은 그 다음에 확인합니다.
 
@@ -187,6 +188,22 @@
 기대 결과:
 
 - 로그인 후 다시 `/mypage?tab=5` 로 복귀해야 함
+
+## 7. admin operator flow
+
+### admin dashboard
+
+- 일반 사용자 `/admin/dashboard`
+- admin 사용자 `/admin/dashboard`
+- queue 섹션 확인
+- quick jump / attention jump
+- summary/breakdown 부분 실패
+
+기대 결과:
+
+- 일반 사용자는 접근 차단
+- admin은 queue/attention/summary를 볼 수 있어야 함
+- 한 섹션 실패가 전체 blank로 번지면 안 됨
 
 ## 5. 북마크
 
