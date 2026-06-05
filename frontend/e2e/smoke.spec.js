@@ -727,6 +727,25 @@ test("알림함에서 unread 알림을 열면 읽음 처리 후 deeplink로 이�
   await expect(page).toHaveURL(/\/policies\/7751$/);
 });
 
+test("개인 유지 흐름은 알림함과 북마크 탭을 이어서 보여준다", async ({ page, request }) => {
+  const policy = await fetchFirstSearchResult(request, "청년");
+  await ensurePolicyBookmarked(request, userCredentials, policy.id);
+  await mockAlertsApis(page, { alerts: [], unreadCount: 0 });
+
+  await loginFromProtectedRoute(page, "/alerts", userCredentials);
+  await expect(page).toHaveURL(/\/alerts$/);
+  await expect(page.getByText("도착한 알림이 아직 없어요", { exact: true })).toBeVisible();
+
+  const emptyStateSection = page.getByText("도착한 알림이 아직 없어요", { exact: true }).locator("..").locator("..");
+  await emptyStateSection.getByRole("button", { name: "알림 설정 열기", exact: true }).click();
+  await expect(page).toHaveURL(/\/mypage\?tab=3$/);
+
+  await page.goto("/mypage?tab=2");
+  await expect(page).toHaveURL(/\/mypage\?tab=2$/);
+  await expect(page.getByText("북마크한 정책")).toBeVisible();
+  await expect(page.getByText(policy.title, { exact: true }).first()).toBeVisible();
+});
+
 test("비로그인 정책 상세 북마크는 로그인 후 bookmark POST가 정확히 1회만 실행된다", async ({ page, request }) => {
   const policy = await fetchFirstSearchResult(request, "청년");
   let bookmarkPostCount = 0;

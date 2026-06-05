@@ -19,6 +19,7 @@
 - 핵심 검증 축은 아래 다섯 가지입니다.
 - 핵심 검증 축은 아래 여섯 가지입니다.
 - 핵심 검증 축은 아래 일곱 가지입니다.
+- 핵심 검증 축은 아래 여덟 가지입니다.
   - 라우팅/뒤로가기/재진입
   - 로그인 필요 경로와 로그인 후 복귀
   - 세션 만료 후 refresh 실패와 로그인 화면 복귀
@@ -26,6 +27,7 @@
   - 로그인 직후 메인의 `가이드 배너 / 추천 보강 CTA`
   - 보호 경로 `/chat` / `/mypage` 복귀
   - reset-password query/hash/invalid token 경계
+  - 알림함 / 북마크 재방문 유지
   - `/guide` / `/support` / `정책 오류 제보` 도움 경로 구분
 
 ## 현재 코드 기준 QA 핵심 경계
@@ -142,6 +144,15 @@
 - `/reset-password?token=...` 는 hash token URL로 정규화된 뒤 새 비밀번호 설정이 가능해야 합니다.
 - `/reset-password#token=...` deep link도 그대로 새 비밀번호 설정이 가능해야 합니다.
 - invalid token은 만료 안내만 보여주고, 로그인으로 강제 이동시키지 않아야 합니다.
+
+### 13. 알림 / 북마크 유지 흐름
+
+- [AlertsPage.jsx](../frontend/src/pages/AlertsPage.jsx)
+  - 빈 상태에서는 `정책 보러가기`, `알림 설정 열기` 가 보여야 합니다.
+- `알림 설정 열기` 는 `/mypage?tab=3` 으로 이어져야 합니다.
+- [MyPage.jsx](../frontend/src/pages/MyPage.jsx)
+  - `/mypage?tab=2` 에서 북마크 목록이 다시 보여야 합니다.
+- 즉 alerts -> mypage settings -> bookmark revisit 가 한 개인 유지 동선 안에서 끊기지 않아야 합니다.
 
 ## 현재 QA 기준선
 
