@@ -23,11 +23,13 @@
 - 핵심 검증 축은 아래 아홉 가지입니다.
 - 핵심 검증 축은 아래 열 가지입니다.
 - 핵심 검증 축은 아래 열한 가지입니다.
+- 핵심 검증 축은 아래 열두 가지입니다.
   - 라우팅/뒤로가기/재진입
   - 로그인 필요 경로와 로그인 후 복귀
   - 세션 만료 후 refresh 실패와 로그인 화면 복귀
   - 북마크/마이페이지/추천 흐름의 상태 일관성
   - 로그인 직후 메인의 `가이드 배너 / 추천 보강 CTA`
+  - 정책 검색 query / 필터 / 상세 read-model
   - 보호 경로 `/chat` / `/mypage` 복귀
   - reset-password query/hash/invalid token 경계
   - 알림함 / 북마크 재방문 유지
@@ -135,7 +137,14 @@
     으로 이어져야 합니다.
   - `이용가이드 보기 →` 는 `/guide` 로 이어져야 합니다.
 
-### 11. 보호 사용자 핵심 흐름
+### 11. 정책 검색 / 필터 / 상세 읽기
+
+- `PoliciesPage` 는 `search`, `category`, `region`, `subRegion`, `sort`, `statusFilter` 같은 상태를 URL query와 동기화합니다.
+- 상세 진입 뒤 브라우저 back과 상세 `뒤로가기` 는 search query를 유지해야 합니다.
+- 데스크톱 필터는 별도 적용 버튼 없이 즉시 URL에 반영돼야 합니다.
+- 상세 read-model 핵심 필드는 `요약 정보`, `지원지역`, `소관기관`, `신청기간` 입니다.
+
+### 12. 보호 사용자 핵심 흐름
 
 - 보호 경로 핵심은 `/chat` 과 `/mypage?tab=2` 입니다.
 - 비로그인 상태에서 `/chat` 진입 시 `/login` 으로 분기해야 합니다.
@@ -143,7 +152,7 @@
 - 이후 `/mypage?tab=2` 에서 북마크 상세 왕복 뒤에도 `?tab=2` 가 유지돼야 합니다.
 - 이 경계는 보호 경로 복귀와 마이페이지 문맥 복귀가 한 흐름에서 동시에 유지되는지 보는 기준선입니다.
 
-### 12. 세션 복구 / 비밀번호 재설정
+### 13. 세션 복구 / 비밀번호 재설정
 
 - 세션 만료는 `window.__authExpired` 또는 보호 API `401 -> refresh 401` 경로로 재현됩니다.
 - 두 경우 모두 `/login` 으로 이동하고, 재로그인 후 `/chat` 으로 복귀해야 합니다.
@@ -151,7 +160,7 @@
 - `/reset-password#token=...` deep link도 그대로 새 비밀번호 설정이 가능해야 합니다.
 - invalid token은 만료 안내만 보여주고, 로그인으로 강제 이동시키지 않아야 합니다.
 
-### 13. 알림 / 북마크 유지 흐름
+### 14. 알림 / 북마크 유지 흐름
 
 - [AlertsPage.jsx](../frontend/src/pages/AlertsPage.jsx)
   - 빈 상태에서는 `정책 보러가기`, `알림 설정 열기` 가 보여야 합니다.
@@ -160,7 +169,7 @@
   - `/mypage?tab=2` 에서 북마크 목록이 다시 보여야 합니다.
 - 즉 alerts -> mypage settings -> bookmark revisit 가 한 개인 유지 동선 안에서 끊기지 않아야 합니다.
 
-### 14. 계정 라이프사이클
+### 15. 계정 라이프사이클
 
 - [SignupPage.jsx](../frontend/src/pages/SignupPage.jsx)
   - 회원가입 완료 후 `signup-complete` reason 으로 로그인 화면 안내를 띄웁니다.
@@ -170,7 +179,7 @@
   - 비밀번호 변경 성공 후 `/login` 으로 이동시키고, 재로그인 후 `?tab=5` 로 복귀해야 합니다.
 - 즉 계정 생성 후 비밀번호 변경/재설정이 로그인 복귀와 섞여도 흐름이 끊기지 않아야 합니다.
 
-### 15. admin operator flow
+### 16. admin operator flow
 
 - 일반 사용자는 `/admin/dashboard` 접근 시 홈으로 돌려보내야 합니다.
 - admin 사용자는 dashboard 진입 후 recommendation overview, collect/search triage, attention queue를 봐야 합니다.
@@ -183,7 +192,7 @@
   로 나뉘며, 각각 `OPEN / REVIEWED / ALL` 필터와 recent metric을 유지해야 합니다.
 - summary/breakdown 한 섹션 실패가 페이지 전체 blank로 번지면 안 됩니다.
 
-### 16. 추천 / 챗봇 보조 흐름
+### 17. 추천 / 챗봇 보조 흐름
 
 - 추천 보강은 로그인 직후 메인에서 시작됩니다.
 - 우선순위/표준코드 공백 상태에 따라 `맞춤 재추천` CTA가 적절한 `mypage` 탭으로 가야 합니다.

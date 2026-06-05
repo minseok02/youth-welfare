@@ -18,6 +18,7 @@
 - [frontend-observation-runbook.md](./frontend-observation-runbook.md)
 - [frontend-qa-checklist.md](./frontend-qa-checklist.md)
 - [frontend-core-user-flow-runbook.md](./frontend-core-user-flow-runbook.md)
+- [frontend-policy-search-detail-flow-runbook.md](./frontend-policy-search-detail-flow-runbook.md)
 - [frontend-authenticated-user-flow-runbook.md](./frontend-authenticated-user-flow-runbook.md)
 - [frontend-protected-user-flow-runbook.md](./frontend-protected-user-flow-runbook.md)
 - [frontend-session-recovery-runbook.md](./frontend-session-recovery-runbook.md)
@@ -49,6 +50,7 @@
 - 북마크 / 마이페이지 / 추천 / 챗봇
 - `/guide` / `/support` / `정책 오류 제보`
 - 로그인 후 메인 `가이드 배너 / 추천 보강`
+- 정책 검색 / 필터 / 상세 읽기
 - 보호 경로 `/chat` / `/mypage`
 - 세션 만료 / reset-password 복구
 - 알림 / 북마크 재방문 유지
@@ -92,30 +94,32 @@
 1. [frontend-qa-current-state.md](./frontend-qa-current-state.md)
 2. [frontend-qa-checklist.md](./frontend-qa-checklist.md)
 3. 공개 핵심 흐름은 [frontend-core-user-flow-runbook.md](./frontend-core-user-flow-runbook.md)
-4. 로그인 사용자 흐름은 [frontend-authenticated-user-flow-runbook.md](./frontend-authenticated-user-flow-runbook.md)
-5. 보호 경로 흐름은 [frontend-protected-user-flow-runbook.md](./frontend-protected-user-flow-runbook.md)
-6. 세션 복구 흐름은 [frontend-session-recovery-runbook.md](./frontend-session-recovery-runbook.md)
-7. 개인 유지 흐름은 [frontend-retention-flow-runbook.md](./frontend-retention-flow-runbook.md)
-8. 계정 라이프사이클은 [frontend-account-lifecycle-runbook.md](./frontend-account-lifecycle-runbook.md)
-9. admin 운영 흐름은 [frontend-admin-operator-flow-runbook.md](./frontend-admin-operator-flow-runbook.md)
-10. 추천/챗봇 흐름은 [frontend-recommendation-chat-flow-runbook.md](./frontend-recommendation-chat-flow-runbook.md)
-11. 도움 경로는 [frontend-help-surface-runbook.md](./frontend-help-surface-runbook.md)
+4. 검색/상세 흐름은 [frontend-policy-search-detail-flow-runbook.md](./frontend-policy-search-detail-flow-runbook.md)
+5. 로그인 사용자 흐름은 [frontend-authenticated-user-flow-runbook.md](./frontend-authenticated-user-flow-runbook.md)
+6. 보호 경로 흐름은 [frontend-protected-user-flow-runbook.md](./frontend-protected-user-flow-runbook.md)
+7. 세션 복구 흐름은 [frontend-session-recovery-runbook.md](./frontend-session-recovery-runbook.md)
+8. 개인 유지 흐름은 [frontend-retention-flow-runbook.md](./frontend-retention-flow-runbook.md)
+9. 계정 라이프사이클은 [frontend-account-lifecycle-runbook.md](./frontend-account-lifecycle-runbook.md)
+10. admin 운영 흐름은 [frontend-admin-operator-flow-runbook.md](./frontend-admin-operator-flow-runbook.md)
+11. 추천/챗봇 흐름은 [frontend-recommendation-chat-flow-runbook.md](./frontend-recommendation-chat-flow-runbook.md)
+12. 도움 경로는 [frontend-help-surface-runbook.md](./frontend-help-surface-runbook.md)
 
 ### 실제 수동 QA를 돌릴 때
 
 1. [frontend-qa-checklist.md](./frontend-qa-checklist.md)
 2. [frontend-qa-current-state.md](./frontend-qa-current-state.md)
 3. 공개 핵심 흐름은 [frontend-core-user-flow-runbook.md](./frontend-core-user-flow-runbook.md)
-4. 로그인 사용자 흐름은 [frontend-authenticated-user-flow-runbook.md](./frontend-authenticated-user-flow-runbook.md)
-5. 보호 경로 흐름은 [frontend-protected-user-flow-runbook.md](./frontend-protected-user-flow-runbook.md)
-6. 세션 복구 흐름은 [frontend-session-recovery-runbook.md](./frontend-session-recovery-runbook.md)
-7. 개인 유지 흐름은 [frontend-retention-flow-runbook.md](./frontend-retention-flow-runbook.md)
-8. 계정 라이프사이클은 [frontend-account-lifecycle-runbook.md](./frontend-account-lifecycle-runbook.md)
-9. admin 운영 흐름은 [frontend-admin-operator-flow-runbook.md](./frontend-admin-operator-flow-runbook.md)
-10. 추천/챗봇 흐름은 [frontend-recommendation-chat-flow-runbook.md](./frontend-recommendation-chat-flow-runbook.md)
-11. 도움 경로는 [frontend-help-surface-runbook.md](./frontend-help-surface-runbook.md)
-12. 필요하면 [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
-13. 시간이 제한되면 checklist의 `권장 실행 순서 -> 1차 고위험 동선` 다섯 개를 먼저 돌립니다.
+4. 검색/상세 흐름은 [frontend-policy-search-detail-flow-runbook.md](./frontend-policy-search-detail-flow-runbook.md)
+5. 로그인 사용자 흐름은 [frontend-authenticated-user-flow-runbook.md](./frontend-authenticated-user-flow-runbook.md)
+6. 보호 경로 흐름은 [frontend-protected-user-flow-runbook.md](./frontend-protected-user-flow-runbook.md)
+7. 세션 복구 흐름은 [frontend-session-recovery-runbook.md](./frontend-session-recovery-runbook.md)
+8. 개인 유지 흐름은 [frontend-retention-flow-runbook.md](./frontend-retention-flow-runbook.md)
+9. 계정 라이프사이클은 [frontend-account-lifecycle-runbook.md](./frontend-account-lifecycle-runbook.md)
+10. admin 운영 흐름은 [frontend-admin-operator-flow-runbook.md](./frontend-admin-operator-flow-runbook.md)
+11. 추천/챗봇 흐름은 [frontend-recommendation-chat-flow-runbook.md](./frontend-recommendation-chat-flow-runbook.md)
+12. 도움 경로는 [frontend-help-surface-runbook.md](./frontend-help-surface-runbook.md)
+13. 필요하면 [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
+14. 시간이 제한되면 checklist의 `권장 실행 순서 -> 1차 고위험 동선` 다섯 개를 먼저 돌립니다.
 
 ### 결과를 남길 때
 
@@ -132,12 +136,13 @@
 2. daily operator 관점의 compact handoff는 [frontend-observation-runbook.md](./frontend-observation-runbook.md) 와 `bash deploy/smoke/run-local-frontend-observation-suite.sh` 를 먼저 봅니다.
 3. 실제 브라우저 검증은 [frontend-qa-checklist.md](./frontend-qa-checklist.md) 기준으로 진행합니다.
 4. 공개 onboarding/search/detail 흐름은 [frontend-core-user-flow-runbook.md](./frontend-core-user-flow-runbook.md) 를 먼저 봅니다.
-5. 로그인 사용자 메인 보강 흐름은 [frontend-authenticated-user-flow-runbook.md](./frontend-authenticated-user-flow-runbook.md) 를 먼저 봅니다.
-6. 보호 경로와 로그인 복귀는 [frontend-protected-user-flow-runbook.md](./frontend-protected-user-flow-runbook.md) 를 먼저 봅니다.
-7. 세션 만료와 reset-password는 [frontend-session-recovery-runbook.md](./frontend-session-recovery-runbook.md) 를 먼저 봅니다.
-8. 알림/북마크 재방문은 [frontend-retention-flow-runbook.md](./frontend-retention-flow-runbook.md) 를 먼저 봅니다.
-9. 계정 생성/비밀번호 재설정/재로그인은 [frontend-account-lifecycle-runbook.md](./frontend-account-lifecycle-runbook.md) 를 먼저 봅니다.
-10. admin 운영 경로는 [frontend-admin-operator-flow-runbook.md](./frontend-admin-operator-flow-runbook.md) 를 먼저 봅니다.
-11. 추천/챗봇 보조 흐름은 [frontend-recommendation-chat-flow-runbook.md](./frontend-recommendation-chat-flow-runbook.md) 를 먼저 봅니다.
-12. `/guide` / `/support` / `정책 오류 제보` 구분은 [frontend-help-surface-runbook.md](./frontend-help-surface-runbook.md) 를 먼저 봅니다.
-13. 결과 기록은 [frontend-qa-template.md](./frontend-qa-template.md) 를 기준으로 남기고, pass/fail보다 URL/query/state 증거를 먼저 적습니다.
+5. 검색 query/filter/detail은 [frontend-policy-search-detail-flow-runbook.md](./frontend-policy-search-detail-flow-runbook.md) 를 먼저 봅니다.
+6. 로그인 사용자 메인 보강 흐름은 [frontend-authenticated-user-flow-runbook.md](./frontend-authenticated-user-flow-runbook.md) 를 먼저 봅니다.
+7. 보호 경로와 로그인 복귀는 [frontend-protected-user-flow-runbook.md](./frontend-protected-user-flow-runbook.md) 를 먼저 봅니다.
+8. 세션 만료와 reset-password는 [frontend-session-recovery-runbook.md](./frontend-session-recovery-runbook.md) 를 먼저 봅니다.
+9. 알림/북마크 재방문은 [frontend-retention-flow-runbook.md](./frontend-retention-flow-runbook.md) 를 먼저 봅니다.
+10. 계정 생성/비밀번호 재설정/재로그인은 [frontend-account-lifecycle-runbook.md](./frontend-account-lifecycle-runbook.md) 를 먼저 봅니다.
+11. admin 운영 경로는 [frontend-admin-operator-flow-runbook.md](./frontend-admin-operator-flow-runbook.md) 를 먼저 봅니다.
+12. 추천/챗봇 보조 흐름은 [frontend-recommendation-chat-flow-runbook.md](./frontend-recommendation-chat-flow-runbook.md) 를 먼저 봅니다.
+13. `/guide` / `/support` / `정책 오류 제보` 구분은 [frontend-help-surface-runbook.md](./frontend-help-surface-runbook.md) 를 먼저 봅니다.
+14. 결과 기록은 [frontend-qa-template.md](./frontend-qa-template.md) 를 기준으로 남기고, pass/fail보다 URL/query/state 증거를 먼저 적습니다.
