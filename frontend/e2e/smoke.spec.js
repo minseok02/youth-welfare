@@ -453,6 +453,22 @@ test("비로그인 정책 상세 오류 제보는 로그인으로 분기한다",
   await expect(page.getByPlaceholder("example@email.com")).toBeVisible();
 });
 
+test("공개 사용자 핵심 흐름은 홈에서 가이드를 보고 정책 상세까지 이어진다", async ({ page, request }) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "이용가이드", exact: true }).first().click();
+  await expect(page).toHaveURL(/\/guide$/);
+  await expect(page.getByText("청년복지플랫폼을", { exact: false })).toBeVisible();
+
+  await page.getByRole("button", { name: "정책 검색하기", exact: true }).first().click();
+  await expect(page).toHaveURL(/\/policies$/);
+
+  const firstPolicy = await openFirstSearchResult(page, request, "월세");
+  await expect(page.getByText(firstPolicy.title, { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("요약 정보", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "⚑ 정책 오류 제보", exact: true })).toBeVisible();
+});
+
 test("정책 필터는 데스크톱에서 선택 즉시 반영되고 별도 적용 버튼을 요구하지 않는다", async ({ page }) => {
   await page.goto("/policies");
 
