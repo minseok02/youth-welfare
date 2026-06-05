@@ -80,19 +80,19 @@ bash deploy/smoke/run-nightly-ops-handoff.sh
 nightly handoff:
 
 ```cron
-10 1 * * * ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' /home/ubuntu/youth-welfare/deploy/smoke/run-nightly-ops-handoff.sh >> /var/log/youth-welfare/nightly-ops-handoff/nightly-cron.log 2>&1
+10 1 * * * ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' bash /home/ubuntu/youth-welfare/deploy/smoke/run-nightly-ops-handoff.sh >> /var/log/youth-welfare/nightly-ops-handoff/nightly-cron.log 2>&1
 ```
 
 weekly frontend 포함:
 
 ```cron
-30 1 * * 1 RUN_FRONTEND_OBSERVATION=true ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' /home/ubuntu/youth-welfare/deploy/smoke/run-nightly-ops-handoff.sh >> /var/log/youth-welfare/nightly-ops-handoff/frontend-weekly-cron.log 2>&1
+30 1 * * 1 RUN_FRONTEND_OBSERVATION=true ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' bash /home/ubuntu/youth-welfare/deploy/smoke/run-nightly-ops-handoff.sh >> /var/log/youth-welfare/nightly-ops-handoff/frontend-weekly-cron.log 2>&1
 ```
 
 cleanup:
 
 ```cron
-45 1 * * * NIGHTLY_OPS_HANDOFF_LOG_ROOT=/var/log/youth-welfare/nightly-ops-handoff SUMMARY_RETENTION_DAYS=30 ARTIFACT_RETENTION_DAYS=14 /home/ubuntu/youth-welfare/deploy/smoke/cleanup-nightly-ops-handoff-artifacts.sh >> /var/log/youth-welfare/nightly-ops-handoff/cleanup-cron.log 2>&1
+45 1 * * * NIGHTLY_OPS_HANDOFF_LOG_ROOT=/var/log/youth-welfare/nightly-ops-handoff SUMMARY_RETENTION_DAYS=30 ARTIFACT_RETENTION_DAYS=14 bash /home/ubuntu/youth-welfare/deploy/smoke/cleanup-nightly-ops-handoff-artifacts.sh >> /var/log/youth-welfare/nightly-ops-handoff/cleanup-cron.log 2>&1
 ```
 
 직접 `crontab -e` 로 붙이지 않고 idempotent block install을 쓰려면:

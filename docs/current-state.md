@@ -53,6 +53,7 @@
 - `BOKJIRO_LOCAL` duplicate는 title-only false positive가 많아서 기본값을 `지역별 개별 사업 유지`로 둡니다.
 - `YOUTH` duplicate는 `같은 기관 + 같은 기간 + 같은 URL` 반복이면 진짜 수집 중복 후보로 먼저 봅니다.
 - 이 `YOUTH` true duplicate candidate는 `bash deploy/smoke/run-local-youth-duplicate-candidate-audit.sh` 로 먼저 좁혀서 봅니다.
+- queue를 실제로 줄일 때는 [policy/policy-data-quality-triage-runbook.md](policy/policy-data-quality-triage-runbook.md) 기준으로 `오류 제보 -> 링크 review -> 중복 review` 순서와 1회 처리량을 그대로 따릅니다.
 - 두 queue 모두 `OPEN -> REVIEWED` 처리와 운영 메모를 지원합니다.
 - `POST /api/admin/dashboard/policy-error-reports/{reportId}/review`
 - `POST /api/admin/dashboard/support-inquiries/{inquiryId}/review`

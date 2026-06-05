@@ -20,6 +20,7 @@
   - 로그인 필요 경로와 로그인 후 복귀
   - 세션 만료 후 refresh 실패와 로그인 화면 복귀
   - 북마크/마이페이지/추천 흐름의 상태 일관성
+  - `/guide` / `/support` / `정책 오류 제보` 도움 경로 구분
 
 ## 현재 코드 기준 QA 핵심 경계
 
@@ -86,6 +87,27 @@
   - 비밀번호 변경 후 재로그인
   - 회원탈퇴 후 로그아웃/홈 이동
 
+### 9. 도움 경로 구분
+
+- `/guide`
+  - 헤더 `이용가이드`
+  - 메인 CTA
+  - 모바일 하단 `가이드`
+  에서 공개 진입 가능합니다.
+- `/support`
+  - 서비스 사용 문의 전용 공개 페이지입니다.
+  - `정책 오류 제보와는 다릅니다` 안내가 있어야 합니다.
+- 정책 상세
+  - `⚑ 정책 오류 제보` CTA가 보여야 합니다.
+
+즉 현재 help surface는
+
+- `/guide`: 어떻게 쓰는지
+- `/support`: 서비스를 쓰다가 막힐 때
+- 정책 상세 `오류 제보`: 정책 데이터 자체가 틀렸을 때
+
+로 역할이 나뉘어야 합니다.
+
 ## 현재 QA 기준선
 
 2026-05-29 기준 프론트엔드 QA 기준선은 아래와 같습니다.
@@ -100,6 +122,7 @@
 - 로그인된 `/chat` 에서 `authExpired` callback 실행 -> `/login` -> 재로그인 후 `/chat` 복귀
 - `/chat` 에서 보호 API `401` + `/api/auth/refresh 401` -> `/login` -> 재로그인 후 `/chat` 복귀
 - `/policies?search=...` -> 상세 -> 브라우저 back / 상세 뒤로가기에서 query 유지
+- 홈 `이용가이드` -> `/guide` -> `서비스 문의` -> `/support` -> `이용가이드 보기` 복귀
 - `/mypage?tab=2` 로그인 후 bookmark 목록 -> 상세 -> 뒤로가기에서 `?tab=2` 유지
 - `/mypage?tab=5` 비밀번호 변경 성공 -> 강제 로그아웃 -> `/login` -> 재로그인 후 account tab 복귀
 - 비로그인 정책 상세 bookmark 클릭 -> `/login` -> 로그인 후 bookmark `POST` 정확히 1회 + 최종 bookmarked 상태 반영
@@ -107,6 +130,8 @@
 - `/reset-password#token=...` hash 딥링크 진입 -> 새 비밀번호 설정 -> 새 비밀번호 로그인 성공
 - `/reset-password#token=...` invalid token 제출 -> `A008` 만료 안내 노출 + reset-password 화면 유지
 - 일반 사용자 `/admin/dashboard` 접근 차단
+- `/support` 는 `정책 오류 제보와는 다릅니다` 안내를 노출
+- 정책 상세는 `⚑ 정책 오류 제보` CTA 유지
 
 opt-in admin Playwright smoke 범위:
 

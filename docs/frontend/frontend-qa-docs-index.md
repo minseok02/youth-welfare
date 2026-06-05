@@ -17,6 +17,7 @@
 - [frontend-qa-current-state.md](./frontend-qa-current-state.md)
 - [frontend-observation-runbook.md](./frontend-observation-runbook.md)
 - [frontend-qa-checklist.md](./frontend-qa-checklist.md)
+- [frontend-help-surface-runbook.md](./frontend-help-surface-runbook.md)
 
 ### 같이 보면 좋은 기준 문서
 
@@ -38,6 +39,7 @@
 - 세션 만료 경로
 - 뒤로가기 / 재진입
 - 북마크 / 마이페이지 / 추천 / 챗봇
+- `/guide` / `/support` / `정책 오류 제보`
 
 을 브라우저 기준으로 빠르게 보는 current-state 문서입니다.
 
@@ -53,6 +55,7 @@
 - 북마크
 - 마이페이지
 - 추천 / 챗봇
+- 도움 경로
 
 을 실제 수동 QA 순서대로 따라가는 runbook 입니다.
 
@@ -72,13 +75,15 @@
 
 1. [frontend-qa-current-state.md](./frontend-qa-current-state.md)
 2. [frontend-qa-checklist.md](./frontend-qa-checklist.md)
+3. 도움 경로는 [frontend-help-surface-runbook.md](./frontend-help-surface-runbook.md)
 
 ### 실제 수동 QA를 돌릴 때
 
 1. [frontend-qa-checklist.md](./frontend-qa-checklist.md)
 2. [frontend-qa-current-state.md](./frontend-qa-current-state.md)
-3. 필요하면 [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
-4. 시간이 제한되면 checklist의 `권장 실행 순서 -> 1차 고위험 동선` 다섯 개를 먼저 돌립니다.
+3. 도움 경로는 [frontend-help-surface-runbook.md](./frontend-help-surface-runbook.md)
+4. 필요하면 [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
+5. 시간이 제한되면 checklist의 `권장 실행 순서 -> 1차 고위험 동선` 다섯 개를 먼저 돌립니다.
 
 ### 결과를 남길 때
 
@@ -94,4 +99,5 @@
 1. 현재 프론트 QA 기준은 [frontend-qa-current-state.md](./frontend-qa-current-state.md) 부터 봅니다.
 2. daily operator 관점의 compact handoff는 [frontend-observation-runbook.md](./frontend-observation-runbook.md) 와 `bash deploy/smoke/run-local-frontend-observation-suite.sh` 를 먼저 봅니다.
 3. 실제 브라우저 검증은 [frontend-qa-checklist.md](./frontend-qa-checklist.md) 기준으로 진행합니다.
-4. 결과 기록은 [frontend-qa-template.md](./frontend-qa-template.md) 를 기준으로 남기고, pass/fail보다 URL/query/state 증거를 먼저 적습니다.
+4. `/guide` / `/support` / `정책 오류 제보` 구분은 [frontend-help-surface-runbook.md](./frontend-help-surface-runbook.md) 를 먼저 봅니다.
+5. 결과 기록은 [frontend-qa-template.md](./frontend-qa-template.md) 를 기준으로 남기고, pass/fail보다 URL/query/state 증거를 먼저 적습니다.

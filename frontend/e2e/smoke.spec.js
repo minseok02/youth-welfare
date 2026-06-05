@@ -401,6 +401,32 @@ test("정책 상세는 요약 정보와 오류 제보 CTA를 보여준다", asyn
   await expect(page.getByRole("button", { name: "⚑ 정책 오류 제보", exact: true })).toBeVisible();
 });
 
+test("이용가이드와 서비스 문의는 공개 진입면에서 서로 연결된다", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "이용가이드", exact: true }).first().click();
+  await expect(page).toHaveURL(/\/guide$/);
+  await expect(page.getByText("청년복지플랫폼을", { exact: false })).toBeVisible();
+  await expect(page.getByText("서비스 문의", { exact: true }).first()).toBeVisible();
+
+  await page.getByRole("button", { name: "문의 남기기", exact: true }).click();
+  await expect(page).toHaveURL(/\/support$/);
+  await expect(page.getByText("서비스 사용 문의 / 의견 제안", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "이용가이드 보기", exact: true }).click();
+  await expect(page).toHaveURL(/\/guide$/);
+});
+
+test("서비스 문의 페이지는 정책 오류 제보와 역할을 구분해 안내한다", async ({ page }) => {
+  await page.goto("/support");
+
+  await expect(page.getByText("서비스 사용 문의 / 의견 제안", { exact: true })).toBeVisible();
+  await expect(page.getByText("정책 오류 제보와는 다릅니다", { exact: true })).toBeVisible();
+  await expect(page.getByText("정책 상세 페이지의 `정책 오류 제보`", { exact: false })).toBeVisible();
+  await expect(page.getByRole("button", { name: "문의 보내기", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "이용가이드 보기", exact: true })).toBeVisible();
+});
+
 test("정책 필터는 데스크톱에서 선택 즉시 반영되고 별도 적용 버튼을 요구하지 않는다", async ({ page }) => {
   await page.goto("/policies");
 
