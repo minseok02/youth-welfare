@@ -20,6 +20,7 @@
 - 핵심 검증 축은 아래 여섯 가지입니다.
 - 핵심 검증 축은 아래 일곱 가지입니다.
 - 핵심 검증 축은 아래 여덟 가지입니다.
+- 핵심 검증 축은 아래 아홉 가지입니다.
   - 라우팅/뒤로가기/재진입
   - 로그인 필요 경로와 로그인 후 복귀
   - 세션 만료 후 refresh 실패와 로그인 화면 복귀
@@ -28,6 +29,7 @@
   - 보호 경로 `/chat` / `/mypage` 복귀
   - reset-password query/hash/invalid token 경계
   - 알림함 / 북마크 재방문 유지
+  - 비밀번호 변경 후 재로그인 / account tab 복귀
   - `/guide` / `/support` / `정책 오류 제보` 도움 경로 구분
 
 ## 현재 코드 기준 QA 핵심 경계
@@ -153,6 +155,16 @@
 - [MyPage.jsx](../frontend/src/pages/MyPage.jsx)
   - `/mypage?tab=2` 에서 북마크 목록이 다시 보여야 합니다.
 - 즉 alerts -> mypage settings -> bookmark revisit 가 한 개인 유지 동선 안에서 끊기지 않아야 합니다.
+
+### 14. 계정 라이프사이클
+
+- [SignupPage.jsx](../frontend/src/pages/SignupPage.jsx)
+  - 회원가입 완료 후 `signup-complete` reason 으로 로그인 화면 안내를 띄웁니다.
+- [LoginPage.jsx](../frontend/src/pages/LoginPage.jsx)
+  - `password-reset-complete`, `signup-complete` reason 을 받아 적절한 안내를 보여줍니다.
+- [MyPage.jsx](../frontend/src/pages/MyPage.jsx)
+  - 비밀번호 변경 성공 후 `/login` 으로 이동시키고, 재로그인 후 `?tab=5` 로 복귀해야 합니다.
+- 즉 계정 생성 후 비밀번호 변경/재설정이 로그인 복귀와 섞여도 흐름이 끊기지 않아야 합니다.
 
 ## 현재 QA 기준선
 
