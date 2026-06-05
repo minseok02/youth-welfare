@@ -445,7 +445,7 @@ test("서비스 문의 페이지는 공개 문의를 접수하고 성공 안내�
 });
 
 test("비로그인 정책 상세 오류 제보는 로그인으로 분기한다", async ({ page, request }) => {
-  const firstPolicy = await openFirstSearchResult(page, request, "청년");
+  await openFirstSearchResult(page, request, "청년");
   await expect(page.getByRole("button", { name: "⚑ 정책 오류 제보", exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "⚑ 정책 오류 제보", exact: true }).click();

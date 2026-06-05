@@ -1,8 +1,8 @@
 package com.example.welfare.integration;
 
 import com.example.welfare.global.util.JwtUtil;
-import com.example.welfare.policy.repository.RecentPolicyViewRepository;
 import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.policy.repository.RecentPolicyViewRepository;
 import com.example.welfare.policy.repository.ServiceViewLogRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.user.entity.User;
@@ -68,7 +68,6 @@ class UserRecentViewedPolicyIntegrationTest {
                 .toList();
 
         if (!userKeys.isEmpty()) {
-            recentPolicyViewRepository.deleteByUserKeyIn(userKeys);
             serviceViewLogRepository.deleteByUserKeyIn(userKeys);
         }
 

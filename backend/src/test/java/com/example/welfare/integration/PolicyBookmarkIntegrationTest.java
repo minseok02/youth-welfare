@@ -58,16 +58,6 @@ class PolicyBookmarkIntegrationTest {
 
     @AfterEach
     void cleanup() {
-        userRepository.findAll().stream()
-                .filter(user -> user.getEmail() != null && user.getEmail().startsWith(TEST_EMAIL_PREFIX))
-                .forEach(user -> {
-                    String userKey = userRepository.findUserKeyById(user.getId()).orElse(null);
-                    if (userKey != null) {
-                        userRecommendationRepository.findTopByUserKey(userKey, org.springframework.data.domain.PageRequest.of(0, 500))
-                                .forEach(userRecommendationRepository::delete);
-                    }
-                });
-
         welfareServiceRepository.findAll().stream()
                 .filter(service -> service.getSourceId() != null && service.getSourceId().startsWith(TEST_SOURCE_PREFIX))
                 .forEach(welfareServiceRepository::delete);

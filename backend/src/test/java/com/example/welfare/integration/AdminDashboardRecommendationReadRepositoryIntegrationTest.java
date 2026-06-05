@@ -58,7 +58,6 @@ class AdminDashboardRecommendationReadRepositoryIntegrationTest {
         if (createdServiceIds.isEmpty()) {
             return;
         }
-        jdbcTemplate.update("DELETE FROM user_recommendations WHERE service_id IN (%s)".formatted(joinedIds(createdServiceIds)));
         jdbcTemplate.update("DELETE FROM service_taxonomy_terms WHERE service_id IN (%s)".formatted(joinedIds(createdServiceIds)));
         jdbcTemplate.update("DELETE FROM service_taxonomies WHERE service_id IN (%s)".formatted(joinedIds(createdServiceIds)));
         jdbcTemplate.update("DELETE FROM welfare_services WHERE id IN (%s)".formatted(joinedIds(createdServiceIds)));

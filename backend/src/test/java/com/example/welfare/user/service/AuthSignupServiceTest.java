@@ -13,6 +13,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
@@ -67,8 +68,8 @@ class AuthSignupServiceTest {
     }
 
     @Test
-    @DisplayName("회원가입은 이미 존재하는 이메일이면 중복 이메일 오류로 거절한다")
-    void signupRejectsDuplicateEmail() {
+    @DisplayName("회원가입은 이미 존재하는 이메일이면 기존 계정을 유지하고 외부 응답을 일반화한다")
+    void signupCompletesDuplicateEmailAsNoop() {
         SignupRequest request = new SignupRequest();
         ReflectionTestUtils.setField(request, "email", "user@example.com");
         ReflectionTestUtils.setField(request, "password", "password123!");
@@ -76,18 +77,16 @@ class AuthSignupServiceTest {
         given(emailVerificationService.isVerified("user@example.com")).willReturn(true);
         given(authIdentityReadService.existsByEmail("user@example.com")).willReturn(true);
 
-        assertThatThrownBy(() -> authSignupService.signup(request))
-                .isInstanceOf(CustomException.class)
-                .extracting("errorCode")
-                .isEqualTo(ErrorCode.DUPLICATE_EMAIL);
+        assertThatCode(() -> authSignupService.signup(request)).doesNotThrowAnyException();
 
         then(userRegistrationService).should(never()).register(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString());
         then(passwordEncoder).shouldHaveNoInteractions();
+        then(emailVerificationService).should().clearVerified("user@example.com");
     }
 
     @Test
-    @DisplayName("회원가입 저장 중 중복 제약이 발생하고 이메일이 존재하면 중복 이메일 오류로 거절한다")
-    void signupRejectsDuplicateRace() {
+    @DisplayName("회원가입 저장 중 중복 제약이 발생하고 이메일이 존재하면 기존 계정을 유지하고 외부 응답을 일반화한다")
+    void signupCompletesDuplicateRaceAsNoop() {
         SignupRequest request = new SignupRequest();
         ReflectionTestUtils.setField(request, "email", "user@example.com");
         ReflectionTestUtils.setField(request, "password", "password123!");
@@ -100,12 +99,10 @@ class AuthSignupServiceTest {
                 .given(userRegistrationService)
                 .register(request, "encoded-password");
 
-        assertThatThrownBy(() -> authSignupService.signup(request))
-                .isInstanceOf(CustomException.class)
-                .extracting("errorCode")
-                .isEqualTo(ErrorCode.DUPLICATE_EMAIL);
+        assertThatCode(() -> authSignupService.signup(request)).doesNotThrowAnyException();
 
         then(userRegistrationService).should().register(request, "encoded-password");
+        then(emailVerificationService).should().clearVerified("user@example.com");
     }
 
     @Test

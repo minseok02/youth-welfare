@@ -143,7 +143,7 @@ class AuthRedisIntegrationTest {
                         .param("email", email))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.available").value(false));
+                .andExpect(jsonPath("$.data.available").value(true));
     }
 
     @Test
@@ -169,7 +169,7 @@ class AuthRedisIntegrationTest {
                         .param("email", email.toUpperCase()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.available").value(false));
+                .andExpect(jsonPath("$.data.available").value(true));
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType("application/json")

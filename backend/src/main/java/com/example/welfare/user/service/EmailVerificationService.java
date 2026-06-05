@@ -25,6 +25,7 @@ public class EmailVerificationService {
 
     private final RedisTemplate<String, String> redisTemplate;
     private final EmailClient emailClient;
+    private final AuthIdentityReadService authIdentityReadService;
 
     @Value("${auth.email-verification.code-ttl-minutes:5}")
     private long codeTtlMinutes;
@@ -44,6 +45,12 @@ public class EmailVerificationService {
                 COOLDOWN_PREFIX + hash, "1", Duration.ofSeconds(cooldownSeconds));
         if (!Boolean.TRUE.equals(acquired)) {
             throw new CustomException(ErrorCode.EMAIL_VERIFICATION_SEND_LIMIT);
+        }
+
+        if (authIdentityReadService.existsByEmail(rawEmail)) {
+            redisTemplate.delete(CODE_PREFIX + hash);
+            redisTemplate.delete(ATTEMPTS_PREFIX + hash);
+            return;
         }
 
         String code = String.format("%06d", random.nextInt(1_000_000));

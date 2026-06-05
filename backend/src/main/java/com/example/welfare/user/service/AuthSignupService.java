@@ -28,7 +28,8 @@ public class AuthSignupService {
         }
 
         if (authIdentityReadService.existsByEmail(request.getEmail())) {
-            throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
+            completeDuplicateSignup(request);
+            return;
         }
 
         try {
@@ -36,9 +37,14 @@ public class AuthSignupService {
             emailVerificationService.clearVerified(request.getEmail());
         } catch (DataIntegrityViolationException e) {
             if (authIdentityReadService.existsByEmail(request.getEmail())) {
-                throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
+                completeDuplicateSignup(request);
+                return;
             }
             throw e;
         }
+    }
+
+    private void completeDuplicateSignup(SignupRequest request) {
+        emailVerificationService.clearVerified(request.getEmail());
     }
 }

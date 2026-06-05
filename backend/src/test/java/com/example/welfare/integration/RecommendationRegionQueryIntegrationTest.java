@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.util.List;
@@ -84,7 +85,7 @@ class RecommendationRegionQueryIntegrationTest {
         List<WelfareService> results = welfareServiceRepository.findCandidates(
                 25,
                 5,
-                PageRequest.of(0, 5000)
+                PageRequest.of(0, 5000, Sort.by(Sort.Direction.DESC, "id"))
         );
 
         assertThat(results)
