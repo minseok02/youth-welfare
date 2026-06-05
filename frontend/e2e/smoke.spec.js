@@ -628,6 +628,26 @@ test("마이페이지 북마크 탭에서 상세로 갔다가 뒤로오면 tab q
   await expect(page.getByText(policy.title, { exact: true }).first()).toBeVisible();
 });
 
+test("보호 사용자 핵심 흐름은 로그인 요구 경로와 마이페이지 복귀를 유지한다", async ({ page, request }) => {
+  const policy = await fetchFirstSearchResult(request, "청년");
+  await ensurePolicyBookmarked(request, userCredentials, policy.id);
+
+  await loginFromProtectedRoute(page, "/chat", userCredentials);
+  await expectLoggedInChat(page);
+
+  await page.goto("/mypage?tab=2");
+  await expect(page).toHaveURL(/\/mypage\?tab=2$/);
+  await expect(page.getByText("북마크한 정책")).toBeVisible();
+  await expect(page.getByText(policy.title, { exact: true }).first()).toBeVisible();
+
+  await page.getByText(policy.title, { exact: true }).first().click();
+  await expect(page).toHaveURL(new RegExp(`/policies/${policy.id}`));
+  await page.getByRole("button", { name: /뒤로가기/ }).click();
+
+  await expect(page).toHaveURL(/\/mypage\?tab=2$/);
+  await expect(page.getByText(policy.title, { exact: true }).first()).toBeVisible();
+});
+
 test("마이페이지 비밀번호 변경 후 로그인으로 이동하고 재로그인하면 account tab으로 복귀한다", async ({ page }) => {
   await page.route("**/api/users/me/password", async (route) => {
     await route.fulfill({
