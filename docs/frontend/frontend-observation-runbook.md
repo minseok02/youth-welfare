@@ -30,6 +30,7 @@ entrypoint는 아래 wrapper입니다.
 ## summary/json에서 먼저 볼 값
 
 - `decision_class`
+- `flow_families`
 - `enabled_smoke_steps`
 - `suite_duration_ms`
 - `frontend_e2e_mode`
@@ -46,7 +47,24 @@ entrypoint는 아래 wrapper입니다.
 - lint/build/browser smoke baseline이 현재 기준선을 유지한다는 뜻입니다.
 - UI flow를 다시 열기보다 current-state/checklist 기준을 그대로 유지합니다.
 
+### `flow_families`
+
+- summary/json/note에는 현재 프론트 smoke를 어떤 큰 축으로 읽어야 하는지가 같이 남습니다.
+- 현재 기본 축:
+  - `public-core`
+  - `search-detail`
+  - `authenticated-home`
+  - `protected-routes`
+  - `session-recovery`
+  - `retention`
+  - `account-lifecycle`
+  - `admin-operator`
+  - `recommendation-chat`
+  - `help-surface`
+- 각 축은 대응 runbook 경로와 함께 note/json에 들어갑니다.
+
 ## 다음 액션
 
 - `next_action=docs/frontend/frontend-qa-current-state.md` 이면 현재 브라우저 경계를 다시 읽는 쪽이 우선입니다.
 - 실제 수동 브라우저 순서를 다시 따라가야 하면 [frontend-qa-checklist.md](./frontend-qa-checklist.md) 로 내려갑니다.
+- nightly/handoff에서 특정 축만 다시 보고 싶으면 해당 `flow_families` 에 대응하는 runbook부터 엽니다.

@@ -135,6 +135,7 @@ summary 한 줄은 아래 축을 같이 남깁니다.
 - `collect`
 - `auth`
 - `frontend`
+- `frontend flow_families` 는 `tmp/frontend-observation/latest-frontend-observation-note.md` 와 json에서 확인
 - `attention_keys`
 - `missing_all_standard_codes`
 - `adoption_any_share_pct`

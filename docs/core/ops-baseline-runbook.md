@@ -34,6 +34,8 @@ daily operator가 raw child stdout 대신 compact handoff를 먼저 보려면 �
 bash deploy/smoke/run-local-ops-observation-suite.sh
 ```
 
+프론트 baseline을 같이 읽을 때는 `frontend observation` summary의 `flow_families` 를 먼저 봅니다. 이 값은 공개/검색상세/로그인/보호/세션복구/개인유지/admin/추천챗 같은 큰 축을 요약해서, 어떤 runbook을 먼저 열어야 하는지 바로 알려줍니다.
+
 운영 서버/RDS:
 
 ```bash

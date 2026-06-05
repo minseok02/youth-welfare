@@ -167,6 +167,30 @@ operator_reading = (
     "Frontend baseline is healthy. Keep lint/build/browser smoke green and only reopen UI flow tuning if a new regression appears."
 )
 next_action = "docs/frontend/frontend-qa-current-state.md"
+flow_families = [
+    "public-core",
+    "search-detail",
+    "authenticated-home",
+    "protected-routes",
+    "session-recovery",
+    "retention",
+    "account-lifecycle",
+    "admin-operator",
+    "recommendation-chat",
+    "help-surface",
+]
+flow_family_docs = {
+    "public-core": "docs/frontend/frontend-core-user-flow-runbook.md",
+    "search-detail": "docs/frontend/frontend-policy-search-detail-flow-runbook.md",
+    "authenticated-home": "docs/frontend/frontend-authenticated-user-flow-runbook.md",
+    "protected-routes": "docs/frontend/frontend-protected-user-flow-runbook.md",
+    "session-recovery": "docs/frontend/frontend-session-recovery-runbook.md",
+    "retention": "docs/frontend/frontend-retention-flow-runbook.md",
+    "account-lifecycle": "docs/frontend/frontend-account-lifecycle-runbook.md",
+    "admin-operator": "docs/frontend/frontend-admin-operator-flow-runbook.md",
+    "recommendation-chat": "docs/frontend/frontend-recommendation-chat-flow-runbook.md",
+    "help-surface": "docs/frontend/frontend-help-surface-runbook.md",
+}
 
 lines = [
     "frontend_observation_suite=passed",
@@ -192,6 +216,7 @@ for row in rows:
 
 lines.extend([
     f"decision_class={decision_class}",
+    f"flow_families={','.join(flow_families)}",
     f"operator_reading={operator_reading}",
     f"next_action={next_action}",
 ])
@@ -213,6 +238,8 @@ json_payload = {
     "frontend_observation_app_base_url": frontend_observation_app_base_url,
     "frontend_observation_health_url": frontend_observation_health_url,
     "decision_class": decision_class,
+    "flow_families": flow_families,
+    "flow_family_docs": flow_family_docs,
     "operator_reading": operator_reading,
     "next_action": next_action,
 }
@@ -230,12 +257,22 @@ note_lines = [
     f"- `suite_duration_ms`: `{suite_duration_ms}`",
     f"- `frontend_e2e_mode`: `{frontend_e2e_mode}`",
     f"- `run_frontend_admin_e2e`: `{run_frontend_admin_e2e}`",
+    f"- `flow_families`: `{', '.join(flow_families)}`",
     f"- `next_action`: `{next_action}`",
+    "",
+    "## Flow Families",
+    "",
+]
+
+for family_key, doc_path in flow_family_docs.items():
+    note_lines.append(f"- `{family_key}` -> `{doc_path}`")
+
+note_lines.extend([
     "",
     "## Operator Reading",
     "",
     operator_reading,
-]
+])
 note_out.write_text("\n".join(note_lines) + "\n", encoding="utf-8")
 PY
 
