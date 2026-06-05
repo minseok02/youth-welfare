@@ -160,6 +160,8 @@
   - `KEEP_ARTIFACTS=false` 기본값에서도 latest summary/json 과 `tmp/frontend-observation/latest/` snapshot은 남습니다.
 - policy quality observation suite: `APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-policy-quality-observation-suite.sh`
 - server/RDS policy quality observation suite: `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-policy-quality-observation-suite.sh`
+- policy data triage observation suite: `bash deploy/smoke/run-local-policy-data-triage-observation-suite.sh`
+- server/RDS policy data triage observation suite: `ENV_FILE=.env.production SMOKE_DB_MODE=postgres bash deploy/smoke/run-local-policy-data-triage-observation-suite.sh`
 - nightly server/RDS policy quality wrapper: `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-nightly-policy-quality-observation.sh`
   - retrieval/category summary뿐 아니라 `policy-search-scenario-audit` 도 같이 실행해 검색어/지역 필터 품질을 compact nightly line에 남깁니다.
   - latest artifact: `tmp/policy-quality-observation/latest-policy-quality-observation-summary.txt`, `tmp/policy-quality-observation/latest-policy-quality-observation-note.md`, `tmp/policy-quality-observation/latest-policy-quality-observation.json`
@@ -177,6 +179,9 @@
 - policy link review queue runbook: `docs/policy/policy-link-review-queue-runbook.md`
   - 운영자는 `지원금/급부형 -> 공고/모집형 -> 프로그램형 -> 행사/문화형 -> 기타` 순서로 보는 편이 맞다.
   - `REVIEWED` 는 “고쳤다”가 아니라 “운영자가 한 번 판단과 note를 남겼다”는 뜻으로 읽는다.
+- policy data triage observation suite: `bash deploy/smoke/run-local-policy-data-triage-observation-suite.sh`
+  - `policy-data-quality`, `policy-link-review-sample`, `youth-duplicate-candidate` 를 한 번에 다시 읽는 compact handoff wrapper다.
+  - 현재는 `duplicate -> link review -> drift tail` 순서로 backlog를 보는 편이 맞는지 빠르게 판정한다.
 - policy application period quality audit: `bash deploy/smoke/run-local-policy-application-period-quality-audit.sh`
   - 현재 최신 기준은 `active_past_end_youth=208`, `active_past_end_gov24=0`, `active_past_end_youth_future_end_tail=208`, `active_past_end_youth_true_review=0`, `closed_future_end_total=2` 이다.
   - 즉 남은 `YOUTH` 잔량은 대부분 `end_date` 가 아직 미래인 source tail 이고, 사용자-facing `ACTIVE_ONLY` 경계에서는 이미 숨겨진다.
