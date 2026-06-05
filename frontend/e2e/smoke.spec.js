@@ -427,6 +427,32 @@ test("서비스 문의 페이지는 정책 오류 제보와 역할을 구분해 
   await expect(page.getByRole("button", { name: "이용가이드 보기", exact: true })).toBeVisible();
 });
 
+test("서비스 문의 페이지는 공개 문의를 접수하고 성공 안내를 보여준다", async ({ page }) => {
+  await page.route("**/api/support/inquiries", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify({ success: true, data: { inquiryId: 1 } }),
+    });
+  });
+
+  await page.goto("/support");
+  await page.getByLabel("답변 받을 이메일").fill("tester@example.com");
+  await page.getByLabel("문의 내용").fill("추천 결과가 기대와 다르게 보여서 사용 문의를 남깁니다.");
+  await page.getByRole("button", { name: "문의 보내기", exact: true }).click();
+
+  await expect(page.getByText("문의가 접수되었습니다. 확인 후 답변드리겠습니다.", { exact: true })).toBeVisible();
+});
+
+test("비로그인 정책 상세 오류 제보는 로그인으로 분기한다", async ({ page, request }) => {
+  const firstPolicy = await openFirstSearchResult(page, request, "청년");
+  await expect(page.getByRole("button", { name: "⚑ 정책 오류 제보", exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "⚑ 정책 오류 제보", exact: true }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByPlaceholder("example@email.com")).toBeVisible();
+});
+
 test("정책 필터는 데스크톱에서 선택 즉시 반영되고 별도 적용 버튼을 요구하지 않는다", async ({ page }) => {
   await page.goto("/policies");
 
