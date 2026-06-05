@@ -34,6 +34,8 @@ entrypoint는 아래 wrapper입니다.
 - `collect_failed_jobs_in_window`
 - `collect_partial_success_jobs_in_window`
 - `open_collect_circuits`
+- `policy_data_triage_decision_class`
+- `policy_data_triage_next_action`
 - `recommendation_real_user_traffic_gate_in_window`
 - `recommendation_review_gate`
 - `recommendation_top1_leader_signal_summary`

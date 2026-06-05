@@ -8,6 +8,7 @@ KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
 OPS_OBSERVATION_ROOT="${OPS_OBSERVATION_ROOT:-${ROOT_DIR}/tmp/ops-observation}"
 RUN_USER_PROFILE_STANDARD_CODE_COVERAGE_AUDIT="${RUN_USER_PROFILE_STANDARD_CODE_COVERAGE_AUDIT:-true}"
 RUN_RECOMMENDATION_STANDARD_CODE_OBSERVATION="${RUN_RECOMMENDATION_STANDARD_CODE_OBSERVATION:-true}"
+RUN_POLICY_DATA_TRIAGE_OBSERVATION="${RUN_POLICY_DATA_TRIAGE_OBSERVATION:-true}"
 RUN_TS_UTC="$(smoke_now_ts_utc)"
 ARTIFACT_DIR="${ARTIFACT_DIR:-${OPS_OBSERVATION_ROOT}/${RUN_TS_UTC}}"
 
@@ -22,6 +23,7 @@ CHILD_OUTPUT="${ARTIFACT_DIR}/ops-baseline.txt"
 ATTENTION_FEED_OUTPUT="${ARTIFACT_DIR}/attention-feed.out"
 STANDARD_CODE_COVERAGE_OUTPUT="${ARTIFACT_DIR}/user-profile-standard-code-coverage.out"
 RECOMMENDATION_STANDARD_CODE_OBSERVATION_OUTPUT="${ARTIFACT_DIR}/recommendation-standard-code-observation.out"
+POLICY_DATA_TRIAGE_OBSERVATION_OUTPUT="${ARTIFACT_DIR}/policy-data-triage-observation.out"
 SUMMARY_OUT="${ARTIFACT_DIR}/ops-observation-summary.txt"
 JSON_OUT="${ARTIFACT_DIR}/ops-observation.json"
 NOTE_OUT="${ARTIFACT_DIR}/ops-observation-note.md"
@@ -43,6 +45,7 @@ trap cleanup EXIT
 KEEP_ARTIFACTS="$(smoke_normalize_bool "${KEEP_ARTIFACTS}")"
 RUN_USER_PROFILE_STANDARD_CODE_COVERAGE_AUDIT="$(smoke_normalize_bool "${RUN_USER_PROFILE_STANDARD_CODE_COVERAGE_AUDIT}")"
 RUN_RECOMMENDATION_STANDARD_CODE_OBSERVATION="$(smoke_normalize_bool "${RUN_RECOMMENDATION_STANDARD_CODE_OBSERVATION}")"
+RUN_POLICY_DATA_TRIAGE_OBSERVATION="$(smoke_normalize_bool "${RUN_POLICY_DATA_TRIAGE_OBSERVATION}")"
 mkdir -p "${ARTIFACT_DIR}" "${CHILD_ARTIFACT_DIR}"
 printf 'label\texit_code\tduration_ms\toutput_file\n' > "${DURATIONS_TSV}"
 
@@ -112,7 +115,22 @@ if [[ "${RUN_RECOMMENDATION_STANDARD_CODE_OBSERVATION}" == "true" ]]; then
   fi
 fi
 
-python3 - "${DURATIONS_TSV}" "${SUMMARY_OUT}" "${JSON_OUT}" "${NOTE_OUT}" "${ARTIFACT_DIR}" "${RUN_TS_UTC}" "${APP_BASE_URL}" "${SUMMARY_WINDOW_DAYS}" "${TREND_WINDOW_DAYS_CSV}" "${BREAKDOWN_LIMIT}" "${COLLECT_LIMIT}" "${CHILD_ARTIFACT_DIR}" "${ATTENTION_FEED_OUTPUT}" "${STANDARD_CODE_COVERAGE_OUTPUT}" "${RUN_USER_PROFILE_STANDARD_CODE_COVERAGE_AUDIT}" "${RECOMMENDATION_STANDARD_CODE_OBSERVATION_OUTPUT}" "${RUN_RECOMMENDATION_STANDARD_CODE_OBSERVATION}" "${ROOT_DIR}" <<'PY'
+if [[ "${RUN_POLICY_DATA_TRIAGE_OBSERVATION}" == "true" ]]; then
+  smoke_print_step "policy data triage observation"
+  set +e
+  KEEP_ARTIFACTS=true \
+  ARTIFACT_DIR="${ARTIFACT_DIR}/policy-data-triage-observation-artifact" \
+  smoke_duration_step "policy_data_triage_observation" "${POLICY_DATA_TRIAGE_OBSERVATION_OUTPUT}" \
+    bash "${ROOT_DIR}/deploy/smoke/run-local-policy-data-triage-observation-suite.sh" >> "${DURATIONS_TSV}"
+  STATUS=$?
+  set -e
+  cat "${POLICY_DATA_TRIAGE_OBSERVATION_OUTPUT}"
+  if [[ "${STATUS}" -ne 0 ]]; then
+    exit "${STATUS}"
+  fi
+fi
+
+python3 - "${DURATIONS_TSV}" "${SUMMARY_OUT}" "${JSON_OUT}" "${NOTE_OUT}" "${ARTIFACT_DIR}" "${RUN_TS_UTC}" "${APP_BASE_URL}" "${SUMMARY_WINDOW_DAYS}" "${TREND_WINDOW_DAYS_CSV}" "${BREAKDOWN_LIMIT}" "${COLLECT_LIMIT}" "${CHILD_ARTIFACT_DIR}" "${ATTENTION_FEED_OUTPUT}" "${STANDARD_CODE_COVERAGE_OUTPUT}" "${RUN_USER_PROFILE_STANDARD_CODE_COVERAGE_AUDIT}" "${RECOMMENDATION_STANDARD_CODE_OBSERVATION_OUTPUT}" "${RUN_RECOMMENDATION_STANDARD_CODE_OBSERVATION}" "${POLICY_DATA_TRIAGE_OBSERVATION_OUTPUT}" "${RUN_POLICY_DATA_TRIAGE_OBSERVATION}" "${ROOT_DIR}" <<'PY'
 import csv
 import json
 import sys
@@ -197,7 +215,9 @@ standard_code_coverage_output = Path(sys.argv[14])
 run_standard_code_coverage_audit = sys.argv[15] == "true"
 recommendation_standard_code_observation_output = Path(sys.argv[16])
 run_recommendation_standard_code_observation = sys.argv[17] == "true"
-root_dir = Path(sys.argv[18])
+policy_data_triage_observation_output = Path(sys.argv[18])
+run_policy_data_triage_observation = sys.argv[19] == "true"
+root_dir = Path(sys.argv[20])
 
 rows = list(csv.DictReader(durations_path.open(encoding="utf-8"), delimiter="\t"))
 suite_duration_ms = sum(int(row["duration_ms"]) for row in rows)
@@ -215,6 +235,11 @@ attention_feed = read_key_values(attention_feed_output) if attention_feed_output
 recommendation_standard_code_observation = (
     read_key_values(recommendation_standard_code_observation_output)
     if run_recommendation_standard_code_observation and recommendation_standard_code_observation_output.exists()
+    else {}
+)
+policy_data_triage_observation = (
+    read_key_values(policy_data_triage_observation_output)
+    if run_policy_data_triage_observation and policy_data_triage_observation_output.exists()
     else {}
 )
 current_priority_summary = read_key_values(root_dir / "tmp" / "current-priority-suite" / "latest-current-priority-summary.txt")
@@ -239,6 +264,9 @@ if run_recommendation_standard_code_observation:
     recommendation_standard_code_observation_status = (
         "ok" if recommendation_standard_code_observation else "missing"
     )
+policy_data_triage_observation_status = "skipped"
+if run_policy_data_triage_observation:
+    policy_data_triage_observation_status = "ok" if policy_data_triage_observation else "missing"
 current_priority_previous_available = previous_current_priority_summary_path is not None and (
     bool(previous_current_priority_summary.get("active_baseline_user_profile_standard_code_users_missing_all_standard_codes", "").strip())
     or bool(previous_current_priority_summary.get("recommendation_standard_code_observation_status", "").strip())
@@ -327,6 +355,10 @@ lines = [
     f"attention_feed_status={'ok' if attention_feed else 'missing'}",
     f"run_recommendation_standard_code_observation={str(run_recommendation_standard_code_observation).lower()}",
     f"recommendation_standard_code_observation_status={recommendation_standard_code_observation_status}",
+    f"run_policy_data_triage_observation={str(run_policy_data_triage_observation).lower()}",
+    f"policy_data_triage_observation_status={policy_data_triage_observation_status}",
+    f"policy_data_triage_decision_class={policy_data_triage_observation.get('decision_class', '')}",
+    f"policy_data_triage_next_action={policy_data_triage_observation.get('next_action', '')}",
     f"wrapper_current_priority_previous_available={str(current_priority_previous_available).lower()}",
     f"wrapper_current_priority_users_missing_all_standard_codes_delta={current_priority_missing_all_standard_codes_delta}",
     f"wrapper_current_priority_users_missing_all_standard_codes_delta_label={current_priority_missing_all_standard_codes_delta_label}",
@@ -423,6 +455,8 @@ payload = {
     "attention_feed_status": "ok" if attention_feed else "missing",
     "run_recommendation_standard_code_observation": run_recommendation_standard_code_observation,
     "recommendation_standard_code_observation_status": recommendation_standard_code_observation_status,
+    "run_policy_data_triage_observation": run_policy_data_triage_observation,
+    "policy_data_triage_observation_status": policy_data_triage_observation_status,
     "wrapper_current_priority": {
         "previous_available": current_priority_previous_available,
         "users_missing_all_standard_codes_delta": current_priority_missing_all_standard_codes_delta,
@@ -485,6 +519,19 @@ if run_recommendation_standard_code_observation:
         "recommendation_standard_code_adoption_latest_batch_users_with_any_standard_code_share_pct": float(recommendation_standard_code_observation.get("recommendation_standard_code_adoption_latest_batch_users_with_any_standard_code_share_pct", "0") or 0),
         "recommendation_standard_code_adoption_latest_batch_users_missing_all_standard_codes_share_pct": float(recommendation_standard_code_observation.get("recommendation_standard_code_adoption_latest_batch_users_missing_all_standard_codes_share_pct", "0") or 0),
     }
+if run_policy_data_triage_observation:
+    payload["policy_data_triage_observation"] = {
+        "stdout": str(policy_data_triage_observation_output),
+        "decision_class": policy_data_triage_observation.get("decision_class", ""),
+        "next_action": policy_data_triage_observation.get("next_action", ""),
+        "duplicate_groups_youth": int(policy_data_triage_observation.get("duplicate_groups_youth", "0") or 0),
+        "duplicate_groups_bokjiro_local": int(policy_data_triage_observation.get("duplicate_groups_bokjiro_local", "0") or 0),
+        "exact_duplicate_groups": int(policy_data_triage_observation.get("exact_duplicate_groups", "0") or 0),
+        "mirror_variant_groups": int(policy_data_triage_observation.get("mirror_variant_groups", "0") or 0),
+        "active_visible_youth_total": int(policy_data_triage_observation.get("active_visible_youth_total", "0") or 0),
+        "benefit_support_count": int(policy_data_triage_observation.get("benefit_support_count", "0") or 0),
+        "announcement_recruitment_count": int(policy_data_triage_observation.get("announcement_recruitment_count", "0") or 0),
+    }
 for row in rows:
     payload[f"{row['label']}_duration_ms"] = int(row["duration_ms"])
     payload[f"{row['label']}_duration_seconds"] = int(row["duration_ms"]) / 1000
@@ -506,6 +553,9 @@ note_lines = [
     f"- `user_profile_standard_code_coverage_status`: `{standard_code_coverage_status}`",
     f"- `user_profile_standard_code_users_missing_all_standard_codes`: `{users_missing_all_standard_codes}`",
     f"- `recommendation_standard_code_observation_status`: `{recommendation_standard_code_observation_status}`",
+    f"- `policy_data_triage_observation_status`: `{policy_data_triage_observation_status}`",
+    f"- `policy_data_triage_decision_class`: `{policy_data_triage_observation.get('decision_class', '')}`",
+    f"- `policy_data_triage_next_action`: `{policy_data_triage_observation.get('next_action', '')}`",
     f"- `wrapper_promoted_alert`: `{wrapper_promoted_alert['severity'] if wrapper_promoted_alert else 'none'}`",
     f"- `wrapper_promoted_alert_message`: `{wrapper_promoted_alert['message'] if wrapper_promoted_alert else ''}`",
     f"- `recommendation_standard_code_housing_positive_rule_delta_rows`: `{recommendation_standard_code_observation.get('housing_standard_code_effect_positive_rule_delta_rows', '')}`",
