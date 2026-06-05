@@ -144,6 +144,55 @@ public class AdminPolicyDuplicateGroupReadRepository {
         return value == null ? 0L : value;
     }
 
+    public long countOpenGroupsByReviewClass(String reviewClass) {
+        Long value = jdbcTemplate.queryForObject("""
+                with duplicate_groups as (
+                    select
+                        ws.source_type,
+                        ws.title,
+                        coalesce(ws.host_org, '') as host_org_key,
+                        count(distinct coalesce(ws.detail_url, '')) as distinct_detail_url_count,
+                        count(distinct coalesce(ws.apply_start_date::text, '')) as distinct_apply_start_count,
+                        count(distinct coalesce(ws.apply_end_date::text, '')) as distinct_apply_end_count,
+                        max(ws.created_at) as latest_created_at
+                    from welfare_services ws
+                    where ws.source_type in ('YOUTH', 'BOKJIRO_LOCAL')
+                    group by ws.source_type, ws.title, coalesce(ws.host_org, '')
+                    having count(*) > 1
+                ),
+                classified_groups as (
+                    select
+                        dg.*,
+                        case
+                            when dg.source_type = 'YOUTH'
+                                and dg.distinct_apply_start_count <= 1
+                                and dg.distinct_apply_end_count <= 1
+                                and dg.distinct_detail_url_count <= 1
+                                then 'exact_duplicate_candidate'
+                            when dg.source_type = 'YOUTH'
+                                and dg.distinct_apply_start_count <= 1
+                                and dg.distinct_apply_end_count <= 1
+                                and dg.distinct_detail_url_count > 1
+                                then 'mirror_or_channel_variant_candidate'
+                            when dg.source_type = 'BOKJIRO_LOCAL'
+                                and dg.host_org_key = ''
+                                then 'title_only_false_positive_risk'
+                            else 'date_or_contract_drift_candidate'
+                        end as review_class
+                    from duplicate_groups dg
+                )
+                select count(*)
+                from classified_groups dg
+                left join policy_duplicate_review_records pr
+                  on pr.source_type = dg.source_type
+                 and pr.title = dg.title
+                 and pr.host_org_key = dg.host_org_key
+                where pr.id is null
+                  and dg.review_class = :reviewClass
+                """, new MapSqlParameterSource().addValue("reviewClass", reviewClass), Long.class);
+        return value == null ? 0L : value;
+    }
+
     private long countGroups(String extraPredicate, MapSqlParameterSource params) {
         Long value = jdbcTemplate.queryForObject("""
                 with duplicate_groups as (

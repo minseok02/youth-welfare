@@ -84,6 +84,7 @@ class AdminDashboardAttentionServiceTest {
                 new AdminDashboardResponse.NotificationSection(0, 0, 7, 0, 0, 0, 0, 0, 0, 0),
                 null,
                 null,
+                null,
                 null
         ));
         given(wrapperObservationService.getLatestObservation()).willReturn(new AdminWrapperObservationResponse(
@@ -188,6 +189,7 @@ class AdminDashboardAttentionServiceTest {
                 null,
                 null,
                 new AdminDashboardResponse.NotificationSection(0, 0, 7, 0, 0, 0, 0, 0, 0, 0),
+                null,
                 null,
                 null,
                 null
@@ -350,6 +352,7 @@ class AdminDashboardAttentionServiceTest {
                 new AdminDashboardResponse.NotificationSection(2, 1, 7, 14, 3, 11, 7, 2, 2, 1),
                 null,
                 null,
+                null,
                 null
         ));
         given(wrapperObservationService.getLatestObservation()).willReturn(new AdminWrapperObservationResponse(
@@ -439,6 +442,7 @@ class AdminDashboardAttentionServiceTest {
                 null,
                 null,
                 new AdminDashboardResponse.NotificationSection(0, 0, 4, 0, 0, 0, 0, 0, 0, 0),
+                null,
                 null,
                 null,
                 null

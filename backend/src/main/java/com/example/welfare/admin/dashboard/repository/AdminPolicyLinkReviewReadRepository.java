@@ -95,6 +95,20 @@ public class AdminPolicyLinkReviewReadRepository {
         return jdbcTemplate.query(sql, ROW_MAPPER, limit);
     }
 
+    public List<String> findOpenReviewBuckets() {
+        return jdbcTemplate.query("""
+                select ws.title
+                from welfare_services ws
+                left join welfare_service_details wsd on wsd.service_id = ws.id
+                left join policy_link_review_records plrr on plrr.service_id = ws.id
+                where coalesce(ws.detail_url, '') = ''
+                  and (coalesce(wsd.reference_urls_json::text, '') = '' or coalesce(wsd.reference_urls_json::text, '') = '[]')
+                  and ws.status in ('ACTIVE', 'UPCOMING')
+                  and (ws.apply_end_date is null or ws.apply_end_date >= current_date)
+                  and plrr.id is null
+                """, (rs, rowNum) -> PolicyLinkReviewBucketClassifier.classify(rs.getString("title")));
+    }
+
     private String baseCountSql(String extraWhere) {
         return """
                 with candidate as (

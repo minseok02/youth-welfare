@@ -6,6 +6,8 @@ import com.example.welfare.admin.dashboard.repository.AdminDashboardNotification
 import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRows;
 import com.example.welfare.admin.dashboard.repository.AdminDashboardRecommendationReadRepository;
 import com.example.welfare.admin.dashboard.repository.AdminDashboardSearchReadRepository;
+import com.example.welfare.admin.dashboard.repository.AdminPolicyDuplicateGroupReadRepository;
+import com.example.welfare.admin.dashboard.repository.AdminPolicyLinkReviewReadRepository;
 import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.service.ScoreWeightService;
 import com.example.welfare.user.dto.response.UserPiiSyncStatusResponse;
@@ -26,6 +28,8 @@ public class AdminDashboardSummaryService {
     private final AdminDashboardRecommendationReadRepository adminDashboardRecommendationReadRepository;
     private final AdminDashboardNotificationReadRepository adminDashboardNotificationReadRepository;
     private final AdminDashboardSearchReadRepository adminDashboardSearchReadRepository;
+    private final AdminPolicyDuplicateGroupReadRepository adminPolicyDuplicateGroupReadRepository;
+    private final AdminPolicyLinkReviewReadRepository adminPolicyLinkReviewReadRepository;
     private final UserPiiSyncStatusService userPiiSyncStatusService;
     private final ScoreWeightService scoreWeightService;
 
@@ -287,6 +291,29 @@ public class AdminDashboardSummaryService {
                 adminDashboardNotificationReadRepository.fetchNotificationSummary(dayAgo, summaryWindowAgo);
         AdminDashboardReadRows.SearchSummaryRow searchSummary =
                 adminDashboardSearchReadRepository.fetchSearchSummary(dayAgo, summaryWindowAgo);
+        long openDuplicateGroups = adminPolicyDuplicateGroupReadRepository.countOpenGroups();
+        long exactDuplicateGroups = adminPolicyDuplicateGroupReadRepository
+                .countOpenGroupsByReviewClass("exact_duplicate_candidate");
+        long mirrorVariantGroups = adminPolicyDuplicateGroupReadRepository
+                .countOpenGroupsByReviewClass("mirror_or_channel_variant_candidate");
+        long openLinkReviews = adminPolicyLinkReviewReadRepository.countOpenReviews();
+        long benefitSupportLinkReviews = 0L;
+        long announcementRecruitmentLinkReviews = 0L;
+        for (String reviewBucket : adminPolicyLinkReviewReadRepository.findOpenReviewBuckets()) {
+            if ("benefit_support".equals(reviewBucket)) {
+                benefitSupportLinkReviews++;
+            } else if ("announcement_recruitment".equals(reviewBucket)) {
+                announcementRecruitmentLinkReviews++;
+            }
+        }
+        PolicyTriageSummary policyTriageSummary = resolvePolicyTriageSummary(
+                openDuplicateGroups,
+                exactDuplicateGroups,
+                mirrorVariantGroups,
+                openLinkReviews,
+                benefitSupportLinkReviews,
+                announcementRecruitmentLinkReviews
+        );
         UserPiiSyncStatusResponse userPiiSyncStatus =
                 userPiiSyncStatusService.getStatus(AdminDashboardQueryPolicy.FAILED_SAMPLE_LIMIT);
 
@@ -478,6 +505,17 @@ public class AdminDashboardSummaryService {
                         notificationSummary.retryableFailedNotifications(),
                         notificationSummary.terminalFailedNotifications()
                 ),
+                new AdminDashboardResponse.PolicyTriageSection(
+                        policyTriageSummary.decisionClass(),
+                        policyTriageSummary.operatorReading(),
+                        policyTriageSummary.nextAction(),
+                        openDuplicateGroups,
+                        exactDuplicateGroups,
+                        mirrorVariantGroups,
+                        openLinkReviews,
+                        benefitSupportLinkReviews,
+                        announcementRecruitmentLinkReviews
+                ),
                 new AdminDashboardResponse.SearchSection(
                         searchSummary.searchesLast24h(),
                         summaryWindowDays,
@@ -510,6 +548,49 @@ public class AdminDashboardSummaryService {
                         buildSearchTrends(now, trendWindows)
                 )
         );
+    }
+
+    private PolicyTriageSummary resolvePolicyTriageSummary(
+            long openDuplicateGroups,
+            long exactDuplicateGroups,
+            long mirrorVariantGroups,
+            long openLinkReviews,
+            long benefitSupportLinkReviews,
+            long announcementRecruitmentLinkReviews
+    ) {
+        if (exactDuplicateGroups > 0 || mirrorVariantGroups > 0) {
+            return new PolicyTriageSummary(
+                    "DUPLICATE_THEN_LINK_PRIORITY",
+                    "YOUTH exact/mirror duplicate 후보가 남아 있어 duplicate queue를 exact -> mirror 순으로 먼저 줄이는 편이 맞습니다.",
+                    "exact duplicate -> mirror variant -> benefit/support link review"
+            );
+        }
+        if (benefitSupportLinkReviews > 0 || announcementRecruitmentLinkReviews > 0 || openLinkReviews > 0) {
+            return new PolicyTriageSummary(
+                    "LINK_REVIEW_PRIORITY",
+                    "현재 backlog는 정책 링크 review가 중심이며, 급부형과 모집형 bucket을 먼저 줄이는 편이 맞습니다.",
+                    "benefit/support -> announcement/recruitment -> program/event"
+            );
+        }
+        if (openDuplicateGroups > 0) {
+            return new PolicyTriageSummary(
+                    "DRIFT_TAIL_PRIORITY",
+                    "exact/mirror 우선 후보는 줄었고, 남은 duplicate tail은 drift/classification review 위주입니다.",
+                    "date/contract drift tail review"
+            );
+        }
+        return new PolicyTriageSummary(
+                "LOW_BACKLOG_STEADY_STATE",
+                "정책 backlog는 급한 exact/mirror/link 우선 항목이 줄어든 상태입니다.",
+                "keep nightly observation and small-batch review"
+        );
+    }
+
+    private record PolicyTriageSummary(
+            String decisionClass,
+            String operatorReading,
+            String nextAction
+    ) {
     }
 
     private List<AdminDashboardResponse.CollectTrendPoint> buildCollectTrends(

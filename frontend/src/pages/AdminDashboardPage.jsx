@@ -348,6 +348,10 @@ const STATUS_LABELS = {
   CANCELLED: "취소됨",
   OPEN: "열림",
   CLOSED: "닫힘",
+  DUPLICATE_THEN_LINK_PRIORITY: "중복 우선",
+  LINK_REVIEW_PRIORITY: "링크 우선",
+  DRIFT_TAIL_PRIORITY: "drift tail",
+  LOW_BACKLOG_STEADY_STATE: "안정 상태",
 };
 
 const STATUS_TOKEN_LABELS = {
@@ -3034,6 +3038,34 @@ export default function AdminDashboardPage() {
                     title="PII 동기화 실패"
                     value={formatNumber(summaryData.userPiiSync.failedCount)}
                     description={`대기 ${formatNumber(summaryData.userPiiSync.pendingCount)} · 최근 동기화 ${formatDateTime(summaryData.userPiiSync.latestSyncedAt)}`}
+                  />
+                </Box>
+
+                <Box id="admin-policy-triage-summary" sx={{ display: "grid", gap: 2, mt: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" }, scrollMarginTop: 96 }}>
+                  <MetricCard
+                    title="policy triage"
+                    value={formatStatusLabel(summaryData.policyTriage?.decisionClass)}
+                    description={summaryData.policyTriage?.operatorReading || "중복/link backlog 우선순위를 계산하지 못했습니다."}
+                    chip={
+                      <Typography sx={{ fontSize: 12, fontWeight: 800, color: ACCENT, maxWidth: 180, textAlign: "right" }}>
+                        {summaryData.policyTriage?.nextAction || "nightly observation 확인"}
+                      </Typography>
+                    }
+                  />
+                  <MetricCard
+                    title="exact duplicate"
+                    value={formatNumber(summaryData.policyTriage?.exactDuplicateGroups)}
+                    description={`mirror ${formatNumber(summaryData.policyTriage?.mirrorVariantGroups)} · 열린 중복 ${formatNumber(summaryData.policyTriage?.openDuplicateGroups)}`}
+                  />
+                  <MetricCard
+                    title="급부형 링크 review"
+                    value={formatNumber(summaryData.policyTriage?.benefitSupportLinkReviews)}
+                    description={`모집형 ${formatNumber(summaryData.policyTriage?.announcementRecruitmentLinkReviews)} · 열린 링크 ${formatNumber(summaryData.policyTriage?.openLinkReviews)}`}
+                  />
+                  <MetricCard
+                    title="현재 처리 순서"
+                    value={summaryData.policyTriage?.decisionClass === "DUPLICATE_THEN_LINK_PRIORITY" ? "exact -> mirror -> link" : summaryData.policyTriage?.decisionClass === "LINK_REVIEW_PRIORITY" ? "benefit -> announcement" : "tail review"}
+                    description={summaryData.policyTriage?.nextAction || "운영 backlog 우선순위 정보 없음"}
                   />
                 </Box>
 

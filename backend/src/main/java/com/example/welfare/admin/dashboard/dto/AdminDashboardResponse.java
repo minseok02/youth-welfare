@@ -9,6 +9,7 @@ public record AdminDashboardResponse(
         CollectSection collect,
         RecommendationSection recommendation,
         NotificationSection notification,
+        PolicyTriageSection policyTriage,
         SearchSection search,
         UserPiiSyncSection userPiiSync,
         TrendSection trend
@@ -215,6 +216,19 @@ public record AdminDashboardResponse(
             long staleUnread14d,
             long retryableFailedNotifications,
             long terminalFailedNotifications
+    ) {
+    }
+
+    public record PolicyTriageSection(
+            String decisionClass,
+            String operatorReading,
+            String nextAction,
+            long openDuplicateGroups,
+            long exactDuplicateGroups,
+            long mirrorVariantGroups,
+            long openLinkReviews,
+            long benefitSupportLinkReviews,
+            long announcementRecruitmentLinkReviews
     ) {
     }
 

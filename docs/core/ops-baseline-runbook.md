@@ -87,6 +87,8 @@ bash deploy/smoke/run-nightly-ops-handoff.sh
 
 이 nightly handoff에는 이제 `policy data triage observation` 도 같이 들어갑니다. 즉 운영자는 policy 쪽에서 raw audit 3개를 따로 열기 전에 `duplicate-first인지, link-first인지` 를 nightly summary 한 줄에서 바로 읽을 수 있습니다.
 
+관리자 대시보드 summary도 같은 경계를 노출합니다. 운영자는 `policy triage` 카드에서 `exact duplicate`, `mirror variant`, `급부형 링크 review` 수치와 함께 현재 처리 순서를 바로 읽을 수 있어, nightly artifact를 열기 전에도 backlog 우선순위를 빠르게 판단할 수 있습니다.
+
 cron 등록과 cleanup은 [nightly-ops-handoff-cron-runbook.md](./nightly-ops-handoff-cron-runbook.md) 기준으로 맞춥니다.
 
 직접 등록 대신 idempotent block install이 필요하면 아래를 사용합니다.

@@ -1456,6 +1456,17 @@ class AdminSecurityWebMvcTest {
                                 )
                         ),
                         new AdminDashboardResponse.NotificationSection(1, 0, 7, 5, 1, 4, 2, 0, 2, 1),
+                        new AdminDashboardResponse.PolicyTriageSection(
+                                "DUPLICATE_THEN_LINK_PRIORITY",
+                                "duplicate queue를 exact -> mirror 순으로 먼저 줄이는 편이 맞습니다.",
+                                "exact duplicate -> mirror variant -> benefit/support link review",
+                                139,
+                                12,
+                                16,
+                                164,
+                                33,
+                                12
+                        ),
                         new AdminDashboardResponse.SearchSection(4, 7, 12, 2, 7, java.math.BigDecimal.valueOf(5.25), List.of(
                                 new AdminDashboardResponse.SearchKeywordSnapshot("월세", 5)
                         ), List.of(
@@ -1743,6 +1754,17 @@ class AdminSecurityWebMvcTest {
                                 List.of()
                         ),
                         new AdminDashboardResponse.NotificationSection(0, 0, 14, 0, 0, 0, 0, 0, 0, 0),
+                        new AdminDashboardResponse.PolicyTriageSection(
+                                "LOW_BACKLOG_STEADY_STATE",
+                                "정책 backlog는 급한 exact/mirror/link 우선 항목이 줄어든 상태입니다.",
+                                "keep nightly observation and small-batch review",
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                        ),
                         new AdminDashboardResponse.SearchSection(0, 14, 0, 0, 0, java.math.BigDecimal.ZERO, List.of(), List.of()),
                         new AdminDashboardResponse.UserPiiSyncSection(0, 0, 0, null),
                         new AdminDashboardResponse.TrendSection(

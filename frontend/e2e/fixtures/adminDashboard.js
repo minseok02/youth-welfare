@@ -65,6 +65,17 @@ export const adminDashboardFixtures = {
       retryableFailedNotifications: 1,
       terminalFailedNotifications: 0,
     },
+    policyTriage: {
+      decisionClass: "DUPLICATE_THEN_LINK_PRIORITY",
+      operatorReading: "YOUTH exact/mirror duplicate 후보가 남아 있어 duplicate queue를 exact -> mirror 순으로 먼저 줄이는 편이 맞습니다.",
+      nextAction: "exact duplicate -> mirror variant -> benefit/support link review",
+      openDuplicateGroups: 139,
+      exactDuplicateGroups: 12,
+      mirrorVariantGroups: 16,
+      openLinkReviews: 164,
+      benefitSupportLinkReviews: 33,
+      announcementRecruitmentLinkReviews: 12,
+    },
     search: {
       zeroResultSearchesInWindow: 3,
       searchesInWindow: 21,

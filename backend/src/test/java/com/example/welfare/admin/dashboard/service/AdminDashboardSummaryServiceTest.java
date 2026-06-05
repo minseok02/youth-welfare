@@ -6,6 +6,8 @@ import com.example.welfare.admin.dashboard.repository.AdminDashboardNotification
 import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRows;
 import com.example.welfare.admin.dashboard.repository.AdminDashboardRecommendationReadRepository;
 import com.example.welfare.admin.dashboard.repository.AdminDashboardSearchReadRepository;
+import com.example.welfare.admin.dashboard.repository.AdminPolicyDuplicateGroupReadRepository;
+import com.example.welfare.admin.dashboard.repository.AdminPolicyLinkReviewReadRepository;
 import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.service.ScoreWeightService;
 import com.example.welfare.user.dto.response.UserPiiSyncStatusResponse;
@@ -41,6 +43,12 @@ class AdminDashboardSummaryServiceTest {
 
     @Mock
     private AdminDashboardSearchReadRepository adminDashboardSearchReadRepository;
+
+    @Mock
+    private AdminPolicyDuplicateGroupReadRepository adminPolicyDuplicateGroupReadRepository;
+
+    @Mock
+    private AdminPolicyLinkReviewReadRepository adminPolicyLinkReviewReadRepository;
 
     @Mock
     private UserPiiSyncStatusService userPiiSyncStatusService;
@@ -225,6 +233,14 @@ class AdminDashboardSummaryServiceTest {
                         new AdminDashboardReadRows.SearchKeywordSnapshotRow("대출", 4),
                         new AdminDashboardReadRows.SearchKeywordSnapshotRow("월세", 2)
                 ));
+        given(adminPolicyDuplicateGroupReadRepository.countOpenGroups()).willReturn(139L);
+        given(adminPolicyDuplicateGroupReadRepository.countOpenGroupsByReviewClass("exact_duplicate_candidate"))
+                .willReturn(12L);
+        given(adminPolicyDuplicateGroupReadRepository.countOpenGroupsByReviewClass("mirror_or_channel_variant_candidate"))
+                .willReturn(16L);
+        given(adminPolicyLinkReviewReadRepository.countOpenReviews()).willReturn(164L);
+        given(adminPolicyLinkReviewReadRepository.findOpenReviewBuckets())
+                .willReturn(List.of("benefit_support", "benefit_support", "announcement_recruitment", "other"));
         given(userPiiSyncStatusService.getStatus(5))
                 .willReturn(new UserPiiSyncStatusResponse(
                         2,
@@ -382,6 +398,13 @@ class AdminDashboardSummaryServiceTest {
         assertThat(response.notification().staleUnread14d()).isEqualTo(2);
         assertThat(response.notification().retryableFailedNotifications()).isEqualTo(3);
         assertThat(response.notification().terminalFailedNotifications()).isEqualTo(1);
+        assertThat(response.policyTriage().decisionClass()).isEqualTo("DUPLICATE_THEN_LINK_PRIORITY");
+        assertThat(response.policyTriage().openDuplicateGroups()).isEqualTo(139L);
+        assertThat(response.policyTriage().exactDuplicateGroups()).isEqualTo(12L);
+        assertThat(response.policyTriage().mirrorVariantGroups()).isEqualTo(16L);
+        assertThat(response.policyTriage().openLinkReviews()).isEqualTo(164L);
+        assertThat(response.policyTriage().benefitSupportLinkReviews()).isEqualTo(2L);
+        assertThat(response.policyTriage().announcementRecruitmentLinkReviews()).isEqualTo(1L);
         assertThat(response.search().windowDays()).isEqualTo(7);
         assertThat(response.search().searchesInWindow()).isEqualTo(88);
         assertThat(response.search().zeroResultSearchesInWindow()).isEqualTo(13);
@@ -409,6 +432,11 @@ class AdminDashboardSummaryServiceTest {
         )).willReturn(new AdminDashboardReadRows.RecommendationSummaryRow(0, 0, 0, 0, 0, null));
         given(adminDashboardRecommendationReadRepository.fetchRecommendationTrafficMix(org.mockito.ArgumentMatchers.any()))
                 .willReturn(new AdminDashboardReadRows.RecommendationTrafficMixRow(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+        given(adminPolicyDuplicateGroupReadRepository.countOpenGroups()).willReturn(0L);
+        given(adminPolicyDuplicateGroupReadRepository.countOpenGroupsByReviewClass("exact_duplicate_candidate")).willReturn(0L);
+        given(adminPolicyDuplicateGroupReadRepository.countOpenGroupsByReviewClass("mirror_or_channel_variant_candidate")).willReturn(0L);
+        given(adminPolicyLinkReviewReadRepository.countOpenReviews()).willReturn(0L);
+        given(adminPolicyLinkReviewReadRepository.findOpenReviewBuckets()).willReturn(List.of());
         given(adminDashboardRecommendationReadRepository.fetchRecommendationConcentration())
                 .willReturn(new AdminDashboardReadRows.RecommendationConcentrationRow(
                         0,
