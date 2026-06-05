@@ -38,11 +38,12 @@
 6. 공개 홈/정책 목록/검색 empty state
 7. 로그인 직후 메인 `가이드 배너 / 추천 보강 CTA`
 8. 보호 경로 `/chat` 로그인 복귀 -> `/mypage?tab=2` 복귀
-9. `/guide` -> `/support` -> 정책 상세 `오류 제보` 역할 구분
-10. 프로필/우선순위 저장 후 새로고침 유지
-11. 추천 refresh/loading/중복 클릭 방지
-12. 챗 세션 생성/메시지 전송/삭제와 `?session=` 정리
-13. 비밀번호 변경 / 회원탈퇴
+9. 세션 만료 -> `/login` -> 재로그인 / reset-password deep link
+10. `/guide` -> `/support` -> 정책 상세 `오류 제보` 역할 구분
+11. 프로필/우선순위 저장 후 새로고침 유지
+12. 추천 refresh/loading/중복 클릭 방지
+13. 챗 세션 생성/메시지 전송/삭제와 `?session=` 정리
+14. 비밀번호 변경 / 회원탈퇴
 
 즉 시간이 제한되면 1차 고위험 동선부터 먼저 돌리고, 2차 보강 동선은 그 다음에 확인합니다.
 
@@ -161,6 +162,18 @@
 - local token 제거
 - 무한 refresh loop 없음
 - `/login` 이동 URL의 `reason=expired` 와 실제 toast/message를 같이 기록
+
+### reset-password deep link
+
+- `/reset-password?token=...`
+- `/reset-password#token=...`
+- invalid token
+
+기대 결과:
+
+- query token은 hash token URL로 정규화돼야 함
+- query/hash 둘 다 새 비밀번호 설정이 가능해야 함
+- invalid token은 만료 안내를 유지하고 로그인으로 보내지 않아야 함
 
 ## 5. 북마크
 
