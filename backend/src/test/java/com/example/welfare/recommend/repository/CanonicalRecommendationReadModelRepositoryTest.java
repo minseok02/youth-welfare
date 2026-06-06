@@ -372,4 +372,57 @@ class CanonicalRecommendationReadModelRepositoryTest {
         assertThat(projection.youthMajorLabel()).isEqualTo("주거");
         assertThat(projection.youthMidLabel()).isEqualTo("주택 및 거주지");
     }
+
+    @Test
+    @DisplayName("Gov24 보육·교육 bridge는 교육 priority boost 판정에도 연결된다")
+    void findByServiceIds_usesGov24YouthBridgeForEducationBoostEligibility() {
+        Map<String, Object> baseRow = new LinkedHashMap<>();
+        baseRow.put("service_id", 7901L);
+        baseRow.put("source_type", "GOV24");
+        baseRow.put("unified_category", "기타");
+        baseRow.put("youth_major_label", null);
+        baseRow.put("youth_mid_label", null);
+        baseRow.put("provision_method_label", null);
+        baseRow.put("gov24_service_field_label", "보육·교육");
+        baseRow.put("gov24_user_type_label", "개인");
+        baseRow.put("gov24_benefit_type_label", "현금(장학금)");
+        baseRow.put("title", "청년 장학금 지원");
+        baseRow.put("summary", "청년 등록금 부담 완화");
+        baseRow.put("min_age", 19);
+        baseRow.put("max_age", 34);
+        baseRow.put("min_income", 0);
+        baseRow.put("max_income", 0);
+        baseRow.put("apply_end_date", null);
+        baseRow.put("search_youth_relevant", true);
+
+        given(jdbcTemplate.queryForObject(org.mockito.ArgumentMatchers.contains("table_name = ?"), org.mockito.ArgumentMatchers.eq(Integer.class), org.mockito.ArgumentMatchers.eq("service_taxonomy_summary_slots")))
+                .willReturn(0);
+        given(namedParameterJdbcTemplate.queryForList(org.mockito.ArgumentMatchers.contains("FROM welfare_services"), any(MapSqlParameterSource.class)))
+                .willReturn(List.of(baseRow));
+        given(namedParameterJdbcTemplate.queryForList(org.mockito.ArgumentMatchers.contains("FROM service_taxonomy_terms"), any(MapSqlParameterSource.class)))
+                .willReturn(List.of(
+                        Map.of(
+                                "service_id", 7901L,
+                                "term_group", "GOV24_SERVICE_FIELD",
+                                "term_label", "보육·교육",
+                                "source_field", "serviceField"
+                        ),
+                        Map.of(
+                                "service_id", 7901L,
+                                "term_group", "GOV24_BENEFIT_TYPE_TOKEN",
+                                "term_label", "현금(장학금)",
+                                "source_field", "supportType"
+                        )
+                ));
+        given(namedParameterJdbcTemplate.queryForList(org.mockito.ArgumentMatchers.contains("FROM service_facts"), any(MapSqlParameterSource.class)))
+                .willReturn(List.of());
+
+        RecommendationCandidateProjection projection = repository.findByServiceIds(List.of(7901L)).get(7901L);
+
+        assertThat(projection.gov24ServiceFieldLabel()).isEqualTo("보육·교육");
+        assertThat(projection.youthMajorLabel()).isEqualTo("교육");
+        assertThat(projection.youthMidLabel()).isEqualTo("교육비지원");
+        assertThat(projection.priorityBuckets()).contains("EDUCATION");
+        assertThat(projection.educationPriorityBoostEligible()).isTrue();
+    }
 }

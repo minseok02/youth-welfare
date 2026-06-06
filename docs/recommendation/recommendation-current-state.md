@@ -297,6 +297,7 @@ strict 모드(`FAIL_ON_LATEST_OBSERVATION_CHANGE=true`)는 current local에서 `
 - `projection.audienceRelevanceBonus`, `projection.specialTargetBuckets` 우선 사용, legacy text heuristic은 fallback
 - priority 매칭은 `projection.priorityBuckets` 우선 사용, compat 문자열 비교는 fallback
 - education narrow experiment도 `projection.educationPriorityBoostEligible` 우선 사용, raw compat+youthMajor 조합은 fallback
+- `Gov24 -> YOUTH_MID` bridge로 채운 `youthMajorLabel=교육` 도 `projection.educationPriorityBoostEligible` 판정에 연결됨
 - recommendation response의 `unifiedCategory` 는 여전히 compat contract지만, 응답 생성 시 projection compat 값을 우선 사용
 - policy/search/detail/ranking/bookmark 응답도 `unifiedCategory` 의미는 compat contract를 유지하되, 값은 projection compat를 우선 사용
 

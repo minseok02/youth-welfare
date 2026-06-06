@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 1065) Gov24 `YOUTH_MID` bridge를 표시 label에만 연결하면 교육 priority 보정이 빠질 수 있다
+- 문제: `Gov24 -> YOUTH_MID` bridge는 recommendation projection의 `youthMajorLabel`, `youthMidLabel` 을 채우고 있었지만, `educationPriorityBoostEligible` 계산은 bridge 전 원본 `youthMajorLabel` 을 보고 있었다. 이러면 `unifiedCategory=기타` 인 Gov24 `보육·교육` row가 표시상으로는 `교육` bridge를 탔어도 교육 priority narrow boost 경로에는 빠질 수 있다.
+- 해결: [CanonicalRecommendationReadModelRepository.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/repository/CanonicalRecommendationReadModelRepository.java:1) 에서 bridge 이후의 `resolvedYouthMajorLabel` 을 `educationPriorityBoostEligible` 계산에 넘기도록 바꿨다. `Gov24 보육·교육 + 현금(장학금)` projection 테스트를 추가해 `youthMajorLabel=교육`, `youthMidLabel=교육비지원`, `priorityBuckets=EDUCATION`, `educationPriorityBoostEligible=true` 를 함께 고정했다.
+- 재발 방지: Gov24 bridge를 점검할 때는 API label 노출만 보지 않고, `priorityBuckets`, `DefaultPriorityMatcher`, `educationPriorityBoostEligible` 처럼 추천 품질에 쓰이는 projection 파생값까지 같이 본다. 단, 이 보정은 soft projection 경로이며 raw 조합값 hard eligibility fact 승격과는 분리한다.
+
 ## 1064) OpenAI API가 기본 학습 미사용이어도 abuse monitoring retention 이 있으므로 서비스 코드에서 직접 식별자 미전송을 먼저 닫아야 한다
 - 문제: AI 품질과 개인정보 안전성을 볼 때 "OpenAI API는 기본적으로 학습에 쓰지 않는다"는 공급자 정책만 확인하면, 우리 서비스가 실제로 어떤 payload를 보내는지 놓칠 수 있다. 공식 문서 기준 API 입력/출력은 기본 학습 미사용이지만, abuse monitoring logs는 기본 생성될 수 있고 prompt/response 같은 customer content가 최대 30일 보관될 수 있다.
 - 확인: 추천 `RealtimeAiGateway` 는 `RecommendationUserSnapshot` 에서 나이대, `sido`, 소득분위, 취업상태만 prompt에 넣고 `userKey`, `regionCode` 는 넣지 않는다. 챗봇 `ChatAiGateway` 는 현재 질문, 최근 대화, 대화 연속 맥락을 `SensitiveTextRedactor` 로 마스킹한 뒤 보낸다. semantic retrieval query도 embedding 전 `SensitiveTextRedactor` 를 통과한다. OpenAI request body에는 사용자 추적용 `user`, `metadata`, 명시 저장 `store` 필드를 넣지 않는다.
