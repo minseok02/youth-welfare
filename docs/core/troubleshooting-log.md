@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 1068) Playwright 전체 실행에서 단독 재실행은 통과하는 UI flake는 클릭 대상과 완료 조건을 함께 고정한다
+- 문제: CORS 수정 뒤에도 Playwright 전체 27개 실행에서 실패 위치가 매번 바뀌었다. 단독 재실행은 통과했고, 실패는 정책 목록 카드 클릭, 정책 상세 CTA 확인, 마이페이지 북마크 탭 렌더, 알림 read PATCH count, 메인 CTA URL 전환처럼 모두 “기능은 맞지만 테스트가 다음 상태를 너무 빨리 보는” 패턴이었다.
+- 해결: [smoke.spec.js](/home/minseok/youth-welfare/frontend/e2e/smoke.spec.js:1) 에 정책 상세/목록/북마크 탭 readiness helper를 추가하고, 클릭과 URL 전환은 `Promise.all` 로 묶었다. 정책 목록/마이페이지 북마크 카드는 텍스트 div 대신 실제 클릭 컨테이너를 안정적으로 잡도록 [PoliciesPage.jsx](/home/minseok/youth-welfare/frontend/src/pages/PoliciesPage.jsx:1), [MyPage.jsx](/home/minseok/youth-welfare/frontend/src/pages/MyPage.jsx:1) 에 테스트 전용 `data-testid` 를 붙였다. 알림 unread 테스트는 `PATCH /api/notifications/9001/read` response 완료 후 count를 확인한다.
+- 확인: `npm run lint`, `npm run build` 통과. `VITE_API_BASE_URL=http://127.0.0.1:18082`, `PLAYWRIGHT_GREP_INVERT='@admin-required|@dev-only'` 조건에서 전체 Playwright E2E 27개를 2회 연속 실행해 둘 다 `27 passed` 를 확인했다.
+
 ## 1067) Playwright 브라우저 E2E만 `서버에 연결할 수 없습니다` 로 대량 실패하면 bootRun CORS를 먼저 본다
 - 문제: API smoke와 backend test는 통과하는데 Playwright 브라우저 E2E에서 로그인/정책목록/reset-password 요청이 네트워크 오류처럼 실패했다. 브라우저 화면에는 [ServerErrorBanner.jsx](/home/minseok/youth-welfare/frontend/src/components/ServerErrorBanner.jsx:1) 의 `서버에 연결할 수 없습니다` 배너가 뜨고, Playwright request 기반 API 조회는 성공하는 패턴이었다. 이는 backend API 자체 장애보다 브라우저 origin(`http://127.0.0.1:5173`)에 대한 CORS preflight 실패 가능성이 높다.
 - 원인: 로컬 `bootRun` 은 편의상 root `.env` 를 child env로 주입한다. `.env` 또는 source된 shell env의 `SECURITY_CORS_ALLOWED_ORIGINS` 가 운영 origin만 담고 있으면, `SPRING_PROFILES_ACTIVE=prod` 로 띄운 로컬 backend가 Vite origin을 허용하지 않는다.

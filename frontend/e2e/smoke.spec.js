@@ -33,12 +33,70 @@ const adminCredentials = resolveAdminCredentials();
 const apiBaseUrl = process.env.VITE_API_BASE_URL || "http://127.0.0.1:8082";
 const adminDashboardE2EFailureStorageKey = "__ADMIN_DASHBOARD_E2E_FAIL__";
 
+test.setTimeout(60_000);
+
+const policyDetailUrl = (policyId) => new RegExp(`/policies/${policyId}(?:\\?.*)?$`);
+
+async function waitForProgressToSettle(page) {
+  await expect(page.getByRole("progressbar")).toHaveCount(0, { timeout: 15_000 });
+}
+
+async function expectPolicyListItemReady(page, policy) {
+  const item = page.getByTestId(`policy-result-${policy.id}`).first();
+  await expect(item).toBeVisible({ timeout: 15_000 });
+  await expect(item.getByText(policy.title, { exact: true })).toBeVisible();
+  return item;
+}
+
+async function expectPolicyDetailReady(page, policy, { requireErrorReport = true } = {}) {
+  await expect(page).toHaveURL(policyDetailUrl(policy.id), { timeout: 15_000 });
+  await waitForProgressToSettle(page);
+  await expect(page.getByText(policy.title, { exact: true }).first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("요약 정보", { exact: true })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("button", { name: /뒤로가기/ })).toBeVisible({ timeout: 15_000 });
+  if (requireErrorReport) {
+    await expect(page.getByRole("button", { name: "⚑ 정책 오류 제보", exact: true })).toBeVisible({ timeout: 15_000 });
+  }
+}
+
+async function openPolicyFromList(page, policy) {
+  const item = await expectPolicyListItemReady(page, policy);
+  await Promise.all([
+    page.waitForURL(policyDetailUrl(policy.id), { timeout: 15_000 }),
+    item.click(),
+  ]);
+  await expectPolicyDetailReady(page, policy);
+}
+
+async function clickAndWaitForUrl(locator, page, expectedUrl) {
+  await expect(locator).toBeVisible({ timeout: 15_000 });
+  await expect(locator).toBeEnabled();
+  await locator.scrollIntoViewIfNeeded();
+  await Promise.all([
+    page.waitForURL(expectedUrl, { timeout: 15_000 }),
+    locator.click(),
+  ]);
+}
+
+async function expectBookmarkTabReady(page, policy = null) {
+  await expect(page).toHaveURL(/\/mypage\?tab=2$/, { timeout: 15_000 });
+  await waitForProgressToSettle(page);
+  await expect(page.getByText("북마크한 정책")).toBeVisible({ timeout: 15_000 });
+  if (policy) {
+    const bookmark = page.getByTestId(`bookmark-policy-${policy.id}`).first();
+    await expect(bookmark).toBeVisible({ timeout: 15_000 });
+    await expect(bookmark.getByText(policy.title, { exact: true })).toBeVisible();
+    return bookmark;
+  }
+  return null;
+}
+
 async function searchPolicies(page, keyword) {
   await page.goto("/policies");
   await page.getByPlaceholder("정책명, 키워드를 검색해보세요 (예: 월세, 창업)").fill(keyword);
   await page.getByRole("button", { name: "검색", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/policies\\?[^#]*search=${encodeURIComponent(keyword)}`));
-  await expect(page.getByRole("progressbar")).toHaveCount(0);
+  await waitForProgressToSettle(page);
 }
 
 async function fetchFirstSearchResult(request, keyword) {
@@ -61,8 +119,7 @@ async function fetchFirstSearchResult(request, keyword) {
 async function openFirstSearchResult(page, request, keyword) {
   await searchPolicies(page, keyword);
   const firstPolicy = await fetchFirstSearchResult(request, keyword);
-  await page.getByText(firstPolicy.title, { exact: true }).first().click();
-  await expect(page).toHaveURL(new RegExp(`/policies/${firstPolicy.id}`));
+  await openPolicyFromList(page, firstPolicy);
   return firstPolicy;
 }
 
@@ -382,25 +439,27 @@ test("정책 목록 검색 query는 상세 진입 후 브라우저 back과 상�
   const firstPolicy = await openFirstSearchResult(page, request, "청년");
   await page.goBack();
   await expect(page).toHaveURL(/\/policies\?[^#]*search=%EC%B2%AD%EB%85%84/);
-  await expect(page.getByText(firstPolicy.title, { exact: true }).first()).toBeVisible();
+  await waitForProgressToSettle(page);
+  await expectPolicyListItemReady(page, firstPolicy);
 
-  await page.getByText(firstPolicy.title, { exact: true }).first().click();
-  await expect(page).toHaveURL(new RegExp(`/policies/${firstPolicy.id}`));
-  await page.getByRole("button", { name: /뒤로가기/ }).click();
+  await openPolicyFromList(page, firstPolicy);
+  await Promise.all([
+    page.waitForURL(/\/policies\?[^#]*search=%EC%B2%AD%EB%85%84/, { timeout: 15_000 }),
+    page.getByRole("button", { name: /뒤로가기/ }).click(),
+  ]);
 
   await expect(page).toHaveURL(/\/policies\?[^#]*search=%EC%B2%AD%EB%85%84/);
-  await expect(page.getByText(firstPolicy.title, { exact: true }).first()).toBeVisible();
+  await waitForProgressToSettle(page);
+  await expectPolicyListItemReady(page, firstPolicy);
 });
 
 test("정책 상세는 요약 정보와 오류 제보 CTA를 보여준다", async ({ page, request }) => {
   const firstPolicy = await openFirstSearchResult(page, request, "월세");
 
-  await expect(page.getByText(firstPolicy.title, { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("요약 정보", { exact: true })).toBeVisible();
+  await expectPolicyDetailReady(page, firstPolicy);
   await expect(page.getByText("지원지역", { exact: true })).toBeVisible();
   await expect(page.getByText("소관기관", { exact: true })).toBeVisible();
   await expect(page.getByText("신청기간", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "⚑ 정책 오류 제보", exact: true })).toBeVisible();
 });
 
 test("이용가이드와 서비스 문의는 공개 진입면에서 서로 연결된다", async ({ page }) => {
@@ -447,8 +506,8 @@ test("서비스 문의 페이지는 공개 문의를 접수하고 성공 안내�
 });
 
 test("비로그인 정책 상세 오류 제보는 로그인으로 분기한다", async ({ page, request }) => {
-  await openFirstSearchResult(page, request, "청년");
-  await expect(page.getByRole("button", { name: "⚑ 정책 오류 제보", exact: true })).toBeVisible();
+  const firstPolicy = await openFirstSearchResult(page, request, "청년");
+  await expectPolicyDetailReady(page, firstPolicy);
 
   await page.getByRole("button", { name: "⚑ 정책 오류 제보", exact: true }).click();
   await expect(page).toHaveURL(/\/login$/);
@@ -466,9 +525,7 @@ test("공개 사용자 핵심 흐름은 홈에서 가이드를 보고 정책 상
   await expect(page).toHaveURL(/\/policies$/);
 
   const firstPolicy = await openFirstSearchResult(page, request, "월세");
-  await expect(page.getByText(firstPolicy.title, { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("요약 정보", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "⚑ 정책 오류 제보", exact: true })).toBeVisible();
+  await expectPolicyDetailReady(page, firstPolicy);
 });
 
 test("정책 필터는 데스크톱에서 선택 즉시 반영되고 별도 적용 버튼을 요구하지 않는다", async ({ page }) => {
@@ -508,8 +565,11 @@ test("메인 재추천 CTA는 우선순위가 없으면 마이페이지 우선�
   await loginThroughForm(page, userCredentials);
   await page.goto("/");
   await expect(page.getByText("추천 품질 우선 개선", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "맞춤 재추천 →", exact: true }).click();
-  await expect(page).toHaveURL(/\/mypage\?tab=1$/);
+  await clickAndWaitForUrl(
+    page.getByRole("button", { name: "맞춤 재추천 →", exact: true }),
+    page,
+    /\/mypage\?tab=1$/
+  );
 });
 
 test("메인 개인 맞춤 재추천 CTA는 표준코드 공백이 크면 마이페이지 내 정보 탭으로 이동한다", async ({ page }) => {
@@ -539,8 +599,11 @@ test("메인 개인 맞춤 재추천 CTA는 표준코드 공백이 크면 마이
   await loginThroughForm(page, userCredentials);
   await page.goto("/");
   await expect(page.getByText("추천 정확도 보강", { exact: true }).first()).toBeVisible();
-  await page.getByRole("button", { name: "맞춤 재추천 →", exact: true }).click();
-  await expect(page).toHaveURL(/\/mypage\?tab=0$/);
+  await clickAndWaitForUrl(
+    page.getByRole("button", { name: "맞춤 재추천 →", exact: true }),
+    page,
+    /\/mypage\?tab=0$/
+  );
 });
 
 test("로그인 직후 메인에서는 우선순위와 표준코드 공백에 대한 추천 nudge를 한 번 보여준다", async ({ page }) => {
@@ -603,14 +666,22 @@ test("로그인 사용자 핵심 흐름은 메인에서 가이드와 추천 보�
   await expect(page.getByText("처음 시작 가이드", { exact: true })).toBeVisible();
   await expect(page.getByText("추천 품질 우선 개선", { exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: "이용가이드 보기 →", exact: true }).click();
-  await expect(page).toHaveURL(/\/guide$/);
+  await clickAndWaitForUrl(
+    page.getByRole("button", { name: "이용가이드 보기 →", exact: true }),
+    page,
+    /\/guide$/
+  );
 
-  await page.goBack();
-  await expect(page).toHaveURL(/\/$/);
+  await Promise.all([
+    page.waitForURL(/\/$/, { timeout: 15_000 }),
+    page.goBack(),
+  ]);
   await expect(page.getByText("추천 품질 우선 개선", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "맞춤 재추천 →", exact: true }).click();
-  await expect(page).toHaveURL(/\/mypage\?tab=1$/);
+  await clickAndWaitForUrl(
+    page.getByRole("button", { name: "맞춤 재추천 →", exact: true }),
+    page,
+    /\/mypage\?tab=1$/
+  );
 });
 
 test("마이페이지 북마크 탭에서 상세로 갔다가 뒤로오면 tab query가 유지된다", async ({ page, request }) => {
@@ -618,16 +689,19 @@ test("마이페이지 북마크 탭에서 상세로 갔다가 뒤로오면 tab q
   await ensurePolicyBookmarked(request, userCredentials, policy.id);
 
   await loginFromProtectedRoute(page, "/mypage?tab=2", userCredentials);
-  await expect(page).toHaveURL(/\/mypage\?tab=2$/);
-  await expect(page.getByText("북마크한 정책")).toBeVisible();
-  await expect(page.getByText(policy.title, { exact: true }).first()).toBeVisible();
+  let bookmark = await expectBookmarkTabReady(page, policy);
 
-  await page.getByText(policy.title, { exact: true }).first().click();
-  await expect(page).toHaveURL(new RegExp(`/policies/${policy.id}`));
-  await page.getByRole("button", { name: /뒤로가기/ }).click();
+  await Promise.all([
+    page.waitForURL(policyDetailUrl(policy.id), { timeout: 15_000 }),
+    bookmark.click(),
+  ]);
+  await expectPolicyDetailReady(page, policy);
+  await Promise.all([
+    page.waitForURL(/\/mypage\?tab=2$/, { timeout: 15_000 }),
+    page.getByRole("button", { name: /뒤로가기/ }).click(),
+  ]);
 
-  await expect(page).toHaveURL(/\/mypage\?tab=2$/);
-  await expect(page.getByText(policy.title, { exact: true }).first()).toBeVisible();
+  await expectBookmarkTabReady(page, policy);
 });
 
 test("보호 사용자 핵심 흐름은 로그인 요구 경로와 마이페이지 복귀를 유지한다", async ({ page, request }) => {
@@ -638,16 +712,19 @@ test("보호 사용자 핵심 흐름은 로그인 요구 경로와 마이페이�
   await expectLoggedInChat(page);
 
   await page.goto("/mypage?tab=2");
-  await expect(page).toHaveURL(/\/mypage\?tab=2$/);
-  await expect(page.getByText("북마크한 정책")).toBeVisible();
-  await expect(page.getByText(policy.title, { exact: true }).first()).toBeVisible();
+  let bookmark = await expectBookmarkTabReady(page, policy);
 
-  await page.getByText(policy.title, { exact: true }).first().click();
-  await expect(page).toHaveURL(new RegExp(`/policies/${policy.id}`));
-  await page.getByRole("button", { name: /뒤로가기/ }).click();
+  await Promise.all([
+    page.waitForURL(policyDetailUrl(policy.id), { timeout: 15_000 }),
+    bookmark.click(),
+  ]);
+  await expectPolicyDetailReady(page, policy);
+  await Promise.all([
+    page.waitForURL(/\/mypage\?tab=2$/, { timeout: 15_000 }),
+    page.getByRole("button", { name: /뒤로가기/ }).click(),
+  ]);
 
-  await expect(page).toHaveURL(/\/mypage\?tab=2$/);
-  await expect(page.getByText(policy.title, { exact: true }).first()).toBeVisible();
+  await expectBookmarkTabReady(page, policy);
 });
 
 test("마이페이지 비밀번호 변경 후 로그인으로 이동하고 재로그인하면 account tab으로 복귀한다", async ({ page }) => {
@@ -723,7 +800,16 @@ test("알림함에서 unread 알림을 열면 읽음 처리 후 deeplink로 이�
   await loginFromProtectedRoute(page, "/alerts", userCredentials);
   await expect(page).toHaveURL(/\/alerts$/);
   await expect(page.getByText("청년 월세 지원 추천이 도착했어요", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "열기", exact: true }).click();
+  const readPatchPromise = page.waitForResponse((response) =>
+    response.request().method() === "PATCH" &&
+    response.url().includes("/api/notifications/9001/read") &&
+    response.ok()
+  );
+
+  await Promise.all([
+    readPatchPromise,
+    page.getByRole("button", { name: "열기", exact: true }).click(),
+  ]);
 
   expect(readPatchCount).toBe(1);
   await expect(page).toHaveURL(/\/policies\/7751$/);
@@ -743,9 +829,7 @@ test("개인 유지 흐름은 알림함과 북마크 탭을 이어서 보여준�
   await expect(page).toHaveURL(/\/mypage\?tab=3$/);
 
   await page.goto("/mypage?tab=2");
-  await expect(page).toHaveURL(/\/mypage\?tab=2$/);
-  await expect(page.getByText("북마크한 정책")).toBeVisible();
-  await expect(page.getByText(policy.title, { exact: true }).first()).toBeVisible();
+  await expectBookmarkTabReady(page, policy);
 });
 
 test("비로그인 정책 상세 북마크는 로그인 후 bookmark POST가 정확히 1회만 실행된다", async ({ page, request }) => {
@@ -761,13 +845,14 @@ test("비로그인 정책 상세 북마크는 로그인 후 bookmark POST가 정
   });
 
   await page.goto(`/policies/${policy.id}`);
+  await expectPolicyDetailReady(page, policy);
   await expect(page.getByRole("button", { name: "♡ 북마크에 저장" })).toBeVisible();
   await page.getByRole("button", { name: "♡ 북마크에 저장" }).click();
 
   await expect(page).toHaveURL(/\/login$/);
   await loginThroughForm(page, userCredentials);
 
-  await expect(page).toHaveURL(new RegExp(`/policies/${policy.id}`));
+  await expectPolicyDetailReady(page, policy);
   await expect(page.getByRole("button", { name: "★ 북마크됨" })).toBeVisible();
   expect(bookmarkPostCount).toBe(1);
 });

@@ -1537,6 +1537,7 @@ export default function MyPage() {
                           return (
                             <div
                               key={p.id}
+                              data-testid={`bookmark-policy-${p.id}`}
                               style={{
                                 display: "flex",
                                 flexDirection: "column",
@@ -1590,7 +1591,7 @@ export default function MyPage() {
                         const urgent = ddayUrgent(p.dday);
                         const closed = p.dday === "종료";
                         return (
-                          <div key={p.id} style={{
+                          <div key={p.id} data-testid={`bookmark-policy-${p.id}`} style={{
                             display: "grid", gridTemplateColumns: "1fr auto", gap: 16, padding: "18px 20px",
                             background: closed ? BG : WHITE,
                             border: `1px solid ${urgent ? WARN : LINE}`,

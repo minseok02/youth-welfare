@@ -456,6 +456,7 @@ function PolicyRow({ p, onNavigate, onBookmark }) {
   const isUrgent = p.dday.startsWith("D-") && parseInt(p.dday.replace("D-", "")) <= 14;
   return (
     <div
+      data-testid={`policy-result-${p.id}`}
       style={{ background: "white", border: `1px solid ${isUrgent ? "#fecaca" : LINE}`, borderRadius: 14, padding: "18px 20px", cursor: "pointer", transition: "border-color .15s, box-shadow .15s", display: "flex", gap: 16 }}
       onClick={() => onNavigate(p.id)}
       onMouseEnter={e => { e.currentTarget.style.borderColor = isUrgent ? "#fca5a5" : A; e.currentTarget.style.boxShadow = "0 4px 16px rgba(37,99,235,0.08)"; }}
@@ -499,6 +500,7 @@ function PolicyCard({ p, onNavigate, onBookmark }) {
   const ds = ddayStyle(p.dday);
   return (
     <div
+      data-testid={`policy-result-${p.id}`}
       style={{ background: "white", border: `1px solid ${LINE}`, borderRadius: 14, padding: 18, cursor: "pointer", transition: "box-shadow .15s" }}
       onClick={() => onNavigate(p.id)}
       onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 4px 16px rgba(37,99,235,0.1)"; }}
