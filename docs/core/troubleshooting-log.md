@@ -1,5 +1,21 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 1063) 추천 메모는 prompt 지시만 믿으면 장문/개행/blank reason 이 캐시와 API까지 그대로 번질 수 있다
+- 문제: 사용자에게 보이는 `추천 메모`는 코드상 `aiReason` 이지만, 기존 경로는 OpenAI 응답 `reason` 을 거의 그대로 `ScoredCandidate`, `cluster_ai_results.ai_reason`, `user_recommendations.ai_reason`, `/api/recommendations` 응답으로 전달했다. 프롬프트에는 `reason은 20자 이내` 조건이 있었지만 서버 경계에서 trim, blank-to-null, 길이 제한, 개행 제거를 강제하지 않았다.
+- 영향: OpenAI가 blank reason 을 주면 `SCORED` 후보도 빈 메모처럼 보일 수 있고, 장문/개행 reason 은 DB `VARCHAR(500)` 범위 안에서는 저장되어 카드 UI 품질을 흔들 수 있었다. 또 군집 캐시 hit 경로와 기존 저장 row 조회 경로도 같은 품질 보정을 타지 않았다.
+- 해결: [RecommendationAiReasonSanitizer.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/support/RecommendationAiReasonSanitizer.java:1) 를 추가해 blank reason 은 `null`, 개행/탭/중복 공백은 단일 공백, 장문은 20 code point 이내로 정규화했다. 이 sanitizer를 `RealtimeAiGateway`, `AiScoringService`, `JpaClusterAiScoreCache`, `RecommendationPersistenceService`, `RecommendationResponse` 에 모두 적용했다.
+- 문서화: 사용자 노출 계약은 [recommendation-ai-reason-memo-contract.md](/home/minseok/youth-welfare/docs/recommendation/recommendation-ai-reason-memo-contract.md:1) 로 분리했고, `recommendation-current-state.md`, `recommendation-docs-index.md`, `api-mapping.md` 에 연결했다.
+- 검증: `./gradlew test --tests 'com.example.welfare.recommend.*'`, `./gradlew test`, `npm run lint`, `npm run build`, `git diff --check` 를 통과했다.
+- 재발 방지: 추천 메모 품질 문제를 볼 때는 먼저 `/api/recommendations` 의 `aiStatus` 와 `aiReason` 을 같이 본다. `NOT_REQUESTED` 는 OpenAI reason 미생성이 정상일 수 있으므로 AI 품질 문제로 단정하지 않고, `SCORED` + null reason 이 반복될 때 OpenAI 응답 reason coverage를 다시 본다.
+
+## 1062) 회원가입 개인정보 동의는 UI 체크박스만 추가하면 smoke/test 계정 생성 경로가 전부 깨진다
+- 문제: 회원가입 화면에 개인정보 수집 동의를 추가하는 것은 UI 변경처럼 보이지만, 실제 가입 계약은 `POST /api/auth/signup` 의 request DTO, backend validation, integration test, WebMvc test, Playwright fixture, smoke bootstrap script가 모두 공유한다. API 필수 필드만 늘리고 나머지 테스트/스크립트를 그대로 두면 로컬 검증이 대부분 `400 Bad Request` 로 실패한다.
+- 해결: `SignupRequest` 에 `privacyNoticeConfirmed=true` 필수 조건을 넣고, 추천용 선택정보가 있으면 `optionalProfileConsentAgreed=true`, 민감정보인 `disabilityGradeCode` 가 있으면 `sensitiveInfoConsentAgreed=true` 를 요구하게 했다. 만 14세 미만 생년월일도 가입 거부로 고정했다. 프론트 `SignupPage` 는 개인정보 처리방침 확인, 선택정보 동의, 민감정보 동의, 14세 이상 확인을 받도록 바꿨고 `/privacy` 페이지도 추가했다.
+- 같이 닫은 범위: 기존 smoke script와 e2e bootstrap signup payload에 `privacyNoticeConfirmed` 를 넣었다. 선택정보를 함께 넣는 데모/테스트 payload에는 `optionalProfileConsentAgreed` 도 넣어 실제 추천 프로필 저장 계약과 맞췄다.
+- 검증: `./gradlew test`, `./gradlew integrationTest`, `npm run lint`, `npm run build`, 변경된 smoke shell `bash -n`, `git diff --check` 를 통과했다.
+- 남은 환경 이슈: Playwright Chromium UI 실행은 로컬 시스템 라이브러리 `libnspr4.so` 부재로 브라우저 실행 전 단계에서 막혔다. 이건 앱 코드 결함이 아니라 로컬 Playwright runtime dependency 문제로 분리해 읽는다.
+- 재발 방지: 회원가입 필수 request field를 추가할 때는 `AuthControllerWebMvcTest`, integration signup helper, `frontend/e2e/smoke.spec.js`, `frontend/scripts/bootstrap-playwright-smoke-data.sh`, `deploy/smoke/*signup*` 또는 공통 signup helper를 한 번에 검색해 같이 갱신한다.
+
 ## 1061) Gov24 chunk collect를 넣고도 컨테이너를 재빌드하지 않으면 측정이 여전히 old `fetchAll + AbstractListCollectSourceAdapter` 경로를 읽게 된다
 - 문제: `Gov24CollectSourceAdapter` 를 chunk runtime collect로 바꾸고 실제 `POST /api/admin/collect/gov24` 를 측정했는데, 첫 실측 로그에는 여전히 `[Gov24Client] 수집 완료: 10954건`, `[FieldQuality][GOV24] total=10954`, `[CollectSourceAdapter][GOV24] 저장 완료: 10954건` 같은 old single-shot 패턴만 보였다. `api_sync_logs.metadata_json` 도 비어 있어 새 chunk metadata가 저장되지 않는 것처럼 보였다.
 - 원인: 로컬 app container가 이전 이미지였다. 코드만 바뀐 상태에서 `docker compose up -d --build app` 를 하지 않아, 런타임은 여전히 old `Gov24Client.fetchAll()` + `AbstractListCollectSourceAdapter` 경로를 타고 있었다.

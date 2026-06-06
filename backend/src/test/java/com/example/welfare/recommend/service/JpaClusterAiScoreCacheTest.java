@@ -40,7 +40,7 @@ class JpaClusterAiScoreCacheTest {
                 .clusterId("cluster-a")
                 .service(service)
                 .aiScore(BigDecimal.valueOf(81.5))
-                .aiReason("cached")
+                .aiReason("  지역\n청년\t주거 지원 조건과 지역 조건이 잘 맞아요  ")
                 .build();
         given(clusterAiResultReadRepository.findByClusterId("cluster-a")).willReturn(List.of(result));
 
@@ -48,7 +48,7 @@ class JpaClusterAiScoreCacheTest {
 
         assertThat(cacheMap).containsKey(1L);
         assertThat(cacheMap.get(1L).aiScore()).isEqualByComparingTo("81.5");
-        assertThat(cacheMap.get(1L).aiReason()).isEqualTo("cached");
+        assertThat(cacheMap.get(1L).aiReason()).isEqualTo("지역 청년 주거 지원 조건과 지역 조");
     }
 
     @Test
@@ -65,15 +65,16 @@ class JpaClusterAiScoreCacheTest {
         given(clusterAiResultReadRepository.findByClusterId("cluster-a")).willReturn(List.of(existing));
 
         jpaClusterAiScoreCache.saveAll("cluster-a", List.of(
-                new ClusterAiScoreCache.ClusterAiScoreWrite(existingService, BigDecimal.valueOf(90), "updated"),
-                new ClusterAiScoreCache.ClusterAiScoreWrite(newService, BigDecimal.valueOf(88), "new")
+                new ClusterAiScoreCache.ClusterAiScoreWrite(existingService, BigDecimal.valueOf(90), "  \n  "),
+                new ClusterAiScoreCache.ClusterAiScoreWrite(newService, BigDecimal.valueOf(88), "  지역\n청년\t주거 지원 조건과 지역 조건이 잘 맞아요  ")
         ));
 
         assertThat(existing.getAiScore()).isEqualByComparingTo("90");
-        assertThat(existing.getAiReason()).isEqualTo("updated");
+        assertThat(existing.getAiReason()).isNull();
         ArgumentCaptor<ClusterAiResult> captor = ArgumentCaptor.forClass(ClusterAiResult.class);
         then(clusterAiResultCommandRepository).should().save(captor.capture());
         assertThat(captor.getValue().getClusterId()).isEqualTo("cluster-a");
         assertThat(captor.getValue().getService().getId()).isEqualTo(2L);
+        assertThat(captor.getValue().getAiReason()).isEqualTo("지역 청년 주거 지원 조건과 지역 조");
     }
 }

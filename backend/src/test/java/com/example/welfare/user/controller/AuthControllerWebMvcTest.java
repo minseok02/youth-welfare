@@ -306,11 +306,97 @@ class AuthControllerWebMvcTest {
                                   "email": "user@example.com",
                                   "password": "%s",
                                   "name": "홍길동",
-                                  "birthDate": "2001-01-01"
+                                  "birthDate": "2001-01-01",
+                                  "privacyNoticeConfirmed": true
                                 }
                                 """.formatted(longPassword)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false));
+
+        then(authSignupService).should(never()).signup(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("회원가입은 개인정보 처리 안내 확인 없이는 가입을 거부한다")
+    void signupRejectsMissingPrivacyNoticeConfirmation() throws Exception {
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "user@example.com",
+                                  "password": "password123!",
+                                  "name": "홍길동",
+                                  "birthDate": "2001-01-01"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        then(authSignupService).should(never()).signup(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("회원가입은 선택 개인정보 동의 없이 추천용 선택정보를 저장하지 않는다")
+    void signupRejectsOptionalProfileWithoutConsent() throws Exception {
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "user@example.com",
+                                  "password": "password123!",
+                                  "name": "홍길동",
+                                  "birthDate": "2001-01-01",
+                                  "privacyNoticeConfirmed": true,
+                                  "incomeLevel": 5
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        then(authSignupService).should(never()).signup(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("회원가입은 민감정보 동의 없이 장애등급 정보를 저장하지 않는다")
+    void signupRejectsSensitiveInfoWithoutConsent() throws Exception {
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "user@example.com",
+                                  "password": "password123!",
+                                  "name": "홍길동",
+                                  "birthDate": "2001-01-01",
+                                  "privacyNoticeConfirmed": true,
+                                  "disabilityGradeCode": "011"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        then(authSignupService).should(never()).signup(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("회원가입은 만 14세 미만 생년월일을 거부한다")
+    void signupRejectsUnderFourteen() throws Exception {
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "user@example.com",
+                                  "password": "password123!",
+                                  "name": "홍길동",
+                                  "birthDate": "2020-01-01",
+                                  "privacyNoticeConfirmed": true
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
 
         then(authSignupService).should(never()).signup(org.mockito.ArgumentMatchers.any());
     }

@@ -99,6 +99,8 @@ async function signupUser(request, { email, password, name = "리셋테스트" }
       password,
       name,
       birthDate: "1999-02-10",
+      privacyNoticeConfirmed: true,
+      optionalProfileConsentAgreed: true,
       sido: "서울특별시",
       sgg: "중구",
       incomeLevel: 5,

@@ -3,6 +3,7 @@ package com.example.welfare.recommend.gateway;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.dto.ScoredCandidate;
 import com.example.welfare.recommend.entity.AiScoreStatus;
+import com.example.welfare.recommend.support.RecommendationAiReasonSanitizer;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -102,7 +103,11 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
                             if (result == null) {
                                 return candidate.withAiStatus(AiScoreStatus.PARTIAL_MISSING);
                             }
-                            return candidate.withAiResult((double) result.getScore(), result.getReason(), AiScoreStatus.SCORED);
+                            return candidate.withAiResult(
+                                    (double) result.getScore(),
+                                    RecommendationAiReasonSanitizer.sanitize(result.getReason()),
+                                    AiScoreStatus.SCORED
+                            );
                         })
                         .toList();
             }

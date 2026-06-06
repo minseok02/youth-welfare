@@ -71,6 +71,8 @@ ensure_signup_user() {
         \"password\": \"${password}\",
         \"name\": \"테스트유저\",
         \"birthDate\": \"1999-02-10\",
+      \"privacyNoticeConfirmed\": true,
+      \"optionalProfileConsentAgreed\": true,
         \"sido\": \"서울특별시\",
         \"sgg\": \"중구\",
         \"incomeLevel\": 5,

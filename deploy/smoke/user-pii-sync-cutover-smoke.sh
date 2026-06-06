@@ -303,6 +303,8 @@ SIGNUP_STATUS="$(http_status POST "${APP_BASE_URL}/api/auth/signup" "${SIGNUP_FI
     \"password\": \"${SMOKE_PASSWORD}\",
     \"name\": \"${SMOKE_NAME_BEFORE}\",
     \"birthDate\": \"2000-05-10\",
+    \"privacyNoticeConfirmed\": true,
+    \"optionalProfileConsentAgreed\": true,
     \"sido\": \"서울특별시\",
     \"sgg\": \"관악구\",
     \"incomeLevel\": 4,

@@ -127,7 +127,8 @@ class AdminSecurityIntegrationTest {
                   "email": "%s",
                   "password": "%s",
                   "name": "관리자",
-                  "birthDate": "%s"
+                  "birthDate": "%s",
+                  "privacyNoticeConfirmed": true
                 }
                 """.formatted(ADMIN_EMAIL, TEST_PASSWORD, LocalDate.of(1998, 1, 10));
 

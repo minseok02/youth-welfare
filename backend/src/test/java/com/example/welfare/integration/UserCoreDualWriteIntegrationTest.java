@@ -110,6 +110,9 @@ class UserCoreDualWriteIntegrationTest {
                                   "password": "password123",
                                   "name": "홍길동",
                                   "birthDate": "1998-01-10",
+                                  "privacyNoticeConfirmed": true,
+                                  "optionalProfileConsentAgreed": true,
+                                  "sensitiveInfoConsentAgreed": true,
                                   "sido": "서울특별시",
                                   "sgg": "강남구",
                                   "incomeLevel": 5,
@@ -166,7 +169,8 @@ class UserCoreDualWriteIntegrationTest {
                                   "email": "%s",
                                   "password": "password123",
                                   "name": "홍길동",
-                                  "birthDate": "1998-01-10"
+                                  "birthDate": "1998-01-10",
+                                  "privacyNoticeConfirmed": true
                                 }
                                 """.formatted(email)))
                 .andExpect(status().isOk());
@@ -249,6 +253,9 @@ class UserCoreDualWriteIntegrationTest {
                                   "password": "password123",
                                   "name": "홍길동",
                                   "birthDate": "1999-01-10",
+                                  "privacyNoticeConfirmed": true,
+                                  "optionalProfileConsentAgreed": true,
+                                  "sensitiveInfoConsentAgreed": true,
                                   "sido": "서울특별시",
                                   "sgg": "강남구",
                                   "incomeLevel": 6,

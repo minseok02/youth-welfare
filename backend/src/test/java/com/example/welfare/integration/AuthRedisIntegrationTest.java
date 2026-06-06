@@ -128,7 +128,8 @@ class AuthRedisIntegrationTest {
                   "email": "%s",
                   "password": "password123",
                   "name": "홍길동",
-                  "birthDate": "%s"
+                  "birthDate": "%s",
+                  "privacyNoticeConfirmed": true
                 }
                 """.formatted(email, LocalDate.of(1998, 1, 10));
         markEmailVerified(email);
@@ -159,7 +160,8 @@ class AuthRedisIntegrationTest {
                                   "email": "%s",
                                   "password": "password123",
                                   "name": "홍길동",
-                                  "birthDate": "%s"
+                                  "birthDate": "%s",
+                                  "privacyNoticeConfirmed": true
                                 }
                                 """.formatted(email, LocalDate.of(1998, 1, 10))))
                 .andExpect(status().isOk())
@@ -197,7 +199,8 @@ class AuthRedisIntegrationTest {
                                   "email": "%s",
                                   "password": "password123",
                                   "name": "홍길동",
-                                  "birthDate": "%s"
+                                  "birthDate": "%s",
+                                  "privacyNoticeConfirmed": true
                                 }
                                 """.formatted(email, LocalDate.of(1998, 1, 10))))
                 .andExpect(status().isOk())
@@ -243,7 +246,8 @@ class AuthRedisIntegrationTest {
                                   "email": "%s",
                                   "password": "password123",
                                   "name": "홍길동",
-                                  "birthDate": "%s"
+                                  "birthDate": "%s",
+                                  "privacyNoticeConfirmed": true
                                 }
                                 """.formatted(email, LocalDate.of(1998, 1, 10))))
                 .andExpect(status().isOk())
@@ -257,7 +261,8 @@ class AuthRedisIntegrationTest {
                                   "email": "%s",
                                   "password": "different-password123",
                                   "name": "김철수",
-                                  "birthDate": "%s"
+                                  "birthDate": "%s",
+                                  "privacyNoticeConfirmed": true
                                 }
                                 """.formatted(email, LocalDate.of(1999, 2, 20))))
                 .andExpect(status().isOk())
@@ -300,6 +305,8 @@ class AuthRedisIntegrationTest {
                   "password": "password123",
                   "name": "홍길동",
                   "birthDate": "%s",
+                  "privacyNoticeConfirmed": true,
+                  "optionalProfileConsentAgreed": true,
                   "sido": "서울특별시",
                   "sgg": "강남구",
                   "incomeLevel": 5,
@@ -399,7 +406,8 @@ class AuthRedisIntegrationTest {
                   "email": "%s",
                   "password": "password123",
                   "name": "홍길동",
-                  "birthDate": "%s"
+                  "birthDate": "%s",
+                  "privacyNoticeConfirmed": true
                 }
                 """.formatted(email, LocalDate.of(1998, 1, 10));
         given(emailClient.send(anyString(), anyString(), anyString())).willReturn(true);

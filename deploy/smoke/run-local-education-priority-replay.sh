@@ -474,7 +474,7 @@ signup_if_needed() {
   status="$(curl -sS -o "${ARTIFACT_DIR}/signup.out" -w "%{http_code}" \
     -H "Content-Type: application/json" \
     -X POST "${APP_BASE_URL}/api/auth/signup" \
-    -d "{\"email\":\"${email}\",\"password\":\"${SAMPLE_PASSWORD}\",\"name\":\"${name}\",\"birthDate\":\"${SAMPLE_BIRTH_DATE}\",\"sido\":\"${SAMPLE_SIDO}\",\"sgg\":\"${SAMPLE_SGG}\",\"incomeLevel\":${SAMPLE_INCOME_LEVEL},\"employmentStatus\":\"${SAMPLE_EMPLOYMENT_STATUS}\",\"householdType\":\"${SAMPLE_HOUSEHOLD_TYPE}\"}")"
+    -d "{\"email\":\"${email}\",\"password\":\"${SAMPLE_PASSWORD}\",\"name\":\"${name}\",\"birthDate\":\"${SAMPLE_BIRTH_DATE}\",\"privacyNoticeConfirmed\":true,\"optionalProfileConsentAgreed\":true,\"sido\":\"${SAMPLE_SIDO}\",\"sgg\":\"${SAMPLE_SGG}\",\"incomeLevel\":${SAMPLE_INCOME_LEVEL},\"employmentStatus\":\"${SAMPLE_EMPLOYMENT_STATUS}\",\"householdType\":\"${SAMPLE_HOUSEHOLD_TYPE}\"}")"
   if [[ "${status}" == "200" ]]; then
     return 0
   fi

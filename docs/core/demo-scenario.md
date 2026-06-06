@@ -38,6 +38,8 @@ curl -i -X POST http://127.0.0.1:8082/api/auth/signup \
     "password": "demoPass123!",
     "name": "데모사용자",
     "birthDate": "2000-05-10",
+    "privacyNoticeConfirmed": true,
+    "optionalProfileConsentAgreed": true,
     "sido": "서울특별시",
     "sgg": "관악구",
     "incomeLevel": 4,
