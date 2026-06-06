@@ -1,5 +1,12 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 1064) OpenAI API가 기본 학습 미사용이어도 abuse monitoring retention 이 있으므로 서비스 코드에서 직접 식별자 미전송을 먼저 닫아야 한다
+- 문제: AI 품질과 개인정보 안전성을 볼 때 "OpenAI API는 기본적으로 학습에 쓰지 않는다"는 공급자 정책만 확인하면, 우리 서비스가 실제로 어떤 payload를 보내는지 놓칠 수 있다. 공식 문서 기준 API 입력/출력은 기본 학습 미사용이지만, abuse monitoring logs는 기본 생성될 수 있고 prompt/response 같은 customer content가 최대 30일 보관될 수 있다.
+- 확인: 추천 `RealtimeAiGateway` 는 `RecommendationUserSnapshot` 에서 나이대, `sido`, 소득분위, 취업상태만 prompt에 넣고 `userKey`, `regionCode` 는 넣지 않는다. 챗봇 `ChatAiGateway` 는 현재 질문, 최근 대화, 대화 연속 맥락을 `SensitiveTextRedactor` 로 마스킹한 뒤 보낸다. semantic retrieval query도 embedding 전 `SensitiveTextRedactor` 를 통과한다. OpenAI request body에는 사용자 추적용 `user`, `metadata`, 명시 저장 `store` 필드를 넣지 않는다.
+- 보강: `SensitiveTextRedactor` 가 `2001년 4월 30일`, `20010430`, `010.1234.5678`, `+82 10 ...`, 외국인등록번호 형태까지 마스킹하도록 확장했다. `RealtimeAiGatewayTest` 와 `ChatAiGatewayTest` 에 request body가 `store/user/metadata` 를 포함하지 않는 회귀를 추가했다.
+- 검증: `./gradlew test --tests com.example.welfare.global.util.SensitiveTextRedactorTest --tests com.example.welfare.chat.gateway.ChatAiGatewayTest --tests com.example.welfare.chat.service.ChatSemanticSearchServiceTest --tests com.example.welfare.chat.gateway.OpenAiChatEmbeddingGatewayTest --tests com.example.welfare.recommend.gateway.RealtimeAiGatewayTest` 통과.
+- 재발 방지: AI 경로를 추가할 때는 `openai-runtime-contract.md` 에 경로별 전송 데이터/장애 계약을 먼저 적고, 직접 식별자 corpus와 request body guard를 테스트로 같이 고정한다. 공급자 보관 정책은 보조 안전망으로만 보고, 서비스 코드는 최소전송을 기본값으로 유지한다.
+
 ## 1063) 추천 메모는 prompt 지시만 믿으면 장문/개행/blank reason 이 캐시와 API까지 그대로 번질 수 있다
 - 문제: 사용자에게 보이는 `추천 메모`는 코드상 `aiReason` 이지만, 기존 경로는 OpenAI 응답 `reason` 을 거의 그대로 `ScoredCandidate`, `cluster_ai_results.ai_reason`, `user_recommendations.ai_reason`, `/api/recommendations` 응답으로 전달했다. 프롬프트에는 `reason은 20자 이내` 조건이 있었지만 서버 경계에서 trim, blank-to-null, 길이 제한, 개행 제거를 강제하지 않았다.
 - 영향: OpenAI가 blank reason 을 주면 `SCORED` 후보도 빈 메모처럼 보일 수 있고, 장문/개행 reason 은 DB `VARCHAR(500)` 범위 안에서는 저장되어 카드 UI 품질을 흔들 수 있었다. 또 군집 캐시 hit 경로와 기존 저장 row 조회 경로도 같은 품질 보정을 타지 않았다.

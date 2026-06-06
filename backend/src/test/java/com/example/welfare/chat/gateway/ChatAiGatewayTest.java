@@ -151,7 +151,8 @@ class ChatAiGatewayTest {
         assertThat(request)
                 .containsEntry("model", "gpt-4o-mini")
                 .containsEntry("temperature", 0.2)
-                .containsEntry("response_format", Map.of("type", "json_object"));
+                .containsEntry("response_format", Map.of("type", "json_object"))
+                .doesNotContainKeys("store", "user", "metadata");
 
         List<Map<String, String>> messages = (List<Map<String, String>>) request.get("messages");
         assertThat(messages).hasSize(2);

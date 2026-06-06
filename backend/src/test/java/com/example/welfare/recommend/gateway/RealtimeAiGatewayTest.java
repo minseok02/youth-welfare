@@ -86,6 +86,10 @@ class RealtimeAiGatewayTest {
         assertThat(withoutSeed)
                 .containsEntry("model", "gpt-4o-mini")
                 .doesNotContainKey("seed");
+        assertThat(withSeed)
+                .doesNotContainKeys("store", "user", "metadata");
+        assertThat(withoutSeed)
+                .doesNotContainKeys("store", "user", "metadata");
     }
 
     @Test

@@ -19,6 +19,17 @@ active 문서 기준 현재 recommendation 트랙은 [recommendation-current-sta
 3. recommendation 과 chat 은 목적이 다르므로 fallback 계약도 분리해서 읽습니다.
 4. recommendation prompt는 현재 product-deferred lane이라, 기능 튜닝보다 계약 고정이 우선입니다.
 
+## 외부 제공자 데이터 처리 기준
+
+공식 OpenAI 문서 기준으로 API platform 입력/출력은 기본적으로 모델 학습이나 개선에 사용되지 않습니다.
+다만 API 사용 시 abuse monitoring log 는 기본 생성될 수 있고, 이 로그에는 prompt/response 같은 customer content 가 포함될 수 있으며 기본 retention 은 최대 30일로 안내됩니다.
+따라서 이 프로젝트의 보안 기준은 외부 제공자 정책에만 기대지 않고, **OpenAI로 나가는 payload 자체에서 직접 식별자를 제거하거나 범주값만 보내는 것** 입니다.
+
+참고:
+
+- https://openai.com/business-data/
+- https://developers.openai.com/api/docs/guides/your-data#default-usage-policies-by-endpoint
+
 ## 경로별 계약
 
 ### 1. recommendation AI scoring
@@ -139,8 +150,8 @@ active 문서 기준 현재 recommendation 트랙은 [recommendation-current-sta
 
 - 이메일
 - 휴대전화
-- `YYYY-MM-DD` 형태 생년월일
-- 주민등록번호
+- `YYYY-MM-DD`, `YYYY.MM.DD`, `YYYY/MM/DD`, `YYYYMMDD`, `YYYY년 M월 D일` 형태 생년월일
+- 주민등록번호 / 외국인등록번호 형태
 - 계좌번호 라벨형 표현
 - 이름 라벨형 표현
 - 주소 라벨형 표현
@@ -150,6 +161,7 @@ active 문서 기준 현재 recommendation 트랙은 [recommendation-current-sta
 
 - 자유서술 전체를 완전히 PII-free 로 만드는 것은 아닙니다.
 - 현재 계약은 “라벨이 붙은 자기소개형 값”과 직접 식별자를 우선 제거하는 수준입니다.
+- 한국어 날짜/국제번호/외국인등록번호 같은 변형은 `SensitiveTextRedactorTest` 에 corpus로 고정합니다.
 
 ## 기본 검증
 
