@@ -294,7 +294,7 @@ class AuthRedisIntegrationTest {
     }
 
     @Test
-    @DisplayName("회원가입-로그인-재발급-로그아웃 흐름은 MySQL과 Redis에 상태를 반영한다")
+    @DisplayName("회원가입-로그인-재발급-로그아웃 흐름은 PostgreSQL과 Redis에 상태를 반영한다")
     void signupLoginRefreshLogoutFlow() throws Exception {
         given(emailClient.send(anyString(), anyString(), anyString())).willReturn(true);
 

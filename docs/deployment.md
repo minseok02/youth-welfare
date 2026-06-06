@@ -116,7 +116,8 @@ ENV_FILE=.env.production bash deploy/postgres/bootstrap-rds-runtime.sh
 3. schema/table/sequence grant 적용
 4. `deploy/postgres/patches/*.sql` 순차 적용
 
-현재 기준으로 이 bootstrap에는 `chat_session_cleanup_rw`, `cluster_ai_cleanup_rw`,
+현재 기준으로 이 bootstrap에는 `recommendation_review_gate_command_rw`,
+`recommendation_persistence_command_rw`, `chat_session_cleanup_rw`, `cluster_ai_cleanup_rw`,
 `recommendation_retention_cleanup_rw`, `collect_execution_lock_cleanup_rw`,
 `web_push_subscription_cleanup_rw` 전용 role까지 포함됩니다.
 

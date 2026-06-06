@@ -225,6 +225,11 @@ WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_recommendation_rev
 SELECT format('ALTER ROLE %I LOGIN PASSWORD %L', :'db_recommendation_review_gate_command_username', :'db_recommendation_review_gate_command_password')
 WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_recommendation_review_gate_command_username') \gexec
 
+SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'db_recommendation_persistence_command_username', :'db_recommendation_persistence_command_password')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_recommendation_persistence_command_username') \gexec
+SELECT format('ALTER ROLE %I LOGIN PASSWORD %L', :'db_recommendation_persistence_command_username', :'db_recommendation_persistence_command_password')
+WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_recommendation_persistence_command_username') \gexec
+
 SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'db_chat_session_cleanup_username', :'db_chat_session_cleanup_password')
 WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'db_chat_session_cleanup_username') \gexec
 SELECT format('ALTER ROLE %I LOGIN PASSWORD %L', :'db_chat_session_cleanup_username', :'db_chat_session_cleanup_password')
@@ -263,8 +268,14 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO :"db_user
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO :"db_admin_ro_username";
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO :"db_username";
 
+SELECT format('REVOKE DELETE ON TABLE public.cluster_ai_results FROM %I', :'db_username')
+WHERE to_regclass('public.cluster_ai_results') IS NOT NULL \gexec
 SELECT format('REVOKE DELETE ON TABLE public.chat_sessions FROM %I', :'db_username')
 WHERE to_regclass('public.chat_sessions') IS NOT NULL \gexec
+SELECT format('REVOKE DELETE ON TABLE public.collect_execution_locks FROM %I', :'db_username')
+WHERE to_regclass('public.collect_execution_locks') IS NOT NULL \gexec
+SELECT format('REVOKE DELETE ON TABLE public.web_push_subscriptions FROM %I', :'db_username')
+WHERE to_regclass('public.web_push_subscriptions') IS NOT NULL \gexec
 SELECT format('REVOKE DELETE ON TABLE public.recent_policy_views FROM %I', :'db_username')
 WHERE to_regclass('public.recent_policy_views') IS NOT NULL \gexec
 SELECT format('REVOKE ALL PRIVILEGES ON TABLE public.recommendation_review_gate_promotion_approvals FROM %I', :'db_username')
