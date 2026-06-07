@@ -55,4 +55,15 @@ class PostgresRuntimeScriptContractTest {
         assertThat(script).contains("REVOKE DELETE ON TABLE public.user_recommendations");
         assertThat(script).contains("REVOKE ALL PRIVILEGES ON TABLE public.recommendation_review_gate_promotion_approvals");
     }
+
+    @Test
+    @DisplayName("fresh schema는 관리자 정책 검수 read model 테이블을 포함한다")
+    void schemaSqlContainsAdminPolicyReviewTables() throws IOException {
+        String schema = Files.readString(Path.of("src/main/resources/db/schema.sql"));
+
+        assertThat(schema).contains("CREATE TABLE IF NOT EXISTS policy_duplicate_review_records");
+        assertThat(schema).contains("CREATE UNIQUE INDEX IF NOT EXISTS uq_policy_duplicate_review_records_group");
+        assertThat(schema).contains("CREATE TABLE IF NOT EXISTS policy_link_review_records");
+        assertThat(schema).contains("CREATE INDEX IF NOT EXISTS idx_plrr_reviewed_at");
+    }
 }

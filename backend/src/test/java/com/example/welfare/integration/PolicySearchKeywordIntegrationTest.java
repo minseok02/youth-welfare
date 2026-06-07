@@ -56,7 +56,7 @@ class PolicySearchKeywordIntegrationTest {
     @Test
     @DisplayName("인기 검색어 query는 빈 검색어, 짧은 검색어, 결과 0건 검색어를 제외하고 빈도순으로 반환한다")
     void trendingFiltersAndOrdersKeywords() throws Exception {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = isolatedSearchWindowNow();
         saveKeywordRepeated(TEST_KEYWORD_PREFIX + "월세 지원", 20, 8L, now.minusHours(6));
         saveKeywordRepeated(TEST_KEYWORD_PREFIX + "창업 지원", 15, 5L, now.minusHours(3));
         saveKeyword(TEST_KEYWORD_PREFIX + "실패 검색", 0L, now.minusMinutes(5));
@@ -73,7 +73,7 @@ class PolicySearchKeywordIntegrationTest {
     @Test
     @DisplayName("검색 자동완성 query는 prefix를 우선하고 포함 검색 후보를 함께 반환한다")
     void suggestionsPreferPrefixAndIncludeContainsMatches() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = isolatedSearchWindowNow();
         saveKeyword(TEST_KEYWORD_PREFIX + "월세 지원", 9L, now.minusMinutes(30));
         saveKeyword(TEST_KEYWORD_PREFIX + "월세 지원", 7L, now.minusMinutes(5));
         saveKeyword("청년 " + TEST_KEYWORD_PREFIX + "월세", 6L, now.minusMinutes(4));
@@ -126,5 +126,9 @@ class PolicySearchKeywordIntegrationTest {
         for (int i = 0; i < count; i += 1) {
             saveKeyword(keyword, resultCount, baseTime.plusSeconds(i));
         }
+    }
+
+    private LocalDateTime isolatedSearchWindowNow() {
+        return LocalDateTime.now().plusYears(20);
     }
 }

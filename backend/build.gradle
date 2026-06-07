@@ -48,14 +48,23 @@ def runtimeEnv = { String key ->
     System.getenv(key) ?: envFileValues[key]
 }
 def sanitizedJdbcUrl = { String value, String fallback ->
-    if (!value || value.startsWith('jdbc:mysql://') || value.startsWith('jdbc:postgresql://db:')) {
+    if (!value) {
+        return fallback
+    }
+    if (value.startsWith('jdbc:' + 'mysql://')) {
+        throw new GradleException('MySQL JDBC URLs are not supported on the PostgreSQL mainline. Use a jdbc:postgresql:// URL.')
+    }
+    if (value.startsWith('jdbc:postgresql://db:')) {
         return fallback
     }
     value
 }
 def sanitizedUsername = { String value, String fallback ->
-    if (!value || value == 'root') {
+    if (!value) {
         return fallback
+    }
+    if (value == 'root') {
+        throw new GradleException('root is not a supported runtime DB username on the PostgreSQL mainline. Use a split runtime role.')
     }
     value
 }

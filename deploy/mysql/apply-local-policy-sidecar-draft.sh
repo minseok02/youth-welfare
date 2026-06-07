@@ -3,11 +3,12 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 REPO_ENV_FILE="${ROOT_DIR}/.env"
-CREATE_SIDECAR_SQL="${ROOT_DIR}/backend/src/main/resources/db/migration-draft/V2026_04_30_01__create_policy_sidecars.sql"
-SEED_NORMALIZATION_SQL="${ROOT_DIR}/backend/src/main/resources/db/migration-draft/V2026_04_30_02__seed_policy_normalization_codes.sql"
-CREATE_SUMMARY_SLOT_SQL="${ROOT_DIR}/backend/src/main/resources/db/migration-draft/V2026_05_02_01__add_service_taxonomy_summary_slots.sql"
-BACKFILL_SUMMARY_SLOT_SQL="${ROOT_DIR}/backend/src/main/resources/db/migration-draft/V2026_05_02_02__backfill_service_taxonomy_summary_slots.sql"
-WIDEN_SUMMARY_SLOT_SQL="${ROOT_DIR}/backend/src/main/resources/db/migration-draft/V2026_05_02_03__widen_service_taxonomy_summary_slot_label.sql"
+LEGACY_MYSQL_MIGRATION_DIR="${ROOT_DIR}/docs/archive/mysql-migrations/db/migration-draft"
+CREATE_SIDECAR_SQL="${LEGACY_MYSQL_MIGRATION_DIR}/V2026_04_30_01__create_policy_sidecars.sql"
+SEED_NORMALIZATION_SQL="${LEGACY_MYSQL_MIGRATION_DIR}/V2026_04_30_02__seed_policy_normalization_codes.sql"
+CREATE_SUMMARY_SLOT_SQL="${LEGACY_MYSQL_MIGRATION_DIR}/V2026_05_02_01__add_service_taxonomy_summary_slots.sql"
+BACKFILL_SUMMARY_SLOT_SQL="${LEGACY_MYSQL_MIGRATION_DIR}/V2026_05_02_02__backfill_service_taxonomy_summary_slots.sql"
+WIDEN_SUMMARY_SLOT_SQL="${LEGACY_MYSQL_MIGRATION_DIR}/V2026_05_02_03__widen_service_taxonomy_summary_slot_label.sql"
 
 trim() {
   local value="$1"
