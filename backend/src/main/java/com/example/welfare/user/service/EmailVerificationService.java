@@ -9,8 +9,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.Duration;
+import java.util.HexFormat;
 
 @Service
 @RequiredArgsConstructor
@@ -36,6 +41,9 @@ public class EmailVerificationService {
     @Value("${auth.email-verification.cooldown-seconds:60}")
     private long cooldownSeconds;
 
+    @Value("${auth.email-verification.code-hmac-secret:${jwt.secret}}")
+    private String codeHmacSecret;
+
     private final SecureRandom random = new SecureRandom();
 
     public void sendCode(String rawEmail) {
@@ -54,7 +62,7 @@ public class EmailVerificationService {
         }
 
         String code = String.format("%06d", random.nextInt(1_000_000));
-        redisTemplate.opsForValue().set(CODE_PREFIX + hash, code, Duration.ofMinutes(codeTtlMinutes));
+        redisTemplate.opsForValue().set(CODE_PREFIX + hash, codeStorageValue(hash, code), Duration.ofMinutes(codeTtlMinutes));
         redisTemplate.delete(ATTEMPTS_PREFIX + hash);
 
         boolean sent = emailClient.send(rawEmail, SUBJECT, buildBody(code));
@@ -84,7 +92,7 @@ public class EmailVerificationService {
             throw new CustomException(ErrorCode.EMAIL_VERIFICATION_CODE_INVALID);
         }
 
-        if (!storedCode.equals(inputCode)) {
+        if (!matchesCode(hash, storedCode, inputCode)) {
             throw new CustomException(ErrorCode.EMAIL_VERIFICATION_CODE_INVALID);
         }
 
@@ -111,5 +119,37 @@ public class EmailVerificationService {
                 이 코드는 %d분 동안 유효합니다.
                 본인이 요청하지 않았다면 이 메일을 무시하세요.
                 """.formatted(code, codeTtlMinutes);
+    }
+
+    private String codeStorageValue(String emailHash, String code) {
+        return "hmac:" + hmacSha256(emailHash + "|" + code);
+    }
+
+    private boolean matchesCode(String emailHash, String storedCode, String inputCode) {
+        String expected = codeStorageValue(emailHash, inputCode);
+        if (constantTimeEquals(storedCode, expected)) {
+            return true;
+        }
+        return constantTimeEquals(storedCode, inputCode);
+    }
+
+    private boolean constantTimeEquals(String left, String right) {
+        if (left == null || right == null) {
+            return false;
+        }
+        return MessageDigest.isEqual(
+                left.getBytes(StandardCharsets.UTF_8),
+                right.getBytes(StandardCharsets.UTF_8)
+        );
+    }
+
+    private String hmacSha256(String value) {
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(codeHmacSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            return HexFormat.of().formatHex(mac.doFinal(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (Exception e) {
+            throw new IllegalStateException("failed to hash email verification code", e);
+        }
     }
 }

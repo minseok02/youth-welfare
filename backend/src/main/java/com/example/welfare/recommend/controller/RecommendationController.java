@@ -71,7 +71,7 @@ public class RecommendationController {
     @PostMapping("/{id}/bookmark")
     public ResponseEntity<ApiResponse<Void>> toggleBookmark(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
-            @PathVariable Long id) {
+            @PathVariable @Min(1) Long id) {
         recommendationBookmarkCommandService.toggleRecommendationBookmark(resolveUserId(authenticatedUser), id);
         return ResponseEntity.ok(ApiResponse.success(null));
     }

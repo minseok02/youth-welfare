@@ -11,6 +11,7 @@ public enum ErrorCode {
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "C002", "서버 오류가 발생했습니다."),
     ACCESS_DENIED(HttpStatus.FORBIDDEN, "C003", "접근 권한이 없습니다."),
     REFERENCE_NOT_FOUND(HttpStatus.NOT_FOUND, "C004", "존재하지 않는 기준정보입니다."),
+    ADMIN_OPERATION_RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "C005", "관리자 작업 요청이 너무 많습니다. 잠시 후 다시 시도하세요."),
 
     // 인증
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "A001", "유효하지 않은 토큰입니다."),
@@ -49,6 +50,10 @@ public enum ErrorCode {
     NOTIFICATION_PUSH_SUBSCRIPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "N003", "존재하지 않는 웹푸시 구독입니다."),
     NOTIFICATION_PUSH_PUBLIC_KEY_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "N004", "웹푸시 공개키가 아직 설정되지 않았습니다."),
     NOTIFICATION_PUSH_PUBLIC_KEY_INVALID(HttpStatus.SERVICE_UNAVAILABLE, "N005", "웹푸시 공개키 형식이 올바르지 않습니다."),
+    NOTIFICATION_PUSH_SUBSCRIPTION_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "N006", "웹푸시 구독 허용 개수를 초과했습니다."),
+
+    // 문의
+    SUPPORT_RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "S001", "문의 요청이 너무 많습니다. 잠시 후 다시 시도하세요."),
 
     // 챗봇
     CHAT_SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "CH001", "존재하지 않는 챗 세션입니다."),

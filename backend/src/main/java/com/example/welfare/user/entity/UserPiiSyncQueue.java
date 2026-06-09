@@ -17,6 +17,8 @@ import java.time.LocalDateTime;
 @Builder
 public class UserPiiSyncQueue extends BaseTimeEntity {
 
+    private static final int MAX_ERROR_LENGTH = 500;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -73,6 +75,22 @@ public class UserPiiSyncQueue extends BaseTimeEntity {
         this.status = UserPiiSyncQueueStatus.FAILED;
         this.attemptCount += 1;
         this.lastAttemptAt = LocalDateTime.now();
-        this.lastError = errorMessage;
+        this.lastError = trimErrorMessage(errorMessage);
+    }
+
+    public void replaceEncryptedPayload(String emailEnc, String nameEnc, String birthDateEnc, String phoneEnc) {
+        this.emailEnc = emailEnc;
+        this.nameEnc = nameEnc;
+        this.birthDateEnc = birthDateEnc;
+        this.phoneEnc = phoneEnc;
+    }
+
+    private String trimErrorMessage(String errorMessage) {
+        if (errorMessage == null || errorMessage.isBlank()) {
+            return "unknown error";
+        }
+        return errorMessage.length() > MAX_ERROR_LENGTH
+                ? errorMessage.substring(0, MAX_ERROR_LENGTH)
+                : errorMessage;
     }
 }

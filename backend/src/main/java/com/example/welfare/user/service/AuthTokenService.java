@@ -23,8 +23,6 @@ import java.util.function.Function;
 @RequiredArgsConstructor
 public class AuthTokenService {
 
-    private static final String REFRESH_TOKEN_PREFIX = "refresh:";
-
     private final JwtUtil jwtUtil;
     private final RedisTemplate<String, String> redisTemplate;
     private final ActiveUserReadService activeUserReadService;
@@ -54,9 +52,17 @@ public class AuthTokenService {
         User user = getRefreshableUser(userKey, userId);
 
         String stored = redisTemplate.opsForValue().get(refreshTokenKey(userKey));
-        if (stored == null || !stored.equals(refreshToken)) {
-            redisTemplate.delete(refreshTokenKey(userKey));
+        boolean legacyRefreshKeyMatched = false;
+        if (!StringUtils.hasText(stored)) {
+            stored = redisTemplate.opsForValue().get(legacyRefreshTokenKey(userKey));
+            legacyRefreshKeyMatched = StringUtils.hasText(stored);
+        }
+        if (!matchesStoredRefreshToken(stored, refreshToken)) {
+            redisTemplate.delete(refreshTokenKeys(userKey));
             throw new CustomException(ErrorCode.REUSED_REFRESH_TOKEN);
+        }
+        if (legacyRefreshKeyMatched) {
+            redisTemplate.delete(legacyRefreshTokenKey(userKey));
         }
 
         AuthUser authUser = authIdentityReadService.findByUserKey(userKey)
@@ -86,11 +92,17 @@ public class AuthTokenService {
     }
 
     public void invalidateRefreshToken(String userKey) {
-        redisTemplate.delete(refreshTokenKey(userKey));
+        redisTemplate.delete(refreshTokenKeys(userKey));
     }
 
     private void saveRefreshToken(String userKey, String refreshToken) {
-        redisTemplate.opsForValue().set(refreshTokenKey(userKey), refreshToken, 7, TimeUnit.DAYS);
+        redisTemplate.opsForValue().set(
+                refreshTokenKey(userKey),
+                OpaqueTokenHash.sha256Hex(refreshToken),
+                7,
+                TimeUnit.DAYS
+        );
+        redisTemplate.delete(legacyRefreshTokenKey(userKey));
     }
 
     private void revokePresentedAccessToken(String accessToken) {
@@ -127,7 +139,24 @@ public class AuthTokenService {
     }
 
     private String refreshTokenKey(String userKey) {
-        return REFRESH_TOKEN_PREFIX + userKey;
+        return UserRedisKeys.refreshTokenKey(userKey);
+    }
+
+    private String legacyRefreshTokenKey(String userKey) {
+        return UserRedisKeys.legacyRefreshTokenKey(userKey);
+    }
+
+    private java.util.List<String> refreshTokenKeys(String userKey) {
+        return UserRedisKeys.refreshTokenKeys(userKey);
+    }
+
+    private boolean matchesStoredRefreshToken(String stored, String presentedRefreshToken) {
+        if (!StringUtils.hasText(stored)) {
+            return false;
+        }
+        String presentedHash = OpaqueTokenHash.sha256Hex(presentedRefreshToken);
+        return stored.equals(presentedHash)
+                || stored.equals(presentedRefreshToken);
     }
 
     private User getRefreshableUser(String userKey, Long userId) {

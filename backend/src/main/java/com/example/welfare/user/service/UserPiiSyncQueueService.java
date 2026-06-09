@@ -61,4 +61,19 @@ public class UserPiiSyncQueueService {
     public List<String> findReplayPendingUserKeys(int limit) {
         return userPiiSyncQueueReadRepository.findReplayPendingUserKeys(limit);
     }
+
+    public List<UserPiiSyncQueue> findLegacyEncryptedPayloads() {
+        return userPiiSyncQueueReadRepository.findLegacyEncryptedPayloads();
+    }
+
+    public UserPiiSyncQueue save(UserPiiSyncQueue queue) {
+        return userPiiSyncQueueCommandRepository.save(queue);
+    }
+
+    public long deleteByUserKey(String userKey) {
+        if (userKey == null || userKey.isBlank()) {
+            return 0;
+        }
+        return userPiiSyncQueueCommandRepository.deleteByUserKey(userKey);
+    }
 }

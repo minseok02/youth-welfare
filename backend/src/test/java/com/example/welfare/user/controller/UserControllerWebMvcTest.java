@@ -135,4 +135,69 @@ class UserControllerWebMvcTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false));
     }
+
+    @Test
+    @DisplayName("프로필 수정은 과도하게 긴 문자열을 컨트롤러에서 차단한다")
+    void updateProfileRejectsOversizedStrings() throws Exception {
+        mockMvc.perform(put("/api/users/me")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(
+                                new AuthenticatedUser(1L, "user-key-1"),
+                                null,
+                                Collections.emptyList()
+                        )))
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "sido": "서울특별시서울특별시서울특별시서울특별시서울특별시서울특별시서울특별시서울특별시",
+                                  "notificationPeriod": "DAILY"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+
+        then(userProfileCommandService).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("프로필 수정은 허용되지 않은 알림 주기를 차단한다")
+    void updateProfileRejectsInvalidNotificationPeriod() throws Exception {
+        mockMvc.perform(put("/api/users/me")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(
+                                new AuthenticatedUser(1L, "user-key-1"),
+                                null,
+                                Collections.emptyList()
+                        )))
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "notificationYn": true,
+                                  "notificationPeriod": "HOURLY"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+
+        then(userProfileCommandService).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("우선순위 수정은 비어 있는 코드 값을 차단한다")
+    void updatePrioritiesRejectsBlankCode() throws Exception {
+        mockMvc.perform(put("/api/users/me/priorities")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(
+                                new AuthenticatedUser(1L, "user-key-1"),
+                                null,
+                                Collections.emptyList()
+                        )))
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "priorityCodes": ["HOUSING", ""]
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+
+        then(userProfileCommandService).shouldHaveNoInteractions();
+    }
 }

@@ -1,10 +1,13 @@
 package com.example.welfare.user.controller;
 
+import com.example.welfare.admin.service.AdminOperationRateLimitService;
+import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.response.ApiResponse;
 import com.example.welfare.user.dto.response.UserMetadataUserKeyBackfillResponse;
 import com.example.welfare.user.dto.response.UserPiiBackfillResponse;
+import com.example.welfare.user.dto.response.UserPiiEncryptionRotationResponse;
 import com.example.welfare.user.dto.response.UserPiiSyncReplayResponse;
 import com.example.welfare.user.dto.response.UserPiiSyncStatusResponse;
 import com.example.welfare.user.service.UserMetadataUserKeyBackfillService;
@@ -21,6 +24,7 @@ import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -43,23 +47,41 @@ public class UserAdminController {
     private final UserPiiSyncStatusService userPiiSyncStatusService;
     private final UserSessionRevocationService userSessionRevocationService;
     private final UserKeyLookupService userKeyLookupService;
+    private final AdminOperationRateLimitService adminOperationRateLimitService;
 
     @PostMapping("/metadata-user-key-backfill")
-    public ResponseEntity<ApiResponse<UserMetadataUserKeyBackfillResponse>> backfillUserMetadataUserKeys() {
+    public ResponseEntity<ApiResponse<UserMetadataUserKeyBackfillResponse>> backfillUserMetadataUserKeys(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser
+    ) {
+        adminOperationRateLimitService.checkMutationLimit(actorKey(authenticatedUser), "users:metadata-user-key-backfill");
         log.info("[Admin] user_attributes/user_priorities user_key 백필 트리거");
         return ResponseEntity.ok(ApiResponse.success(userMetadataUserKeyBackfillService.backfillMissingUserKeys()));
     }
 
     @PostMapping("/pii-backfill")
-    public ResponseEntity<ApiResponse<UserPiiBackfillResponse>> backfillUserPii() {
+    public ResponseEntity<ApiResponse<UserPiiBackfillResponse>> backfillUserPii(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser
+    ) {
+        adminOperationRateLimitService.checkMutationLimit(actorKey(authenticatedUser), "users:pii-backfill");
         log.info("[Admin] user_pii email/name/birth_date 앱 레벨 암호화 백필 트리거");
         return ResponseEntity.ok(ApiResponse.success(userPiiBackfillService.backfillMissingEncryptedFields()));
     }
 
+    @PostMapping("/pii-encryption-rotation")
+    public ResponseEntity<ApiResponse<UserPiiEncryptionRotationResponse>> rotateUserPiiEncryption(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser
+    ) {
+        adminOperationRateLimitService.checkMutationLimit(actorKey(authenticatedUser), "users:pii-encryption-rotation");
+        log.info("[Admin] user_pii legacy 암호문 회전 트리거");
+        return ResponseEntity.ok(ApiResponse.success(userPiiBackfillService.rotateLegacyEncryptedFields()));
+    }
+
     @PostMapping("/forced-logout")
     public ResponseEntity<ApiResponse<ForcedLogoutResponse>> forceLogoutUserSessions(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @Valid @RequestBody ForcedLogoutRequest request
     ) {
+        adminOperationRateLimitService.checkMutationLimit(actorKey(authenticatedUser), "users:forced-logout");
         String userKey = request.userKey() == null ? null : request.userKey().trim();
         if (!StringUtils.hasText(userKey) || userKey.length() > 32) {
             throw new CustomException(ErrorCode.INVALID_INPUT);
@@ -74,9 +96,11 @@ public class UserAdminController {
 
     @PostMapping("/pii-sync-replay")
     public ResponseEntity<ApiResponse<UserPiiSyncReplayResponse>> replayUserPiiSync(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @RequestParam(required = false) @Size(max = 32, message = "userKey는 32자 이하여야 합니다.") String userKey,
             @RequestParam(defaultValue = "100") @Min(value = 1, message = "limit는 1 이상이어야 합니다.") @Max(value = 1000, message = "limit는 1000 이하여야 합니다.") int limit
     ) {
+        adminOperationRateLimitService.checkMutationLimit(actorKey(authenticatedUser), "users:pii-sync-replay");
         String normalizedUserKey = userKey == null ? null : userKey.trim();
         if (StringUtils.hasText(normalizedUserKey) && normalizedUserKey.length() > 32) {
             throw new CustomException(ErrorCode.INVALID_INPUT);
@@ -107,5 +131,9 @@ public class UserAdminController {
     }
 
     public record ForcedLogoutResponse(String userKey, boolean accepted) {
+    }
+
+    private String actorKey(AuthenticatedUser authenticatedUser) {
+        return authenticatedUser != null ? authenticatedUser.userKey() : "unknown";
     }
 }

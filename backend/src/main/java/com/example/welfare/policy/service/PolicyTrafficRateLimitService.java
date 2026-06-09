@@ -2,6 +2,7 @@ package com.example.welfare.policy.service;
 
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.global.util.RedisKeyHash;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -16,6 +17,9 @@ public class PolicyTrafficRateLimitService {
     private static final String SUGGESTION_RATE_LIMIT_PREFIX = "policy:rate-limit:suggestion:";
     private static final String TRENDING_RATE_LIMIT_PREFIX = "policy:rate-limit:trending:";
     private static final String DETAIL_RATE_LIMIT_PREFIX = "policy:rate-limit:detail:";
+    private static final String LIST_RATE_LIMIT_PREFIX = "policy:rate-limit:list:";
+    private static final String RANKING_RATE_LIMIT_PREFIX = "policy:rate-limit:ranking:";
+    private static final String ERROR_REPORT_RATE_LIMIT_PREFIX = "policy:rate-limit:error-report:";
 
     private final RedisTemplate<String, String> redisTemplate;
     private final int searchMaxRequests;
@@ -26,6 +30,12 @@ public class PolicyTrafficRateLimitService {
     private final long trendingWindowSeconds;
     private final int detailMaxRequestsPerService;
     private final long detailWindowSeconds;
+    private final int listMaxRequests;
+    private final long listWindowSeconds;
+    private final int rankingMaxRequests;
+    private final long rankingWindowSeconds;
+    private final int errorReportMaxRequests;
+    private final long errorReportWindowSeconds;
 
     public PolicyTrafficRateLimitService(
             RedisTemplate<String, String> redisTemplate,
@@ -36,7 +46,13 @@ public class PolicyTrafficRateLimitService {
             @Value("${policy.rate-limit.trending.max-requests:30}") int trendingMaxRequests,
             @Value("${policy.rate-limit.trending.window-seconds:60}") long trendingWindowSeconds,
             @Value("${policy.rate-limit.detail.max-requests-per-service:20}") int detailMaxRequestsPerService,
-            @Value("${policy.rate-limit.detail.window-seconds:60}") long detailWindowSeconds) {
+            @Value("${policy.rate-limit.detail.window-seconds:60}") long detailWindowSeconds,
+            @Value("${policy.rate-limit.list.max-requests:60}") int listMaxRequests,
+            @Value("${policy.rate-limit.list.window-seconds:60}") long listWindowSeconds,
+            @Value("${policy.rate-limit.ranking.max-requests:30}") int rankingMaxRequests,
+            @Value("${policy.rate-limit.ranking.window-seconds:60}") long rankingWindowSeconds,
+            @Value("${policy.rate-limit.error-report.max-requests:5}") int errorReportMaxRequests,
+            @Value("${policy.rate-limit.error-report.window-seconds:300}") long errorReportWindowSeconds) {
         this.redisTemplate = redisTemplate;
         this.searchMaxRequests = searchMaxRequests;
         this.searchWindowSeconds = searchWindowSeconds;
@@ -46,6 +62,16 @@ public class PolicyTrafficRateLimitService {
         this.trendingWindowSeconds = trendingWindowSeconds;
         this.detailMaxRequestsPerService = detailMaxRequestsPerService;
         this.detailWindowSeconds = detailWindowSeconds;
+        this.listMaxRequests = listMaxRequests;
+        this.listWindowSeconds = listWindowSeconds;
+        this.rankingMaxRequests = rankingMaxRequests;
+        this.rankingWindowSeconds = rankingWindowSeconds;
+        this.errorReportMaxRequests = errorReportMaxRequests;
+        this.errorReportWindowSeconds = errorReportWindowSeconds;
+    }
+
+    public void checkListLimit(String actorKey) {
+        checkLimit(buildListRateLimitKey(actorKey), listMaxRequests, listWindowSeconds);
     }
 
     public void checkSearchLimit(String actorKey) {
@@ -64,6 +90,18 @@ public class PolicyTrafficRateLimitService {
         checkLimit(buildDetailRateLimitKey(actorKey, serviceId), detailMaxRequestsPerService, detailWindowSeconds);
     }
 
+    public void checkRankingLimit(String actorKey) {
+        checkLimit(buildRankingRateLimitKey(actorKey), rankingMaxRequests, rankingWindowSeconds);
+    }
+
+    public void checkErrorReportLimit(String actorKey, Long serviceId) {
+        checkLimit(buildErrorReportRateLimitKey(actorKey, serviceId), errorReportMaxRequests, errorReportWindowSeconds);
+    }
+
+    String buildListRateLimitKey(String actorKey) {
+        return LIST_RATE_LIMIT_PREFIX + normalizeActorKey(actorKey);
+    }
+
     String buildSearchRateLimitKey(String actorKey) {
         return SEARCH_RATE_LIMIT_PREFIX + normalizeActorKey(actorKey);
     }
@@ -78,6 +116,14 @@ public class PolicyTrafficRateLimitService {
 
     String buildDetailRateLimitKey(String actorKey, Long serviceId) {
         return DETAIL_RATE_LIMIT_PREFIX + normalizeActorKey(actorKey) + ":" + serviceId;
+    }
+
+    String buildRankingRateLimitKey(String actorKey) {
+        return RANKING_RATE_LIMIT_PREFIX + normalizeActorKey(actorKey);
+    }
+
+    String buildErrorReportRateLimitKey(String actorKey, Long serviceId) {
+        return ERROR_REPORT_RATE_LIMIT_PREFIX + normalizeActorKey(actorKey) + ":" + serviceId;
     }
 
     private void checkLimit(String key, int maxRequests, long windowSeconds) {
@@ -99,7 +145,7 @@ public class PolicyTrafficRateLimitService {
         if (!StringUtils.hasText(actorKey)) {
             return "anonymous";
         }
-        return actorKey.trim();
+        return RedisKeyHash.sha256Hex(actorKey);
     }
 
     private boolean hasNoExpiry(String key) {

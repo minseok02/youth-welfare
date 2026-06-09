@@ -1,9 +1,9 @@
 package com.example.welfare.user.service;
 
-import com.example.welfare.chat.service.ChatSessionCleanupService;
 import com.example.welfare.recommend.service.RecommendationRefreshCacheService;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.repository.UserMetadataCommandRepository;
+import com.example.welfare.global.util.RedisKeyHash;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,9 +26,9 @@ class UserAccountCommandServiceTest {
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private RedisTemplate<String, String> redisTemplate;
     @Mock private AccessTokenRevocationService accessTokenRevocationService;
-    @Mock private ChatSessionCleanupService chatSessionCleanupService;
     @Mock private UserCoreSyncService userCoreSyncService;
     @Mock private RecommendationRefreshCacheService recommendationRefreshCacheService;
+    @Mock private UserWithdrawalDataCleanupService userWithdrawalDataCleanupService;
 
     @Test
     @DisplayName("회원탈퇴는 refresh token 삭제와 현재 access token revoke까지 함께 수행한다")
@@ -39,9 +39,9 @@ class UserAccountCommandServiceTest {
                 passwordEncoder,
                 redisTemplate,
                 accessTokenRevocationService,
-                chatSessionCleanupService,
                 userCoreSyncService,
-                recommendationRefreshCacheService
+                recommendationRefreshCacheService,
+                userWithdrawalDataCleanupService
         );
         User user = User.builder()
                 .id(1L)
@@ -58,10 +58,13 @@ class UserAccountCommandServiceTest {
 
         verify(recommendationRefreshCacheService).evict("user-key-1");
         verify(userMetadataCommandRepository).deleteAllByUserKey("user-key-1");
-        verify(chatSessionCleanupService).deleteAllByUserKey(user.getUserKey());
-        verify(redisTemplate).delete("refresh:user-key-1");
+        verify(userWithdrawalDataCleanupService).cleanupByUserKey("user-key-1");
+        verify(redisTemplate).delete(java.util.List.of(
+                "refresh:v2:" + RedisKeyHash.sha256Hex("user-key-1"),
+                "refresh:user-key-1"
+        ));
         verify(accessTokenRevocationService).revoke("access-token-value");
-        verify(userCoreSyncService).syncFromUser(user);
+        verify(userCoreSyncService).syncWithdrawnUser(user, "user-key-1");
         assertThat(user.isActive()).isFalse();
         assertThat(user.getEmail()).isEqualTo("withdrawn_1");
     }

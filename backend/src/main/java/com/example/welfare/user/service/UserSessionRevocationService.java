@@ -15,8 +15,6 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class UserSessionRevocationService {
 
-    private static final String REFRESH_TOKEN_PREFIX = "refresh:";
-    private static final String ACCESS_CUTOFF_PREFIX = "access-cutoff:";
     private static final long CUTOFF_TTL_SAFETY_MARGIN_MILLIS = 60_000L;
 
     private final RedisTemplate<String, String> redisTemplate;
@@ -41,7 +39,7 @@ public class UserSessionRevocationService {
                 return false;
             }
 
-            String cutoffValue = redisTemplate.opsForValue().get(accessCutoffKey(userKey));
+            String cutoffValue = getAccessCutoffValue(userKey);
             if (!StringUtils.hasText(cutoffValue)) {
                 return true;
             }
@@ -55,17 +53,18 @@ public class UserSessionRevocationService {
     }
 
     public void revokeUserSessions(String userKey, long cutoffMillis) {
-        redisTemplate.delete(refreshTokenKey(userKey));
+        redisTemplate.delete(UserRedisKeys.refreshTokenKeys(userKey));
         redisTemplate.opsForValue().set(
                 accessCutoffKey(userKey),
                 String.valueOf(cutoffMillis),
                 accessExpiration + CUTOFF_TTL_SAFETY_MARGIN_MILLIS,
                 TimeUnit.MILLISECONDS
         );
+        redisTemplate.delete(legacyAccessCutoffKey(userKey));
     }
 
     public long resolveNextAccessIssuedAtMillis(String userKey, long candidateIssuedAtMillis) {
-        String cutoffValue = redisTemplate.opsForValue().get(accessCutoffKey(userKey));
+        String cutoffValue = getAccessCutoffValue(userKey);
         if (!StringUtils.hasText(cutoffValue)) {
             return candidateIssuedAtMillis;
         }
@@ -78,11 +77,19 @@ public class UserSessionRevocationService {
         }
     }
 
-    private String refreshTokenKey(String userKey) {
-        return REFRESH_TOKEN_PREFIX + userKey;
+    private String getAccessCutoffValue(String userKey) {
+        String cutoffValue = redisTemplate.opsForValue().get(accessCutoffKey(userKey));
+        if (StringUtils.hasText(cutoffValue)) {
+            return cutoffValue;
+        }
+        return redisTemplate.opsForValue().get(legacyAccessCutoffKey(userKey));
     }
 
     private String accessCutoffKey(String userKey) {
-        return ACCESS_CUTOFF_PREFIX + userKey;
+        return UserRedisKeys.accessCutoffKey(userKey);
+    }
+
+    private String legacyAccessCutoffKey(String userKey) {
+        return UserRedisKeys.legacyAccessCutoffKey(userKey);
     }
 }

@@ -58,6 +58,59 @@ class UserNotificationReadServiceTest {
     }
 
     @Test
+    @DisplayName("이메일이 누락되어도 인앱 또는 웹푸시 채널이 있으면 알림 대상에 유지한다")
+    void getNotificationTargetsKeepsNonEmailChannelsWhenEmailMissing() {
+        UserNotificationReadService service = new UserNotificationReadService(
+                activeUserReadService,
+                notificationTargetReadRepository,
+                aesEncryptUtil
+        );
+        when(notificationTargetReadRepository.findNotificationTargetsByPeriod(User.NotificationPeriod.DAILY))
+                .thenReturn(List.of(
+                        new NotificationTargetAggregateReadModel(
+                                1L,
+                                "user-key-1",
+                                "DAILY",
+                                true,
+                                true,
+                                false,
+                                0.7,
+                                10,
+                                "blank-email"
+                        ),
+                        new NotificationTargetAggregateReadModel(
+                                2L,
+                                "user-key-2",
+                                "DAILY",
+                                true,
+                                false,
+                                true,
+                                0.7,
+                                10,
+                                "blank-email"
+                        ),
+                        new NotificationTargetAggregateReadModel(
+                                3L,
+                                "user-key-3",
+                                "DAILY",
+                                true,
+                                false,
+                                false,
+                                0.7,
+                                10,
+                                "blank-email"
+                        )
+                ));
+        when(aesEncryptUtil.decrypt("blank-email")).thenReturn("");
+
+        List<NotificationTarget> targets = service.getNotificationTargets(User.NotificationPeriod.DAILY);
+
+        assertThat(targets)
+                .extracting(NotificationTarget::userKey)
+                .containsExactly("user-key-1", "user-key-2");
+    }
+
+    @Test
     @DisplayName("알림 재시도용 이메일 조회는 active user 검증 후 notification read repository를 사용한다")
     void getNotificationEmailByUserKeyUsesNotificationReadRepository() {
         UserNotificationReadService service = new UserNotificationReadService(

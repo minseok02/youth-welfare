@@ -61,6 +61,20 @@ public class UserPiiReadWriteRepository {
         );
     }
 
+    public List<UserPiiReadModel> findLegacyEncryptedFields() {
+        return jdbcTemplate.query("""
+                        select user_key, email_enc, name_enc, birth_date_enc, phone_enc
+                        from youth_welfare_pii.user_pii
+                        where (email_enc is not null and email_enc <> '' and email_enc not like 'v2:%')
+                           or (name_enc is not null and name_enc <> '' and name_enc not like 'v2:%')
+                           or (birth_date_enc is not null and birth_date_enc <> '' and birth_date_enc not like 'v2:%')
+                           or (phone_enc is not null and phone_enc <> '' and phone_enc not like 'v2:%')
+                        order by user_key
+                        """,
+                USER_PII_ROW_MAPPER
+        );
+    }
+
     public int backfillEncryptedFields(String userKey, String emailEnc, String nameEnc, String birthDateEnc) {
         return jdbcTemplate.update("""
                         update youth_welfare_pii.user_pii

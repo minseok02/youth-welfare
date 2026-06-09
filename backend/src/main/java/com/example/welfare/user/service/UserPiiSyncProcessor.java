@@ -13,8 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class UserPiiSyncProcessor {
 
-    private static final int MAX_ERROR_LENGTH = 500;
-
     private final UserPiiSyncQueueService userPiiSyncQueueService;
     private final UserPiiCommandService userPiiCommandService;
 
@@ -37,18 +35,18 @@ public class UserPiiSyncProcessor {
             );
             queue.markSynced();
         } catch (RuntimeException e) {
-            queue.markFailed(truncateErrorMessage(e.getMessage()));
-            log.error("[UserPiiSyncProcessor] app_pii sync failed userKey={}", userKey, e);
+            queue.markFailed(safeFailureMessage(e));
+            log.error("[UserPiiSyncProcessor] app_pii sync failed userKey={} errorType={}",
+                    userKey, e.getClass().getSimpleName());
         }
         return queue.getStatus();
     }
 
-    private String truncateErrorMessage(String message) {
-        if (message == null || message.isBlank()) {
-            return "unknown error";
+    private String safeFailureMessage(RuntimeException e) {
+        String errorType = e.getClass().getSimpleName();
+        if (errorType == null || errorType.isBlank()) {
+            errorType = "RuntimeException";
         }
-        return message.length() <= MAX_ERROR_LENGTH
-                ? message
-                : message.substring(0, MAX_ERROR_LENGTH);
+        return "PII sync failed (" + errorType + ")";
     }
 }

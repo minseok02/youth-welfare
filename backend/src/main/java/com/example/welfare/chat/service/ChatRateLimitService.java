@@ -2,6 +2,7 @@ package com.example.welfare.chat.service;
 
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.global.util.RedisKeyHash;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,9 @@ public class ChatRateLimitService {
     }
 
     public void checkMessageSendLimit(Long userId) {
+        if (userId == null) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
         Long requestCount = redisTemplate.opsForValue().increment(buildMessageRateLimitKey(userId));
         if (requestCount == null) {
             throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
@@ -43,7 +47,7 @@ public class ChatRateLimitService {
     }
 
     String buildMessageRateLimitKey(Long userId) {
-        return MESSAGE_RATE_LIMIT_PREFIX + userId;
+        return MESSAGE_RATE_LIMIT_PREFIX + RedisKeyHash.sha256Hex(String.valueOf(userId));
     }
 
     private boolean hasNoExpiry(String key) {

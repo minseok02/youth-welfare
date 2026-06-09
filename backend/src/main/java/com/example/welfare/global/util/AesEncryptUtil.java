@@ -60,6 +60,10 @@ public class AesEncryptUtil {
         return decryptLegacy(encryptedText);
     }
 
+    public boolean isCurrentCipherText(String encryptedText) {
+        return encryptedText != null && encryptedText.startsWith(VERSION_PREFIX);
+    }
+
     private String decryptCurrent(String encodedPayload) {
         try {
             SecretKeySpec keySpec = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), "AES");

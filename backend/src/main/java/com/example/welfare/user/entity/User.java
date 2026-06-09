@@ -148,6 +148,11 @@ public class User extends BaseTimeEntity {
         this.phoneEnc = phoneEnc;
     }
 
+    public void clearPlainProfilePii() {
+        this.name = null;
+        this.birthDate = null;
+    }
+
     public void updateProfileCompleteness(int completeness) {
         this.profileCompleteness = completeness;
     }

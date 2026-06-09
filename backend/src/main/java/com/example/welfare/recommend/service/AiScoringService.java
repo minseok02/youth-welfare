@@ -27,6 +27,10 @@ public class AiScoringService {
     private final ClusterAiScoreCache clusterAiScoreCache;
 
     public List<ScoredCandidate> score(String clusterId, List<ScoredCandidate> candidates, RecommendationUserSnapshot user) {
+        if (candidates == null || candidates.isEmpty()) {
+            return List.of();
+        }
+
         // youth_all은 개인 프로필 기반 실시간 호출 (캐시 미사용)
         if ("youth_all".equals(clusterId)) {
             return aiRecommendationGateway.score(clusterId, candidates, user);

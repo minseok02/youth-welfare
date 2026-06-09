@@ -2,9 +2,12 @@ package com.example.welfare.user.service;
 
 import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.user.dto.response.UserPiiBackfillResponse;
+import com.example.welfare.user.dto.response.UserPiiEncryptionRotationResponse;
+import com.example.welfare.user.entity.UserPiiSyncQueue;
 import com.example.welfare.user.repository.UserLegacyPiiSourceReadModel;
 import com.example.welfare.user.repository.UserPiiBackfillReadRepository;
 import com.example.welfare.user.repository.UserPiiBackfillStateReadModel;
+import com.example.welfare.user.repository.UserPiiReadModel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -19,6 +22,7 @@ public class UserPiiBackfillService {
 
     private final UserPiiBackfillReadRepository userPiiBackfillReadRepository;
     private final UserPiiCommandService userPiiCommandService;
+    private final UserPiiSyncQueueService userPiiSyncQueueService;
     private final AesEncryptUtil aesEncryptUtil;
 
     public UserPiiBackfillResponse backfillMissingEncryptedFields() {
@@ -81,8 +85,71 @@ public class UserPiiBackfillService {
         );
     }
 
+    public UserPiiEncryptionRotationResponse rotateLegacyEncryptedFields() {
+        var userPiiRows = userPiiBackfillReadRepository.findLegacyEncryptedFields();
+        int userPiiUpdatedCount = 0;
+        int queueUpdatedCount = 0;
+        int skippedCount = 0;
+        int failedCount = 0;
+
+        for (UserPiiReadModel row : userPiiRows) {
+            try {
+                userPiiCommandService.upsertUserPii(
+                        row.userKey(),
+                        rotateIfLegacy(row.emailEnc()),
+                        rotateIfLegacy(row.nameEnc()),
+                        rotateIfLegacy(row.birthDateEnc()),
+                        rotateIfLegacy(row.phoneEnc())
+                );
+                userPiiUpdatedCount++;
+            } catch (RuntimeException e) {
+                failedCount++;
+                log.error("[UserPiiBackfillService] user_pii encryption rotation failed userKey={} errorType={}",
+                        row.userKey(), e.getClass().getSimpleName());
+            }
+        }
+
+        var queueRows = userPiiSyncQueueService.findLegacyEncryptedPayloads();
+        for (UserPiiSyncQueue queue : queueRows) {
+            try {
+                queue.replaceEncryptedPayload(
+                        rotateIfLegacy(queue.getEmailEnc()),
+                        rotateIfLegacy(queue.getNameEnc()),
+                        rotateIfLegacy(queue.getBirthDateEnc()),
+                        rotateIfLegacy(queue.getPhoneEnc())
+                );
+                userPiiSyncQueueService.save(queue);
+                queueUpdatedCount++;
+            } catch (RuntimeException e) {
+                failedCount++;
+                log.error("[UserPiiBackfillService] user_pii sync queue encryption rotation failed userKey={} errorType={}",
+                        queue.getUserKey(), e.getClass().getSimpleName());
+            }
+        }
+
+        skippedCount = (userPiiRows.size() - userPiiUpdatedCount) + (queueRows.size() - queueUpdatedCount);
+        log.info("[UserPiiBackfillService] user_pii legacy 암호문 회전 완료 userPiiProcessed={} userPiiUpdated={} queueProcessed={} queueUpdated={} skipped={} failed={}",
+                userPiiRows.size(), userPiiUpdatedCount, queueRows.size(), queueUpdatedCount, skippedCount, failedCount);
+
+        return new UserPiiEncryptionRotationResponse(
+                userPiiRows.size(),
+                userPiiUpdatedCount,
+                queueRows.size(),
+                queueUpdatedCount,
+                skippedCount,
+                failedCount
+        );
+    }
+
     private boolean missing(String value) {
         return !StringUtils.hasText(value);
+    }
+
+    private String rotateIfLegacy(String encryptedValue) {
+        if (!StringUtils.hasText(encryptedValue) || aesEncryptUtil.isCurrentCipherText(encryptedValue)) {
+            return encryptedValue;
+        }
+        return aesEncryptUtil.encrypt(aesEncryptUtil.decrypt(encryptedValue));
     }
 
     private Map<String, UserLegacyPiiSourceReadModel> loadLegacySourceByUserKey(Iterable<UserPiiBackfillStateReadModel> backfillStates) {

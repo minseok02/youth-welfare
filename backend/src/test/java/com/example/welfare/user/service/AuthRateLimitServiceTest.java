@@ -2,6 +2,7 @@ package com.example.welfare.user.service;
 
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.global.util.RedisKeyHash;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,29 +39,32 @@ class AuthRateLimitServiceTest {
     @Test
     @DisplayName("이메일 인증 발송 첫 요청이면 fingerprint rate limit 키에 만료시간을 설정한다")
     void checkEmailVerificationSendLimitSetsExpiryForFirstRequest() {
-        when(valueOperations.increment("auth:rate-limit:email-verification-send:fp:test")).thenReturn(1L);
+        String key = key("auth:rate-limit:email-verification-send:", "fp:test");
+        when(valueOperations.increment(key)).thenReturn(1L);
 
         authRateLimitService.checkEmailVerificationSendLimit("fp:test");
 
-        verify(redisTemplate).expire("auth:rate-limit:email-verification-send:fp:test", Duration.ofSeconds(300));
+        verify(redisTemplate).expire(key, Duration.ofSeconds(300));
     }
 
     @Test
     @DisplayName("이메일 인증 발송 키에 TTL이 남아 있으면 만료시간을 다시 설정하지 않는다")
     void checkEmailVerificationSendLimitSkipsExpireWhenTtlExists() {
-        when(valueOperations.increment("auth:rate-limit:email-verification-send:fp:test")).thenReturn(2L);
-        when(redisTemplate.getExpire("auth:rate-limit:email-verification-send:fp:test")).thenReturn(120L);
+        String key = key("auth:rate-limit:email-verification-send:", "fp:test");
+        when(valueOperations.increment(key)).thenReturn(2L);
+        when(redisTemplate.getExpire(key)).thenReturn(120L);
 
         authRateLimitService.checkEmailVerificationSendLimit("fp:test");
 
-        verify(redisTemplate, never()).expire("auth:rate-limit:email-verification-send:fp:test", Duration.ofSeconds(300));
+        verify(redisTemplate, never()).expire(key, Duration.ofSeconds(300));
     }
 
     @Test
     @DisplayName("이메일 인증 발송 제한을 초과하면 429 auth rate limit 오류를 반환한다")
     void checkEmailVerificationSendLimitThrowsWhenLimitExceeded() {
-        when(valueOperations.increment("auth:rate-limit:email-verification-send:fp:test")).thenReturn(3L);
-        when(redisTemplate.getExpire("auth:rate-limit:email-verification-send:fp:test")).thenReturn(100L);
+        String key = key("auth:rate-limit:email-verification-send:", "fp:test");
+        when(valueOperations.increment(key)).thenReturn(3L);
+        when(redisTemplate.getExpire(key)).thenReturn(100L);
 
         assertThatThrownBy(() -> authRateLimitService.checkEmailVerificationSendLimit("fp:test"))
                 .isInstanceOf(CustomException.class)
@@ -71,18 +75,20 @@ class AuthRateLimitServiceTest {
     @Test
     @DisplayName("로그인 첫 요청이면 fingerprint rate limit 키에 만료시간을 설정한다")
     void checkLoginLimitSetsExpiryForFirstRequest() {
-        when(valueOperations.increment("auth:rate-limit:login:fp:login")).thenReturn(1L);
+        String key = key("auth:rate-limit:login:", "fp:login");
+        when(valueOperations.increment(key)).thenReturn(1L);
 
         authRateLimitService.checkLoginLimit("fp:login");
 
-        verify(redisTemplate).expire("auth:rate-limit:login:fp:login", Duration.ofSeconds(120));
+        verify(redisTemplate).expire(key, Duration.ofSeconds(120));
     }
 
     @Test
     @DisplayName("로그인 fingerprint 제한을 초과하면 429 auth rate limit 오류를 반환한다")
     void checkLoginLimitThrowsWhenLimitExceeded() {
-        when(valueOperations.increment("auth:rate-limit:login:fp:login")).thenReturn(4L);
-        when(redisTemplate.getExpire("auth:rate-limit:login:fp:login")).thenReturn(90L);
+        String key = key("auth:rate-limit:login:", "fp:login");
+        when(valueOperations.increment(key)).thenReturn(4L);
+        when(redisTemplate.getExpire(key)).thenReturn(90L);
 
         assertThatThrownBy(() -> authRateLimitService.checkLoginLimit("fp:login"))
                 .isInstanceOf(CustomException.class)
@@ -93,10 +99,15 @@ class AuthRateLimitServiceTest {
     @Test
     @DisplayName("비밀번호 재설정 요청 첫 요청이면 fingerprint rate limit 키에 만료시간을 설정한다")
     void checkPasswordResetRequestLimitSetsExpiryForFirstRequest() {
-        when(valueOperations.increment("auth:rate-limit:password-reset-request:fp:reset")).thenReturn(1L);
+        String key = key("auth:rate-limit:password-reset-request:", "fp:reset");
+        when(valueOperations.increment(key)).thenReturn(1L);
 
         authRateLimitService.checkPasswordResetRequestLimit("fp:reset");
 
-        verify(redisTemplate).expire("auth:rate-limit:password-reset-request:fp:reset", Duration.ofSeconds(300));
+        verify(redisTemplate).expire(key, Duration.ofSeconds(300));
+    }
+
+    private String key(String prefix, String fingerprint) {
+        return prefix + RedisKeyHash.sha256Hex(fingerprint);
     }
 }

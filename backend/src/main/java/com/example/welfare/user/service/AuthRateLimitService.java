@@ -2,6 +2,7 @@ package com.example.welfare.user.service;
 
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.global.util.RedisKeyHash;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -48,21 +49,21 @@ public class AuthRateLimitService {
     }
 
     public void checkEmailCheckLimit(String fingerprint) {
-        checkLimit(EMAIL_CHECK_PREFIX + fingerprint, emailCheckMaxRequests, emailCheckWindowSeconds);
+        checkLimit(EMAIL_CHECK_PREFIX + fingerprintHash(fingerprint), emailCheckMaxRequests, emailCheckWindowSeconds);
     }
 
     public void checkEmailVerificationSendLimit(String fingerprint) {
-        checkLimit(EMAIL_VERIFICATION_SEND_PREFIX + fingerprint,
+        checkLimit(EMAIL_VERIFICATION_SEND_PREFIX + fingerprintHash(fingerprint),
                 emailVerificationSendMaxRequests,
                 emailVerificationSendWindowSeconds);
     }
 
     public void checkLoginLimit(String fingerprint) {
-        checkLimit(LOGIN_PREFIX + fingerprint, loginMaxRequests, loginWindowSeconds);
+        checkLimit(LOGIN_PREFIX + fingerprintHash(fingerprint), loginMaxRequests, loginWindowSeconds);
     }
 
     public void checkPasswordResetRequestLimit(String fingerprint) {
-        checkLimit(PASSWORD_RESET_REQUEST_PREFIX + fingerprint,
+        checkLimit(PASSWORD_RESET_REQUEST_PREFIX + fingerprintHash(fingerprint),
                 passwordResetRequestMaxRequests,
                 passwordResetRequestWindowSeconds);
     }
@@ -83,5 +84,9 @@ public class AuthRateLimitService {
     private boolean hasNoExpiry(String key) {
         Long ttl = redisTemplate.getExpire(key);
         return ttl == null || ttl < 0;
+    }
+
+    private String fingerprintHash(String fingerprint) {
+        return RedisKeyHash.sha256Hex(fingerprint);
     }
 }

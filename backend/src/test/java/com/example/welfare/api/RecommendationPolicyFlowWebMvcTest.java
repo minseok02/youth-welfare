@@ -51,6 +51,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -284,6 +285,22 @@ class RecommendationPolicyFlowWebMvcTest {
     }
 
     @Test
+    @DisplayName("추천 북마크 API는 1 미만 추천 id를 400 invalid input으로 거부한다")
+    void recommendationBookmarkRejectsInvalidRecommendationId() throws Exception {
+        mockMvc.perform(post("/api/recommendations/{id}/bookmark", 0L)
+                        .with(authentication(new UsernamePasswordAuthenticationToken(
+                                new AuthenticatedUser(1L, "user-key-1"),
+                                null,
+                                Collections.emptyList()
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        verify(recommendationBookmarkCommandService, never()).toggleRecommendationBookmark(any(), any());
+    }
+
+    @Test
     @DisplayName("정책 검색 rate limit 초과 시 429를 반환한다")
     void searchReturnsTooManyRequestsWhenRateLimitExceeded() throws Exception {
         given(clientFingerprintService.build(any())).willReturn("fp-search");
@@ -296,6 +313,62 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(status().isTooManyRequests())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("P003"));
+    }
+
+    @Test
+    @DisplayName("정책 목록 API는 범위를 벗어난 incomeLevel을 400으로 거부한다")
+    void listRejectsInvalidIncomeLevel() throws Exception {
+        mockMvc.perform(get("/api/policies")
+                        .param("incomeLevel", "12"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+    }
+
+    @Test
+    @DisplayName("정책 검색 API는 과도한 page를 400으로 거부한다")
+    void searchRejectsOversizedPage() throws Exception {
+        mockMvc.perform(get("/api/policies/search")
+                        .param("keyword", "월세")
+                        .param("page", "1001"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+    }
+
+    @Test
+    @DisplayName("정책 랭킹 rate limit 초과 시 429를 반환한다")
+    void rankingReturnsTooManyRequestsWhenRateLimitExceeded() throws Exception {
+        given(clientFingerprintService.build(any())).willReturn("fp-ranking");
+        org.mockito.BDDMockito.willThrow(new CustomException(ErrorCode.POLICY_RATE_LIMIT_EXCEEDED))
+                .given(policyTrafficRateLimitService)
+                .checkRankingLimit("fp:fp-ranking");
+
+        mockMvc.perform(get("/api/policies/ranking"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("P003"));
+    }
+
+    @Test
+    @DisplayName("정책 오류제보 API는 긴 note를 400으로 거부한다")
+    void policyErrorReportRejectsTooLongNote() throws Exception {
+        mockMvc.perform(post("/api/policies/{id}/error-reports", 11L)
+                        .with(authentication(new UsernamePasswordAuthenticationToken(
+                                new AuthenticatedUser(1L, "user-key-1"),
+                                null,
+                                Collections.emptyList()
+                        )))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reasonCode": "REGION_MISMATCH",
+                                  "note": "%s"
+                                }
+                                """.formatted("x".repeat(1001))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
     }
 
     @Test

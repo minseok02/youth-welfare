@@ -72,4 +72,17 @@ class UserPiiSyncQueueServiceTest {
         assertThat(userPiiSyncQueueService.countByStatus(UserPiiSyncQueueStatus.FAILED)).isEqualTo(1L);
         assertThat(userPiiSyncQueueService.findFailedSamples(5)).containsExactly(queue);
     }
+
+    @Test
+    @DisplayName("deleteByUserKey는 blank userKey를 무시하고 정상 userKey만 command repository에 위임한다")
+    void deleteByUserKeyIgnoresBlank() {
+        assertThat(userPiiSyncQueueService.deleteByUserKey(" ")).isZero();
+
+        then(userPiiSyncQueueCommandRepository).shouldHaveNoInteractions();
+
+        given(userPiiSyncQueueCommandRepository.deleteByUserKey("user-key-4")).willReturn(1L);
+
+        assertThat(userPiiSyncQueueService.deleteByUserKey("user-key-4")).isEqualTo(1L);
+        then(userPiiSyncQueueCommandRepository).should().deleteByUserKey("user-key-4");
+    }
 }

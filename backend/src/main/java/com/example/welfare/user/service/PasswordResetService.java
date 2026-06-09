@@ -23,7 +23,6 @@ import java.util.concurrent.TimeUnit;
 public class PasswordResetService {
 
     private static final String PASSWORD_RESET_TOKEN_PREFIX = "password-reset:";
-    private static final String PASSWORD_RESET_USER_PREFIX = "password-reset:user:";
     private static final String PASSWORD_RESET_REQUEST_COOLDOWN_PREFIX = "password-reset:cooldown:";
     private static final String PASSWORD_RESET_SUBJECT = "[청년복지] 비밀번호 재설정 안내";
 
@@ -80,7 +79,11 @@ public class PasswordResetService {
             throw new CustomException(ErrorCode.PASSWORD_RESET_TOKEN_INVALID);
         }
 
-        String userKey = redisTemplate.opsForValue().get(passwordResetTokenKey(resetToken));
+        String resetTokenHash = OpaqueTokenHash.sha256Hex(resetToken);
+        String userKey = redisTemplate.opsForValue().get(passwordResetTokenKey(resetTokenHash));
+        if (!StringUtils.hasText(userKey)) {
+            userKey = redisTemplate.opsForValue().get(passwordResetTokenKey(resetToken));
+        }
         if (!StringUtils.hasText(userKey)) {
             throw new CustomException(ErrorCode.PASSWORD_RESET_TOKEN_INVALID);
         }
@@ -88,8 +91,8 @@ public class PasswordResetService {
         var user = activeUserReadService.findOptionalActiveUserByUserKey(userKey)
                 .orElseThrow(() -> new CustomException(ErrorCode.PASSWORD_RESET_TOKEN_INVALID));
 
-        String latestToken = redisTemplate.opsForValue().get(passwordResetUserKey(userKey));
-        if (!resetToken.equals(latestToken)) {
+        String latestToken = getPasswordResetUserToken(userKey);
+        if (!resetTokenHash.equals(latestToken) && !resetToken.equals(latestToken)) {
             throw new CustomException(ErrorCode.PASSWORD_RESET_TOKEN_INVALID);
         }
 
@@ -101,28 +104,32 @@ public class PasswordResetService {
     }
 
     private void savePasswordResetToken(String userKey, String token) {
-        String previousToken = redisTemplate.opsForValue().get(passwordResetUserKey(userKey));
-        if (StringUtils.hasText(previousToken)) {
-            redisTemplate.delete(passwordResetTokenKey(previousToken));
+        String tokenHash = OpaqueTokenHash.sha256Hex(token);
+        String previousTokenOrHash = getPasswordResetUserToken(userKey);
+        if (StringUtils.hasText(previousTokenOrHash)) {
+            redisTemplate.delete(passwordResetTokenKey(previousTokenOrHash));
         }
 
         redisTemplate.opsForValue().set(
-                passwordResetTokenKey(token),
+                passwordResetTokenKey(tokenHash),
                 userKey,
                 passwordResetExpirationMinutes,
                 TimeUnit.MINUTES
         );
         redisTemplate.opsForValue().set(
                 passwordResetUserKey(userKey),
-                token,
+                tokenHash,
                 passwordResetExpirationMinutes,
                 TimeUnit.MINUTES
         );
+        redisTemplate.delete(legacyPasswordResetUserKey(userKey));
     }
 
     private void clearPasswordResetToken(String userKey, String token) {
+        redisTemplate.delete(passwordResetTokenKey(OpaqueTokenHash.sha256Hex(token)));
         redisTemplate.delete(passwordResetTokenKey(token));
         redisTemplate.delete(passwordResetUserKey(userKey));
+        redisTemplate.delete(legacyPasswordResetUserKey(userKey));
     }
 
     private String buildPasswordResetText(String token) {
@@ -143,7 +150,19 @@ public class PasswordResetService {
     }
 
     private String passwordResetUserKey(String userKey) {
-        return PASSWORD_RESET_USER_PREFIX + userKey;
+        return UserRedisKeys.passwordResetUserKey(userKey);
+    }
+
+    private String legacyPasswordResetUserKey(String userKey) {
+        return UserRedisKeys.legacyPasswordResetUserKey(userKey);
+    }
+
+    private String getPasswordResetUserToken(String userKey) {
+        String latestToken = redisTemplate.opsForValue().get(passwordResetUserKey(userKey));
+        if (StringUtils.hasText(latestToken)) {
+            return latestToken;
+        }
+        return redisTemplate.opsForValue().get(legacyPasswordResetUserKey(userKey));
     }
 
     private boolean acquireResetRequestCooldown(String email) {

@@ -100,7 +100,8 @@ public class RecommendationGenerationService {
         try {
             recommendationLogService.refreshLogs(user, saved, weight);
         } catch (Exception e) {
-            log.warn("[RecommendationGenerationService] 로그 후처리 실패 userKey={} err={}", userKey, e.getMessage());
+            log.warn("[RecommendationGenerationService] 로그 후처리 실패 userKey={} errorType={}",
+                    userKey, e.getClass().getSimpleName());
         }
         if (!personal) {
             recommendationRefreshCacheService.markReusable(userKey, saved.get(0).getRecommendedAt());

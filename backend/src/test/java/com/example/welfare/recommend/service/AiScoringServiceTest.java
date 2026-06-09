@@ -120,6 +120,18 @@ class AiScoringServiceTest {
         );
     }
 
+    @Test
+    @DisplayName("후보가 없으면 cache/gateway 호출 없이 빈 결과를 반환한다")
+    void scoreReturnsEmptyResultWhenCandidatesEmpty() {
+        AiScoringService service = new AiScoringService(aiRecommendationGateway, clusterAiScoreCache);
+
+        List<ScoredCandidate> scored = service.score("cluster-b", List.of(), snapshot());
+
+        assertThat(scored).isEmpty();
+        verify(clusterAiScoreCache, never()).findByClusterId("cluster-b");
+        verify(aiRecommendationGateway, never()).score(eq("cluster-b"), anyList(), eq(snapshot()));
+    }
+
     private RecommendationUserSnapshot snapshot() {
         return new RecommendationUserSnapshot(
                 1L, "user-key", 25, "20대", "서울특별시", "관악구", "11620",

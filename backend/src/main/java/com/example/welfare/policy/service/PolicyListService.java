@@ -167,6 +167,9 @@ public class PolicyListService {
     // 1분위 선택 → null (숨길 하위 분위 없음)
     private Integer resolveIncomeMaxWon(Integer incomeLevel) {
         if (incomeLevel == null || incomeLevel <= 1) return null;
+        if (incomeLevel > 10) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
         int prevLevel = incomeLevel - 2;
         if (prevLevel <= 0) return null;
         return INCOME_THRESHOLDS[prevLevel];

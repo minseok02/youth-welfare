@@ -3,6 +3,7 @@ package com.example.welfare.global.config;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.response.ApiResponse;
 import com.example.welfare.global.util.JwtUtil;
+import com.example.welfare.user.service.AdminAccessAuthorityService;
 import com.example.welfare.user.service.UserSessionRevocationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ public class SecurityConfig {
 
     private final JwtUtil jwtUtil;
     private final UserSessionRevocationService userSessionRevocationService;
+    private final AdminAccessAuthorityService adminAccessAuthorityService;
     private final ObjectMapper objectMapper;
     @Value("${security.cors.allowed-origins:http://127.0.0.1:3000,http://localhost:3000,http://127.0.0.1:5173,http://localhost:5173}")
     private String corsAllowedOrigins;
@@ -110,7 +112,7 @@ public class SecurityConfig {
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(new JwtAuthenticationFilter(jwtUtil, userSessionRevocationService),
+                .addFilterBefore(new JwtAuthenticationFilter(jwtUtil, userSessionRevocationService, adminAccessAuthorityService),
                         UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

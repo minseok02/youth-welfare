@@ -2,11 +2,13 @@ package com.example.welfare.recommend.service;
 
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.global.util.RedisKeyHash;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.UUID;
@@ -17,7 +19,7 @@ import java.util.function.Supplier;
 @Component
 public class RecommendationExecutionGuard {
 
-    private static final String LOCK_KEY_PREFIX = "recommend:lock:user:";
+    private static final String LOCK_KEY_PREFIX = "recommend:lock:user:v2:";
 
     private final RedisTemplate<String, String> redisTemplate;
     private final DefaultRedisScript<Long> releaseIfOwnedScript;
@@ -47,29 +49,31 @@ public class RecommendationExecutionGuard {
     }
 
     public <T> T runForUser(String userKey, Supplier<T> task, Supplier<T> fallback) {
+        validateUserKey(userKey);
         LockHandle lockHandle = tryAcquire(userKey);
         if (!lockHandle.acquired()) {
-            log.warn("[RecommendationExecutionGuard] 추천 생성이 이미 진행 중입니다. userKey={}", userKey);
+            log.warn("[RecommendationExecutionGuard] 추천 생성이 이미 진행 중입니다. userKeyHash={}", RedisKeyHash.sha256Hex(userKey));
             return awaitFallback(userKey, fallback);
         }
 
         try {
-            log.info("[RecommendationExecutionGuard] 추천 생성 시작 userKey={}", userKey);
+            log.info("[RecommendationExecutionGuard] 추천 생성 시작 userKeyHash={}", RedisKeyHash.sha256Hex(userKey));
             return task.get();
         } finally {
             release(userKey, lockHandle.ownerToken());
-            log.info("[RecommendationExecutionGuard] 추천 생성 종료 userKey={}", userKey);
+            log.info("[RecommendationExecutionGuard] 추천 생성 종료 userKeyHash={}", RedisKeyHash.sha256Hex(userKey));
         }
     }
 
     public void runCommandForUser(String userKey, Runnable task) {
+        validateUserKey(userKey);
         LockHandle lockHandle = awaitAcquire(userKey);
         try {
-            log.info("[RecommendationExecutionGuard] 추천 command 실행 시작 userKey={}", userKey);
+            log.info("[RecommendationExecutionGuard] 추천 command 실행 시작 userKeyHash={}", RedisKeyHash.sha256Hex(userKey));
             task.run();
         } finally {
             release(userKey, lockHandle.ownerToken());
-            log.info("[RecommendationExecutionGuard] 추천 command 실행 종료 userKey={}", userKey);
+            log.info("[RecommendationExecutionGuard] 추천 command 실행 종료 userKeyHash={}", RedisKeyHash.sha256Hex(userKey));
         }
     }
 
@@ -101,7 +105,7 @@ public class RecommendationExecutionGuard {
     private void release(String userKey, String ownerToken) {
         Long released = redisTemplate.execute(releaseIfOwnedScript, List.of(lockKey(userKey)), ownerToken);
         if (!Long.valueOf(1L).equals(released)) {
-            log.warn("[RecommendationExecutionGuard] 추천 lock 해제 확인 실패 userKey={}", userKey);
+            log.warn("[RecommendationExecutionGuard] 추천 lock 해제 확인 실패 userKeyHash={}", RedisKeyHash.sha256Hex(userKey));
         }
     }
 
@@ -142,7 +146,13 @@ public class RecommendationExecutionGuard {
     }
 
     String lockKey(String userKey) {
-        return LOCK_KEY_PREFIX + userKey;
+        return LOCK_KEY_PREFIX + RedisKeyHash.sha256Hex(userKey);
+    }
+
+    private void validateUserKey(String userKey) {
+        if (!StringUtils.hasText(userKey)) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
     }
 
     private record LockHandle(String ownerToken, boolean acquired) {

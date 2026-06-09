@@ -21,7 +21,7 @@ class SecondaryDataSourceSchemaGuardTest {
     @Test
     void rejectsCoreSchemaUrl() {
         SecondaryDataSourceSchemaGuard guard = new SecondaryDataSourceSchemaGuard(
-                properties("jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=public"),
+                properties("jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&password=secret-value&currentSchema=public"),
                 properties("jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii")
         );
 
@@ -29,7 +29,9 @@ class SecondaryDataSourceSchemaGuardTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("app.datasource.pii-rw.url")
                 .hasMessageContaining("youth_welfare_pii")
-                .hasMessageContaining("youth_welfare");
+                .hasMessageContaining("youth_welfare")
+                .hasMessageContaining("password=<redacted>")
+                .hasMessageNotContaining("secret-value");
     }
 
     @Test
@@ -54,10 +56,12 @@ class SecondaryDataSourceSchemaGuardTest {
     void rejectsMysqlJdbcUrl() {
         assertThatThrownBy(() -> SecondaryDataSourceSchemaGuard.extractDatabaseName(
                 "app.datasource.pii-rw.url",
-                "jdbc:mysql://db:3306/youth_welfare_pii"
+                "jdbc:mysql://db:3306/youth_welfare_pii?password=secret-value"
         ))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("must be a jdbc:postgresql: URL");
+                .hasMessageContaining("must be a jdbc:postgresql: URL")
+                .hasMessageContaining("password=<redacted>")
+                .hasMessageNotContaining("secret-value");
     }
 
     private DataSourceProperties properties(String url) {

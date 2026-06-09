@@ -5,4 +5,6 @@ import com.example.welfare.user.entity.UserPiiSyncQueue;
 public interface UserPiiSyncQueueCommandRepository {
 
     UserPiiSyncQueue save(UserPiiSyncQueue queue);
+
+    long deleteByUserKey(String userKey);
 }

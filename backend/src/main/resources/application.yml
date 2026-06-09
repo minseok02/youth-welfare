@@ -146,6 +146,8 @@ auth:
   password-reset:
     expiration-minutes: ${AUTH_PASSWORD_RESET_EXPIRATION_MINUTES:30}
     request-cooldown-seconds: ${AUTH_PASSWORD_RESET_REQUEST_COOLDOWN_SECONDS:60}
+  email-verification:
+    code-hmac-secret: ${AUTH_EMAIL_VERIFICATION_CODE_HMAC_SECRET:${JWT_SECRET}}
 
 chat:
   rate-limit:
@@ -244,6 +246,8 @@ notification:
     public-key: ${WEB_PUSH_PUBLIC_KEY:}
     private-key: ${WEB_PUSH_PRIVATE_KEY:}
     subject: ${WEB_PUSH_SUBJECT:}
+    max-subscriptions-per-user: ${WEB_PUSH_MAX_SUBSCRIPTIONS_PER_USER:10}
+    send-timeout-seconds: ${WEB_PUSH_SEND_TIMEOUT_SECONDS:10}
 
 springdoc:
   api-docs:

@@ -67,4 +67,9 @@ public class UserPiiSyncQueueReadRepositoryImpl implements UserPiiSyncQueueReadR
                 .map(UserPiiSyncQueue::getUserKey)
                 .toList();
     }
+
+    @Override
+    public List<UserPiiSyncQueue> findLegacyEncryptedPayloads() {
+        return userPiiSyncQueueRepository.findLegacyEncryptedPayloads();
+    }
 }

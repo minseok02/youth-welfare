@@ -1,6 +1,7 @@
 package com.example.welfare.integration;
 
 import com.example.welfare.global.util.JwtUtil;
+import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -63,6 +64,7 @@ class UserWithdrawAccessTokenBaselineIntegrationTest {
                 .forEach(user -> {
                     String userKey = userRepository.findUserKeyById(user.getId()).orElse(null);
                     if (userKey != null) {
+                        redisTemplate.delete(refreshKey(userKey));
                         redisTemplate.delete("refresh:" + userKey);
                     }
                     redisTemplate.delete("refresh:" + user.getId());
@@ -82,7 +84,7 @@ class UserWithdrawAccessTokenBaselineIntegrationTest {
         String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
         String oldAccessToken = jwtUtil.generateAccessToken(userKey, user.getId());
         String refreshToken = jwtUtil.generateRefreshToken(userKey, user.getId());
-        redisTemplate.opsForValue().set("refresh:" + userKey, refreshToken);
+        redisTemplate.opsForValue().set(refreshKey(userKey), refreshToken);
 
         mockMvc.perform(delete("/api/users/me")
                         .header("Authorization", "Bearer " + oldAccessToken)
@@ -97,6 +99,7 @@ class UserWithdrawAccessTokenBaselineIntegrationTest {
 
         User withdrawnUser = userRepository.findById(user.getId()).orElseThrow();
         assertThat(withdrawnUser.isActive()).isFalse();
+        assertThat(redisTemplate.opsForValue().get(refreshKey(userKey))).isNull();
         assertThat(redisTemplate.opsForValue().get("refresh:" + userKey)).isNull();
 
         mockMvc.perform(get("/api/users/me/bookmarks")
@@ -116,5 +119,9 @@ class UserWithdrawAccessTokenBaselineIntegrationTest {
                 .andExpect(status().isGone())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("U003"));
+    }
+
+    private String refreshKey(String userKey) {
+        return "refresh:v2:" + RedisKeyHash.sha256Hex(userKey);
     }
 }

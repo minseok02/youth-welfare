@@ -77,7 +77,8 @@ public class OpenAiChatEmbeddingGateway implements ChatEmbeddingGateway {
             if (!allowLocalFallback) {
                 throw new IllegalStateException("OpenAI embedding request failed during strict embedding refresh", e);
             }
-            log.warn("[OpenAiChatEmbeddingGateway] 임베딩 호출 실패, local fallback 사용: {}", e.getMessage());
+            log.warn("[OpenAiChatEmbeddingGateway] 임베딩 호출 실패, local fallback 사용 errorType={}",
+                    e.getClass().getSimpleName());
             return normalizedTexts.stream()
                     .map(this::createLocalEmbedding)
                     .toList();

@@ -2,6 +2,7 @@ package com.example.welfare.recommend.service;
 
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.global.util.RedisKeyHash;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -36,6 +37,9 @@ public class RecommendationRefreshRateLimitService {
     }
 
     public void checkRefreshLimit(String userKey, boolean personal) {
+        if (!StringUtils.hasText(userKey)) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
         if (personal) {
             checkLimit(buildPersonalRefreshRateLimitKey(userKey), personalMaxRequests, personalWindowSeconds);
             return;
@@ -67,10 +71,7 @@ public class RecommendationRefreshRateLimitService {
     }
 
     private String normalizeUserKey(String userKey) {
-        if (!StringUtils.hasText(userKey)) {
-            return "anonymous";
-        }
-        return userKey.trim();
+        return RedisKeyHash.sha256Hex(userKey);
     }
 
     private boolean hasNoExpiry(String key) {

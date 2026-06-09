@@ -14,6 +14,7 @@ import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDate;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
@@ -35,6 +36,9 @@ class UserCoreSyncServiceTest {
 
     @Mock
     private AuthIdentityReadService authIdentityReadService;
+
+    @Mock
+    private UserPiiCommandService userPiiCommandService;
 
     @Mock
     private AesEncryptUtil aesEncryptUtil;
@@ -79,6 +83,7 @@ class UserCoreSyncServiceTest {
                 userPiiSyncQueueService,
                 userPlainPiiReadService,
                 authIdentityReadService,
+                userPiiCommandService,
                 aesEncryptUtil,
                 applicationEventPublisher
         );
@@ -101,6 +106,8 @@ class UserCoreSyncServiceTest {
         then(userPiiSyncQueueService).should()
                 .enqueue("user-key-1", "enc-email", "enc-name", "enc-birth", "enc-phone");
         then(applicationEventPublisher).should().publishEvent(new UserPiiSyncRequestedEvent("user-key-1"));
+        assertThat(user.getName()).isNull();
+        assertThat(user.getBirthDate()).isNull();
     }
 
     @Test
@@ -130,6 +137,7 @@ class UserCoreSyncServiceTest {
                 userPiiSyncQueueService,
                 userPlainPiiReadService,
                 authIdentityReadService,
+                userPiiCommandService,
                 aesEncryptUtil,
                 applicationEventPublisher
         );
@@ -141,5 +149,49 @@ class UserCoreSyncServiceTest {
         then(aesEncryptUtil).should().encrypt("changed-contact@example.com");
         then(userCoreProjectionSyncService).should(never())
                 .syncAuthUser(user, "user-key-2", EmailLookupKeyGenerator.hash("changed-contact@example.com"));
+    }
+
+    @Test
+    @DisplayName("withdraw sync는 auth/profile만 비활성 상태로 반영하고 PII 저장소와 queue를 삭제한다")
+    void syncWithdrawnUserPurgesPiiStores() {
+        User user = User.builder()
+                .id(3L)
+                .email("withdrawn_3")
+                .passwordHash("withdrawn")
+                .build();
+        user.withdraw();
+
+        given(authIdentityReadService.findByUserKey("user-key-3"))
+                .willReturn(java.util.Optional.of(
+                        AuthUser.builder()
+                                .userKey("user-key-3")
+                                .emailLookupHash("existing-hash")
+                                .build()
+                ));
+
+        UserCoreSyncService service = new UserCoreSyncService(
+                userKeyLookupService,
+                userCoreProjectionSyncService,
+                userPiiSyncQueueService,
+                userPlainPiiReadService,
+                authIdentityReadService,
+                userPiiCommandService,
+                aesEncryptUtil,
+                applicationEventPublisher
+        );
+
+        service.syncWithdrawnUser(user, "user-key-3");
+
+        then(userCoreProjectionSyncService).should().syncAuthUser(user, "user-key-3", "existing-hash");
+        then(userCoreProjectionSyncService).should()
+                .syncUserProfile(user, "user-key-3", null, null, null, false, false);
+        then(userPiiSyncQueueService).should().deleteByUserKey("user-key-3");
+        then(userPiiCommandService).should().deleteByUserKey("user-key-3");
+        then(userPlainPiiReadService).should(never()).resolveCurrent(user, "user-key-3");
+        then(userPiiSyncQueueService).should(never())
+                .enqueue(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.any());
+        then(applicationEventPublisher).should(never()).publishEvent(org.mockito.ArgumentMatchers.any());
     }
 }
