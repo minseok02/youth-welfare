@@ -5,7 +5,6 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
 
 smoke_require_command bash
-smoke_require_command docker
 smoke_require_command python3
 
 TIMESTAMP_UTC="$(smoke_now_ts_utc)"
@@ -68,7 +67,7 @@ USER_COHORT=real_user \
 bash "${ROOT_DIR}/deploy/smoke/run-local-recommendation-concentration-audit.sh" | tee "${REAL_USER_OUTPUT}"
 
 smoke_print_step "mixed top1 leader origin mix"
-docker exec -i youth-welfare-db psql -U postgres -d youth_welfare -At <<'SQL' | tee "${LEADER_MIX_OUTPUT}"
+smoke_db_query "$(cat <<'SQL'
 WITH latest AS (
   SELECT user_key, MAX(recommended_at) AS recommended_at
   FROM user_recommendations
@@ -108,6 +107,7 @@ WHERE service_id = (SELECT service_id FROM leader)
 GROUP BY account_origin
 ORDER BY COUNT(*) DESC, account_origin;
 SQL
+)" | tee "${LEADER_MIX_OUTPUT}"
 
 MIXED_LATEST_BATCH_USERS="$(extract_key_value "${MIXED_OUTPUT}" "latest_batch_users")"
 MIXED_EXAMPLE_USERS="$(extract_key_value "${MIXED_OUTPUT}" "latest_batch_example_users")"
@@ -127,7 +127,7 @@ REAL_USER_TOP1_LEADER_SHARE_PCT="$(extract_key_value "${REAL_USER_OUTPUT}" "top1
 REAL_USER_CONCENTRATION_READINESS="$(extract_section_value "${REAL_USER_OUTPUT}" "concentration_readiness")"
 REAL_USER_LATEST_BATCH_USERS="$(extract_key_value "${REAL_USER_OUTPUT}" "latest_batch_users")"
 
-docker exec -i youth-welfare-db psql -U postgres -d youth_welfare -At <<'SQL' > "${LEADER_GAP_OUTPUT}"
+smoke_db_query "$(cat <<'SQL'
 WITH latest AS (
   SELECT user_key, MAX(recommended_at) AS recommended_at
   FROM user_recommendations
@@ -187,6 +187,7 @@ SELECT 'real_user_mixed_leader_any_rank_count=' || COUNT(*)
 FROM real_user_rows
 WHERE service_id = (SELECT service_id FROM mixed_top1_leader);
 SQL
+)" > "${LEADER_GAP_OUTPUT}"
 
 MIXED_TOP1_LEADER_REAL_USER_USERS="$(
   python3 - "${LEADER_MIX_OUTPUT}" <<'PY'
