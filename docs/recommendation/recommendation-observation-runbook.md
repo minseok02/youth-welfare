@@ -69,6 +69,14 @@ bash deploy/smoke/run-local-recommendation-observation-suite.sh
 
 ## 상태 해석
 
+### `precheck_status=KEEP_OBSERVING`
+
+- recommendation 코드는 다시 열지 않습니다.
+- `DEFERRED_REAL_USER_SAMPLE_THIN` 또는 `EXAMPLE_SMOKE_ONLY_LEADER` 가 같이 보이면 real-user sample/leader signal 관찰을 유지합니다.
+- operator 해석:
+  - reopen decision 문서로 넘어가지 않습니다.
+  - global weight, prompt, source/category balancing 을 건드리지 않습니다.
+
 ### `decision_class=OBSERVE_REAL_USER_TRAFFIC`
 
 - recommendation 코드는 다시 열지 않습니다.
@@ -122,6 +130,19 @@ bash deploy/smoke/run-local-recommendation-observation-suite.sh
 - `recommendation_standard_code_adoption_status`
 - `recommendation_standard_code_adoption_latest_batch_users_with_any_standard_code_share_pct`
 - `recommendation_standard_code_adoption_latest_batch_users_missing_all_standard_codes`
+
+## 현재 server/RDS 기준
+
+2026-06-09 최신 reopen precheck 기준:
+
+- `reopen_precheck_status=KEEP_OBSERVING`
+- `real_user_dashboard_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
+- `real_user_breakdown_cohort_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
+- `real_user_review_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
+- `real_user_top1_leader_signal_summary=EXAMPLE_SMOKE_ONLY_LEADER`
+- `review_gate_policy_promotion_execution_status=DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW`
+
+따라서 현재 observation 결과는 recommendation reopen이 아니라 관찰 유지로 handoff 합니다.
 
 ## 한 줄 요약
 

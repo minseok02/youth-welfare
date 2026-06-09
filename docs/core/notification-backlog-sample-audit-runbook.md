@@ -33,6 +33,7 @@ bash deploy/smoke/run-local-notification-backlog-sample-audit.sh
   - 2주 이상 unread sample이 남아 있는 상태
 - `STALE_UNREAD_7D_SAMPLE_REVIEW`
   - 1주 이상 unread sample review가 필요한 상태
+  - 현재 sample이 모두 `RECOMMENDATION_DIGEST` 이고 failed/14일 cluster가 없으면, 장애보다 digest cadence/landing 관찰 tail 로 읽는다.
 - `RECENT_UNREAD_ONLY`
   - 장기 미열람은 없고 최근 unread만 남은 상태
 
@@ -51,8 +52,26 @@ bash deploy/smoke/run-local-notification-backlog-sample-audit.sh
   - reminder 주기/노출/숨김 흐름 점검이 우선
 - `digest_unread` 가 stale sample 상위면
   - digest 빈도나 기대 행동이 맞는지 점검
+  - 14일 초과 target cluster가 없으면 broad hide보다 cadence/landing 관찰을 우선한다.
 - `system_unread` 가 stale로 남으면
   - 시스템성 알림 자체를 다시 봐야 한다
+
+## 현재 server/RDS 기준
+
+2026-06-09 최신 server/RDS sample audit 기준:
+
+- `decision_class=STALE_UNREAD_7D_SAMPLE_REVIEW`
+- `unread_total=24`
+- `unique_users_with_unread=2`
+- `digest_unread=24`
+- `deadline_unread=0`
+- `system_unread=0`
+- `users_with_2plus_unread=2`
+- `users_with_5plus_unread=2`
+- `stale_unread_7d=12`
+- `stale_unread_14d=0`
+
+즉 현재 sample은 deadline reminder 정리나 시스템 알림 장애가 아니라, 소수 사용자에게 남은 recommendation digest unread tail 이다.
 
 ## 관련 문서
 

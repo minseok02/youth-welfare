@@ -81,3 +81,20 @@ bash deploy/smoke/run-local-youth-duplicate-candidate-audit.sh
 
 - `BOKJIRO_LOCAL` 은 title-only duplicate를 바로 dedupe 후보로 보면 안 됩니다.
 - `YOUTH` 는 same-org/same-period 반복이 있으면 별도 true duplicate candidate audit를 먼저 보고 판단하는 편이 맞습니다.
+
+## 현재 server/RDS 기준
+
+2026-06-09 최신 server/RDS duplicate candidate audit 기준:
+
+- `duplicate_groups_total=69`
+- `duplicate_rows_total=142`
+- `exact_duplicate_groups=12`
+- `exact_duplicate_rows=24`
+- `mirror_variant_groups=16`
+- `mirror_variant_rows=32`
+- `date_or_contract_drift_groups=41`
+- `date_or_contract_drift_rows=86`
+- `decision_class=YOUTH_TRUE_DUPLICATE_REVIEW_PRIORITY`
+
+다만 policy data triage wrapper 기준 `policy_duplicate_open_groups=0`, `policy_duplicate_open_rows=0` 이므로,
+현재는 raw 후보 관찰 단계입니다. 새 `OPEN` duplicate queue가 생길 때만 exact -> mirror -> drift 순서로 review를 재개합니다.

@@ -32,9 +32,10 @@
 
 - [start.md](./start.md)
 - [project-spec.md](./project-spec.md)
-- [README.md](./README.md)
+- [stabilization-handoff.md](./stabilization-handoff.md)
 - [current-state.md](./current-state.md)
 - [stabilization-checklist.md](core/stabilization-checklist.md)
+- [final-ops-closeout-checklist.md](core/final-ops-closeout-checklist.md)
 - [work-guide.md](./work-guide.md)
 - [architecture.md](./architecture.md)
 - [api-mapping.md](core/api-mapping.md)
@@ -88,12 +89,11 @@
 
 현재 우선순위:
 
-- 로컬 기능 검증
-- 구조 검증
-- 수정
-- 최적화/보안
-- 프론트 연동 검증
-- 마지막에만 infra/deploy
+- 안정화와 회귀 방지
+- 운영 observation 기준선 유지
+- 실제 `OPEN` queue와 attention warning 처리
+- 문서와 관측값 drift 보정
+- 새 기능/튜닝은 명시적 reopen 조건이 생길 때만 진행
 
 ## 2. design history 로 읽을 문서
 
@@ -191,4 +191,4 @@
 3. 쪼개진 `policy` / `auth-admin-forced-logout-*` 문서는 대부분 design history 로 읽습니다.
 4. `auth-docs-index.md`, `collect-docs-index.md`, `recommendation-docs-index.md`, `frontend-qa-docs-index.md`, `policy-docs-index.md`, `local-validation-docs-index.md`, `system-docs-index.md` 가 active 문서군의 1차 진입점이고, `history-docs-index.md` 는 배경 문서군의 진입점입니다.
 5. `Gov24` 는 runtime collect/runtime audit까지는 이미 closeout 되었고, 남은 hard import/backfill과 deferred code 승격 판단은 [policy-gov24-blocked-track-status.md](policy/policy-gov24-blocked-track-status.md) 에서 먼저 확인합니다.
-6. 지금 기준에서 pure ops/runbook 문서는 삭제했고, 서버가 생기기 전까지는 local-only 문서만 유지합니다.
+6. 운영 서버/RDS 기준 runbook은 active 문서입니다. 안정화 closeout은 [final-ops-closeout-checklist.md](core/final-ops-closeout-checklist.md) 순서로 확인합니다.

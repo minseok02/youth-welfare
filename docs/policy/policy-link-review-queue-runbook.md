@@ -115,7 +115,7 @@
 
 ## 현재 해석
 
-- `active_visible_youth_total=164`
+- `active_visible_youth_total=172`
 - `benefit_support=30`
 - `announcement_recruitment=12`
 - `program_event=9`

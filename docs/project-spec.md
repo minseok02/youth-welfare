@@ -7,8 +7,8 @@
 - 프로젝트명: 청년 복지 통합 플랫폼
 - 유형: 졸업 프로젝트
 - 팀 규모: 2명
-- 현재 단계: 로컬 기능/구조 검증 단계
-- 운영 서버: 아직 없음
+- 현재 단계: 기능 추가 중단 후 안정화/회귀 방지 단계
+- 운영 서버: EC2 Docker Compose app + Redis, RDS PostgreSQL
 
 ## 주요 기술
 
@@ -52,6 +52,7 @@
 ## 참고 문서
 
 - 시스템 문서군 진입점: [system-docs-index.md](core/system-docs-index.md)
+- 인수인계: [stabilization-handoff.md](./stabilization-handoff.md)
 - 구조: [architecture.md](./architecture.md)
 - 요구사항: [srs-v2.10.md](core/srs-v2.10.md)
 - 로컬 검증: [local-validation-docs-index.md](core/local-validation-docs-index.md)

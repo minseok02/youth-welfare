@@ -26,11 +26,9 @@
 현재 기본 해석은 아래와 같습니다.
 
 - `REAL_USER` readiness gate가 deferred면 이 문서를 바로 쓰지 않습니다.
-- readiness는 열렸지만 full latest batch review gate가 historical example inertia에 묶여 있으면, current decision은 `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 로 읽는 편이 맞습니다.
-- current review gate interpretation class는 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` 입니다.
-- current review gate operating mode는 `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 입니다.
-- current review gate policy candidate status는 `RECENT_WINDOW_POLICY_CANDIDATE` 입니다.
-- current review gate policy promotion status는 `REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW` 입니다.
+- `2026-06-09` server/RDS current truth는 `KEEP_OBSERVING` 입니다.
+- 최신 precheck 기준 `real_user_dashboard_gate=DEFERRED_REAL_USER_SAMPLE_THIN`, `real_user_breakdown_cohort_gate=DEFERRED_REAL_USER_SAMPLE_THIN`, `real_user_top1_leader_signal_summary=EXAMPLE_SMOKE_ONLY_LEADER` 입니다.
+- policy promotion도 `KEEP_PRIMARY_BASELINE`, `NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW`, `DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW` 로 읽습니다.
 - reopen 판단은 gate 확인 뒤에만 들어옵니다.
 
 ## 언제 이 문서를 쓰나
@@ -58,8 +56,28 @@ bash deploy/smoke/run-local-recommendation-reopen-precheck.sh
 - 새 rank/cache/diagnostics mismatch 같은 재현 가능한 버그가 먼저 보일 때
 - `REAL_USER` gate 가 아직 닫혀 있을 때
 - server/RDS current truth가 `KEEP_OBSERVING / WAIT_FOR_REAL_USER_TRAFFIC` 일 때
+- server/RDS current truth가 `DEFERRED_REAL_USER_SAMPLE_THIN / EXAMPLE_SMOKE_ONLY_LEADER` 일 때
 
 이 경우는 decision runbook 보다 bugfix 또는 readiness runbook 을 먼저 봅니다.
+
+## 현재 server/RDS 기준
+
+2026-06-09 최신 precheck 기준:
+
+- `reopen_precheck_status=KEEP_OBSERVING`
+- `reopen_precheck_reason=INVESTIGATE_SAME_PROFILE_EXAMPLE_VS_REAL_USER_DIFFERENTIAL`
+- `gate_action_class=KEEP_BASELINE_MONITORING`
+- `gate_policy_status=PRIMARY_BLOCKER_ONLY`
+- `real_user_dashboard_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
+- `real_user_breakdown_cohort_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
+- `real_user_review_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
+- `real_user_top1_leader_signal_summary=EXAMPLE_SMOKE_ONLY_LEADER`
+- `review_gate_policy_promotion_status=KEEP_PRIMARY_BASELINE`
+- `review_gate_policy_promotion_readiness_status=NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW`
+- `review_gate_policy_promotion_execution_status=DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW`
+
+이 상태에서는 lane 1/2/3 중 어느 것도 열지 않습니다.
+다음 액션은 real-user sample과 leader signal 관찰 유지입니다.
 
 ## 먼저 확인할 것
 

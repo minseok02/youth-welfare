@@ -19,6 +19,12 @@
 - [current-state.md](./current-state.md)
   지금 단계가 무엇인지, 무엇을 먼저 해야 하는지 봅니다.
 
+- [stabilization-handoff.md](./stabilization-handoff.md)
+  안정화 모드의 현재 운영 기준선과 이어서 할 일을 봅니다.
+
+- [core/final-ops-closeout-checklist.md](./core/final-ops-closeout-checklist.md)
+  PR/배포/운영 handoff를 닫기 전 실행 순서를 봅니다.
+
 - [work-guide.md](./work-guide.md)
   작업 순서와 문서/검증/Git 원칙을 봅니다.
 
@@ -39,11 +45,13 @@
 
 ## 지금 기준 한 줄 요약
 
+- 현재 active main track은 기능 추가가 아니라 안정화와 회귀 방지입니다.
 - 최근 보안/운영 후속은 [core/security-hardening-current-state.md](./core/security-hardening-current-state.md) 를 먼저 봅니다.
 - collect, recommendation, policy, auth 는 각 문서군의 `*-current-state.md` 와 `*-docs-index.md` 를 source of truth로 읽습니다.
 - `start.md` 와 [current-state.md](./current-state.md) 는 긴 이력 저장소가 아니라 “무엇을 먼저 읽고 무엇을 먼저 실행할지”만 빠르게 찾는 진입 문서로 유지합니다.
 - 긴 상태 설명, 수치 기준선, 과거 판단은 아래 주제 문서나 `history/` 로 내려 보냅니다.
 - 지금 우선순위는 `현재 active 문서 확인 -> 필요한 smoke/test 실행 -> 코드 변경 -> 문서/검증/Git 정리` 순서입니다.
+- 운영 closeout은 [core/final-ops-closeout-checklist.md](./core/final-ops-closeout-checklist.md) 순서로 닫습니다.
 
 ## recommendation 관찰 순서
 

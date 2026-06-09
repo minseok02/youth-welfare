@@ -126,19 +126,32 @@ bash deploy/smoke/run-local-notification-stale-target-audit.sh
 
 즉 `2주 이상 unread target cluster` 는 더 이상 남아 있지 않다.
 
-현재 남은 unread backlog는 broad stale cluster가 아니라:
+현재 server/RDS 기준 남은 unread backlog는 broad stale cluster가 아니라:
 
-- `unread_total=4`
-- `unread_deadline=4`
-- `stale_unread_7d=2`
+- `unread_total=24`
+- `unread_digest=24`
+- `unread_deadline=0`
+- `stale_unread_7d=12`
+- `stale_unread_14d=0`
 
-수준의 `7일 초과 deadline tail` 로 읽는 편이 맞다.
+수준의 `7일 초과 recommendation digest tail` 로 읽는 편이 맞다.
+
+2026-06-09 최신 server/RDS target audit 기준:
+
+- `stale_14d_total=0`
+- `stale_14d_groups=0`
+- `deadline_groups=0`
+- `digest_groups=0`
+- `decision_class=NO_STALE_TARGETS`
+
+즉 현재는 `hide-stale` 대상이 없다.
 
 ## 7일 초과 tail 운영 기준
 
 `2주 이상` stale target cluster가 없는 상태에서 남는 unread는 보통
 
 - `DEADLINE_REMINDER`
+- 또는 `RECOMMENDATION_DIGEST`
 - `7일 초과`
 - target cluster까지는 아닌 tail
 
@@ -153,12 +166,15 @@ bash deploy/smoke/run-local-notification-stale-target-audit.sh
    - stale tail 정리 후보로 본다.
 3. `같은 target으로 여러 사용자에게 다시 몰리기 시작함`
    - 14일을 기다리기보다 stale target cluster 재발 조짐으로 본다.
+4. `RECOMMENDATION_DIGEST` 만 남은 경우
+   - hide보다 digest cadence/landing 기대 행동 관찰을 먼저 한다.
 
 운영 메모 예시:
 
 - `7일 초과 deadline tail, ACTIVE 정책이라 유지`
 - `7일 초과 unread tail, 종료 정책이라 hide 후보`
 - `7일 초과 reminder가 동일 target에 다시 누적되는지 관찰`
+- `7일 초과 digest tail, hide 대상 없음`
 
 ## 관련 문서
 

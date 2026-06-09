@@ -50,3 +50,18 @@ bash deploy/smoke/run-local-policy-link-review-sample-audit.sh
 
 - 최근 운영 review 기준으로 `출산가정 산후조리비용 지원`, `임신축하금 지원사업`, `군복무 청년 상해보험 가입` 같은 제목은 `other` 가 아니라 `지원금/급부형` 으로 보는 편이 맞습니다.
 - 따라서 bucket 분류는 `축하금`, `조리비(용) 지원`, `보험 가입/지원` 같은 급부형 title 패턴을 포함하도록 유지합니다.
+
+## 현재 server/RDS 기준
+
+2026-06-09 최신 server/RDS sample 기준:
+
+- `active_visible_youth_total=172`
+- `benefit_support_count=33`
+- `announcement_recruitment_count=13`
+- `program_event_count=10`
+- `event_culture_count=5`
+- `other_count=111`
+- `decision_class=MIXED_LINK_REVIEW_PRIORITY`
+
+다만 policy data triage wrapper 기준 `policy_link_open_reviews=0` 이므로, 현재는 raw 후보 관찰 단계입니다.
+새 `OPEN` link review가 생길 때만 이 bucket 순서로 다시 처리합니다.

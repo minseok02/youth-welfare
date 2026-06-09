@@ -30,19 +30,28 @@
 
 ## 현재 판단
 
-`2026-06-01` 서버 기준 recommendation 트랙의 현재 상태는 **real-user gate ready + reopen decision ready + lane 1 local/Gov24 signal boundary closeout** 입니다.
+`2026-06-09` 서버/RDS 기준 recommendation 트랙의 현재 상태는 **KEEP_OBSERVING / reopen 금지** 입니다.
 
-현재 운영 source of truth는 `run-local-recommendation-reopen-precheck.sh`, `run-local-recommendation-observation-suite.sh`, `run-local-current-priority-suite.sh` 를 같이 읽습니다. 최근 current priority suite 기준 결론은 아래입니다.
+현재 운영 source of truth는 `run-local-recommendation-reopen-precheck.sh`, `run-local-recommendation-observation-suite.sh`, admin dashboard summary/breakdowns 를 같이 읽습니다. 최신 server/RDS precheck 기준 결론은 아래입니다.
 
-- `current_priority_suite=passed`
-- `decision_class=REOPEN_DECISION_READY`
-- `reopen_allowed=true`
-- `recommended_cadence=immediate`
-- `dashboard_real_user_gate=READY_REAL_USER_TRAFFIC`
-- `breakdown_real_user_cohort_gate=READY_REAL_USER_COHORT`
-- `recommendation_review_gate=READY_NO_PRIORITY_DOMINANT_REVIEW`
+- `recommendation_reopen_precheck=passed`
+- `reopen_precheck_status=KEEP_OBSERVING`
+- `reopen_precheck_reason=INVESTIGATE_SAME_PROFILE_EXAMPLE_VS_REAL_USER_DIFFERENTIAL`
+- `gate_action_class=KEEP_BASELINE_MONITORING`
+- `gate_policy_status=PRIMARY_BLOCKER_ONLY`
+- `real_user_dashboard_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
+- `real_user_breakdown_cohort_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
+- `real_user_review_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
+- `real_user_top1_leader_signal_summary=EXAMPLE_SMOKE_ONLY_LEADER`
+- `review_gate_policy_promotion_status=KEEP_PRIMARY_BASELINE`
+- `review_gate_policy_promotion_readiness_status=NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW`
+- `review_gate_policy_promotion_execution_status=DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW`
 
-주의할 점은 `latest-status-export` 단독 결과가 baseline helper 범위 때문에 `WAIT_FOR_REAL_USER_TRAFFIC` 로 보일 수 있다는 것입니다. reopen 판단은 latest export 하나가 아니라 overview + real-user precheck + current priority suite 를 같이 본 값으로 확정합니다.
+따라서 지금은 local/Gov24 signal, global weight, prompt, source/category balancing 을 다시 열지 않습니다.
+`REAL_USER` 표본이 최소 기준을 채우고 top1 leader가 example/smoke 중심에서 벗어날 때만 reopen decision 문서로 넘어갑니다.
+
+주의할 점은 아래쪽에 남아 있는 `2026-06-01` 및 이전 local closeout 기록입니다.
+그 기록은 당시 snapshot/historical context 로 읽고, active 운영 판단은 위 `2026-06-09` server/RDS 기준을 우선합니다.
 
 daily operator entrypoint는 [recommendation-observation-runbook.md](./recommendation-observation-runbook.md) 와 `bash deploy/smoke/run-local-recommendation-observation-suite.sh` 입니다. observation suite는 `summary/json` 외에 `latest-recommendation-observation-note.md` 도 남겨, 현재 reopen 가능 여부와 다음 행동을 사람 말로 바로 handoff 할 수 있습니다.
 표준코드 입력 유도 UX 확장, adoption audit, nightly wrapper까지 포함한 최근 closeout 요약은 [recommendation-standard-code-coverage-and-observation-closeout.md](./recommendation-standard-code-coverage-and-observation-closeout.md) 에 따로 묶어 둡니다.
@@ -95,7 +104,7 @@ daily operator entrypoint는 [recommendation-observation-runbook.md](./recommend
 
 ## 다시 열 조건
 
-reopen gate 자체는 `2026-06-01` 기준 열려 있습니다. 다만 지금 immediate next 는 특정 정책 family 랭킹 보정이 아닙니다. 특정 family 승격 판단은 Gov24 전체 제품/운영면이 더 완성된 뒤에만 다시 봅니다.
+reopen gate 자체는 `2026-06-09` 기준 닫혀 있습니다. 지금 immediate next 는 특정 정책 family 랭킹 보정이 아닙니다. 특정 family 승격 판단은 real-user sample과 leader signal이 다시 열릴 때만 봅니다.
 
 1. 운영 `REAL_USER` 기준으로 새로운 rank mismatch, click mismatch, cache mismatch, diagnostics mismatch 같은 **재현 가능한 버그** 가 다시 보일 때
 2. 운영 지표상 local 청년 정책 노출이 제품 기대보다 약하다는 **명시적 제품 목표** 가 생길 때
@@ -238,7 +247,7 @@ reopen gate 자체는 `2026-06-01` 기준 열려 있습니다. 다만 지금 imm
 
 수동 정합보다 편한 경로가 필요하면 `AUTO_REFRESH_STATUS_JSON_IF_STALE=true` 로 `latest-status`, `latest-gate` 를 실행할 수 있습니다. 이 경우 stale JSON이면 `latest-status-export` 를 먼저 다시 태운 뒤 fresh latest JSON 기준으로 값을 읽습니다.
 
-daily operator entrypoint로는 `run-local-recommendation-observation-suite.sh` 를 먼저 쓰고, 세부 해석이 필요할 때 `run-local-recommendation-ai-exclusion-latest-overview.sh` 를 여는 편이 맞습니다. observation suite는 reopen precheck를 감싸 current action을 compact summary로 고정합니다. `2026-06-01` 기준 current priority 는 `REOPEN_DECISION_READY` 이며, `KEEP_OBSERVING / WAIT_FOR_REAL_USER_TRAFFIC` 류 값은 readiness 포함 전 baseline/helper snapshot으로만 읽습니다. latest overview는 latest export를 먼저 갱신한 뒤 `latest-status`, 기본 `latest-gate`, strict `latest-gate` 를 순서대로 보여 주므로, 더 깊은 상태와 다음 행동을 한 번에 다시 읽을 수 있습니다.
+daily operator entrypoint로는 `run-local-recommendation-observation-suite.sh` 를 먼저 쓰고, 세부 해석이 필요할 때 `run-local-recommendation-ai-exclusion-latest-overview.sh` 를 여는 편이 맞습니다. observation suite는 reopen precheck를 감싸 current action을 compact summary로 고정합니다. `2026-06-09` 기준 current priority 는 `KEEP_OBSERVING` 이며, `DEFERRED_REAL_USER_SAMPLE_THIN` 과 `EXAMPLE_SMOKE_ONLY_LEADER` 가 같이 남아 있으므로 recommendation 로직을 수정하지 않습니다. latest overview는 latest export를 먼저 갱신한 뒤 `latest-status`, 기본 `latest-gate`, strict `latest-gate` 를 순서대로 보여 주므로, 더 깊은 상태와 다음 행동을 한 번에 다시 읽을 수 있습니다.
 
 이 overview wrapper는 이제 `tmp/recommendation-ai-exclusion-latest-overview/<ts>/latest-overview-summary.txt`, `latest-overview-note.md`, `latest-overview.json` 과 `latest` symlink도 같이 남깁니다. 즉 daily 확인 뒤에는 stdout만 보지 않고 compact summary, 사람용 note, machine-readable JSON 중 필요한 artifact를 바로 handoff 기준으로 써도 됩니다. 같은 artifact에는 `review_gate_context` 도 포함돼, full latest batch primary gate(`MIXED_BATCH_NON_REAL_DOMINANCE_WITH_NO_REAL_USER_PATH`)와 recent-window supplemental reading(`RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`), 그리고 `historical_example_dominance_detected=true` 까지 한 번에 같이 읽을 수 있습니다.
 

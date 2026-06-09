@@ -49,6 +49,7 @@ bash deploy/smoke/run-local-notification-backlog-audit.sh
 - `stale_unread_7d > 0`
   - `STALE_UNREAD_ALERT_REVIEW_PRIORITY`
   - unread 알림이 장기 적체된 상태다.
+  - 단, `terminal_failed_total=0`, `retryable_failed_due_now=0`, `stale_unread_14d=0` 이면 채널 장애나 즉시 hide 작업보다 digest/reminder cadence 관찰로 먼저 읽는다.
 
 - `unread_total > 0`
   - `UNREAD_ALERT_BACKLOG`
@@ -84,10 +85,30 @@ bash deploy/smoke/run-local-notification-backlog-audit.sh
 
 - unread가 많은데 failed가 없으면
   - `전송 실패보다 사용자 미열람 backlog로 해석`
+- unread가 모두 `RECOMMENDATION_DIGEST` 이고 14일 초과 target cluster가 없으면
+  - `hide 후보보다 digest cadence/landing 기대 행동 관찰`
 - retryable failed가 due 상태면
   - `retry runner / 채널 상태 확인 필요`
 - terminal failed가 있으면
   - `채널 장애 또는 영구 실패 원인 확인 필요`
+
+## 현재 server/RDS 기준
+
+2026-06-09 최신 server/RDS audit 기준:
+
+- `decision_class=STALE_UNREAD_ALERT_REVIEW_PRIORITY`
+- `unread_total=24`
+- `unread_digest=24`
+- `unread_deadline=0`
+- `unread_system=0`
+- `stale_unread_7d=12`
+- `stale_unread_14d=0`
+- `retryable_failed_total=0`
+- `retryable_failed_due_now=0`
+- `terminal_failed_total=0`
+
+즉 현재 알림 backlog는 전송 실패나 14일 이상 stale target cluster가 아니라 `7일 초과 recommendation digest unread tail` 로 읽는다.
+이 상태에서는 `hide-stale` 을 바로 태우지 않고, sample/target audit로 digest cadence와 landing 기대 행동을 관찰한다.
 
 ## stale unread 7일/14일 해석
 

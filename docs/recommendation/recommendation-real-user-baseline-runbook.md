@@ -21,18 +21,15 @@
 - [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
 - [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md)
 
-현재 local 기준 기본 해석은:
+현재 server/RDS 기준 기본 해석은:
 
-- `dashboard_real_user_gate=READY_REAL_USER_TRAFFIC`
-- `breakdown_real_user_cohort_gate=READY_REAL_USER_COHORT`
-- full latest batch review gate:
-  - `DEFERRED_NON_REAL_LEADER_SIGNAL`
-- full latest batch reading:
-  - historical example latest batch dominance
-- recent-window supplemental gate:
-  - `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`
+- `dashboard_real_user_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
+- `breakdown_real_user_cohort_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
+- `real_user_review_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
+- `top1_leader_signal_summary=EXAMPLE_SMOKE_ONLY_LEADER`
 
-즉 이 문서는 지금 당장 튜닝을 여는 문서가 아니라, **언제 reopen 판단으로 넘어갈 수 있는지와 어떤 gate를 primary/supplemental로 읽어야 하는지**를 가르는 gate 문서에 가깝습니다.
+즉 이 문서는 지금 당장 튜닝을 여는 문서가 아니라, **언제 reopen 판단으로 넘어갈 수 있는지와 어떤 gate를 primary/supplemental로 읽어야 하는지**를 가르는 gate 문서입니다.
+과거 local synthetic/bounded seed에서 `READY_*` 로 열렸던 기록은 gate 전이 검증용으로만 읽고, 운영 판단은 실제 server/RDS `REAL_USER` 표본을 우선합니다.
 
 ## 전제
 

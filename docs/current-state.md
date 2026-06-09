@@ -25,6 +25,8 @@
 ## 지금 먼저 볼 문서
 
 - 안정화 체크리스트: [stabilization-checklist.md](core/stabilization-checklist.md)
+- 최종 운영 closeout 체크리스트: [final-ops-closeout-checklist.md](core/final-ops-closeout-checklist.md)
+- 인수인계: [stabilization-handoff.md](./stabilization-handoff.md)
 - 인증 문서군 진입점: [auth-docs-index.md](auth/auth-docs-index.md)
 - 수집 문서군 진입점: [collect-docs-index.md](collect/collect-docs-index.md)
 - 추천 문서군 진입점: [recommendation-docs-index.md](recommendation/recommendation-docs-index.md)
@@ -85,6 +87,7 @@
   - 운영 기준은 [core/notification-stale-target-audit-runbook.md](./core/notification-stale-target-audit-runbook.md) 를 봅니다.
   - 첫 local triage target이었던 `/policies/2622` stale deadline reminder cluster (`5 users / 5 rows`) 는 `hide-stale` 경로로 정리됐습니다.
   - 현재 latest 기준은 `stale_14d_total=0`, `decision_class=NO_STALE_TARGETS` 이고, 남은 unread backlog는 `unread_total=24`, `stale_unread_7d=12` 수준의 recommendation digest tail 입니다.
+  - server/RDS 최신 sample 기준 unread는 `digest=24`, `deadline=0`, `system=0`, failed notification은 `0` 입니다.
   - 즉 현재 알림 운영 우선순위는 `14일 초과 stale cluster hide` 보다 `7일 초과 recommendation digest tail의 cadence/가치` 를 관찰하는 단계입니다.
 
 ## 작업 전 기본 검증 기준
@@ -112,6 +115,8 @@
 
 - recommendation reopen precheck: `APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-recommendation-reopen-precheck.sh`
 - server/RDS recommendation reopen precheck: `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-recommendation-reopen-precheck.sh`
+  - 현재 server/RDS 최신 기준은 `reopen_precheck_status=KEEP_OBSERVING`, `real_user_dashboard_gate=DEFERRED_REAL_USER_SAMPLE_THIN`, `real_user_breakdown_cohort_gate=DEFERRED_REAL_USER_SAMPLE_THIN`, `real_user_top1_leader_signal_summary=EXAMPLE_SMOKE_ONLY_LEADER`, `review_gate_policy_promotion_execution_status=DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW` 이다.
+  - 즉 지금은 recommendation score/weight/prompt를 다시 열지 않고 real-user sample과 leader signal을 관찰한다.
 - recommendation observation suite: `APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-recommendation-observation-suite.sh`
 - server/RDS recommendation observation suite: `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-recommendation-observation-suite.sh`
   - latest artifact: `tmp/recommendation-observation/latest-recommendation-observation-summary.txt`, `tmp/recommendation-observation/latest-recommendation-observation-note.md`, `tmp/recommendation-observation/latest-recommendation-observation.json`
@@ -180,7 +185,7 @@
   - 현재 최신 기준은 `missing_any_link_youth=558`, `missing_any_link_active_visible_youth=164`, `missing_any_link_active_past_end_tail_youth=15`, 나머지 source `0`, `decision_class=ACTIVE_LINK_REVIEW_PRIORITY` 이다.
   - 즉 broad source tail 전체보다, 실제로 노출될 수 있는 `YOUTH active visible` 164건이 더 actionable 하다.
 - policy link review sample audit: `bash deploy/smoke/run-local-policy-link-review-sample-audit.sh`
-  - 현재 최신 기준은 `active_visible_youth_total=164`, `benefit_support=33`, `announcement_recruitment=12`, `program_event=9`, `event_culture=5`, `other=105`, `decision_class=MIXED_LINK_REVIEW_PRIORITY` 이다.
+  - 현재 최신 기준은 `active_visible_youth_total=172`, `benefit_support=33`, `announcement_recruitment=13`, `program_event=10`, `event_culture=5`, `other=111`, `decision_class=MIXED_LINK_REVIEW_PRIORITY` 이다.
   - 즉 `정책 링크 review queue`는 단일 기준으로 닫기보다 `급부형`, `공고/프로그램형`, 나머지 `other` tail을 나눠 review 하는 편이 맞다.
 - policy link review queue runbook: `docs/policy/policy-link-review-queue-runbook.md`
   - 운영자는 `지원금/급부형 -> 공고/모집형 -> 프로그램형 -> 행사/문화형 -> 기타` 순서로 보는 편이 맞다.
@@ -189,6 +194,7 @@
   - `policy-data-quality`, `policy-link-review-sample`, `youth-duplicate-candidate` 를 한 번에 다시 읽는 compact handoff wrapper다.
   - 현재는 `duplicate -> link review -> drift tail` 순서로 backlog를 보는 편이 맞는지 빠르게 판정한다.
   - wrapper summary는 raw duplicate/link 후보와 실제 운영 `OPEN` queue를 분리해서 남긴다. 운영 queue가 닫혀 있으면 raw 후보가 남아도 `REVIEW_QUEUE_CLOSED_RAW_BACKLOG_REMAINS` 로 읽고, 새 `OPEN` queue가 생길 때만 review를 재개한다.
+  - 현재 server/RDS 최신 기준은 `policy_duplicate_open_groups=0`, `policy_duplicate_open_rows=0`, `policy_link_open_reviews=0`, `decision_class=REVIEW_QUEUE_CLOSED_RAW_BACKLOG_REMAINS` 이다.
   - 같은 triage 결정은 admin dashboard summary의 `policy triage` 카드에도 노출된다. 운영자는 `exact duplicate`, `mirror variant`, `급부형 링크 review` 수치를 한 화면에서 보고 현재 backlog 우선순위를 바로 읽을 수 있다.
 - policy application period quality audit: `bash deploy/smoke/run-local-policy-application-period-quality-audit.sh`
   - 현재 최신 기준은 `active_past_end_youth=208`, `active_past_end_gov24=0`, `active_past_end_youth_future_end_tail=208`, `active_past_end_youth_true_review=0`, `closed_future_end_total=2` 이다.
