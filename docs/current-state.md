@@ -63,6 +63,9 @@
 - `POST /api/admin/dashboard/policy-duplicate-groups/review`
 - recent queue는 `status=OPEN|REVIEWED|ALL` query로 운영 필터를 바꿔 볼 수 있습니다.
 - admin attention feed는 열린 backlog를 아래 key로 승격합니다.
+  - `standard-code-backlog`
+    - 자동 보정 후보나 충돌 gap이 있으면 `warning`
+    - 단순 미입력 잔량이면 `info`
   - `policy-error-report-backlog`
   - `support-inquiry-backlog`
   - `policy-duplicate-backlog`
@@ -81,9 +84,8 @@
   - `2주 이상 unread` 가 특정 정책/링크 target에 몰리는지 확인합니다.
   - 운영 기준은 [core/notification-stale-target-audit-runbook.md](./core/notification-stale-target-audit-runbook.md) 를 봅니다.
   - 첫 local triage target이었던 `/policies/2622` stale deadline reminder cluster (`5 users / 5 rows`) 는 `hide-stale` 경로로 정리됐습니다.
-  - 현재 latest 기준은 `stale_14d_total=0`, `decision_class=NO_STALE_TARGETS` 이고, 남은 unread backlog는 `unread_total=4`, `stale_unread_7d=2` 수준의 deadline tail 입니다.
-  - 즉 현재 알림 운영 우선순위는 `14일 초과 stale cluster hide` 보다 `7일 초과 deadline tail을 유지/숨김 중 어느 쪽으로 볼지` 기준을 적용하는 단계입니다.
-  - 현재 기준은 `ACTIVE 정책 + 7일 초과 deadline tail` 은 즉시 hide보다 cadence/가치 재검토를 먼저 보는 쪽입니다.
+  - 현재 latest 기준은 `stale_14d_total=0`, `decision_class=NO_STALE_TARGETS` 이고, 남은 unread backlog는 `unread_total=24`, `stale_unread_7d=12` 수준의 recommendation digest tail 입니다.
+  - 즉 현재 알림 운영 우선순위는 `14일 초과 stale cluster hide` 보다 `7일 초과 recommendation digest tail의 cadence/가치` 를 관찰하는 단계입니다.
 
 ## 작업 전 기본 검증 기준
 

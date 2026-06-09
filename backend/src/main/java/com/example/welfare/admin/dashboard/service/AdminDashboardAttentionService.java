@@ -65,12 +65,18 @@ public class AdminDashboardAttentionService {
             ));
         }
         if (standardCodeCoverage.usersMissingAllStandardCodes() > 0) {
+            boolean standardCodeNeedsOperatorAction = standardCodeCoverage.safeReconcileCandidateRows() > 0
+                    || standardCodeCoverage.conflictingValueGapRows() > 0;
             items.add(new AdminDashboardAttentionResponse.AttentionItem(
                     "standard-code-backlog",
-                    "warning",
+                    standardCodeNeedsOperatorAction ? "warning" : "info",
                     "표준코드 입력 backlog",
-                    "%d명이 주거·복지 표준코드 4개를 모두 비워둔 상태입니다."
-                            .formatted(standardCodeCoverage.usersMissingAllStandardCodes()),
+                    "%d명이 주거·복지 표준코드 4개를 모두 비워둔 상태입니다. 자동 보정 후보 %d건, 충돌 gap %d건."
+                            .formatted(
+                                    standardCodeCoverage.usersMissingAllStandardCodes(),
+                                    standardCodeCoverage.safeReconcileCandidateRows(),
+                                    standardCodeCoverage.conflictingValueGapRows()
+                            ),
                     "admin-standard-code-coverage",
                     "user-profile-standard-codes"
             ));
