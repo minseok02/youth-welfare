@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DB_CONTAINER_NAME="${DB_CONTAINER_NAME:-youth-welfare-db}"
-POSTGRES_USER="${POSTGRES_USER:-postgres}"
-POSTGRES_DB="${POSTGRES_DB:-youth_welfare}"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
+
 USER_COHORT="${USER_COHORT:-all}"
 
 case "${USER_COHORT}" in
@@ -15,17 +15,9 @@ case "${USER_COHORT}" in
     ;;
 esac
 
-if ! command -v docker >/dev/null 2>&1; then
-  echo "docker command is required" >&2
-  exit 1
-fi
+USER_COHORT_SQL="$(smoke_sql_quote "${USER_COHORT}")"
 
-if ! docker ps --format '{{.Names}}' | grep -Fxq "${DB_CONTAINER_NAME}"; then
-  echo "db container not running: ${DB_CONTAINER_NAME}" >&2
-  exit 1
-fi
-
-docker exec -i "${DB_CONTAINER_NAME}" psql -v cohort="${USER_COHORT}" -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -At <<'SQL'
+smoke_db_query "$(cat <<SQL
 WITH latest AS (
     SELECT user_key, MAX(recommended_at) AS recommended_at
     FROM user_recommendations
@@ -50,13 +42,13 @@ base_rows AS (
 scoped_rows AS (
     SELECT *
     FROM base_rows
-    WHERE :'cohort' = 'all'
-       OR (:'cohort' = 'example' AND user_cohort = 'EXAMPLE')
-       OR (:'cohort' = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
-       OR (:'cohort' = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
-       OR (:'cohort' = 'real_user' AND user_origin = 'REAL_USER')
-       OR (:'cohort' = 'local_real_non_example_seed' AND user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED')
-       OR (:'cohort' = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
+    WHERE ${USER_COHORT_SQL} = 'all'
+       OR (${USER_COHORT_SQL} = 'example' AND user_cohort = 'EXAMPLE')
+       OR (${USER_COHORT_SQL} = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
+       OR (${USER_COHORT_SQL} = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
+       OR (${USER_COHORT_SQL} = 'real_user' AND user_origin = 'REAL_USER')
+       OR (${USER_COHORT_SQL} = 'local_real_non_example_seed' AND user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED')
+       OR (${USER_COHORT_SQL} = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
 ),
 priority_profiles AS (
     SELECT up.user_key,
@@ -130,7 +122,7 @@ diversity AS (
         GROUP BY sr.user_key
     ) per_user
 )
-SELECT 'audit_user_cohort=' || :'cohort'
+SELECT 'audit_user_cohort=' || ${USER_COHORT_SQL}
 UNION ALL
 SELECT 'latest_batch_rows=' || COUNT(*) FROM scoped_rows
 UNION ALL
@@ -206,13 +198,13 @@ base_rows AS (
 scoped_rows AS (
     SELECT *
     FROM base_rows
-    WHERE :'cohort' = 'all'
-       OR (:'cohort' = 'example' AND user_cohort = 'EXAMPLE')
-       OR (:'cohort' = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
-       OR (:'cohort' = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
-       OR (:'cohort' = 'real_user' AND user_origin = 'REAL_USER')
-       OR (:'cohort' = 'local_real_non_example_seed' AND user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED')
-       OR (:'cohort' = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
+    WHERE ${USER_COHORT_SQL} = 'all'
+       OR (${USER_COHORT_SQL} = 'example' AND user_cohort = 'EXAMPLE')
+       OR (${USER_COHORT_SQL} = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
+       OR (${USER_COHORT_SQL} = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
+       OR (${USER_COHORT_SQL} = 'real_user' AND user_origin = 'REAL_USER')
+       OR (${USER_COHORT_SQL} = 'local_real_non_example_seed' AND user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED')
+       OR (${USER_COHORT_SQL} = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
 )
 SELECT ws.source_type || '|' || COUNT(*) || '|' || COUNT(DISTINCT sr.user_key)
 FROM scoped_rows sr
@@ -245,13 +237,13 @@ base_rows AS (
 scoped_rows AS (
     SELECT *
     FROM base_rows
-    WHERE :'cohort' = 'all'
-       OR (:'cohort' = 'example' AND user_cohort = 'EXAMPLE')
-       OR (:'cohort' = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
-       OR (:'cohort' = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
-       OR (:'cohort' = 'real_user' AND user_origin = 'REAL_USER')
-       OR (:'cohort' = 'local_real_non_example_seed' AND user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED')
-       OR (:'cohort' = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
+    WHERE ${USER_COHORT_SQL} = 'all'
+       OR (${USER_COHORT_SQL} = 'example' AND user_cohort = 'EXAMPLE')
+       OR (${USER_COHORT_SQL} = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
+       OR (${USER_COHORT_SQL} = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
+       OR (${USER_COHORT_SQL} = 'real_user' AND user_origin = 'REAL_USER')
+       OR (${USER_COHORT_SQL} = 'local_real_non_example_seed' AND user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED')
+       OR (${USER_COHORT_SQL} = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
 )
 SELECT COALESCE(ws.unified_category, '기타') || '|' || COUNT(*) || '|' || COUNT(DISTINCT sr.user_key)
 FROM scoped_rows sr
@@ -284,13 +276,13 @@ base_rows AS (
 scoped_rows AS (
     SELECT *
     FROM base_rows
-    WHERE :'cohort' = 'all'
-       OR (:'cohort' = 'example' AND user_cohort = 'EXAMPLE')
-       OR (:'cohort' = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
-       OR (:'cohort' = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
-       OR (:'cohort' = 'real_user' AND user_origin = 'REAL_USER')
-       OR (:'cohort' = 'local_real_non_example_seed' AND user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED')
-       OR (:'cohort' = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
+    WHERE ${USER_COHORT_SQL} = 'all'
+       OR (${USER_COHORT_SQL} = 'example' AND user_cohort = 'EXAMPLE')
+       OR (${USER_COHORT_SQL} = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
+       OR (${USER_COHORT_SQL} = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
+       OR (${USER_COHORT_SQL} = 'real_user' AND user_origin = 'REAL_USER')
+       OR (${USER_COHORT_SQL} = 'local_real_non_example_seed' AND user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED')
+       OR (${USER_COHORT_SQL} = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
 )
 SELECT sr.service_id || '|' || ws.title || '|' || ws.source_type || '|' ||
        COALESCE(ws.unified_category, '기타') || '|' || COUNT(*) || '|' || COUNT(DISTINCT sr.user_key)
@@ -325,13 +317,13 @@ base_rows AS (
 scoped_rows AS (
     SELECT *
     FROM base_rows
-    WHERE :'cohort' = 'all'
-       OR (:'cohort' = 'example' AND user_cohort = 'EXAMPLE')
-       OR (:'cohort' = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
-       OR (:'cohort' = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
-       OR (:'cohort' = 'real_user' AND user_origin = 'REAL_USER')
-       OR (:'cohort' = 'local_real_non_example_seed' AND user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED')
-       OR (:'cohort' = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
+    WHERE ${USER_COHORT_SQL} = 'all'
+       OR (${USER_COHORT_SQL} = 'example' AND user_cohort = 'EXAMPLE')
+       OR (${USER_COHORT_SQL} = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
+       OR (${USER_COHORT_SQL} = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
+       OR (${USER_COHORT_SQL} = 'real_user' AND user_origin = 'REAL_USER')
+       OR (${USER_COHORT_SQL} = 'local_real_non_example_seed' AND user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED')
+       OR (${USER_COHORT_SQL} = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
 ),
 top1 AS (
     SELECT *
@@ -387,13 +379,13 @@ base_rows AS (
 scoped_rows AS (
     SELECT *
     FROM base_rows
-    WHERE :'cohort' = 'all'
-       OR (:'cohort' = 'example' AND user_cohort = 'EXAMPLE')
-       OR (:'cohort' = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
-       OR (:'cohort' = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
-       OR (:'cohort' = 'real_user' AND user_origin = 'REAL_USER')
-       OR (:'cohort' = 'local_real_non_example_seed' AND user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED')
-       OR (:'cohort' = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
+    WHERE ${USER_COHORT_SQL} = 'all'
+       OR (${USER_COHORT_SQL} = 'example' AND user_cohort = 'EXAMPLE')
+       OR (${USER_COHORT_SQL} = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
+       OR (${USER_COHORT_SQL} = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
+       OR (${USER_COHORT_SQL} = 'real_user' AND user_origin = 'REAL_USER')
+       OR (${USER_COHORT_SQL} = 'local_real_non_example_seed' AND user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED')
+       OR (${USER_COHORT_SQL} = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
 ),
 priority_profiles AS (
     SELECT up.user_key,
@@ -459,13 +451,13 @@ base_rows AS (
 latest_users AS (
     SELECT DISTINCT user_key
     FROM base_rows
-    WHERE :'cohort' = 'all'
-       OR (:'cohort' = 'example' AND user_cohort = 'EXAMPLE')
-       OR (:'cohort' = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
-       OR (:'cohort' = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
-       OR (:'cohort' = 'real_user' AND user_origin = 'REAL_USER')
-       OR (:'cohort' = 'local_real_non_example_seed' AND user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED')
-       OR (:'cohort' = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
+    WHERE ${USER_COHORT_SQL} = 'all'
+       OR (${USER_COHORT_SQL} = 'example' AND user_cohort = 'EXAMPLE')
+       OR (${USER_COHORT_SQL} = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
+       OR (${USER_COHORT_SQL} = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
+       OR (${USER_COHORT_SQL} = 'real_user' AND user_origin = 'REAL_USER')
+       OR (${USER_COHORT_SQL} = 'local_real_non_example_seed' AND user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED')
+       OR (${USER_COHORT_SQL} = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
 ),
 priority_profiles AS (
     SELECT up.user_key,
@@ -507,13 +499,13 @@ base_rows AS (
 scoped_rows AS (
     SELECT *
     FROM base_rows
-    WHERE :'cohort' = 'all'
-       OR (:'cohort' = 'example' AND user_cohort = 'EXAMPLE')
-       OR (:'cohort' = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
-       OR (:'cohort' = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
-       OR (:'cohort' = 'real_user' AND user_origin = 'REAL_USER')
-       OR (:'cohort' = 'local_real_non_example_seed' AND user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED')
-       OR (:'cohort' = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
+    WHERE ${USER_COHORT_SQL} = 'all'
+       OR (${USER_COHORT_SQL} = 'example' AND user_cohort = 'EXAMPLE')
+       OR (${USER_COHORT_SQL} = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
+       OR (${USER_COHORT_SQL} = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
+       OR (${USER_COHORT_SQL} = 'real_user' AND user_origin = 'REAL_USER')
+       OR (${USER_COHORT_SQL} = 'local_real_non_example_seed' AND user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED')
+       OR (${USER_COHORT_SQL} = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
 ),
 priority_profiles AS (
     SELECT up.user_key,
@@ -572,13 +564,13 @@ base_rows AS (
 scoped_rows AS (
     SELECT *
     FROM base_rows
-    WHERE :'cohort' = 'all'
-       OR (:'cohort' = 'example' AND user_cohort = 'EXAMPLE')
-       OR (:'cohort' = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
-       OR (:'cohort' = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
-       OR (:'cohort' = 'real_user' AND user_origin = 'REAL_USER')
-       OR (:'cohort' = 'local_real_non_example_seed' AND user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED')
-       OR (:'cohort' = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
+    WHERE ${USER_COHORT_SQL} = 'all'
+       OR (${USER_COHORT_SQL} = 'example' AND user_cohort = 'EXAMPLE')
+       OR (${USER_COHORT_SQL} = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
+       OR (${USER_COHORT_SQL} = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
+       OR (${USER_COHORT_SQL} = 'real_user' AND user_origin = 'REAL_USER')
+       OR (${USER_COHORT_SQL} = 'local_real_non_example_seed' AND user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED')
+       OR (${USER_COHORT_SQL} = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
 ),
 priority_profiles AS (
     SELECT up.user_key,
@@ -659,13 +651,13 @@ base_rows AS (
 scoped_rows AS (
     SELECT *
     FROM base_rows
-    WHERE :'cohort' = 'all'
-       OR (:'cohort' = 'example' AND user_cohort = 'EXAMPLE')
-       OR (:'cohort' = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
-       OR (:'cohort' = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
-       OR (:'cohort' = 'real_user' AND user_origin = 'REAL_USER')
-       OR (:'cohort' = 'local_real_non_example_seed' AND user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED')
-       OR (:'cohort' = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
+    WHERE ${USER_COHORT_SQL} = 'all'
+       OR (${USER_COHORT_SQL} = 'example' AND user_cohort = 'EXAMPLE')
+       OR (${USER_COHORT_SQL} = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
+       OR (${USER_COHORT_SQL} = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
+       OR (${USER_COHORT_SQL} = 'real_user' AND user_origin = 'REAL_USER')
+       OR (${USER_COHORT_SQL} = 'local_real_non_example_seed' AND user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED')
+       OR (${USER_COHORT_SQL} = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
 ),
 mix AS (
     SELECT COUNT(DISTINCT user_key) AS total_users,
@@ -673,23 +665,23 @@ mix AS (
     FROM scoped_rows
 )
 SELECT CASE
-           WHEN total_users = 0 AND :'cohort' = 'real_user'
+           WHEN total_users = 0 AND ${USER_COHORT_SQL} = 'real_user'
                THEN 'DEFERRED_EMPTY_REAL_USER_COHORT'
            WHEN total_users = 0
                THEN 'DEFERRED_EMPTY_COHORT'
-           WHEN :'cohort' = 'example'
+           WHEN ${USER_COHORT_SQL} = 'example'
                THEN 'DIAGNOSTIC_EXAMPLE_ONLY_COHORT'
-           WHEN :'cohort' = 'bounded_local'
+           WHEN ${USER_COHORT_SQL} = 'bounded_local'
                THEN 'DIAGNOSTIC_BOUNDED_LOCAL_ONLY_COHORT'
-           WHEN :'cohort' = 'local_real_non_example_seed'
+           WHEN ${USER_COHORT_SQL} = 'local_real_non_example_seed'
                THEN 'DIAGNOSTIC_LOCAL_REAL_NON_EXAMPLE_SEED_ONLY_COHORT'
-           WHEN :'cohort' = 'real_non_example'
+           WHEN ${USER_COHORT_SQL} = 'real_non_example'
                THEN 'DIAGNOSTIC_REAL_NON_EXAMPLE_ONLY_COHORT'
-           WHEN :'cohort' = 'real_user'
+           WHEN ${USER_COHORT_SQL} = 'real_user'
                THEN 'DIAGNOSTIC_REAL_USER_ONLY_COHORT'
-           WHEN :'cohort' = 'non_example' AND real_user_users = 0
+           WHEN ${USER_COHORT_SQL} = 'non_example' AND real_user_users = 0
                THEN 'DIAGNOSTIC_NON_REAL_USER_ONLY_COHORT'
-           WHEN :'cohort' = 'non_example'
+           WHEN ${USER_COHORT_SQL} = 'non_example'
                THEN 'DIAGNOSTIC_MIXED_NON_EXAMPLE_COHORT'
            WHEN real_user_users = 0
                THEN 'DEFERRED_NO_REAL_USER_COHORT'
@@ -723,13 +715,13 @@ base_rows AS (
 scoped_rows AS (
     SELECT *
     FROM base_rows
-    WHERE :'cohort' = 'all'
-       OR (:'cohort' = 'example' AND user_cohort = 'EXAMPLE')
-       OR (:'cohort' = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
-       OR (:'cohort' = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
-       OR (:'cohort' = 'real_user' AND user_origin = 'REAL_USER')
-       OR (:'cohort' = 'local_real_non_example_seed' AND user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED')
-       OR (:'cohort' = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
+    WHERE ${USER_COHORT_SQL} = 'all'
+       OR (${USER_COHORT_SQL} = 'example' AND user_cohort = 'EXAMPLE')
+       OR (${USER_COHORT_SQL} = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
+       OR (${USER_COHORT_SQL} = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
+       OR (${USER_COHORT_SQL} = 'real_user' AND user_origin = 'REAL_USER')
+       OR (${USER_COHORT_SQL} = 'local_real_non_example_seed' AND user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED')
+       OR (${USER_COHORT_SQL} = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
 ),
 mix AS (
     SELECT COUNT(DISTINCT user_key) AS total_users,
@@ -741,35 +733,35 @@ mix AS (
     FROM scoped_rows
 )
 SELECT CASE
-           WHEN total_users = 0 AND :'cohort' = 'real_non_example'
+           WHEN total_users = 0 AND ${USER_COHORT_SQL} = 'real_non_example'
                THEN 'EMPTY_REAL_NON_EXAMPLE_COHORT'
-           WHEN total_users = 0 AND :'cohort' = 'real_user'
+           WHEN total_users = 0 AND ${USER_COHORT_SQL} = 'real_user'
                THEN 'EMPTY_REAL_USER_COHORT'
-           WHEN total_users = 0 AND :'cohort' = 'local_real_non_example_seed'
+           WHEN total_users = 0 AND ${USER_COHORT_SQL} = 'local_real_non_example_seed'
                THEN 'EMPTY_LOCAL_REAL_NON_EXAMPLE_SEED_COHORT'
-           WHEN total_users = 0 AND :'cohort' = 'bounded_local'
+           WHEN total_users = 0 AND ${USER_COHORT_SQL} = 'bounded_local'
                THEN 'EMPTY_BOUNDED_LOCAL_COHORT'
-           WHEN total_users = 0 AND :'cohort' = 'non_example'
+           WHEN total_users = 0 AND ${USER_COHORT_SQL} = 'non_example'
                THEN 'EMPTY_NON_EXAMPLE_COHORT'
            WHEN total_users = 0
                THEN 'EMPTY_COHORT'
-           WHEN :'cohort' = 'example'
+           WHEN ${USER_COHORT_SQL} = 'example'
                THEN 'EXAMPLE_ONLY_COHORT'
-           WHEN :'cohort' = 'bounded_local'
+           WHEN ${USER_COHORT_SQL} = 'bounded_local'
                THEN 'BOUNDED_LOCAL_ONLY_COHORT'
-           WHEN :'cohort' = 'real_user'
+           WHEN ${USER_COHORT_SQL} = 'real_user'
                THEN 'REAL_USER_ONLY_COHORT'
-           WHEN :'cohort' = 'local_real_non_example_seed'
+           WHEN ${USER_COHORT_SQL} = 'local_real_non_example_seed'
                THEN 'LOCAL_REAL_NON_EXAMPLE_SEED_ONLY_COHORT'
-           WHEN :'cohort' = 'real_non_example'
+           WHEN ${USER_COHORT_SQL} = 'real_non_example'
                THEN 'REAL_NON_EXAMPLE_ONLY_COHORT'
-           WHEN :'cohort' = 'non_example' AND bounded_local_users > 0 AND real_non_example_users = 0
+           WHEN ${USER_COHORT_SQL} = 'non_example' AND bounded_local_users > 0 AND real_non_example_users = 0
                THEN 'BOUNDED_LOCAL_ONLY_NON_EXAMPLE_COHORT'
-           WHEN :'cohort' = 'non_example' AND bounded_local_users = 0 AND local_real_non_example_seed_users > 0 AND real_user_users = 0
+           WHEN ${USER_COHORT_SQL} = 'non_example' AND bounded_local_users = 0 AND local_real_non_example_seed_users > 0 AND real_user_users = 0
                THEN 'LOCAL_REAL_NON_EXAMPLE_SEED_ONLY_NON_EXAMPLE_COHORT'
-           WHEN :'cohort' = 'non_example' AND bounded_local_users = 0 AND local_real_non_example_seed_users = 0 AND real_user_users > 0
+           WHEN ${USER_COHORT_SQL} = 'non_example' AND bounded_local_users = 0 AND local_real_non_example_seed_users = 0 AND real_user_users > 0
                THEN 'REAL_USER_ONLY_NON_EXAMPLE_COHORT'
-           WHEN :'cohort' = 'non_example'
+           WHEN ${USER_COHORT_SQL} = 'non_example'
                THEN 'MIXED_NON_EXAMPLE_COHORT'
            WHEN real_non_example_users = 0 AND bounded_local_users = 0
                THEN 'SYNTHETIC_ONLY_LATEST_BATCH'
@@ -785,3 +777,4 @@ SELECT CASE
        END
 FROM mix;
 SQL
+)"
