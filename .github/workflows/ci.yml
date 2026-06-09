@@ -41,6 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
+      ALLOW_LOCAL_DOCKER_DB: "true"
       APP_BASE_URL: http://127.0.0.1:5173
       AUTH_REFRESH_COOKIE_SECURE: "false"
       DB_PASSWORD: welfare1234!
