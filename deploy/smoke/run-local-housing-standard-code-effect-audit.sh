@@ -192,6 +192,7 @@ smoke_print_step "login"
 LOGIN_STATUS="$(
   smoke_http_status POST "${APP_BASE_URL}/api/auth/login" "${LOGIN_RESPONSE}" \
     -c "${COOKIE_JAR}" \
+    -A "youth-welfare-smoke/${SMOKE_EMAIL}" \
     -H 'Content-Type: application/json' \
     -d "{
       \"email\": \"${SMOKE_EMAIL}\",
