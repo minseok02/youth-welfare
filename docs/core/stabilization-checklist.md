@@ -21,7 +21,7 @@
 - CI: backend unit, frontend lint/build/browser smoke green
 - nightly/current-priority: 실패하면 실제 장애와 smoke 결함을 먼저 분리
 - attention feed:
-  - `standard-code-backlog` 는 사용자 입력 backlog로 관찰
+  - `standard-code-backlog` 는 자동 보정 후보나 충돌 gap이 없으면 사용자 입력 backlog로 관찰
   - `notification-backlog` 는 14일 이상 stale이 아니면 cadence/가치 관찰
   - 정책 오류/링크/중복 queue는 `OPEN` 이 생길 때만 review
 - recommendation gate:
@@ -104,7 +104,8 @@ nightly는 즉시 기능 수정으로 들어가지 않습니다.
 `standard-code-backlog` 는 자동 보정 후보가 있을 때만 직접 처리합니다.
 
 - `safe_reconcile_candidate_rows > 0`: bounded reconcile 후보
-- `safe_reconcile_candidate_rows = 0`: 사용자 입력 유도/관찰
+- `conflicting_value_gap_rows > 0`: 수동 conflict 확인 후보
+- `safe_reconcile_candidate_rows = 0` 이고 `conflicting_value_gap_rows = 0`: 사용자 입력 유도/관찰
 
 ## 알림 backlog 기준
 
@@ -201,4 +202,3 @@ curl -fsS https://youthmoa.kr/ >/tmp/youthmoa-index.html
 3. 관련 smoke 또는 CI green
 4. current-state 또는 관련 runbook 갱신
 5. PR merge 후 local `main` 이 `origin/main` 과 일치
-

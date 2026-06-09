@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
@@ -43,7 +44,7 @@ class AdminDashboardAttentionServiceTest {
     );
 
     @Test
-    @DisplayName("collect drift, 표준코드 backlog, wrapper warning을 attention feed로 묶는다")
+    @DisplayName("collect drift, 관찰용 표준코드 backlog, wrapper warning을 attention feed로 묶는다")
     void buildsAttentionFeed() {
         given(collectService.getCollectFailures(null, null)).willReturn(new AdminCollectFailureResponse(
                 LocalDateTime.of(2026, 6, 3, 14, 0),
@@ -147,6 +148,123 @@ class AdminDashboardAttentionServiceTest {
         assertThat(response.itemCount()).isEqualTo(3);
         assertThat(response.items()).extracting("key")
                 .containsExactly("collect-drift", "standard-code-backlog", "wrapper-warning");
+        assertThat(response.items()).extracting("key", "severity")
+                .contains(
+                        tuple("collect-drift", "warning"),
+                        tuple("standard-code-backlog", "info"),
+                        tuple("wrapper-warning", "warning")
+                );
+        assertThat(response.items()).extracting("message", String.class)
+                .anySatisfy(message -> assertThat(message)
+                        .contains("793명이 주거·복지 표준코드 4개를 모두 비워둔 상태입니다.")
+                        .contains("자동 보정 후보 0건")
+                        .contains("충돌 gap 0건"));
+    }
+
+    @Test
+    @DisplayName("표준코드 자동 보정 후보가 있으면 attention feed에서 warning으로 승격한다")
+    void promotesStandardCodeBacklogWhenReconcileCandidatesExist() {
+        given(collectService.getCollectFailures(null, null)).willReturn(new AdminCollectFailureResponse(
+                LocalDateTime.of(2026, 6, 4, 9, 0),
+                7,
+                0,
+                0,
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of()
+        ));
+        given(userProfileService.getUserProfileStandardCodeCoverage()).willReturn(new AdminUserProfileStandardCodeCoverageResponse(
+                LocalDateTime.of(2026, 6, 4, 9, 0),
+                10,
+                10,
+                0,
+                5,
+                0,
+                5,
+                5,
+                2,
+                2,
+                1,
+                5,
+                0,
+                5,
+                0,
+                0,
+                2,
+                0
+        ));
+        given(summaryService.getSummary(null, null)).willReturn(new AdminDashboardResponse(
+                LocalDateTime.of(2026, 6, 4, 9, 0),
+                null,
+                null,
+                new AdminDashboardResponse.NotificationSection(0, 0, 7, 0, 0, 0, 0, 0, 0, 0),
+                null,
+                null,
+                null,
+                null
+        ));
+        given(wrapperObservationService.getLatestObservation()).willReturn(new AdminWrapperObservationResponse(
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                0,
+                0,
+                null,
+                null,
+                0,
+                0,
+                null,
+                0,
+                0,
+                0.0,
+                false,
+                null,
+                null,
+                null,
+                false,
+                null,
+                0,
+                0,
+                null,
+                null,
+                0,
+                0,
+                null,
+                0,
+                0,
+                0,
+                0.0,
+                false,
+                null,
+                null,
+                0,
+                0,
+                "이전값 없음",
+                null,
+                false,
+                "이전 상태 없음",
+                null
+        ));
+        given(policyDuplicateGroupService.getRecentGroups(1)).willReturn(new AdminPolicyDuplicateGroupResponse(0, 0, 0, List.of()));
+        given(policyErrorReportService.getRecentReports(1)).willReturn(new AdminPolicyErrorReportResponse(0, 0, List.of()));
+        given(adminPolicyLinkReviewService.getRecentReviews(1)).willReturn(new AdminPolicyLinkReviewResponse(0, 0, List.of()));
+        given(adminNotificationStaleTargetService.getRecentTargets(1, 14)).willReturn(new AdminNotificationStaleTargetResponse(14, 0, 0, List.of()));
+        given(supportInquiryService.getRecentInquiries(1)).willReturn(new AdminSupportInquiryResponse(0, 0, List.of()));
+
+        var response = service.getAttentionFeed();
+
+        assertThat(response.items()).extracting("key", "severity")
+                .contains(tuple("standard-code-backlog", "warning"));
+        assertThat(response.items()).extracting("message", String.class)
+                .anySatisfy(message -> assertThat(message)
+                        .contains("자동 보정 후보 2건")
+                        .contains("충돌 gap 0건"));
     }
 
     @Test
