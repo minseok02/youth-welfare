@@ -762,6 +762,55 @@ test("메인 개인 맞춤 재추천 CTA는 표준코드 공백이 크면 확인
   );
 });
 
+test("마이페이지 내 정보 저장 후 표준코드 리마인드는 남은 입력으로 이어진다", async ({ page }) => {
+  await page.route("**/api/users/me", async (route) => {
+    const method = route.request().method();
+    if (method === "PUT") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json; charset=utf-8",
+        body: JSON.stringify({ success: true, data: null }),
+      });
+      return;
+    }
+    if (method !== "GET") {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify({
+        success: true,
+        data: {
+          name: "테스터",
+          email: userCredentials.email,
+          birthDate: "2000-01-01",
+          sido: "서울",
+          sgg: "서울 종로구",
+          incomeLevel: 5,
+          employmentStatus: "학생",
+          householdType: "1인가구",
+          priorities: [{ code: "HOUSING", name: "주거" }],
+          targetTypes: [],
+          houseTenureCode: null,
+          housingTypeCode: null,
+          basicLivingRecipientTypeCode: null,
+          disabilityGradeCode: "NONE",
+        },
+      }),
+    });
+  });
+
+  await loginFromProtectedRoute(page, "/mypage?tab=0", userCredentials);
+  await page.getByRole("button", { name: "수정", exact: true }).click();
+  await page.getByRole("button", { name: "저장", exact: true }).click();
+  await expect(page.getByText("저장 완료", { exact: true })).toBeVisible();
+  await expect(page.getByText("주거·복지 표준코드 1/4개 입력됨", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "남은 항목 계속 채우기 →", exact: true }).click();
+  await expect(page.locator("#profile-standard-code-section")).toBeVisible();
+});
+
 test("로그인 직후 메인에서는 우선순위와 표준코드 공백에 대한 추천 nudge를 한 번 보여준다", async ({ page }) => {
   await page.route("**/api/users/me", async (route) => {
     if (route.request().method() !== "GET") {
