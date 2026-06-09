@@ -107,8 +107,8 @@ public class NormalizedPolicySidecarBackfillService {
                 ));
             } catch (Exception e) {
                 failed++;
-                log.warn("[NormalizedPolicySidecarBackfillService] Gov24 missing list backfill 실패 sourceId={} err={}",
-                        target.sourceId(), e.getMessage());
+                log.warn("[NormalizedPolicySidecarBackfillService] Gov24 missing list backfill 실패 sourceId={} errorType={}",
+                        target.sourceId(), e.getClass().getSimpleName());
             }
         }
 
@@ -118,8 +118,8 @@ public class NormalizedPolicySidecarBackfillService {
         } catch (Exception e) {
             failed += entries.size();
             upserted = 0;
-            log.warn("[NormalizedPolicySidecarBackfillService] Gov24 missing list batch write 실패 entries={} err={}",
-                    entries.size(), e.getMessage());
+            log.warn("[NormalizedPolicySidecarBackfillService] Gov24 missing list batch write 실패 entries={} errorType={}",
+                    entries.size(), e.getClass().getSimpleName());
         }
 
         long elapsedMillis = Duration.ofNanos(System.nanoTime() - startedAt).toMillis();
@@ -163,8 +163,8 @@ public class NormalizedPolicySidecarBackfillService {
                 upserted++;
             } catch (Exception e) {
                 failed++;
-                log.warn("[NormalizedPolicySidecarBackfillService] Gov24 region backfill 실패 sourceId={} err={}",
-                        target.sourceId(), e.getMessage());
+                log.warn("[NormalizedPolicySidecarBackfillService] Gov24 region backfill 실패 sourceId={} errorType={}",
+                        target.sourceId(), e.getClass().getSimpleName());
             }
         }
 
@@ -260,8 +260,8 @@ public class NormalizedPolicySidecarBackfillService {
                 upserted++;
             } catch (Exception e) {
                 failed++;
-                log.warn("[NormalizedPolicySidecarBackfillService] list backfill 실패 sourceType={} sourceId={} err={}",
-                        raw.getSourceType(), raw.getSourceId(), e.getMessage());
+                log.warn("[NormalizedPolicySidecarBackfillService] list backfill 실패 sourceType={} sourceId={} errorType={}",
+                        raw.getSourceType(), raw.getSourceId(), e.getClass().getSimpleName());
             }
         }
 
@@ -301,8 +301,8 @@ public class NormalizedPolicySidecarBackfillService {
                 upserted++;
             } catch (Exception e) {
                 failed++;
-                log.warn("[NormalizedPolicySidecarBackfillService] detail backfill 실패 sourceType={} sourceId={} err={}",
-                        raw.getSourceType(), raw.getSourceId(), e.getMessage());
+                log.warn("[NormalizedPolicySidecarBackfillService] detail backfill 실패 sourceType={} sourceId={} errorType={}",
+                        raw.getSourceType(), raw.getSourceId(), e.getClass().getSimpleName());
             }
         }
 
@@ -334,8 +334,8 @@ public class NormalizedPolicySidecarBackfillService {
                 upserted++;
             } catch (Exception e) {
                 failed++;
-                log.warn("[NormalizedPolicySidecarBackfillService] Gov24 support backfill 실패 sourceId={} err={}",
-                        raw.getSourceId(), e.getMessage());
+                log.warn("[NormalizedPolicySidecarBackfillService] Gov24 support backfill 실패 sourceId={} errorType={}",
+                        raw.getSourceId(), e.getClass().getSimpleName());
             }
         }
 

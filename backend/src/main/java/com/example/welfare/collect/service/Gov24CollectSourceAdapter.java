@@ -106,8 +106,8 @@ public class Gov24CollectSourceAdapter extends AbstractListCollectSourceAdapter<
                         saved++;
                     } catch (Exception e) {
                         failed++;
-                        log.warn("[CollectSourceAdapter][{}] 저장 실패 {}={} chunk={} err={}",
-                                source().jobName(), failureIdLabel(), serviceId, chunkIndex, e.getMessage());
+                        log.warn("[CollectSourceAdapter][{}] 저장 실패 {}={} chunk={} errorType={}",
+                                source().jobName(), failureIdLabel(), serviceId, chunkIndex, e.getClass().getSimpleName());
                     }
                 }
 
@@ -129,8 +129,8 @@ public class Gov24CollectSourceAdapter extends AbstractListCollectSourceAdapter<
                 pauseBetweenChunksIfNeeded();
             }
         } catch (Exception e) {
-            log.error("[Gov24CollectSourceAdapter] chunk collect failed chunk={} processed={} saved={} skipped={} filtered={} failed={} err={}",
-                    chunkIndex + 1, requested, saved, skipped, filteredOut, failed, e.getMessage(), e);
+            log.error("[Gov24CollectSourceAdapter] chunk collect failed chunk={} processed={} saved={} skipped={} filtered={} failed={} errorType={}",
+                    chunkIndex + 1, requested, saved, skipped, filteredOut, failed, e.getClass().getSimpleName());
             throw e;
         }
 
@@ -151,7 +151,7 @@ public class Gov24CollectSourceAdapter extends AbstractListCollectSourceAdapter<
                         cleanupResult.staleSourceIds().stream().limit(10).toList());
             }
         } catch (Exception e) {
-            log.warn("[Gov24CollectSourceAdapter] stale cleanup failed err={}", e.getMessage());
+            log.warn("[Gov24CollectSourceAdapter] stale cleanup failed errorType={}", e.getClass().getSimpleName());
         }
 
         long elapsedMs = System.currentTimeMillis() - startedAt;
@@ -221,7 +221,7 @@ public class Gov24CollectSourceAdapter extends AbstractListCollectSourceAdapter<
         try {
             return objectMapper.writeValueAsString(metadata);
         } catch (Exception e) {
-            log.warn("[Gov24CollectSourceAdapter] metadata json build failed err={}", e.getMessage());
+            log.warn("[Gov24CollectSourceAdapter] metadata json build failed errorType={}", e.getClass().getSimpleName());
             return null;
         }
     }

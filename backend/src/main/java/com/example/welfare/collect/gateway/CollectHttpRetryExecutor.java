@@ -45,19 +45,20 @@ public class CollectHttpRetryExecutor {
                     continue;
                 }
 
-                log.error("[{}] request failed request={} status={}: {}",
-                        clientName, requestLabel, status, e.getMessage(), e);
+                log.error("[{}] request failed request={} status={} errorType={}",
+                        clientName, requestLabel, status, e.getClass().getSimpleName());
                 throw new CustomException(ErrorCode.COLLECT_API_FAILED);
             } catch (Exception e) {
                 if (attempt < maxAttempts) {
                     long waitMs = nextBackoffMillis(baseBackoffMs, attempt);
-                    log.warn("[{}] retryable exception retry request={} attempt={}/{} waitMs={} err={}",
-                            clientName, requestLabel, attempt, maxAttempts, waitMs, e.getMessage());
+                    log.warn("[{}] retryable exception retry request={} attempt={}/{} waitMs={} errorType={}",
+                            clientName, requestLabel, attempt, maxAttempts, waitMs, e.getClass().getSimpleName());
                     sleepQuietly(waitMs, clientName + " exception retry");
                     continue;
                 }
 
-                log.error("[{}] request failed request={}: {}", clientName, requestLabel, e.getMessage(), e);
+                log.error("[{}] request failed request={} errorType={}",
+                        clientName, requestLabel, e.getClass().getSimpleName());
                 throw new CustomException(ErrorCode.COLLECT_API_FAILED);
             }
         }

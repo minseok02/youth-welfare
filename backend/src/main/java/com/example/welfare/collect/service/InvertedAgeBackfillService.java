@@ -78,8 +78,8 @@ public class InvertedAgeBackfillService {
                     }
                 } catch (Exception e) {
                     failed++;
-                    log.warn("[InvertedAgeBackfillService] inverted age backfill 실패 sourceType={} sourceId={} err={}",
-                            service.getSourceType(), service.getSourceId(), e.getMessage());
+                    log.warn("[InvertedAgeBackfillService] inverted age backfill 실패 sourceType={} sourceId={} errorType={}",
+                            service.getSourceType(), service.getSourceId(), e.getClass().getSimpleName());
                 }
             }
         }

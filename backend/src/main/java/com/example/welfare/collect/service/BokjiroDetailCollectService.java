@@ -286,8 +286,8 @@ public class BokjiroDetailCollectService {
                 );
                 saved++;
             } catch (Exception e) {
-                log.warn("[BokjiroDetailCollectService] 상세 저장 실패 serviceId={} sourceType={} refreshExisting={} err={}",
-                        service.getId(), service.getSourceType(), refreshExisting, e.getMessage());
+                log.warn("[BokjiroDetailCollectService] 상세 저장 실패 serviceId={} sourceType={} refreshExisting={} errorType={}",
+                        service.getId(), service.getSourceType(), refreshExisting, e.getClass().getSimpleName());
                 failed++;
                 failedServiceIds.add(service.getId());
             }

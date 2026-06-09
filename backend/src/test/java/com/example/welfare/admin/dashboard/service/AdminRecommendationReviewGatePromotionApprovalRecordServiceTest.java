@@ -1,6 +1,8 @@
 package com.example.welfare.admin.dashboard.service;
 
 import com.example.welfare.admin.dashboard.repository.RecommendationReviewGatePromotionApprovalCommandRepository;
+import com.example.welfare.global.exception.CustomException;
+import com.example.welfare.global.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,7 +14,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
 class AdminRecommendationReviewGatePromotionApprovalRecordServiceTest {
@@ -51,6 +55,27 @@ class AdminRecommendationReviewGatePromotionApprovalRecordServiceTest {
 
         then(commandRepository).should().deleteApprovalRecord(
                 AdminDashboardQueryPolicy.REVIEW_GATE_PROMOTION_APPROVAL_KEY
+        );
+    }
+
+    @Test
+    @DisplayName("recordApproval 은 approvalNote가 1000자를 초과하면 거부한다")
+    void recordApprovalRejectsTooLongApprovalNote() {
+        String tooLongNote = "a".repeat(1001);
+
+        assertThatThrownBy(() -> service.recordApproval("admin-user-key", tooLongNote))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_INPUT);
+
+        then(commandRepository).should(never()).upsertApprovalRecord(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
         );
     }
 }

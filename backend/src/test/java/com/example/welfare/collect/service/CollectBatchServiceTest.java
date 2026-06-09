@@ -43,7 +43,7 @@ class CollectBatchServiceTest {
             CollectSource source = invocation.getArgument(0);
             adapterCalls.add(source.name());
             if (source == CollectSource.BOKJIRO_CENTRAL) {
-                throw new IllegalStateException("boom");
+                throw new IllegalStateException("https://apis.data.go.kr/path?serviceKey=secret-key");
             }
             return CollectResult.of(0, 0, 0, 0, 0);
         }).when(collectSourceExecutionService).collectSource(any());
@@ -62,6 +62,12 @@ class CollectBatchServiceTest {
                         org.assertj.core.groups.Tuple.tuple("BOKJIRO_LOCAL", true),
                         org.assertj.core.groups.Tuple.tuple("BOKJIRO_DETAIL", true)
                 );
+        CollectBatchRunResult.SourceRunResult failed = result.sourceResults().get(1);
+        assertThat(failed.errorCode()).isEqualTo("IllegalStateException");
+        assertThat(failed.errorMessage())
+                .contains("errorCode=IllegalStateException")
+                .doesNotContain("serviceKey")
+                .doesNotContain("secret-key");
         verify(collectExecutionGuard).runExclusive(eq("collect-all"), any(Runnable.class));
     }
 }
