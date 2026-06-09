@@ -124,22 +124,27 @@ wrapper가 하는 일:
 2. `tmp/ops-observation/latest-ops-observation-summary.txt`
 3. 같은 이름의 `json`
 
-## 이번 실행 기준 핵심 수치
+## 최신 server/RDS 기준 핵심 수치
 
-이번 closeout 당시 로컬 검증 값은 아래였습니다.
+2026-06-09 server/RDS nightly handoff 재실행 뒤 최종 검증 값은 아래입니다.
 
 - `recommendation_standard_code_adoption_status=ok`
-- `recommendation_standard_code_adoption_latest_batch_user_count=704`
-- `recommendation_standard_code_adoption_latest_batch_users_with_any_standard_code=92`
-- `recommendation_standard_code_adoption_latest_batch_users_missing_all_standard_codes=612`
-- `recommendation_standard_code_adoption_latest_batch_users_with_any_standard_code_share_pct=13.07`
-- `recommendation_standard_code_adoption_latest_batch_users_missing_all_standard_codes_share_pct=86.93`
+- `user_profile_standard_code_total_users=476`
+- `user_profile_standard_code_users_with_any_standard_code=187`
+- `user_profile_standard_code_users_missing_all_standard_codes=289`
+- `user_profile_standard_code_safe_reconcile_candidate_rows=0`
+- `user_profile_standard_code_conflicting_value_gap_rows=0`
+- `recommendation_standard_code_adoption_latest_batch_user_count=261`
+- `recommendation_standard_code_adoption_latest_batch_users_with_any_standard_code=187`
+- `recommendation_standard_code_adoption_latest_batch_users_missing_all_standard_codes=74`
+- `recommendation_standard_code_adoption_latest_batch_users_with_any_standard_code_share_pct=71.65`
+- `recommendation_standard_code_adoption_latest_batch_users_missing_all_standard_codes_share_pct=28.35`
 
 해석:
 
-- 표준코드가 실제 recommendation latest batch 사용자군에 일부 들어오기 시작했지만,
-  아직도 다수는 전부 비어 있다
-- 즉 현재 병목은 추천 점수 로직보다 입력률이다
+- 자동 reconcile 후보와 conflict gap은 없으므로 DB 보정 작업을 열지 않는다.
+- latest batch 안의 표준코드 보유 비중은 올라왔지만, 여전히 `74명` 은 전부 비어 있다.
+- 즉 현재 병목은 추천 점수 로직보다 입력률과 real-user sample이다.
 
 ## 검증
 

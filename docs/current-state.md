@@ -115,7 +115,7 @@
 
 - recommendation reopen precheck: `APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-recommendation-reopen-precheck.sh`
 - server/RDS recommendation reopen precheck: `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-recommendation-reopen-precheck.sh`
-  - 현재 server/RDS 최신 기준은 `reopen_precheck_status=KEEP_OBSERVING`, `real_user_dashboard_gate=DEFERRED_REAL_USER_SAMPLE_THIN`, `real_user_breakdown_cohort_gate=DEFERRED_REAL_USER_SAMPLE_THIN`, `real_user_top1_leader_signal_summary=EXAMPLE_SMOKE_ONLY_LEADER`, `review_gate_policy_promotion_execution_status=DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW` 이다.
+  - 현재 server/RDS 최신 기준은 `reopen_precheck_status=KEEP_OBSERVING`, `real_user_dashboard_gate=DEFERRED_REAL_USER_SAMPLE_THIN`, `real_user_breakdown_cohort_gate=DEFERRED_REAL_USER_SAMPLE_THIN`, `real_user_top1_leader_signal_summary=EXAMPLE_SMOKE_ONLY_LEADER`, `mixed_top1_leader_service_id=3651`, `mixed_top1_leader_title=청년 웰컴페이(이사비) 지원사업`, `review_gate_policy_promotion_execution_status=DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW` 이다.
   - 즉 지금은 recommendation score/weight/prompt를 다시 열지 않고 real-user sample과 leader signal을 관찰한다.
 - recommendation observation suite: `APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-recommendation-observation-suite.sh`
 - server/RDS recommendation observation suite: `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-recommendation-observation-suite.sh`

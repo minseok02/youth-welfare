@@ -43,6 +43,10 @@
 - `real_user_breakdown_cohort_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
 - `real_user_review_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
 - `real_user_top1_leader_signal_summary=EXAMPLE_SMOKE_ONLY_LEADER`
+- `mixed_top1_leader_service_id=3651`
+- `mixed_top1_leader_title=청년 웰컴페이(이사비) 지원사업`
+- `mixed_top1_leader_share_pct=43.08`
+- `mixed_top1_leader_real_user_users=0`
 - `review_gate_policy_promotion_status=KEEP_PRIMARY_BASELINE`
 - `review_gate_policy_promotion_readiness_status=NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW`
 - `review_gate_policy_promotion_execution_status=DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW`
