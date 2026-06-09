@@ -185,6 +185,10 @@ def build_observation_transition_label(previous_available: bool, changed: bool, 
     return f"{previous_status or '—'} -> {current_status or '—'}"
 
 
+def has_value(value: str):
+    return bool((value or "").strip())
+
+
 def build_promoted_alert(previous_available: bool, missing_delta: int, missing_delta_label: str, current_status: str, status_changed: bool, transition_label: str):
     if not previous_available:
         return None
@@ -267,21 +271,29 @@ if run_recommendation_standard_code_observation:
 policy_data_triage_observation_status = "skipped"
 if run_policy_data_triage_observation:
     policy_data_triage_observation_status = "ok" if policy_data_triage_observation else "missing"
-current_priority_previous_available = previous_current_priority_summary_path is not None and (
-    bool(previous_current_priority_summary.get("active_baseline_user_profile_standard_code_users_missing_all_standard_codes", "").strip())
-    or bool(previous_current_priority_summary.get("recommendation_standard_code_observation_status", "").strip())
+current_priority_missing_all_standard_codes_value = current_priority_summary.get(
+    "active_baseline_user_profile_standard_code_users_missing_all_standard_codes", ""
+)
+previous_current_priority_missing_all_standard_codes_value = previous_current_priority_summary.get(
+    "active_baseline_user_profile_standard_code_users_missing_all_standard_codes", ""
+)
+missing_all_standard_codes_comparison_available = (
+    has_value(current_priority_missing_all_standard_codes_value)
+    and has_value(previous_current_priority_missing_all_standard_codes_value)
 )
 current_priority_missing_all_standard_codes = int(
-    current_priority_summary.get("active_baseline_user_profile_standard_code_users_missing_all_standard_codes", "0") or 0
+    current_priority_missing_all_standard_codes_value or 0
 )
 previous_current_priority_missing_all_standard_codes = int(
-    previous_current_priority_summary.get("active_baseline_user_profile_standard_code_users_missing_all_standard_codes", "0") or 0
+    previous_current_priority_missing_all_standard_codes_value or 0
 )
 current_priority_missing_all_standard_codes_delta = (
     current_priority_missing_all_standard_codes - previous_current_priority_missing_all_standard_codes
+    if missing_all_standard_codes_comparison_available
+    else 0
 )
 current_priority_missing_all_standard_codes_delta_label = build_missing_delta_label(
-    current_priority_previous_available,
+    missing_all_standard_codes_comparison_available,
     current_priority_missing_all_standard_codes_delta,
 )
 current_priority_recommendation_observation_status = current_priority_summary.get(
@@ -290,12 +302,20 @@ current_priority_recommendation_observation_status = current_priority_summary.ge
 previous_current_priority_recommendation_observation_status = previous_current_priority_summary.get(
     "recommendation_standard_code_observation_status", ""
 )
-current_priority_recommendation_observation_status_changed = (
+recommendation_observation_comparison_available = (
+    has_value(current_priority_recommendation_observation_status)
+    and has_value(previous_current_priority_recommendation_observation_status)
+)
+current_priority_recommendation_observation_status_changed = recommendation_observation_comparison_available and (
     current_priority_recommendation_observation_status
     != previous_current_priority_recommendation_observation_status
 )
+current_priority_previous_available = (
+    previous_current_priority_summary_path is not None
+    and (missing_all_standard_codes_comparison_available or recommendation_observation_comparison_available)
+)
 current_priority_recommendation_observation_transition_label = build_observation_transition_label(
-    current_priority_previous_available,
+    recommendation_observation_comparison_available,
     current_priority_recommendation_observation_status_changed,
     previous_current_priority_recommendation_observation_status,
     current_priority_recommendation_observation_status,

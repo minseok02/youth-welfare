@@ -41,25 +41,36 @@ public class AdminDashboardWrapperObservationService {
                 currentPrioritySummaryPath,
                 "current-priority-summary.txt"
         );
-        boolean currentPriorityPreviousAvailable = hasCurrentPriorityComparisonData(previousCurrentPriority);
+        String currentPriorityMissingAllStandardCodesValue =
+                currentPriority.value("active_baseline_user_profile_standard_code_users_missing_all_standard_codes");
+        String previousCurrentPriorityMissingAllStandardCodesValue =
+                previousCurrentPriority.value("active_baseline_user_profile_standard_code_users_missing_all_standard_codes");
+        boolean missingAllStandardCodesComparisonAvailable =
+                hasText(currentPriorityMissingAllStandardCodesValue) && hasText(previousCurrentPriorityMissingAllStandardCodesValue);
         int currentPriorityMissingAllStandardCodes =
-                parseInt(currentPriority.value("active_baseline_user_profile_standard_code_users_missing_all_standard_codes"));
+                parseInt(currentPriorityMissingAllStandardCodesValue);
         int previousCurrentPriorityMissingAllStandardCodes =
-                parseInt(previousCurrentPriority.value("active_baseline_user_profile_standard_code_users_missing_all_standard_codes"));
-        int currentPriorityMissingAllStandardCodesDelta =
-                currentPriorityMissingAllStandardCodes - previousCurrentPriorityMissingAllStandardCodes;
+                parseInt(previousCurrentPriorityMissingAllStandardCodesValue);
+        int currentPriorityMissingAllStandardCodesDelta = missingAllStandardCodesComparisonAvailable
+                ? currentPriorityMissingAllStandardCodes - previousCurrentPriorityMissingAllStandardCodes
+                : 0;
         String currentPriorityRecommendationObservationStatus =
                 currentPriority.value("recommendation_standard_code_observation_status");
         String previousCurrentPriorityRecommendationObservationStatus =
                 previousCurrentPriority.value("recommendation_standard_code_observation_status");
-        boolean currentPriorityRecommendationObservationStatusChanged =
+        boolean recommendationObservationComparisonAvailable =
+                hasText(currentPriorityRecommendationObservationStatus) && hasText(previousCurrentPriorityRecommendationObservationStatus);
+        boolean currentPriorityRecommendationObservationStatusChanged = recommendationObservationComparisonAvailable
+                &&
                 !currentPriorityRecommendationObservationStatus.equals(previousCurrentPriorityRecommendationObservationStatus);
+        boolean currentPriorityPreviousAvailable = missingAllStandardCodesComparisonAvailable
+                || recommendationObservationComparisonAvailable;
         String currentPriorityMissingAllStandardCodesDeltaLabel = buildMissingDeltaLabel(
-                currentPriorityPreviousAvailable,
+                missingAllStandardCodesComparisonAvailable,
                 currentPriorityMissingAllStandardCodesDelta
         );
         String currentPriorityRecommendationObservationStatusTransitionLabel = buildObservationTransitionLabel(
-                currentPriorityPreviousAvailable,
+                recommendationObservationComparisonAvailable,
                 currentPriorityRecommendationObservationStatusChanged,
                 previousCurrentPriorityRecommendationObservationStatus,
                 currentPriorityRecommendationObservationStatus
@@ -119,14 +130,8 @@ public class AdminDashboardWrapperObservationService {
         );
     }
 
-    private boolean hasCurrentPriorityComparisonData(SummarySnapshot snapshot) {
-        if (!snapshot.available()) {
-            return false;
-        }
-        String missingAllStandardCodes = snapshot.value("active_baseline_user_profile_standard_code_users_missing_all_standard_codes");
-        String recommendationObservationStatus = snapshot.value("recommendation_standard_code_observation_status");
-        return (missingAllStandardCodes != null && !missingAllStandardCodes.isBlank())
-                || (recommendationObservationStatus != null && !recommendationObservationStatus.isBlank());
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     private String buildMissingDeltaLabel(boolean previousAvailable, int delta) {

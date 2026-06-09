@@ -156,6 +156,8 @@
   - appends compact lines to `nightly-summary-YYYY-MM-DD.log`
 - admin attention feed: `GET /api/admin/dashboard/attention-feed`
   - collect drift, 표준코드 backlog, wrapper warning을 재사용 가능한 운영 알림 목록으로 반환합니다.
+  - wrapper current-priority 비교는 현재/이전 summary 양쪽에 값이 있는 metric만 비교합니다.
+    - 이전 missing-count가 비어 있으면 `0명` 이 아니라 `이전값 없음` 으로 읽습니다.
 - frontend observation suite: `bash deploy/smoke/run-local-frontend-observation-suite.sh`
 - server frontend observation suite: `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-local-frontend-observation-suite.sh`
   - 기본 deployed-origin 경계는 fresh e2e user/bootstrap을 먼저 준비하고 `@dev-only`, `@admin-required` 케이스를 제외합니다.
