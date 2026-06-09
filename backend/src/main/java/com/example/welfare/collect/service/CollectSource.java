@@ -14,10 +14,10 @@ public enum CollectSource {
     YOUTH("YOUTH", "collect-youth", "youth", "온통청년", "온통청년 수집 완료", true, true),
     BOKJIRO_CENTRAL("BOKJIRO_CENTRAL", "collect-bokjiro-central", "bokjiro-central", "복지로 중앙", "복지로 중앙 수집 완료", true, true),
     BOKJIRO_LOCAL("BOKJIRO_LOCAL", "collect-bokjiro-local", "bokjiro-local", "복지로 지자체", "복지로 지자체 수집 완료", true, true),
-    GOV24("GOV24", "collect-gov24", "gov24", "정부24", "정부24 수집 완료", false, true),
+    GOV24("GOV24", "collect-gov24", "gov24", "정부24", "정부24 수집 완료", true, true),
     GOV24_DETAIL("GOV24_DETAIL", "collect-gov24-details", "gov24-details", "정부24 상세", "정부24 상세 수집 완료", false, true),
     GOV24_SUPPORT_CONDITIONS("GOV24_SUPPORT_CONDITIONS", "collect-gov24-support-conditions", "gov24-support-conditions", "정부24 지원조건", "정부24 지원조건 수집 완료", false, true),
-    BOKJIRO_DETAIL("BOKJIRO_DETAIL", "collect-bokjiro-details", "bokjiro-details", "복지로 상세", "복지로 상세 수집 완료", true, true),
+    BOKJIRO_DETAIL("BOKJIRO_DETAIL", "collect-bokjiro-details", "bokjiro-details", "복지로 상세", "복지로 상세 수집 완료", false, true),
     BOKJIRO_DETAIL_GAP_FILL("BOKJIRO_DETAIL_GAP_FILL", "collect-bokjiro-details-gap-fill", "bokjiro-details-gap-fill", "복지로 상세 누락 보강", "복지로 상세 누락 보강 완료", false, false),
     BOKJIRO_DETAIL_REFRESH("BOKJIRO_DETAIL_REFRESH", "collect-bokjiro-details-refresh", "bokjiro-details-refresh", "복지로 상세 재수집", "복지로 상세 재수집 완료", false, true);
 
@@ -76,6 +76,13 @@ public enum CollectSource {
 
     public boolean requiresAdapter() {
         return requiresAdapter;
+    }
+
+    public boolean isListSource() {
+        return switch (this) {
+            case YOUTH, BOKJIRO_CENTRAL, BOKJIRO_LOCAL, GOV24 -> true;
+            case GOV24_DETAIL, GOV24_SUPPORT_CONDITIONS, BOKJIRO_DETAIL, BOKJIRO_DETAIL_GAP_FILL, BOKJIRO_DETAIL_REFRESH -> false;
+        };
     }
 
     public WelfareService.SourceType toWelfareSourceType() {

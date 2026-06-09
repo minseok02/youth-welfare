@@ -15,6 +15,7 @@ public class CollectSourceExecutionService {
     private final BokjiroDetailCollectService bokjiroDetailCollectService;
     private final Gov24DetailCollectService gov24DetailCollectService;
     private final Gov24SupportConditionsCollectService gov24SupportConditionsCollectService;
+    private final YouthDetailCollectService youthDetailCollectService;
     private final PolicyEmbeddingRefreshRequestService policyEmbeddingRefreshRequestService;
     private final Map<CollectSource, CollectSourceAdapter> adapters;
 
@@ -23,11 +24,13 @@ public class CollectSourceExecutionService {
                                          BokjiroDetailCollectService bokjiroDetailCollectService,
                                          Gov24DetailCollectService gov24DetailCollectService,
                                          Gov24SupportConditionsCollectService gov24SupportConditionsCollectService,
+                                         YouthDetailCollectService youthDetailCollectService,
                                          PolicyEmbeddingRefreshRequestService policyEmbeddingRefreshRequestService) {
         this.apiSyncLogService = apiSyncLogService;
         this.bokjiroDetailCollectService = bokjiroDetailCollectService;
         this.gov24DetailCollectService = gov24DetailCollectService;
         this.gov24SupportConditionsCollectService = gov24SupportConditionsCollectService;
+        this.youthDetailCollectService = youthDetailCollectService;
         this.policyEmbeddingRefreshRequestService = policyEmbeddingRefreshRequestService;
         this.adapters = buildAdapterMap(adapters);
     }
@@ -53,6 +56,30 @@ public class CollectSourceExecutionService {
                     0,
                     result.failedCount()
             );
+        });
+        return resultRef.get();
+    }
+
+    public CollectResult collectBokjiroDetails(int maxCallsPerRun) {
+        AtomicReference<CollectResult> resultRef = new AtomicReference<>();
+        apiSyncLogService.runWithLog(CollectSource.BOKJIRO_DETAIL.jobName(), () -> {
+            CollectResult result = policyEmbeddingRefreshRequestService.runInBatch(
+                    () -> bokjiroDetailCollectService.collectBokjiroDetailsResult(maxCallsPerRun)
+            );
+            resultRef.set(result);
+            return result;
+        });
+        return resultRef.get();
+    }
+
+    public CollectResult collectBokjiroDetailsRefresh(int maxCallsPerRun) {
+        AtomicReference<CollectResult> resultRef = new AtomicReference<>();
+        apiSyncLogService.runWithLog(CollectSource.BOKJIRO_DETAIL_REFRESH.jobName(), () -> {
+            CollectResult result = policyEmbeddingRefreshRequestService.runInBatch(
+                    () -> bokjiroDetailCollectService.collectBokjiroDetailsRefreshResult(maxCallsPerRun)
+            );
+            resultRef.set(result);
+            return result;
         });
         return resultRef.get();
     }
@@ -115,6 +142,16 @@ public class CollectSourceExecutionService {
             return result;
         });
         return resultRef.get();
+    }
+
+    public CollectResult collectYouthDetailsForSourceId(String sourceId) {
+        return policyEmbeddingRefreshRequestService.runInBatch(
+                () -> youthDetailCollectService.collectYouthDetailsForSourceId(sourceId)
+        );
+    }
+
+    public CollectResult collectYouthDetails() {
+        return policyEmbeddingRefreshRequestService.runInBatch(youthDetailCollectService::collectYouthDetails);
     }
 
     public CollectResult collectGov24SupportConditions(int maxCallsPerRun) {

@@ -47,6 +47,20 @@ source별 retry/rate-limit/duplicate-run guard inventory를 다시 볼 때는 [c
 
 ### nightly scheduled lane
 
+현재 nightly `collect/all` 은 "heavy detail full run" 이 아니라 아래 순서로 동작합니다.
+
+1. 매일 list snapshot: `YOUTH`, `BOKJIRO_CENTRAL`, `BOKJIRO_LOCAL`, `GOV24`
+2. source별 `collect_list_snapshots` / `collect_list_snapshot_items` fingerprint 저장
+3. 이전 정상 snapshot 대비 `new / changed / missing` diff 계산
+4. 신규/변경 임계치 초과 시 sourceId 후보만 forced detail 우선 처리
+5. 남은 기본 경로로 요일별 detail rotation 실행
+
+주의:
+
+- 첫 snapshot은 baseline만 만들고 forced detail을 실행하지 않습니다.
+- `missing` 대량 발생은 upstream 장애나 일시 응답 축소일 수 있으므로 detail 강제가 아니라 `COUNT_DROP_GUARDED` 로 막습니다.
+- `saved_count` 는 변경 건수가 아니라 upsert 처리량일 수 있으므로 list 변화 판단은 fingerprint diff를 우선합니다.
+
 - `YOUTH`
   - lane type: `SNAPSHOT`
   - 이유: 핵심 청년 snapshot 기준선이라 nightly 자동수집에 포함
@@ -56,38 +70,45 @@ source별 retry/rate-limit/duplicate-run guard inventory를 다시 볼 때는 [c
 - `BOKJIRO_LOCAL`
   - lane type: `SNAPSHOT`
   - 이유: 복지로 지자체 목록 기준선 유지 + local `429/open-circuit` triage 대상
+- `GOV24`
+  - lane type: `SNAPSHOT`
+  - 이유: 정부24 목록 기준선과 diff snapshot을 매일 유지
+
+### rotation / forced detail lane
+
 - `BOKJIRO_DETAIL`
   - lane type: `DETAIL`
-  - 이유: detail coverage 를 nightly로 따라가되, quota/runtime 보호를 위해 budgeted lane 으로 제한
+  - 실행: 월요일 rotation 또는 복지로 list diff forced candidate
+  - 이유: detail coverage를 매일 full run 하지 않고, 신규/변경 후보와 요일별 예산으로 보강
+- `GOV24_DETAIL`
+  - lane type: `DETAIL`
+  - 실행: 화요일 rotation 또는 Gov24 list diff forced candidate
+  - 이유: Gov24 detail을 list snapshot과 분리해 budgeted로 운영
+- `GOV24_SUPPORT_CONDITIONS`
+  - lane type: `DETAIL`
+  - 실행: 수요일 rotation 또는 Gov24 list diff forced candidate
+  - 이유: 지원조건 fact coverage를 detail과 분리해 budgeted로 운영
+- `BOKJIRO_DETAIL_REFRESH`
+  - lane type: `MAINTENANCE`
+  - 실행: 목요일 rotation 또는 복지로 list changed candidate
+  - 이유: 기존 detail row 재동기화는 full refresh 대신 후보/요일별 예산으로 제한
+- `YOUTH_DETAILS`
+  - lane type: `ENRICHMENT`
+  - 실행: 금요일 rotation 또는 YOUTH list diff forced candidate
+  - 이유: `refUrlAddr1/2` 보강용 detail lane. snapshot과 분리해 budgeted로 운영
 
 ### manual on-demand lane
 
 - `GOV24`
   - lane type: `SNAPSHOT`
-  - 이유: nightly 제외. 수동 실행 시 `serviceList -> detail -> supportConditions` 를 연쇄 실행
+  - 이유: manual 실행도 지원. 수동 실행 시 `serviceList -> detail -> supportConditions` 를 연쇄 실행
   - 현재 기본 운영 경로는 `POST /api/admin/collect/gov24/async` 와 `GET /api/admin/collect/gov24/async-status` 다.
   - list collect 자체는 chunked runtime collect로 바뀌었고, 기본값은 `chunkSize=500`, `chunkPauseMs=100` 이다.
   - `api_sync_logs.metadata_json` 에 `chunkSize/chunkPauseMs/chunkCount/elapsedMs/totalCount/staleDeletedCount` 를 남긴다.
   - stale cleanup은 각 chunk 중간이 아니라 full run 성공 후 마지막에 `1회`만 실행한다.
-- `GOV24_DETAIL`
-  - lane type: `DETAIL`
-  - 이유: `maxCallsPerRun`, `sourceId` override 를 두는 budgeted manual lane
-  - 현재는 `?sourceId=<Gov24 서비스ID>` 단건 detail collect도 stale row self-heal lane으로 읽는다. local 기준 `만 39세 이하 청년` 같은 detail 문구만 있어도 뒤집힌 `min_age/max_age` row를 `18/39` 로 다시 맞춘다.
-- `GOV24_SUPPORT_CONDITIONS`
-  - lane type: `DETAIL`
-  - 이유: list snapshot 과 분리된 지원조건 확장 lane
-- `YOUTH_DETAILS`
-  - lane type: `ENRICHMENT`
-  - 이유: `refUrlAddr1/2` 보강용 detail lane. `500ms` pacing 으로 느리게 돌리며 snapshot 과 분리
-  - 현재는 `api_sync_logs.job_name='YOUTH_DETAILS'` 로 마지막 실행 기록도 남김
-  - 현재는 `sourceId` 단건 override는 없다. 즉 YOUTH stale row repair는 `POST /api/admin/collect/youth-details` 또는 broader rerun으로 읽고, 복지로/Gov24 같은 bounded single-source repair lane은 아직 없다.
 - `BOKJIRO_DETAIL_GAP_FILL`
   - lane type: `MAINTENANCE`
   - 이유: backlog gap 을 메우는 one-off maintenance lane
-- `BOKJIRO_DETAIL_REFRESH`
-  - lane type: `MAINTENANCE`
-  - 이유: 기존 detail 을 다시 읽는 rerun lane
-  - 현재는 `?sourceId=<복지로 서비스ID>` 단건 refresh도 지원하며, stale row self-heal 확인은 `WLF00004717(인천형 청년월세 지원사업)` 처럼 특정 정책만 다시 태우는 쪽이 기본 운영 경계다
 - `INVERTED_AGE_BACKFILL`
   - lane type: `MAINTENANCE`
   - 이유: 이미 저장된 `DETAIL raw_api_payloads` 를 replay해 legacy `min_age > max_age` row를 한 번에 복구하는 backfill lane
@@ -99,8 +120,8 @@ source별 retry/rate-limit/duplicate-run guard inventory를 다시 볼 때는 [c
 ### 왜 이렇게 나눴나
 
 - snapshot 기준선과 비싼 detail/enrichment/maintenance lane 을 분리해야 quota, app runtime, 운영 triage 비용을 같이 제어할 수 있다.
-- 특히 `Gov24 detail/support`, `YOUTH detail`, `Bokjiro gap-fill/refresh` 는 "매일 반드시 도는 기준선"이 아니라 필요할 때만 태우는 것이 현재 운영 원칙이다.
-- 특히 `Gov24` list snapshot은 chunk 처리로 안정성은 좋아졌지만 full run 자체는 여전히 약 `2분` 내외의 long-running job 이므로, admin UI/운영 smoke에서는 동기 endpoint보다 async trigger/status 경로를 기본으로 읽는다.
+- 특히 `Gov24 detail/support`, `YOUTH detail`, `Bokjiro detail/refresh` 는 "매일 전량 도는 기준선"이 아니라 list diff와 요일별 budget으로 태우는 것이 현재 운영 원칙이다.
+- `Gov24` list snapshot은 chunk 처리로 안정성은 좋아졌고 nightly list 기준선에 포함됐다. admin 수동 운영 smoke에서는 여전히 async trigger/status 경로를 기본으로 읽는다.
 
 ## 현재 Gov24 async collect 운영 경계
 
@@ -141,7 +162,8 @@ source별 retry/rate-limit/duplicate-run guard inventory를 다시 볼 때는 [c
   - open circuit: `1800000ms`
   - retry: `3 attempts / 1000ms backoff`
 - `BOKJIRO_DETAIL`
-  - budget: `central max 10000 calls/run / local max 10000 calls/run`
+  - rotation budget: `100 calls/run`
+  - source default budget: `central max 10000 calls/run / local max 10000 calls/run`
   - detail pacing: `1000ms`
   - `429` abort: `5 consecutive hits`
   - retry: `3 attempts / 1500ms backoff`
@@ -160,7 +182,7 @@ source별 retry/rate-limit/duplicate-run guard inventory를 다시 볼 때는 [c
   - detail pacing: `300ms`
   - retry: `3 attempts / 1500ms backoff`
 - `YOUTH_DETAILS`
-  - budget: `missing detail rows only`
+  - budget: `max 50 calls/run, missing detail rows first`
   - detail pacing: `500ms`
 - `BOKJIRO_DETAIL_GAP_FILL`
   - budget: `operator supplied rounds/maxCallsPerRound`
@@ -169,7 +191,8 @@ source별 retry/rate-limit/duplicate-run guard inventory를 다시 볼 때는 [c
   - detail pacing: `1000ms`
   - `429` abort: `5 consecutive hits`
 - `BOKJIRO_DETAIL_REFRESH`
-  - budget: `manual override는 max 5000 calls/run, no-arg 실행은 source default`
+  - rotation budget: `50 calls/run`
+  - manual override는 max 5000 calls/run, no-arg 실행은 source default
   - detail pacing: `1000ms`
   - `429` abort: `5 consecutive hits`
 

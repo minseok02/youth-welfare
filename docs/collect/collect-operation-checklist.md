@@ -43,7 +43,16 @@
 
 사용:
 
-- 배치와 같은 순서로 전체 수집 확인
+- 배치와 같은 순서로 daily list snapshot, list diff, forced detail 후보, 요일별 detail rotation 확인
+
+해석:
+
+- `collect/all` 은 더 이상 "모든 detail lane 전량 실행" 이 아니다.
+- list source는 매일 `YOUTH`, `BOKJIRO_CENTRAL`, `BOKJIRO_LOCAL`, `GOV24` 순서로 실행된다.
+- 첫 list snapshot은 baseline만 만들고 forced detail을 실행하지 않는다.
+- 신규/변경 diff가 임계치를 넘으면 sourceId 후보만 forced detail로 먼저 처리한다.
+- 대량 missing/count drop은 forced detail이 아니라 guard/warning으로 본다.
+- 요일별 detail rotation은 남은 예산 경로로 읽는다.
 
 ### C. detail gap-fill
 
@@ -68,11 +77,13 @@
 - 응답 status
 - `api_sync_logs` latest row
 - requested / saved / failed count
+- list run이면 `collect_list_snapshots` latest row의 `new_count / changed_count / missing_count`
 
 ### 필요 시 추가 확인
 
 - `welfare_services`
 - `raw_api_payloads`
+- `collect_list_snapshot_items`
 - `service_taxonomies`
 - `service_facts`
 
@@ -99,6 +110,8 @@
 - `collect/all`, 일반 목록 collect, closeout 전 1차 실행인데 `requested=0` 이 반복
 - `saved=0` 이 반복되는데 `skipped_count` 증가나 backlog closeout 맥락으로 설명되지 않는 경우
 - `api_sync_logs` row 없음
+- list snapshot의 `missing_count` 가 대량으로 증가했는데 upstream 장애/필터 변경 설명이 없는 경우
+- forced detail 후보가 반복적으로 실패해 같은 sourceId가 계속 남는 경우
 
 ## 5. collect 후 downstream 확인 여부
 
@@ -125,6 +138,7 @@
 - 언제 실행했는지
 - 어떤 source/endpoint 였는지
 - latest `api_sync_logs` 요약
+- list diff 요약(`new / changed / missing`, guard 여부)
 - row count 변화
 - 장애/경고 포인트
 - 다음 액션

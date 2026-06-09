@@ -46,6 +46,29 @@ compact daily operator 확인은 [collect-governance-observation-runbook.md](./c
     - `skipped_count` 증가
     가 함께 보이면 이상 징후가 아니라 closeout rerun일 수 있다.
 
+### 3-1. nightly는 list diff를 먼저 보고 detail은 후보/요일별 예산으로 처리
+
+- `POST /api/admin/collect/all` 과 scheduled `CollectBatchService.collectAll()` 은 이제 아래 순서로 읽는다.
+  1. `YOUTH`, `BOKJIRO_CENTRAL`, `BOKJIRO_LOCAL`, `GOV24` list snapshot 수집
+  2. `collect_list_snapshots`, `collect_list_snapshot_items` 에 list fingerprint 저장
+  3. 이전 snapshot 대비 `new / changed / missing` diff 계산
+  4. 신규/변경 임계치 초과 시 해당 sourceId 후보만 forced detail 우선 처리
+  5. 남은 기본 흐름으로 요일별 detail rotation 처리
+- 초기 snapshot은 baseline만 만들고 forced detail을 실행하지 않는다.
+- `missing` 대량 발생은 upstream 장애/응답 축소 가능성이 있으므로 detail 강제가 아니라 count-drop guard로 막는다.
+- detail rotation 기본값:
+  - 월: `BOKJIRO_DETAIL` missing detail 보강
+  - 화: `GOV24_DETAIL`
+  - 수: `GOV24_SUPPORT_CONDITIONS`
+  - 목: `BOKJIRO_DETAIL_REFRESH`
+  - 금: `YOUTH_DETAILS`
+  - 토/일: heavy detail rotation 없음
+- 기본 임계치:
+  - 신규 `30건 이상` 또는 현재 total의 `2% 이상`
+  - fingerprint 변경 `100건 이상` 또는 현재 total의 `5% 이상`
+  - missing 급감 guard: 이전 total 대비 `15% 이상` missing이고 missing이 신규/변경보다 크면 forced detail 금지
+- forced detail은 full refresh가 아니라 sourceId 후보 목록만 처리한다.
+
 ### 4. 부분 성공을 허용
 
 - 수집 중 일부 아이템 저장 실패가 있어도 전체 배치를 롤백하지 않는다.
@@ -211,7 +234,8 @@ LIMIT 20;
 ## 현재 배치 정책
 
 - 전체 수집 스케줄: 매일 새벽 2시
-- 상세 수집: 일일 호출 상한 적용
+- 목록 수집: 매일 `YOUTH`, `BOKJIRO_CENTRAL`, `BOKJIRO_LOCAL`, `GOV24`
+- 상세 수집: list diff forced 후보 우선 + 요일별 호출 상한 적용
 - 무중단 배포는 현재 우선순위 아님
 - 운영상 변경은 사용자 적은 시간대에 공지 후 반영
 
@@ -223,6 +247,7 @@ LIMIT 20;
 - 429 발생 시 다음 실행 시점까지 source 단위 쿨다운
 - 소스별 마지막 성공 시각/마지막 성공 건수 대시보드화
 - 운영 계정 quota(`중앙/지자체 각각 100,000`) 기준 복지로 detail gap fill / refresh 실표본 재검증
+- list diff snapshot을 admin collect lane inventory에 직접 노출
 
 ## 운영 baseline wrapper
 

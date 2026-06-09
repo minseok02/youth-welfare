@@ -212,6 +212,21 @@ collect:
     max-consecutive-rate-limit-hits: 3
     rate-limit-cooldown-ms: 10000
     local-rate-limit-open-circuit-ms: 1800000
+    rotation:
+      enabled: ${COLLECT_DETAIL_ROTATION_ENABLED:true}
+      bokjiro-detail-max-calls-per-run: ${COLLECT_ROTATION_BOKJIRO_DETAIL_MAX_CALLS_PER_RUN:100}
+      bokjiro-refresh-max-calls-per-run: ${COLLECT_ROTATION_BOKJIRO_REFRESH_MAX_CALLS_PER_RUN:50}
+      gov24-detail-max-calls-per-run: ${COLLECT_ROTATION_GOV24_DETAIL_MAX_CALLS_PER_RUN:50}
+      gov24-support-conditions-max-calls-per-run: ${COLLECT_ROTATION_GOV24_SUPPORT_CONDITIONS_MAX_CALLS_PER_RUN:50}
+    diff:
+      force-detail:
+        new-count-threshold: ${COLLECT_LIST_DIFF_FORCE_NEW_COUNT_THRESHOLD:30}
+        new-share-threshold: ${COLLECT_LIST_DIFF_FORCE_NEW_SHARE_THRESHOLD:0.02}
+        changed-count-threshold: ${COLLECT_LIST_DIFF_FORCE_CHANGED_COUNT_THRESHOLD:100}
+        changed-share-threshold: ${COLLECT_LIST_DIFF_FORCE_CHANGED_SHARE_THRESHOLD:0.05}
+        max-candidates-per-run: ${COLLECT_LIST_DIFF_FORCE_MAX_CANDIDATES_PER_RUN:50}
+      guard:
+        count-drop-share-threshold: ${COLLECT_LIST_DIFF_COUNT_DROP_SHARE_THRESHOLD:0.15}
     retry:
       max-attempts: 3
       base-backoff-ms: 1000
@@ -230,6 +245,9 @@ collect:
   support-conditions:
     gov24:
       max-calls-per-run: ${GOV24_SUPPORT_CONDITIONS_MAX_CALLS_PER_RUN:50}
+  youth:
+    detail:
+      max-calls-per-run: ${COLLECT_YOUTH_DETAIL_MAX_CALLS_PER_RUN:50}
 
 recommend:
   refresh-cache-ttl-minutes: ${RECOMMEND_REFRESH_CACHE_TTL_MINUTES:15}

@@ -24,6 +24,10 @@ class CollectBatchServiceTest {
     private CollectExecutionGuard collectExecutionGuard;
     @Mock
     private CollectSourceExecutionService collectSourceExecutionService;
+    @Mock
+    private CollectListDiffService collectListDiffService;
+    @Mock
+    private CollectListChangePolicy collectListChangePolicy;
 
     @InjectMocks
     private CollectBatchService collectBatchService;
@@ -50,7 +54,7 @@ class CollectBatchServiceTest {
 
         CollectBatchRunResult result = collectBatchService.collectAllNow();
 
-        assertThat(adapterCalls).containsExactly("YOUTH", "BOKJIRO_CENTRAL", "BOKJIRO_LOCAL", "BOKJIRO_DETAIL");
+        assertThat(adapterCalls).containsExactly("YOUTH", "BOKJIRO_CENTRAL", "BOKJIRO_LOCAL", "GOV24");
         assertThat(result.completedWithFailures()).isTrue();
         assertThat(result.succeededSourceCount()).isEqualTo(3);
         assertThat(result.failedSourceCount()).isEqualTo(1);
@@ -60,7 +64,7 @@ class CollectBatchServiceTest {
                         org.assertj.core.groups.Tuple.tuple("YOUTH", true),
                         org.assertj.core.groups.Tuple.tuple("BOKJIRO_CENTRAL", false),
                         org.assertj.core.groups.Tuple.tuple("BOKJIRO_LOCAL", true),
-                        org.assertj.core.groups.Tuple.tuple("BOKJIRO_DETAIL", true)
+                        org.assertj.core.groups.Tuple.tuple("GOV24", true)
                 );
         CollectBatchRunResult.SourceRunResult failed = result.sourceResults().get(1);
         assertThat(failed.errorCode()).isEqualTo("IllegalStateException");
