@@ -420,6 +420,55 @@ function StandardCodeSaveReminder({
   );
 }
 
+function NotificationStandardCodePrompt({ missing, filledCount, onComplete }) {
+  if (missing.length === 0) {
+    return null;
+  }
+
+  return (
+    <div style={{
+      background: "linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%)",
+      border: "1px solid #bbf7d0",
+      borderRadius: 18,
+      padding: 20,
+      marginBottom: 16,
+      display: "flex",
+      justifyContent: "space-between",
+      gap: 16,
+      alignItems: "center",
+      flexWrap: "wrap",
+    }}>
+      <div style={{ flex: "1 1 360px", minWidth: 240 }}>
+        <div style={{ fontSize: 12, fontWeight: 800, color: "#047857", letterSpacing: "0.04em" }}>
+          알림 추천 기준 보강
+        </div>
+        <div style={{ fontSize: 16, fontWeight: 800, color: INK, marginTop: 6 }}>
+          주거·복지 표준코드 {filledCount}/4개 입력됨
+        </div>
+        <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.6 }}>
+          {missing.join(", ")} 항목을 채우면 마감 알림과 추천 요약에서 주거·복지 조건 매칭이 더 안정됩니다.
+        </div>
+      </div>
+      <button
+        onClick={onComplete}
+        style={{
+          padding: "12px 16px",
+          borderRadius: 12,
+          border: 0,
+          background: "#047857",
+          color: WHITE,
+          fontSize: 13,
+          fontWeight: 800,
+          cursor: "pointer",
+          whiteSpace: "nowrap",
+        }}
+      >
+        알림 기준 보강하기 →
+      </button>
+    </div>
+  );
+}
+
 function SidebarNav({ active, onChange, bookmarkCount, alertUnreadCount }) {
   const isMobile = useMediaQuery("(max-width: 1199px)");
 
@@ -676,6 +725,7 @@ export default function MyPage() {
   ) ? "info" : "pref";
 
   const focusStandardCodeSection = useCallback(() => {
+    handleTabChange("info");
     setEditing(true);
     setStandardCodeSaveReminderOpen(false);
     window.setTimeout(() => {
@@ -684,7 +734,7 @@ export default function MyPage() {
         block: "start",
       });
     }, 0);
-  }, []);
+  }, [handleTabChange]);
 
   const goToPrioritySettings = useCallback(() => {
     setStandardCodeSaveReminderOpen(false);
@@ -1906,6 +1956,12 @@ export default function MyPage() {
               );
               return (
                 <>
+                  <NotificationStandardCodePrompt
+                    missing={standardCodeMissingLabels}
+                    filledCount={standardCodeFilledCount}
+                    onComplete={focusStandardCodeSection}
+                  />
+
                   <SectionCard title="알림함" desc="최근 도착한 추천 알림을 앱 안에서 다시 확인할 수 있어요">
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
                       <div style={{ fontSize: 13, color: INK3 }}>

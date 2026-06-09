@@ -977,6 +977,51 @@ test("알림함 빈 상태 CTA는 정책 목록과 알림 설정으로 이어진
   await expect(page).toHaveURL(/\/mypage\?tab=3$/);
 });
 
+test("알림 설정 표준코드 보강 CTA는 내 정보 입력 섹션으로 이어진다", async ({ page }) => {
+  await page.route("**/api/users/me", async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify({
+        success: true,
+        data: {
+          name: "테스터",
+          email: userCredentials.email,
+          birthDate: "2000-01-01",
+          sido: "서울",
+          sgg: "서울 종로구",
+          incomeLevel: 5,
+          employmentStatus: "학생",
+          householdType: "1인가구",
+          priorities: [{ code: "HOUSING", name: "주거" }],
+          targetTypes: [],
+          notificationYn: true,
+          notificationEmailYn: true,
+          notificationInAppYn: true,
+          notificationWebPushYn: false,
+          houseTenureCode: null,
+          housingTypeCode: null,
+          basicLivingRecipientTypeCode: null,
+          disabilityGradeCode: "NONE",
+        },
+      }),
+    });
+  });
+
+  await loginFromProtectedRoute(page, "/mypage?tab=3", userCredentials);
+  await expect(page.getByText("알림 추천 기준 보강", { exact: true })).toBeVisible();
+  await Promise.all([
+    page.waitForURL(/\/mypage\?tab=0$/, { timeout: 15_000 }),
+    page.getByRole("button", { name: "알림 기준 보강하기 →", exact: true }).click(),
+  ]);
+  await expect(page.getByText("주거 및 생활 여건", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "저장", exact: true })).toBeEnabled();
+});
+
 test("알림함에서 unread 알림을 열면 읽음 처리 후 deeplink로 이동한다", async ({ page }) => {
   let readPatchCount = 0;
 
