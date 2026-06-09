@@ -182,6 +182,7 @@
 - policy data triage observation suite: `bash deploy/smoke/run-local-policy-data-triage-observation-suite.sh`
   - `policy-data-quality`, `policy-link-review-sample`, `youth-duplicate-candidate` 를 한 번에 다시 읽는 compact handoff wrapper다.
   - 현재는 `duplicate -> link review -> drift tail` 순서로 backlog를 보는 편이 맞는지 빠르게 판정한다.
+  - wrapper summary는 raw duplicate/link 후보와 실제 운영 `OPEN` queue를 분리해서 남긴다. 운영 queue가 닫혀 있으면 raw 후보가 남아도 `REVIEW_QUEUE_CLOSED_RAW_BACKLOG_REMAINS` 로 읽고, 새 `OPEN` queue가 생길 때만 review를 재개한다.
   - 같은 triage 결정은 admin dashboard summary의 `policy triage` 카드에도 노출된다. 운영자는 `exact duplicate`, `mirror variant`, `급부형 링크 review` 수치를 한 화면에서 보고 현재 backlog 우선순위를 바로 읽을 수 있다.
 - policy application period quality audit: `bash deploy/smoke/run-local-policy-application-period-quality-audit.sh`
   - 현재 최신 기준은 `active_past_end_youth=208`, `active_past_end_gov24=0`, `active_past_end_youth_future_end_tail=208`, `active_past_end_youth_true_review=0`, `closed_future_end_total=2` 이다.
