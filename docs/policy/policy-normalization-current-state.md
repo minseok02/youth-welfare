@@ -55,9 +55,9 @@ legacy `service_taxonomies` raw summary는 canonical term이 없는 row에서만
 현재 로컬 코드 기준으로는 더 이상 `code_set_key=null` 상태가 truth가 아니다.
 `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE_TOKEN`, `GOV24_BENEFIT_TYPE_TOKEN` code set과
 현재 live inventory 대응 code row는 이미
-[V2026_06_01_01__seed_gov24_taxonomy_codes.sql](/home/minseok/youth-welfare/backend/src/main/resources/db/migration/V2026_06_01_01__seed_gov24_taxonomy_codes.sql:1)
+[V2026_06_01_01__seed_gov24_taxonomy_codes.sql](/home/ubuntu/youth-welfare/backend/src/main/resources/db/migration/V2026_06_01_01__seed_gov24_taxonomy_codes.sql:1)
 에 seed 되어 있고,
-[Gov24TaxonomyCodeSupport.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/support/Gov24TaxonomyCodeSupport.java:1)
+[Gov24TaxonomyCodeSupport.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/support/Gov24TaxonomyCodeSupport.java:1)
 도 같은 inventory를 코드로 들고 있다.
 즉 `Gov24` 3축의 현재 truth는
 **public official codebook은 없지만, current live inventory를 internal stable seed/code map으로 고정한 label-first taxonomy**
@@ -336,7 +336,7 @@ raw exact label summary(`gov24ServiceFieldLabel/gov24UserTypeLabel/gov24BenefitT
   - `benefitType` 는 `현금(장학금)/기타(교육)`, `현금/현금(감면)/현금(보험)/현금(융자)`, `서비스(일자리)/기술지원`, `문화/여가지원`, `서비스(돌봄)` 같은 일부 managed token만 small bonus로 읽는다.
   - `userType` 는 `개인`, `가구` 만 end-user soft audience signal로 읽고, `법인/시설/단체`, `소상공인` 은 hard exclusion으로 쓰지 않는다.
   - 즉 현재 Gov24 scoring 연결은 discovery filter와 같은 canonical token truth를 재사용하지만, hard eligibility나 hard matcher로는 승격하지 않는다.
-  - [DefaultPriorityMatcherTest.java](/home/minseok/youth-welfare/backend/src/test/java/com/example/welfare/recommend/service/DefaultPriorityMatcherTest.java:1) 도 `gov24ServiceFieldLabel/gov24UserTypeTokens/gov24BenefitTypeTokens` 만으로는 matcher가 열리지 않는다는 회귀를 고정한다.
+  - [DefaultPriorityMatcherTest.java](/home/ubuntu/youth-welfare/backend/src/test/java/com/example/welfare/recommend/service/DefaultPriorityMatcherTest.java:1) 도 `gov24ServiceFieldLabel/gov24UserTypeTokens/gov24BenefitTypeTokens` 만으로는 matcher가 열리지 않는다는 회귀를 고정한다.
 
 ## 2. `YOUTH_MID_RAW_ALIAS` 현재 상태
 

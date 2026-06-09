@@ -63,8 +63,8 @@
 
 위 inventory는 아래 두 곳에 이미 반영돼 있다.
 
-1. [Gov24TaxonomyCodeSupport.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/support/Gov24TaxonomyCodeSupport.java:1)
-2. [V2026_06_01_01__seed_gov24_taxonomy_codes.sql](/home/minseok/youth-welfare/backend/src/main/resources/db/migration/V2026_06_01_01__seed_gov24_taxonomy_codes.sql:1)
+1. [Gov24TaxonomyCodeSupport.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/support/Gov24TaxonomyCodeSupport.java:1)
+2. [V2026_06_01_01__seed_gov24_taxonomy_codes.sql](/home/ubuntu/youth-welfare/backend/src/main/resources/db/migration/V2026_06_01_01__seed_gov24_taxonomy_codes.sql:1)
 
 검증 artifact:
 

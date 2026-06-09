@@ -13,8 +13,8 @@
 
 ## 현재 구조 요약
 
-현재 백엔드의 정규화 중심 엔티티는 [WelfareService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/policy/entity/WelfareService.java) 입니다.
-실제 매핑은 [WelfareServiceMapper.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/mapper/WelfareServiceMapper.java) 에서 처리하고 있고, 문서 기준으로도 [api-mapping.md](../../core/api-mapping.md) 의 `DB 컬럼 ← API 필드 매핑표`가 사실상 기준입니다.
+현재 백엔드의 정규화 중심 엔티티는 [WelfareService.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/policy/entity/WelfareService.java) 입니다.
+실제 매핑은 [WelfareServiceMapper.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/mapper/WelfareServiceMapper.java) 에서 처리하고 있고, 문서 기준으로도 [api-mapping.md](../../core/api-mapping.md) 의 `DB 컬럼 ← API 필드 매핑표`가 사실상 기준입니다.
 
 이 구조의 특징은 다음과 같습니다.
 
@@ -425,11 +425,11 @@ AI를 추천 최종판정에 바로 넣기보다, `공식 정규화 축으로 �
 
 현재 코드 기준으로 보면:
 
-- [CollectService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectService.java)
+- [CollectService.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectService.java)
   - source dispatch가 adapter 기반으로 정리되어 있어 신규 source 또는 신규 정규화 산출물을 연결하기 쉬움
-- [CollectItemSaver.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectItemSaver.java)
+- [CollectItemSaver.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectItemSaver.java)
   - 지금은 `WelfareService + ServiceRegion + ServiceTag`만 저장하지만, item 저장 경계가 한 군데라 `taxonomy/facts` 저장을 여기에 붙이기 좋음
-- [WelfareServiceMapper.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/mapper/WelfareServiceMapper.java)
+- [WelfareServiceMapper.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/mapper/WelfareServiceMapper.java)
   - source별 mapping이 한 클래스에 몰려 있어 문제이기도 하지만, 반대로 “어디서 공식 core/taxonomy/facts를 뽑아야 하는지”가 명확함
 - `raw_api_payloads`
   - 이미 존재하므로 source-specific 필드를 AI batch enrichment로 다시 해석할 재료가 있음
@@ -442,7 +442,7 @@ AI를 추천 최종판정에 바로 넣기보다, `공식 정규화 축으로 �
 
 #### 1. 추천 후보 SQL이 기존 필드에 직접 묶여 있음
 
-[WelfareServiceRepository.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/policy/repository/WelfareServiceRepository.java) 의 후보 조회는 아래 컬럼을 직접 사용합니다.
+[WelfareServiceRepository.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/policy/repository/WelfareServiceRepository.java) 의 후보 조회는 아래 컬럼을 직접 사용합니다.
 
 - `minAge`
 - `maxAge`
@@ -456,29 +456,29 @@ AI를 추천 최종판정에 바로 넣기보다, `공식 정규화 축으로 �
 
 #### 2. 추천 후처리가 `ServiceTag` 4종 enum에 묶여 있음
 
-[ServiceTag.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/policy/entity/ServiceTag.java) 의 현재 타입은 아래 4개뿐입니다.
+[ServiceTag.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/policy/entity/ServiceTag.java) 의 현재 타입은 아래 4개뿐입니다.
 
 - `INTEREST_THEME`
 - `TARGET_GROUP`
 - `LIFE_STAGE`
 - `KEYWORD`
 
-[RetrievalService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/RetrievalService.java) 와 [RuleScoringService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/RuleScoringService.java) 는 이 4종을 전제로 age 보조필터, 관심사 일치, 대상군 일치, 특수대상 추론을 하고 있습니다.
+[RetrievalService.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/RetrievalService.java) 와 [RuleScoringService.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/RuleScoringService.java) 는 이 4종을 전제로 age 보조필터, 관심사 일치, 대상군 일치, 특수대상 추론을 하고 있습니다.
 
 즉 지금 구조는 `facts`가 아니라 `tag + free text` 기반입니다.
 
 #### 3. 우선순위/응답 DTO가 `unifiedCategory` 하나에 묶여 있음
 
-- [DefaultPriorityMatcher.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/DefaultPriorityMatcher.java)
-- [PolicyDetailResponse.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/policy/dto/PolicyDetailResponse.java)
-- [RecommendationResponse.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/dto/RecommendationResponse.java)
+- [DefaultPriorityMatcher.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/DefaultPriorityMatcher.java)
+- [PolicyDetailResponse.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/policy/dto/PolicyDetailResponse.java)
+- [RecommendationResponse.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/recommend/dto/RecommendationResponse.java)
 
 이 경로들은 `주거`, `일자리`, `교육·직업훈련`, `금융·생활지원` 같은 현재 `unifiedCategory` 문자열에 바로 의존합니다.
 따라서 taxonomy가 생겨도 기존 응답 계약은 한동안 `unifiedCategory`를 계속 제공해야 합니다.
 
 #### 4. AI도 아직 새 구조를 쓰지 않음
 
-[RealtimeAiGateway.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/gateway/RealtimeAiGateway.java) 는 현재 AI에 아래만 보냅니다.
+[RealtimeAiGateway.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/recommend/gateway/RealtimeAiGateway.java) 는 현재 AI에 아래만 보냅니다.
 
 - 제목
 - `unifiedCategory`
@@ -511,7 +511,7 @@ AI enrichment를 도입하더라도 이 경로는 별도 확장이 필요합니�
 - `facts`
 - `raw`
 
-그리고 [CollectItemSaver.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectItemSaver.java) 가 기존 저장과 함께 sidecar 저장도 수행하게 만듭니다.
+그리고 [CollectItemSaver.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectItemSaver.java) 가 기존 저장과 함께 sidecar 저장도 수행하게 만듭니다.
 
 핵심은 이 단계에서도 기존 `WelfareService`, `ServiceTag`, `ServiceRegion` 저장을 없애지 않는 것입니다.
 

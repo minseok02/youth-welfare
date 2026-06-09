@@ -12,7 +12,7 @@ local 환경에서 `flag off` / `flag on` 결과를 같은 조건으로 비교�
 
 자동 replay 초안:
 
-- [deploy/smoke/run-local-education-priority-replay.sh](/home/minseok/youth-welfare/deploy/smoke/run-local-education-priority-replay.sh)
+- [deploy/smoke/run-local-education-priority-replay.sh](/home/ubuntu/youth-welfare/deploy/smoke/run-local-education-priority-replay.sh)
 
 ## 전제
 
@@ -105,9 +105,9 @@ deploy/smoke/run-local-education-priority-replay.sh
     `deploy/smoke/run-nightly-openai-replay.sh` wrapper 를 기본 진입점으로 쓴다
 23. host cron 예시는 wrapper/cleanup 둘 다 절대경로 호출로 둔다
     - replay:
-      - `10 1 * * * REPLAY_LOG_ROOT=/var/log/youth-welfare/openai-replay /home/minseok/youth-welfare/deploy/smoke/run-nightly-openai-replay.sh >> /var/log/youth-welfare/openai-replay/nightly-cron.log 2>&1`
+      - `10 1 * * * REPLAY_LOG_ROOT=/var/log/youth-welfare/openai-replay /home/ubuntu/youth-welfare/deploy/smoke/run-nightly-openai-replay.sh >> /var/log/youth-welfare/openai-replay/nightly-cron.log 2>&1`
     - cleanup:
-      - `40 1 * * * REPLAY_LOG_ROOT=/var/log/youth-welfare/openai-replay SUMMARY_RETENTION_DAYS=30 ARTIFACT_RETENTION_DAYS=14 /home/minseok/youth-welfare/deploy/smoke/cleanup-openai-replay-artifacts.sh >> /var/log/youth-welfare/openai-replay/cleanup-cron.log 2>&1`
+      - `40 1 * * * REPLAY_LOG_ROOT=/var/log/youth-welfare/openai-replay SUMMARY_RETENTION_DAYS=30 ARTIFACT_RETENTION_DAYS=14 /home/ubuntu/youth-welfare/deploy/smoke/cleanup-openai-replay-artifacts.sh >> /var/log/youth-welfare/openai-replay/cleanup-cron.log 2>&1`
 
 real OpenAI 호출이 정말 필요하면 아래처럼 명시적으로 opt-in 합니다.
 

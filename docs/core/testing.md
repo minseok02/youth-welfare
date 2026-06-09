@@ -42,7 +42,9 @@ WSL에서 Docker Desktop을 쓰는 경우 `docker` 명령이 안 보이면 먼�
 실행 전에 shell 기준 진단만 빠르게 보고 싶으면 `deploy/smoke/preflight-integration-runtime.sh` 를 먼저 실행합니다.
 
 또한 integration 설정은 더 이상 `welfare1234!` 같은 고정 비밀번호만 믿지 않고, Gradle이 repo root `.env` 와 현재 shell env를 읽어 `INTEGRATION_*` 값을 주입합니다.
-즉 로컬 PostgreSQL `app_core_rw` 비밀번호가 `.env` 기준으로 바뀌어도, 테스트 쪽이 그 값을 따라가도록 맞춰져 있습니다.
+단, integration DB URL은 운영 `DB_URL` / `APP_PII_DB_URL` / 보조 datasource URL을 fallback으로 재사용하지 않습니다.
+`INTEGRATION_*_DB_URL` 을 명시하더라도 `localhost`, `127.0.0.1`, `[::1]` PostgreSQL URL만 허용합니다.
+즉 로컬 PostgreSQL `app_core_rw` 비밀번호가 `.env` 기준으로 바뀌어도 테스트 쪽이 그 값을 따라가되, 운영 RDS에 integration fixture를 쓰는 경로는 막습니다.
 
 로컬 Docker PostgreSQL 볼륨을 오래 재사용해 `schema-validation` 실패나 누락 컬럼 문제처럼
 현재 `schema.sql` 과 drift 된 상태가 보이면, 볼륨을 지우기 전에 아래 patch 스크립트로 현재 기준선을 먼저 맞춥니다.

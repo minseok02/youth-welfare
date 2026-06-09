@@ -59,6 +59,18 @@ def sanitizedJdbcUrl = { String value, String fallback ->
     }
     value
 }
+def sanitizedIntegrationJdbcUrl = { String value, String fallback ->
+    def jdbcUrl = sanitizedJdbcUrl(value, fallback)
+    def allowedPrefixes = [
+        'jdbc:postgresql://127.0.0.1:',
+        'jdbc:postgresql://localhost:',
+        'jdbc:postgresql://[::1]:'
+    ]
+    if (!allowedPrefixes.any { prefix -> jdbcUrl.startsWith(prefix) }) {
+        throw new GradleException('Integration tests must use a loopback PostgreSQL URL. Set INTEGRATION_*_DB_URL to localhost/127.0.0.1 instead of reusing runtime DB_URL.')
+    }
+    jdbcUrl
+}
 def sanitizedUsername = { String value, String fallback ->
     if (!value) {
         return fallback
@@ -233,34 +245,34 @@ tasks.register('integrationRuntimePreflight', JavaExec) {
     classpath = sourceSets.test.runtimeClasspath
     mainClass = 'com.example.welfare.integration.support.IntegrationRuntimePreflightMain'
 
-    environment 'INTEGRATION_DB_URL', sanitizedJdbcUrl(runtimeEnv('INTEGRATION_DB_URL') ?: runtimeEnv('DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
+    environment 'INTEGRATION_DB_URL', sanitizedIntegrationJdbcUrl(runtimeEnv('INTEGRATION_DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
     environment 'INTEGRATION_DB_USERNAME', sanitizedUsername(runtimeEnv('INTEGRATION_DB_USERNAME') ?: runtimeEnv('TARGET_DB_USERNAME') ?: runtimeEnv('DB_USERNAME'), 'app_core_rw')
     environment 'INTEGRATION_DB_PASSWORD', runtimeEnv('INTEGRATION_DB_PASSWORD') ?: (runtimeEnv('DB_PASSWORD') ?: '')
-    environment 'INTEGRATION_ADMIN_RO_DB_URL', sanitizedJdbcUrl(runtimeEnv('INTEGRATION_ADMIN_RO_DB_URL') ?: runtimeEnv('ADMIN_RO_DB_URL') ?: runtimeEnv('DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
+    environment 'INTEGRATION_ADMIN_RO_DB_URL', sanitizedIntegrationJdbcUrl(runtimeEnv('INTEGRATION_ADMIN_RO_DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
     environment 'INTEGRATION_ADMIN_RO_DB_USERNAME', sanitizedUsername(runtimeEnv('INTEGRATION_ADMIN_RO_DB_USERNAME') ?: runtimeEnv('DB_ADMIN_RO_USERNAME'), 'admin_dashboard_ro')
     environment 'INTEGRATION_ADMIN_RO_DB_PASSWORD', runtimeEnv('INTEGRATION_ADMIN_RO_DB_PASSWORD') ?: (runtimeEnv('DB_ADMIN_RO_PASSWORD') ?: (runtimeEnv('DB_PASSWORD') ?: ''))
-    environment 'INTEGRATION_RECOMMENDATION_REVIEW_GATE_COMMAND_DB_URL', sanitizedJdbcUrl(runtimeEnv('INTEGRATION_RECOMMENDATION_REVIEW_GATE_COMMAND_DB_URL') ?: runtimeEnv('RECOMMENDATION_REVIEW_GATE_COMMAND_DB_URL') ?: runtimeEnv('DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
+    environment 'INTEGRATION_RECOMMENDATION_REVIEW_GATE_COMMAND_DB_URL', sanitizedIntegrationJdbcUrl(runtimeEnv('INTEGRATION_RECOMMENDATION_REVIEW_GATE_COMMAND_DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
     environment 'INTEGRATION_RECOMMENDATION_REVIEW_GATE_COMMAND_DB_USERNAME', sanitizedUsername(runtimeEnv('INTEGRATION_RECOMMENDATION_REVIEW_GATE_COMMAND_DB_USERNAME') ?: runtimeEnv('DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME'), 'recommendation_review_gate_command_rw')
     environment 'INTEGRATION_RECOMMENDATION_REVIEW_GATE_COMMAND_DB_PASSWORD', runtimeEnv('INTEGRATION_RECOMMENDATION_REVIEW_GATE_COMMAND_DB_PASSWORD') ?: (runtimeEnv('DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD') ?: (runtimeEnv('DB_PASSWORD') ?: ''))
-    environment 'INTEGRATION_RECOMMENDATION_PERSISTENCE_COMMAND_DB_URL', sanitizedJdbcUrl(runtimeEnv('INTEGRATION_RECOMMENDATION_PERSISTENCE_COMMAND_DB_URL') ?: runtimeEnv('RECOMMENDATION_PERSISTENCE_COMMAND_DB_URL') ?: runtimeEnv('DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
+    environment 'INTEGRATION_RECOMMENDATION_PERSISTENCE_COMMAND_DB_URL', sanitizedIntegrationJdbcUrl(runtimeEnv('INTEGRATION_RECOMMENDATION_PERSISTENCE_COMMAND_DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
     environment 'INTEGRATION_RECOMMENDATION_PERSISTENCE_COMMAND_DB_USERNAME', sanitizedUsername(runtimeEnv('INTEGRATION_RECOMMENDATION_PERSISTENCE_COMMAND_DB_USERNAME') ?: runtimeEnv('DB_RECOMMENDATION_PERSISTENCE_COMMAND_USERNAME'), 'recommendation_persistence_command_rw')
     environment 'INTEGRATION_RECOMMENDATION_PERSISTENCE_COMMAND_DB_PASSWORD', runtimeEnv('INTEGRATION_RECOMMENDATION_PERSISTENCE_COMMAND_DB_PASSWORD') ?: (runtimeEnv('DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD') ?: (runtimeEnv('DB_PASSWORD') ?: ''))
-    environment 'INTEGRATION_CLUSTER_AI_CLEANUP_DB_URL', sanitizedJdbcUrl(runtimeEnv('INTEGRATION_CLUSTER_AI_CLEANUP_DB_URL') ?: runtimeEnv('CLUSTER_AI_CLEANUP_DB_URL') ?: runtimeEnv('DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
+    environment 'INTEGRATION_CLUSTER_AI_CLEANUP_DB_URL', sanitizedIntegrationJdbcUrl(runtimeEnv('INTEGRATION_CLUSTER_AI_CLEANUP_DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
     environment 'INTEGRATION_CLUSTER_AI_CLEANUP_DB_USERNAME', sanitizedUsername(runtimeEnv('INTEGRATION_CLUSTER_AI_CLEANUP_DB_USERNAME') ?: runtimeEnv('DB_CLUSTER_AI_CLEANUP_USERNAME'), 'cluster_ai_cleanup_rw')
     environment 'INTEGRATION_CLUSTER_AI_CLEANUP_DB_PASSWORD', runtimeEnv('INTEGRATION_CLUSTER_AI_CLEANUP_DB_PASSWORD') ?: (runtimeEnv('DB_CLUSTER_AI_CLEANUP_PASSWORD') ?: (runtimeEnv('DB_PASSWORD') ?: ''))
-    environment 'INTEGRATION_RECOMMENDATION_RETENTION_CLEANUP_DB_URL', sanitizedJdbcUrl(runtimeEnv('INTEGRATION_RECOMMENDATION_RETENTION_CLEANUP_DB_URL') ?: runtimeEnv('RECOMMENDATION_RETENTION_CLEANUP_DB_URL') ?: runtimeEnv('DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
+    environment 'INTEGRATION_RECOMMENDATION_RETENTION_CLEANUP_DB_URL', sanitizedIntegrationJdbcUrl(runtimeEnv('INTEGRATION_RECOMMENDATION_RETENTION_CLEANUP_DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
     environment 'INTEGRATION_RECOMMENDATION_RETENTION_CLEANUP_DB_USERNAME', sanitizedUsername(runtimeEnv('INTEGRATION_RECOMMENDATION_RETENTION_CLEANUP_DB_USERNAME') ?: runtimeEnv('DB_RECOMMENDATION_RETENTION_CLEANUP_USERNAME'), 'recommendation_retention_cleanup_rw')
     environment 'INTEGRATION_RECOMMENDATION_RETENTION_CLEANUP_DB_PASSWORD', runtimeEnv('INTEGRATION_RECOMMENDATION_RETENTION_CLEANUP_DB_PASSWORD') ?: (runtimeEnv('DB_RECOMMENDATION_RETENTION_CLEANUP_PASSWORD') ?: (runtimeEnv('DB_PASSWORD') ?: ''))
-    environment 'INTEGRATION_COLLECT_EXECUTION_LOCK_CLEANUP_DB_URL', sanitizedJdbcUrl(runtimeEnv('INTEGRATION_COLLECT_EXECUTION_LOCK_CLEANUP_DB_URL') ?: runtimeEnv('COLLECT_EXECUTION_LOCK_CLEANUP_DB_URL') ?: runtimeEnv('DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
+    environment 'INTEGRATION_COLLECT_EXECUTION_LOCK_CLEANUP_DB_URL', sanitizedIntegrationJdbcUrl(runtimeEnv('INTEGRATION_COLLECT_EXECUTION_LOCK_CLEANUP_DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
     environment 'INTEGRATION_COLLECT_EXECUTION_LOCK_CLEANUP_DB_USERNAME', sanitizedUsername(runtimeEnv('INTEGRATION_COLLECT_EXECUTION_LOCK_CLEANUP_DB_USERNAME') ?: runtimeEnv('DB_COLLECT_EXECUTION_LOCK_CLEANUP_USERNAME'), 'collect_execution_lock_cleanup_rw')
     environment 'INTEGRATION_COLLECT_EXECUTION_LOCK_CLEANUP_DB_PASSWORD', runtimeEnv('INTEGRATION_COLLECT_EXECUTION_LOCK_CLEANUP_DB_PASSWORD') ?: (runtimeEnv('DB_COLLECT_EXECUTION_LOCK_CLEANUP_PASSWORD') ?: (runtimeEnv('DB_PASSWORD') ?: ''))
-    environment 'INTEGRATION_WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_URL', sanitizedJdbcUrl(runtimeEnv('INTEGRATION_WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_URL') ?: runtimeEnv('WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_URL') ?: runtimeEnv('DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
+    environment 'INTEGRATION_WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_URL', sanitizedIntegrationJdbcUrl(runtimeEnv('INTEGRATION_WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
     environment 'INTEGRATION_WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_USERNAME', sanitizedUsername(runtimeEnv('INTEGRATION_WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_USERNAME') ?: runtimeEnv('DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_USERNAME'), 'web_push_subscription_cleanup_rw')
     environment 'INTEGRATION_WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_PASSWORD', runtimeEnv('INTEGRATION_WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_PASSWORD') ?: (runtimeEnv('DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_PASSWORD') ?: (runtimeEnv('DB_PASSWORD') ?: ''))
-    environment 'INTEGRATION_APP_PII_DB_URL', sanitizedJdbcUrl(runtimeEnv('INTEGRATION_APP_PII_DB_URL') ?: runtimeEnv('APP_PII_DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii')
+    environment 'INTEGRATION_APP_PII_DB_URL', sanitizedIntegrationJdbcUrl(runtimeEnv('INTEGRATION_APP_PII_DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii')
     environment 'INTEGRATION_APP_PII_DB_USERNAME', sanitizedUsername(runtimeEnv('INTEGRATION_APP_PII_DB_USERNAME') ?: runtimeEnv('DB_APP_PII_USERNAME'), 'app_pii_rw')
     environment 'INTEGRATION_APP_PII_DB_PASSWORD', runtimeEnv('INTEGRATION_APP_PII_DB_PASSWORD') ?: (runtimeEnv('DB_APP_PII_PASSWORD') ?: (runtimeEnv('DB_PASSWORD') ?: ''))
-    environment 'INTEGRATION_NOTIFICATION_PII_DB_URL', sanitizedJdbcUrl(runtimeEnv('INTEGRATION_NOTIFICATION_PII_DB_URL') ?: runtimeEnv('NOTIFICATION_PII_DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii')
+    environment 'INTEGRATION_NOTIFICATION_PII_DB_URL', sanitizedIntegrationJdbcUrl(runtimeEnv('INTEGRATION_NOTIFICATION_PII_DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii')
     environment 'INTEGRATION_NOTIFICATION_PII_DB_USERNAME', sanitizedUsername(runtimeEnv('INTEGRATION_NOTIFICATION_PII_DB_USERNAME') ?: runtimeEnv('DB_NOTIFICATION_PII_RO_USERNAME'), 'notification_pii_ro')
     environment 'INTEGRATION_NOTIFICATION_PII_DB_PASSWORD', runtimeEnv('INTEGRATION_NOTIFICATION_PII_DB_PASSWORD') ?: (runtimeEnv('DB_NOTIFICATION_PII_RO_PASSWORD') ?: (runtimeEnv('DB_PASSWORD') ?: ''))
     environment 'INTEGRATION_REDIS_HOST', sanitizedRedisHost(runtimeEnv('INTEGRATION_REDIS_HOST') ?: runtimeEnv('REDIS_HOST'))
@@ -287,37 +299,37 @@ tasks.register('integrationTest', Test) {
     shouldRunAfter test
     dependsOn tasks.named('integrationRuntimePreflight')
 
-    environment 'INTEGRATION_DB_URL', sanitizedJdbcUrl(runtimeEnv('INTEGRATION_DB_URL') ?: runtimeEnv('DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
+    environment 'INTEGRATION_DB_URL', sanitizedIntegrationJdbcUrl(runtimeEnv('INTEGRATION_DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
     environment 'INTEGRATION_DB_USERNAME', sanitizedUsername(runtimeEnv('INTEGRATION_DB_USERNAME') ?: runtimeEnv('TARGET_DB_USERNAME') ?: runtimeEnv('DB_USERNAME'), 'app_core_rw')
     environment 'INTEGRATION_DB_PASSWORD', runtimeEnv('INTEGRATION_DB_PASSWORD') ?: (runtimeEnv('DB_PASSWORD') ?: 'welfare1234!')
-    environment 'INTEGRATION_ADMIN_RO_DB_URL', sanitizedJdbcUrl(runtimeEnv('INTEGRATION_ADMIN_RO_DB_URL') ?: runtimeEnv('ADMIN_RO_DB_URL') ?: runtimeEnv('DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
+    environment 'INTEGRATION_ADMIN_RO_DB_URL', sanitizedIntegrationJdbcUrl(runtimeEnv('INTEGRATION_ADMIN_RO_DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
     environment 'INTEGRATION_ADMIN_RO_DB_USERNAME', sanitizedUsername(runtimeEnv('INTEGRATION_ADMIN_RO_DB_USERNAME') ?: runtimeEnv('DB_ADMIN_RO_USERNAME'), 'admin_dashboard_ro')
     environment 'INTEGRATION_ADMIN_RO_DB_PASSWORD', runtimeEnv('INTEGRATION_ADMIN_RO_DB_PASSWORD') ?: (runtimeEnv('DB_ADMIN_RO_PASSWORD') ?: (runtimeEnv('DB_PASSWORD') ?: 'welfare1234!'))
-    environment 'INTEGRATION_RECOMMENDATION_REVIEW_GATE_COMMAND_DB_URL', sanitizedJdbcUrl(runtimeEnv('INTEGRATION_RECOMMENDATION_REVIEW_GATE_COMMAND_DB_URL') ?: runtimeEnv('RECOMMENDATION_REVIEW_GATE_COMMAND_DB_URL') ?: runtimeEnv('DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
+    environment 'INTEGRATION_RECOMMENDATION_REVIEW_GATE_COMMAND_DB_URL', sanitizedIntegrationJdbcUrl(runtimeEnv('INTEGRATION_RECOMMENDATION_REVIEW_GATE_COMMAND_DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
     environment 'INTEGRATION_RECOMMENDATION_REVIEW_GATE_COMMAND_DB_USERNAME', sanitizedUsername(runtimeEnv('INTEGRATION_RECOMMENDATION_REVIEW_GATE_COMMAND_DB_USERNAME') ?: runtimeEnv('DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME'), 'recommendation_review_gate_command_rw')
     environment 'INTEGRATION_RECOMMENDATION_REVIEW_GATE_COMMAND_DB_PASSWORD', runtimeEnv('INTEGRATION_RECOMMENDATION_REVIEW_GATE_COMMAND_DB_PASSWORD') ?: (runtimeEnv('DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD') ?: (runtimeEnv('DB_PASSWORD') ?: 'welfare1234!'))
-    environment 'INTEGRATION_RECOMMENDATION_PERSISTENCE_COMMAND_DB_URL', sanitizedJdbcUrl(runtimeEnv('INTEGRATION_RECOMMENDATION_PERSISTENCE_COMMAND_DB_URL') ?: runtimeEnv('RECOMMENDATION_PERSISTENCE_COMMAND_DB_URL') ?: runtimeEnv('DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
+    environment 'INTEGRATION_RECOMMENDATION_PERSISTENCE_COMMAND_DB_URL', sanitizedIntegrationJdbcUrl(runtimeEnv('INTEGRATION_RECOMMENDATION_PERSISTENCE_COMMAND_DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
     environment 'INTEGRATION_RECOMMENDATION_PERSISTENCE_COMMAND_DB_USERNAME', sanitizedUsername(runtimeEnv('INTEGRATION_RECOMMENDATION_PERSISTENCE_COMMAND_DB_USERNAME') ?: runtimeEnv('DB_RECOMMENDATION_PERSISTENCE_COMMAND_USERNAME'), 'recommendation_persistence_command_rw')
     environment 'INTEGRATION_RECOMMENDATION_PERSISTENCE_COMMAND_DB_PASSWORD', runtimeEnv('INTEGRATION_RECOMMENDATION_PERSISTENCE_COMMAND_DB_PASSWORD') ?: (runtimeEnv('DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD') ?: (runtimeEnv('DB_PASSWORD') ?: 'welfare1234!'))
-    environment 'INTEGRATION_CHAT_SESSION_CLEANUP_DB_URL', sanitizedJdbcUrl(runtimeEnv('INTEGRATION_CHAT_SESSION_CLEANUP_DB_URL') ?: runtimeEnv('CHAT_SESSION_CLEANUP_DB_URL') ?: runtimeEnv('DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
+    environment 'INTEGRATION_CHAT_SESSION_CLEANUP_DB_URL', sanitizedIntegrationJdbcUrl(runtimeEnv('INTEGRATION_CHAT_SESSION_CLEANUP_DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
     environment 'INTEGRATION_CHAT_SESSION_CLEANUP_DB_USERNAME', sanitizedUsername(runtimeEnv('INTEGRATION_CHAT_SESSION_CLEANUP_DB_USERNAME') ?: runtimeEnv('DB_CHAT_SESSION_CLEANUP_USERNAME'), 'chat_session_cleanup_rw')
     environment 'INTEGRATION_CHAT_SESSION_CLEANUP_DB_PASSWORD', runtimeEnv('INTEGRATION_CHAT_SESSION_CLEANUP_DB_PASSWORD') ?: (runtimeEnv('DB_CHAT_SESSION_CLEANUP_PASSWORD') ?: (runtimeEnv('DB_PASSWORD') ?: 'welfare1234!'))
-    environment 'INTEGRATION_CLUSTER_AI_CLEANUP_DB_URL', sanitizedJdbcUrl(runtimeEnv('INTEGRATION_CLUSTER_AI_CLEANUP_DB_URL') ?: runtimeEnv('CLUSTER_AI_CLEANUP_DB_URL') ?: runtimeEnv('DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
+    environment 'INTEGRATION_CLUSTER_AI_CLEANUP_DB_URL', sanitizedIntegrationJdbcUrl(runtimeEnv('INTEGRATION_CLUSTER_AI_CLEANUP_DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
     environment 'INTEGRATION_CLUSTER_AI_CLEANUP_DB_USERNAME', sanitizedUsername(runtimeEnv('INTEGRATION_CLUSTER_AI_CLEANUP_DB_USERNAME') ?: runtimeEnv('DB_CLUSTER_AI_CLEANUP_USERNAME'), 'cluster_ai_cleanup_rw')
     environment 'INTEGRATION_CLUSTER_AI_CLEANUP_DB_PASSWORD', runtimeEnv('INTEGRATION_CLUSTER_AI_CLEANUP_DB_PASSWORD') ?: (runtimeEnv('DB_CLUSTER_AI_CLEANUP_PASSWORD') ?: (runtimeEnv('DB_PASSWORD') ?: 'welfare1234!'))
-    environment 'INTEGRATION_RECOMMENDATION_RETENTION_CLEANUP_DB_URL', sanitizedJdbcUrl(runtimeEnv('INTEGRATION_RECOMMENDATION_RETENTION_CLEANUP_DB_URL') ?: runtimeEnv('RECOMMENDATION_RETENTION_CLEANUP_DB_URL') ?: runtimeEnv('DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
+    environment 'INTEGRATION_RECOMMENDATION_RETENTION_CLEANUP_DB_URL', sanitizedIntegrationJdbcUrl(runtimeEnv('INTEGRATION_RECOMMENDATION_RETENTION_CLEANUP_DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
     environment 'INTEGRATION_RECOMMENDATION_RETENTION_CLEANUP_DB_USERNAME', sanitizedUsername(runtimeEnv('INTEGRATION_RECOMMENDATION_RETENTION_CLEANUP_DB_USERNAME') ?: runtimeEnv('DB_RECOMMENDATION_RETENTION_CLEANUP_USERNAME'), 'recommendation_retention_cleanup_rw')
     environment 'INTEGRATION_RECOMMENDATION_RETENTION_CLEANUP_DB_PASSWORD', runtimeEnv('INTEGRATION_RECOMMENDATION_RETENTION_CLEANUP_DB_PASSWORD') ?: (runtimeEnv('DB_RECOMMENDATION_RETENTION_CLEANUP_PASSWORD') ?: (runtimeEnv('DB_PASSWORD') ?: 'welfare1234!'))
-    environment 'INTEGRATION_COLLECT_EXECUTION_LOCK_CLEANUP_DB_URL', sanitizedJdbcUrl(runtimeEnv('INTEGRATION_COLLECT_EXECUTION_LOCK_CLEANUP_DB_URL') ?: runtimeEnv('COLLECT_EXECUTION_LOCK_CLEANUP_DB_URL') ?: runtimeEnv('DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
+    environment 'INTEGRATION_COLLECT_EXECUTION_LOCK_CLEANUP_DB_URL', sanitizedIntegrationJdbcUrl(runtimeEnv('INTEGRATION_COLLECT_EXECUTION_LOCK_CLEANUP_DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
     environment 'INTEGRATION_COLLECT_EXECUTION_LOCK_CLEANUP_DB_USERNAME', sanitizedUsername(runtimeEnv('INTEGRATION_COLLECT_EXECUTION_LOCK_CLEANUP_DB_USERNAME') ?: runtimeEnv('DB_COLLECT_EXECUTION_LOCK_CLEANUP_USERNAME'), 'collect_execution_lock_cleanup_rw')
     environment 'INTEGRATION_COLLECT_EXECUTION_LOCK_CLEANUP_DB_PASSWORD', runtimeEnv('INTEGRATION_COLLECT_EXECUTION_LOCK_CLEANUP_DB_PASSWORD') ?: (runtimeEnv('DB_COLLECT_EXECUTION_LOCK_CLEANUP_PASSWORD') ?: (runtimeEnv('DB_PASSWORD') ?: 'welfare1234!'))
-    environment 'INTEGRATION_WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_URL', sanitizedJdbcUrl(runtimeEnv('INTEGRATION_WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_URL') ?: runtimeEnv('WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_URL') ?: runtimeEnv('DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
+    environment 'INTEGRATION_WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_URL', sanitizedIntegrationJdbcUrl(runtimeEnv('INTEGRATION_WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
     environment 'INTEGRATION_WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_USERNAME', sanitizedUsername(runtimeEnv('INTEGRATION_WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_USERNAME') ?: runtimeEnv('DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_USERNAME'), 'web_push_subscription_cleanup_rw')
     environment 'INTEGRATION_WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_PASSWORD', runtimeEnv('INTEGRATION_WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_PASSWORD') ?: (runtimeEnv('DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_PASSWORD') ?: (runtimeEnv('DB_PASSWORD') ?: 'welfare1234!'))
-    environment 'INTEGRATION_APP_PII_DB_URL', sanitizedJdbcUrl(runtimeEnv('INTEGRATION_APP_PII_DB_URL') ?: runtimeEnv('APP_PII_DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii')
+    environment 'INTEGRATION_APP_PII_DB_URL', sanitizedIntegrationJdbcUrl(runtimeEnv('INTEGRATION_APP_PII_DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii')
     environment 'INTEGRATION_APP_PII_DB_USERNAME', sanitizedUsername(runtimeEnv('INTEGRATION_APP_PII_DB_USERNAME') ?: runtimeEnv('DB_APP_PII_USERNAME'), 'app_pii_rw')
     environment 'INTEGRATION_APP_PII_DB_PASSWORD', runtimeEnv('INTEGRATION_APP_PII_DB_PASSWORD') ?: (runtimeEnv('DB_APP_PII_PASSWORD') ?: (runtimeEnv('DB_PASSWORD') ?: 'welfare1234!'))
-    environment 'INTEGRATION_NOTIFICATION_PII_DB_URL', sanitizedJdbcUrl(runtimeEnv('INTEGRATION_NOTIFICATION_PII_DB_URL') ?: runtimeEnv('NOTIFICATION_PII_DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii')
+    environment 'INTEGRATION_NOTIFICATION_PII_DB_URL', sanitizedIntegrationJdbcUrl(runtimeEnv('INTEGRATION_NOTIFICATION_PII_DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii')
     environment 'INTEGRATION_NOTIFICATION_PII_DB_USERNAME', sanitizedUsername(runtimeEnv('INTEGRATION_NOTIFICATION_PII_DB_USERNAME') ?: runtimeEnv('DB_NOTIFICATION_PII_RO_USERNAME'), 'notification_pii_ro')
     environment 'INTEGRATION_NOTIFICATION_PII_DB_PASSWORD', runtimeEnv('INTEGRATION_NOTIFICATION_PII_DB_PASSWORD') ?: (runtimeEnv('DB_NOTIFICATION_PII_RO_PASSWORD') ?: (runtimeEnv('DB_PASSWORD') ?: 'welfare1234!'))
 }

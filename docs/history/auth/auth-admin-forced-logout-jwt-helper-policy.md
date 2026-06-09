@@ -9,7 +9,7 @@
 
 ## 결정
 
-future `admin forced logout` 구현을 위해 [JwtUtil.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/global/util/JwtUtil.java) 에 아래 helper/claim 계약을 추가하는 방향으로 고정한다.
+future `admin forced logout` 구현을 위해 [JwtUtil.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/global/util/JwtUtil.java) 에 아래 helper/claim 계약을 추가하는 방향으로 고정한다.
 
 1. access token 생성 시 `iatm` claim write
 2. access token 읽기 시 `getIssuedAtMillis(...)` / `getIssuedAtMillisAllowExpired(...)` helper 추가

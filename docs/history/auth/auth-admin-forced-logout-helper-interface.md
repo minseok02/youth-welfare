@@ -79,7 +79,7 @@ forced logout API의 의미는:
 
 ## 현재 `AccessTokenRevocationService` 와의 관계
 
-현재 [AccessTokenRevocationService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AccessTokenRevocationService.java) 는:
+현재 [AccessTokenRevocationService.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AccessTokenRevocationService.java) 는:
 
 - `revoke(accessToken)`
 - `isRevoked(accessToken)`

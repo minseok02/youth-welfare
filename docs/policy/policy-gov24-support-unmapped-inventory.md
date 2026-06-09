@@ -131,7 +131,7 @@ runtime audit 기준으로 정리합니다.
 
 추가로 `2026-06-02` 기준 official Swagger inventory drift guard도 붙였다.
 
-- [run-local-gov24-support-conditions-validation.sh](/home/minseok/youth-welfare/deploy/smoke/run-local-gov24-support-conditions-validation.sh:1)
+- [run-local-gov24-support-conditions-validation.sh](/home/ubuntu/youth-welfare/deploy/smoke/run-local-gov24-support-conditions-validation.sh:1)
 - artifact: `tmp/gov24-support-conditions-validation/latest-gov24-support-conditions-validation-summary.json`
 
 이 guard의 current 기준은 아래다.

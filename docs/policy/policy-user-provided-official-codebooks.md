@@ -14,12 +14,12 @@
 
 ## 생성 자산
 
-- 앱 리소스: [local-official-codebooks.json](/home/minseok/youth-welfare/backend/src/main/resources/reference/official-codes/local-official-codebooks.json:1)
-- 작업 산출물: [latest-local-official-codebooks.json](/home/minseok/youth-welfare/tmp/local-official-codebooks/latest-local-official-codebooks.json:1)
-- 재생성 스크립트: [extract_user_provided_official_codes.py](/home/minseok/youth-welfare/scripts/extract_user_provided_official_codes.py:1)
-- draft seed 생성기: [generate_local_official_codebooks_seed_sql.py](/home/minseok/youth-welfare/scripts/generate_local_official_codebooks_seed_sql.py:1)
-- 실제 migration: [V2026_06_02_02__seed_local_official_codebooks.sql](/home/minseok/youth-welfare/backend/src/main/resources/db/migration/V2026_06_02_02__seed_local_official_codebooks.sql:1)
-- draft seed SQL: [V2026_06_02_02__seed_local_official_codebooks.sql](/home/minseok/youth-welfare/backend/src/main/resources/db/migration-draft/V2026_06_02_02__seed_local_official_codebooks.sql:1)
+- 앱 리소스: [local-official-codebooks.json](/home/ubuntu/youth-welfare/backend/src/main/resources/reference/official-codes/local-official-codebooks.json:1)
+- 작업 산출물: [latest-local-official-codebooks.json](/home/ubuntu/youth-welfare/tmp/local-official-codebooks/latest-local-official-codebooks.json:1)
+- 재생성 스크립트: [extract_user_provided_official_codes.py](/home/ubuntu/youth-welfare/scripts/extract_user_provided_official_codes.py:1)
+- draft seed 생성기: [generate_local_official_codebooks_seed_sql.py](/home/ubuntu/youth-welfare/scripts/generate_local_official_codebooks_seed_sql.py:1)
+- 실제 migration: [V2026_06_02_02__seed_local_official_codebooks.sql](/home/ubuntu/youth-welfare/backend/src/main/resources/db/migration/V2026_06_02_02__seed_local_official_codebooks.sql:1)
+- draft seed SQL: [V2026_06_02_02__seed_local_official_codebooks.sql](/home/ubuntu/youth-welfare/backend/src/main/resources/db/migration-draft/V2026_06_02_02__seed_local_official_codebooks.sql:1)
 
 ## 포함한 코드북
 

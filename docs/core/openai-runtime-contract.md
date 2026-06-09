@@ -36,7 +36,7 @@ active 문서 기준 현재 recommendation 트랙은 [recommendation-current-sta
 
 구현:
 
-- [RealtimeAiGateway.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/gateway/RealtimeAiGateway.java:1)
+- [RealtimeAiGateway.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/recommend/gateway/RealtimeAiGateway.java:1)
 
 입력 원칙:
 
@@ -68,11 +68,11 @@ active 문서 기준 현재 recommendation 트랙은 [recommendation-current-sta
 
 구현:
 
-- [ChatAiGateway.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/chat/gateway/ChatAiGateway.java:1)
+- [ChatAiGateway.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/chat/gateway/ChatAiGateway.java:1)
 
 입력 원칙:
 
-- 최근 대화 / 현재 질문은 [SensitiveTextRedactor.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/global/util/SensitiveTextRedactor.java:1) 를 거쳐 전송
+- 최근 대화 / 현재 질문은 [SensitiveTextRedactor.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/global/util/SensitiveTextRedactor.java:1) 를 거쳐 전송
 - 정책 후보와 evidence 안에서만 답변
 - 후보 밖 `service_id` 생성 금지
 
@@ -96,8 +96,8 @@ active 문서 기준 현재 recommendation 트랙은 [recommendation-current-sta
 
 구현:
 
-- [ChatSemanticSearchService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/chat/service/ChatSemanticSearchService.java:1)
-- [OpenAiChatEmbeddingGateway.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/chat/gateway/OpenAiChatEmbeddingGateway.java:1)
+- [ChatSemanticSearchService.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/chat/service/ChatSemanticSearchService.java:1)
+- [OpenAiChatEmbeddingGateway.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/chat/gateway/OpenAiChatEmbeddingGateway.java:1)
 
 입력 원칙:
 
@@ -117,8 +117,8 @@ active 문서 기준 현재 recommendation 트랙은 [recommendation-current-sta
 
 구현:
 
-- [PolicyChunkEmbeddingService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/chat/service/PolicyChunkEmbeddingService.java:1)
-- [OpenAiChatEmbeddingGateway.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/chat/gateway/OpenAiChatEmbeddingGateway.java:1)
+- [PolicyChunkEmbeddingService.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/chat/service/PolicyChunkEmbeddingService.java:1)
+- [OpenAiChatEmbeddingGateway.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/chat/gateway/OpenAiChatEmbeddingGateway.java:1)
 
 장애 계약:
 
@@ -132,8 +132,8 @@ active 문서 기준 현재 recommendation 트랙은 [recommendation-current-sta
 
 구현:
 
-- [PolicyEmbeddingRefreshRequestService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/policy/service/PolicyEmbeddingRefreshRequestService.java:1)
-- [CollectSourceExecutionService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectSourceExecutionService.java:1)
+- [PolicyEmbeddingRefreshRequestService.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/policy/service/PolicyEmbeddingRefreshRequestService.java:1)
+- [CollectSourceExecutionService.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectSourceExecutionService.java:1)
 
 장애 계약:
 
@@ -166,15 +166,15 @@ active 문서 기준 현재 recommendation 트랙은 [recommendation-current-sta
 ## 기본 검증
 
 - recommendation prompt guard
-  - [RealtimeAiGatewayTest.java](/home/minseok/youth-welfare/backend/src/test/java/com/example/welfare/recommend/gateway/RealtimeAiGatewayTest.java:1)
+  - [RealtimeAiGatewayTest.java](/home/ubuntu/youth-welfare/backend/src/test/java/com/example/welfare/recommend/gateway/RealtimeAiGatewayTest.java:1)
 - chat prompt / request guard
-  - [ChatAiGatewayTest.java](/home/minseok/youth-welfare/backend/src/test/java/com/example/welfare/chat/gateway/ChatAiGatewayTest.java:1)
+  - [ChatAiGatewayTest.java](/home/ubuntu/youth-welfare/backend/src/test/java/com/example/welfare/chat/gateway/ChatAiGatewayTest.java:1)
 - semantic query redaction
-  - [ChatSemanticSearchServiceTest.java](/home/minseok/youth-welfare/backend/src/test/java/com/example/welfare/chat/service/ChatSemanticSearchServiceTest.java:1)
+  - [ChatSemanticSearchServiceTest.java](/home/ubuntu/youth-welfare/backend/src/test/java/com/example/welfare/chat/service/ChatSemanticSearchServiceTest.java:1)
 - embedding strict refresh
-  - [PolicyChunkEmbeddingServiceTest.java](/home/minseok/youth-welfare/backend/src/test/java/com/example/welfare/chat/service/PolicyChunkEmbeddingServiceTest.java:1)
+  - [PolicyChunkEmbeddingServiceTest.java](/home/ubuntu/youth-welfare/backend/src/test/java/com/example/welfare/chat/service/PolicyChunkEmbeddingServiceTest.java:1)
 - collect batch embedding refresh
-  - [PolicyEmbeddingRefreshRequestServiceTest.java](/home/minseok/youth-welfare/backend/src/test/java/com/example/welfare/policy/service/PolicyEmbeddingRefreshRequestServiceTest.java:1)
+  - [PolicyEmbeddingRefreshRequestServiceTest.java](/home/ubuntu/youth-welfare/backend/src/test/java/com/example/welfare/policy/service/PolicyEmbeddingRefreshRequestServiceTest.java:1)
   - `bash deploy/smoke/run-local-gov24-collect-embedding-boundary-smoke.sh`
 - redactor corpus
   - `SensitiveTextRedactorTest`

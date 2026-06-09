@@ -182,7 +182,7 @@ base token:
 
 ### 규칙 B. compat unified category는 현재 코드 규칙을 유지한다
 
-현재 [CollectCategorySupport.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/support/CollectCategorySupport.java:102) 기준 compat mapping은 아래처럼 읽는 것이 맞습니다.
+현재 [CollectCategorySupport.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/support/CollectCategorySupport.java:102) 기준 compat mapping은 아래처럼 읽는 것이 맞습니다.
 
 | `서비스분야` raw | current compat unified category |
 |---|---|

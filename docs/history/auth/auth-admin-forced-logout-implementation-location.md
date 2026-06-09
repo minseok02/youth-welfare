@@ -58,7 +58,7 @@ future `admin forced logout` 의 `A006` 차단은 **controller/service guard가 
 
 ### 3. 현재 revoke 계열도 이미 filter 앞단 의미로 수렴한다
 
-현재 `logout` presented-token revoke는 [JwtAuthenticationFilter.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/global/config/JwtAuthenticationFilter.java) 에서:
+현재 `logout` presented-token revoke는 [JwtAuthenticationFilter.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/global/config/JwtAuthenticationFilter.java) 에서:
 
 - `access-revoked:{token}` 확인
 - 차단 시 SecurityContext clear

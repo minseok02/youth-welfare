@@ -16,8 +16,8 @@
 - 2026-06-03 기준 branch suggestion 다음의 자유 입력(`월세 쪽으로`, `청약으로`)도 최근 `branchSuggestionKeysJson` 안에서 leaf branch를 다시 해석해 retrieval branch로 계승합니다.
 - 2026-06-03 기준 prompt에는 `최근 질문 흐름`, `최근 탐색 흐름`, `최근 제안 갈래`, `최근 추천 정책`을 묶은 bounded session summary memory도 같이 실립니다.
 - 2026-06-03 기준 `chat_sessions.context_state_json` 에 주거 도메인 한정 구조화 세션 상태를 저장합니다. 현재 저장 범위는 `activeBranchKey`, `anchorQuestion`, `recentTopics`, `recentPolicyTitles/Ids`, `suggestedBranchKeys` 이고, 긴 자연어 요약 전체를 DB에 저장하는 방식은 아직 열지 않았습니다.
-- 로컬 follow-up runtime QA는 [run-local-chat-followup-smoke.sh](/home/minseok/youth-welfare/deploy/smoke/run-local-chat-followup-smoke.sh:1) 로 `첫 질문 -> 후속 질문 -> messages 확인` 경로를 bounded 하게 재검증합니다.
-- 실사용 판단용 follow-up 시나리오 QA는 [run-local-chat-followup-scenario-audit.sh](/home/minseok/youth-welfare/deploy/smoke/run-local-chat-followup-scenario-audit.sh:1) 로 `주거 follow-up`, `branch suggestion 자유 입력`, `혼합 주제`, `일자리 자유 입력`을 묶어 확인합니다.
+- 로컬 follow-up runtime QA는 [run-local-chat-followup-smoke.sh](/home/ubuntu/youth-welfare/deploy/smoke/run-local-chat-followup-smoke.sh:1) 로 `첫 질문 -> 후속 질문 -> messages 확인` 경로를 bounded 하게 재검증합니다.
+- 실사용 판단용 follow-up 시나리오 QA는 [run-local-chat-followup-scenario-audit.sh](/home/ubuntu/youth-welfare/deploy/smoke/run-local-chat-followup-scenario-audit.sh:1) 로 `주거 follow-up`, `branch suggestion 자유 입력`, `혼합 주제`, `일자리 자유 입력`을 묶어 확인합니다.
 - 같은 시나리오 audit 기준으로 주거 한정 구조화 memory 도입 전 결과는 `POLICY_GROUNDED 1 / CLARIFICATION 3 / decision=CONSIDER_LONG_TERM_MEMORY` 였고, 1차 도입 후에는 `POLICY_GROUNDED 3 / CLARIFICATION 1 / decision=HOLD_LONG_TERM_MEMORY` 로 개선됐습니다.
 - 마지막 남은 `서울 월세 지원 알려줘 -> 그럼 전세는?` 케이스는
   - `전세는` 같은 조사 결합 토큰도 housing branch match에 걸리게 하고,

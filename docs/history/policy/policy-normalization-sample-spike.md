@@ -33,9 +33,9 @@
 
 근거:
 
-- [YouthApiDto.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/dto/YouthApiDto.java)
-- [WelfareServiceMapper.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/mapper/WelfareServiceMapper.java)
-- [PolicyNormalizationSampleCoverageTest.java](/home/minseok/youth-welfare/backend/src/test/java/com/example/welfare/collect/mapper/PolicyNormalizationSampleCoverageTest.java)
+- [YouthApiDto.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/dto/YouthApiDto.java)
+- [WelfareServiceMapper.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/mapper/WelfareServiceMapper.java)
+- [PolicyNormalizationSampleCoverageTest.java](/home/ubuntu/youth-welfare/backend/src/test/java/com/example/welfare/collect/mapper/PolicyNormalizationSampleCoverageTest.java)
 
 대표 필드:
 
@@ -78,10 +78,10 @@ canonical 적재:
 
 근거:
 
-- [BokjiroCentralDto.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/dto/BokjiroCentralDto.java)
-- [BokjiroDetailClient.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/gateway/BokjiroDetailClient.java)
-- [WelfareServiceMapper.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/mapper/WelfareServiceMapper.java)
-- [PolicyNormalizationSampleCoverageTest.java](/home/minseok/youth-welfare/backend/src/test/java/com/example/welfare/collect/mapper/PolicyNormalizationSampleCoverageTest.java)
+- [BokjiroCentralDto.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/dto/BokjiroCentralDto.java)
+- [BokjiroDetailClient.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/gateway/BokjiroDetailClient.java)
+- [WelfareServiceMapper.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/mapper/WelfareServiceMapper.java)
+- [PolicyNormalizationSampleCoverageTest.java](/home/ubuntu/youth-welfare/backend/src/test/java/com/example/welfare/collect/mapper/PolicyNormalizationSampleCoverageTest.java)
 
 대표 필드:
 
@@ -121,10 +121,10 @@ canonical 적재:
 
 근거:
 
-- [BokjiroLocalDto.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/dto/BokjiroLocalDto.java)
-- [BokjiroDetailClient.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/gateway/BokjiroDetailClient.java)
-- [WelfareServiceMapper.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/mapper/WelfareServiceMapper.java)
-- [PolicyNormalizationSampleCoverageTest.java](/home/minseok/youth-welfare/backend/src/test/java/com/example/welfare/collect/mapper/PolicyNormalizationSampleCoverageTest.java)
+- [BokjiroLocalDto.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/dto/BokjiroLocalDto.java)
+- [BokjiroDetailClient.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/gateway/BokjiroDetailClient.java)
+- [WelfareServiceMapper.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/mapper/WelfareServiceMapper.java)
+- [PolicyNormalizationSampleCoverageTest.java](/home/ubuntu/youth-welfare/backend/src/test/java/com/example/welfare/collect/mapper/PolicyNormalizationSampleCoverageTest.java)
 
 대표 필드:
 
@@ -167,7 +167,7 @@ canonical 적재:
 
 - 공식 Swagger `serviceList_model`, `serviceDetail_model`, `supportConditions_model`
 - [policy-normalization-research.md](./policy-normalization-research.md)
-- [PolicyNormalizationSampleCoverageTest.java](/home/minseok/youth-welfare/backend/src/test/java/com/example/welfare/collect/mapper/PolicyNormalizationSampleCoverageTest.java)
+- [PolicyNormalizationSampleCoverageTest.java](/home/ubuntu/youth-welfare/backend/src/test/java/com/example/welfare/collect/mapper/PolicyNormalizationSampleCoverageTest.java)
 
 대표 sample은 공식 schema를 조합해 아래처럼 잡았습니다.
 

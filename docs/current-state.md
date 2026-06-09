@@ -185,7 +185,7 @@
   - 현재 최신 기준은 `missing_any_link_youth=558`, `missing_any_link_active_visible_youth=164`, `missing_any_link_active_past_end_tail_youth=15`, 나머지 source `0`, `decision_class=ACTIVE_LINK_REVIEW_PRIORITY` 이다.
   - 즉 broad source tail 전체보다, 실제로 노출될 수 있는 `YOUTH active visible` 164건이 더 actionable 하다.
 - policy link review sample audit: `bash deploy/smoke/run-local-policy-link-review-sample-audit.sh`
-  - 현재 최신 기준은 `active_visible_youth_total=172`, `benefit_support=33`, `announcement_recruitment=13`, `program_event=10`, `event_culture=5`, `other=111`, `decision_class=MIXED_LINK_REVIEW_PRIORITY` 이다.
+  - 현재 최신 기준은 `active_visible_youth_total=163`, `benefit_support=33`, `announcement_recruitment=11`, `program_event=9`, `event_culture=5`, `other=105`, `decision_class=MIXED_LINK_REVIEW_PRIORITY` 이다.
   - 즉 `정책 링크 review queue`는 단일 기준으로 닫기보다 `급부형`, `공고/프로그램형`, 나머지 `other` tail을 나눠 review 하는 편이 맞다.
 - policy link review queue runbook: `docs/policy/policy-link-review-queue-runbook.md`
   - 운영자는 `지원금/급부형 -> 공고/모집형 -> 프로그램형 -> 행사/문화형 -> 기타` 순서로 보는 편이 맞다.
