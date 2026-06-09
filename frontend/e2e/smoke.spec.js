@@ -725,7 +725,7 @@ test("메인 재추천 CTA는 우선순위가 없으면 마이페이지 우선�
   );
 });
 
-test("메인 개인 맞춤 재추천 CTA는 표준코드 공백이 크면 마이페이지 내 정보 탭으로 이동한다", async ({ page }) => {
+test("메인 개인 맞춤 재추천 CTA는 표준코드 공백이 크면 확인 CTA를 거쳐 마이페이지 내 정보 탭으로 이동한다", async ({ page }) => {
   await page.route("**/api/users/me", async (route) => {
     if (route.request().method() !== "GET") {
       await route.continue();
@@ -752,8 +752,11 @@ test("메인 개인 맞춤 재추천 CTA는 표준코드 공백이 크면 마이
   await loginThroughForm(page, userCredentials);
   await page.goto("/");
   await expect(page.getByText("추천 정확도 보강", { exact: true }).first()).toBeVisible();
+  await page.getByRole("button", { name: "맞춤 재추천 →", exact: true }).click();
+  await expect(page.getByText("추천 전 확인", { exact: true })).toBeVisible();
+  await expect(page.getByText("표준코드 1/4개 입력 상태입니다", { exact: true })).toBeVisible();
   await clickAndWaitForUrl(
-    page.getByRole("button", { name: "맞춤 재추천 →", exact: true }),
+    page.getByRole("button", { name: "표준코드 먼저 채우기 →", exact: true }),
     page,
     /\/mypage\?tab=0$/
   );
