@@ -17,6 +17,10 @@ SUMMARY_OUT="${ARTIFACT_DIR}/policy-search-scenario-summary.txt"
 JSON_OUT="${ARTIFACT_DIR}/policy-search-scenario-summary.json"
 NOTE_OUT="${ARTIFACT_DIR}/policy-search-scenario-note.md"
 HEALTH_RESPONSE="${ARTIFACT_DIR}/health.json"
+LATEST_ARTIFACT_LINK="${ARTIFACT_ROOT}/latest"
+LATEST_SUMMARY_LINK="${ARTIFACT_ROOT}/latest-policy-search-scenario-summary.txt"
+LATEST_JSON_LINK="${ARTIFACT_ROOT}/latest-policy-search-scenario-summary.json"
+LATEST_NOTE_LINK="${ARTIFACT_ROOT}/latest-policy-search-scenario-note.md"
 
 mkdir -p "${ARTIFACT_DIR}"
 
@@ -190,3 +194,13 @@ note_path.write_text("\n".join(note_lines) + "\n", encoding="utf-8")
 
 print(summary_path.read_text(encoding="utf-8"), end="")
 PY
+
+smoke_publish_dir_snapshot "${ARTIFACT_DIR}" "${LATEST_ARTIFACT_LINK}"
+smoke_publish_file "${SUMMARY_OUT}" "${LATEST_SUMMARY_LINK}"
+smoke_publish_file "${JSON_OUT}" "${LATEST_JSON_LINK}"
+smoke_publish_file "${NOTE_OUT}" "${LATEST_NOTE_LINK}"
+
+echo "latest_artifact_link=${LATEST_ARTIFACT_LINK}"
+echo "latest_summary_link=${LATEST_SUMMARY_LINK}"
+echo "latest_json_link=${LATEST_JSON_LINK}"
+echo "latest_note_link=${LATEST_NOTE_LINK}"
