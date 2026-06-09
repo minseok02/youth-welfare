@@ -175,6 +175,44 @@ class AdminDashboardWrapperObservationServiceTest {
     }
 
     @Test
+    @DisplayName("이전 current priority summary의 missing count가 비어 있으면 0으로 비교하지 않는다")
+    void ignoresBlankPreviousMissingCountForDelta() throws Exception {
+        Path activeBaseline = tempDir.resolve("blank-previous-active-baseline.txt");
+        Path currentPriority = tempDir.resolve("blank-previous-current-priority.txt");
+        Path currentPriorityRunDir = tempDir.resolve("20260609T131404Z");
+        Path previousCurrentPriority = tempDir.resolve("20260609T111911Z");
+        Files.createDirectories(currentPriorityRunDir);
+        Files.createDirectories(previousCurrentPriority);
+        Files.writeString(activeBaseline, "active_baseline_suite=passed\n");
+        Files.writeString(currentPriority, """
+                current_priority_suite=passed
+                active_baseline_user_profile_standard_code_users_missing_all_standard_codes=273
+                recommendation_standard_code_observation_status=passed
+                """);
+        Files.writeString(currentPriorityRunDir.resolve("current-priority-summary.txt"), """
+                current_priority_suite=passed
+                active_baseline_user_profile_standard_code_users_missing_all_standard_codes=273
+                recommendation_standard_code_observation_status=passed
+                """);
+        Files.writeString(previousCurrentPriority.resolve("current-priority-summary.txt"), """
+                current_priority_suite=passed
+                active_baseline_user_profile_standard_code_users_missing_all_standard_codes=
+                recommendation_standard_code_observation_status=passed
+                """);
+
+        var response = service.fromSummaryPaths(activeBaseline, currentPriority);
+
+        assertThat(response.currentPriorityPreviousAvailable()).isTrue();
+        assertThat(response.currentPriorityPreviousUsersMissingAllStandardCodes()).isZero();
+        assertThat(response.currentPriorityUsersMissingAllStandardCodesDelta()).isZero();
+        assertThat(response.currentPriorityUsersMissingAllStandardCodesDeltaLabel()).isEqualTo("이전값 없음");
+        assertThat(response.currentPriorityRecommendationObservationStatusTransitionLabel()).isEqualTo("변화 없음");
+        assertThat(response.promotedAlert()).isNotNull();
+        assertThat(response.promotedAlert().severity()).isEqualTo("info");
+        assertThat(response.promotedAlert().message()).isEqualTo("표준코드 미입력 이전값 없음, priority 관측 변화 없음");
+    }
+
+    @Test
     @DisplayName("이전 current priority summary에 비교 키가 없으면 previousAvailable로 보지 않는다")
     void ignoresPreviousSummaryWithoutComparisonKeys() throws Exception {
         Path activeBaseline = tempDir.resolve("no-compare-active-baseline.txt");
