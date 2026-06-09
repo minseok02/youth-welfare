@@ -51,6 +51,32 @@
 
 ## 현재 구현 상태 요약
 
+### 0. 2026-06-09 코드 단위 보안 재점검
+
+이번 점검에서 다시 확인한 항목:
+
+- frontend dependency audit: `npm audit --audit-level=moderate` 결과 취약점 0건
+- frontend client-side token handling: access token은 메모리에만 보관하고, legacy local/session storage token key는 초기화합니다.
+- frontend API client: 같은 API origin의 `/api/` 요청에만 `Authorization` header를 붙이고, refresh 요청에는 붙이지 않습니다.
+- backend auth boundary: `/api/admin/**`, `/swagger-ui/**`, `/v3/api-docs/**` 는 관리자 보호 대상입니다.
+- backend actuator: web exposure는 `health` 만 포함합니다.
+- prod runtime: `jwt.secret`, `aes.secret-key`, `SECURITY_CORS_ALLOWED_ORIGINS` 는 운영 env에서 주입해야 하며, refresh cookie secure 기본값은 `true` 입니다.
+- tracked env files: 실제 `.env` 계열 파일은 git 추적 대상이 아니고, 추적 파일에는 예시 placeholder만 남아 있습니다.
+- prod docker compose: app은 localhost bind, non-root user, read-only filesystem, tmpfs, `no-new-privileges`, `cap_drop: ALL` 을 사용합니다.
+
+이번 점검에서 보강한 항목:
+
+- [CollectHttpRetryExecutor.java](../../backend/src/main/java/com/example/welfare/collect/gateway/CollectHttpRetryExecutor.java) 의 공통 재시도 로그가 request label을 남길 때 `serviceKey`, `apiKey`, `token`, `secret`, `password` 계열 key/value를 `<redacted>` 로 마스킹합니다.
+- [CollectHttpRetryExecutorTest.java](../../backend/src/test/java/com/example/welfare/collect/gateway/CollectHttpRetryExecutorTest.java) 에 request label 민감값 마스킹 회귀 테스트를 추가했습니다.
+
+검증:
+
+- `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.collect.gateway.CollectHttpRetryExecutorTest`
+- `cd backend && ./gradlew test --no-daemon`
+- `cd frontend && npm audit --audit-level=moderate`
+- `cd frontend && npm run lint`
+- `cd frontend && npm run build`
+
 ### 1. dependency hardening
 
 현재 코드 기준 resolved dependency:

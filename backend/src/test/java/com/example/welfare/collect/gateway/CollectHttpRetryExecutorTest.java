@@ -82,6 +82,29 @@ class CollectHttpRetryExecutorTest {
                 .satisfies(ex -> assertThat(((CustomException) ex).getErrorCode()).isEqualTo(ErrorCode.COLLECT_API_FAILED));
     }
 
+    @Test
+    @DisplayName("로그용 request label 은 민감한 key/value 를 마스킹한다")
+    void sanitizeRequestLabelRedactsSensitiveValues() {
+        String source = "https://apis.data.go.kr/path?serviceKey=secret-key&page=1 apiKey=api-secret token=plain-token";
+
+        String sanitized = CollectHttpRetryExecutor.sanitizeRequestLabel(source);
+
+        assertThat(sanitized)
+                .contains("serviceKey=<redacted>")
+                .contains("apiKey=<redacted>")
+                .contains("token=<redacted>")
+                .contains("page=1")
+                .doesNotContain("secret-key")
+                .doesNotContain("api-secret")
+                .doesNotContain("plain-token");
+    }
+
+    @Test
+    @DisplayName("로그용 request label 마스킹은 null 을 그대로 허용한다")
+    void sanitizeRequestLabelAllowsNull() {
+        assertThat(CollectHttpRetryExecutor.sanitizeRequestLabel(null)).isNull();
+    }
+
     private WebClientResponseException httpException(HttpStatus status) {
         return WebClientResponseException.create(
                 status.value(),

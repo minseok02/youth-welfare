@@ -8,10 +8,15 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.IntFunction;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Component
 public class CollectHttpRetryExecutor {
+
+    private static final Pattern SENSITIVE_LABEL_VALUE = Pattern.compile(
+            "(?i)(^|[?&\\s,;])((?:serviceKey|apiKey|key|token|access_token|refresh_token|client_secret|secret|password)=)([^&#\\s,;]*)"
+    );
 
     public <T> ExecutionResult<T> execute(String clientName,
                                           String requestLabel,
@@ -19,6 +24,7 @@ public class CollectHttpRetryExecutor {
                                           long baseBackoffMs,
                                           IntFunction<HttpFailureAction> statusClassifier,
                                           ThrowingSupplier<T> supplier) {
+        String safeRequestLabel = sanitizeRequestLabel(requestLabel);
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
                 return ExecutionResult.success(supplier.get());
@@ -28,42 +34,49 @@ public class CollectHttpRetryExecutor {
                 if (action == HttpFailureAction.RATE_LIMITED) {
                     if (attempt >= maxAttempts) {
                         log.warn("[{}] rate limit exhausted request={} attempt={}/{} status={}",
-                                clientName, requestLabel, attempt, maxAttempts, status);
+                                clientName, safeRequestLabel, attempt, maxAttempts, status);
                         return ExecutionResult.rateLimitedResult();
                     }
                     long waitMs = nextBackoffMillis(baseBackoffMs, attempt);
                     log.warn("[{}] rate limit retry request={} attempt={}/{} status={} waitMs={}",
-                            clientName, requestLabel, attempt, maxAttempts, status, waitMs);
+                            clientName, safeRequestLabel, attempt, maxAttempts, status, waitMs);
                     sleepQuietly(waitMs, clientName + " rate-limit retry");
                     continue;
                 }
                 if (action == HttpFailureAction.RETRYABLE && attempt < maxAttempts) {
                     long waitMs = nextBackoffMillis(baseBackoffMs, attempt);
                     log.warn("[{}] retryable status retry request={} attempt={}/{} status={} waitMs={}",
-                            clientName, requestLabel, attempt, maxAttempts, status, waitMs);
+                            clientName, safeRequestLabel, attempt, maxAttempts, status, waitMs);
                     sleepQuietly(waitMs, clientName + " retryable status retry");
                     continue;
                 }
 
                 log.error("[{}] request failed request={} status={} errorType={}",
-                        clientName, requestLabel, status, e.getClass().getSimpleName());
+                        clientName, safeRequestLabel, status, e.getClass().getSimpleName());
                 throw new CustomException(ErrorCode.COLLECT_API_FAILED);
             } catch (Exception e) {
                 if (attempt < maxAttempts) {
                     long waitMs = nextBackoffMillis(baseBackoffMs, attempt);
                     log.warn("[{}] retryable exception retry request={} attempt={}/{} waitMs={} errorType={}",
-                            clientName, requestLabel, attempt, maxAttempts, waitMs, e.getClass().getSimpleName());
+                            clientName, safeRequestLabel, attempt, maxAttempts, waitMs, e.getClass().getSimpleName());
                     sleepQuietly(waitMs, clientName + " exception retry");
                     continue;
                 }
 
                 log.error("[{}] request failed request={} errorType={}",
-                        clientName, requestLabel, e.getClass().getSimpleName());
+                        clientName, safeRequestLabel, e.getClass().getSimpleName());
                 throw new CustomException(ErrorCode.COLLECT_API_FAILED);
             }
         }
 
         throw new CustomException(ErrorCode.COLLECT_API_FAILED);
+    }
+
+    static String sanitizeRequestLabel(String requestLabel) {
+        if (requestLabel == null) {
+            return null;
+        }
+        return SENSITIVE_LABEL_VALUE.matcher(requestLabel).replaceAll("$1$2<redacted>");
     }
 
     private long nextBackoffMillis(long baseBackoffMs, int attempt) {
