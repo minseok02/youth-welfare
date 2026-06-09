@@ -793,6 +793,100 @@ function StandardCodePromptBanner({ missingCount, filledCount, missingLabels, na
   );
 }
 
+function RecommendationRefreshStandardCodePrompt({
+  mode,
+  missingCount,
+  filledCount,
+  missingLabels,
+  onComplete,
+  onContinue,
+  onDismiss,
+}) {
+  if (!mode || missingCount < 3) return null;
+
+  const actionLabel = mode === "personal" ? "맞춤 재추천" : "새로고침";
+
+  return (
+    <section style={{
+      marginTop: 16,
+      background: "white",
+      border: `1px solid ${LINE}`,
+      borderRadius: 18,
+      padding: "18px 20px",
+      display: "flex",
+      justifyContent: "space-between",
+      gap: 16,
+      alignItems: "center",
+      flexWrap: "wrap",
+      boxShadow: "0 10px 30px rgba(15,23,42,0.06)",
+    }}>
+      <div style={{ minWidth: 240, flex: "1 1 420px" }}>
+        <div style={{ fontSize: 12, fontWeight: 800, color: WARN, letterSpacing: "0.04em" }}>
+          추천 전 확인
+        </div>
+        <div style={{ fontSize: 17, fontWeight: 800, color: INK, marginTop: 6, letterSpacing: "-0.01em" }}>
+          표준코드 {filledCount}/4개 입력 상태입니다
+        </div>
+        <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.6 }}>
+          {missingLabels.join(", ")} 항목이 비어 있어 {actionLabel} 전에 채우면 주거·복지 조건 매칭이 더 안정됩니다.
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+        <button
+          onClick={onComplete}
+          style={{
+            padding: "12px 15px",
+            borderRadius: 12,
+            border: "none",
+            background: A,
+            color: "white",
+            fontSize: 13,
+            fontWeight: 800,
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          표준코드 먼저 채우기 →
+        </button>
+        <button
+          onClick={onContinue}
+          style={{
+            padding: "12px 14px",
+            borderRadius: 12,
+            border: `1px solid ${LINE}`,
+            background: "white",
+            color: INK2,
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          그래도 {actionLabel}
+        </button>
+        <button
+          onClick={onDismiss}
+          aria-label="추천 전 확인 닫기"
+          style={{
+            width: 42,
+            height: 42,
+            borderRadius: 12,
+            border: `1px solid ${LINE}`,
+            background: "#f8fafc",
+            color: INK3,
+            fontSize: 18,
+            fontWeight: 800,
+            cursor: "pointer",
+            lineHeight: 1,
+          }}
+        >
+          ×
+        </button>
+      </div>
+    </section>
+  );
+}
+
 function PriorityPromptBanner({ navigate }) {
   return (
     <section style={{
@@ -927,6 +1021,7 @@ export default function MainPage() {
   const [recError, setRecError] = useState(false);
   const [refreshingRec, setRefreshingRec] = useState(false);
   const [personalRefreshing, setPersonalRefreshing] = useState(false);
+  const [standardCodeRefreshPrompt, setStandardCodeRefreshPrompt] = useState(null);
 
   // 공통 데이터
   const [totalPolicies, setTotalPolicies] = useState(0);
@@ -944,6 +1039,7 @@ export default function MainPage() {
   const standardCodeMissingLabels = user?.missingStandardCodeLabels ?? [];
   const standardCodeMissingCount = user?.standardCodeMissingCount ?? standardCodeMissingLabels.length;
   const standardCodeFilledCount = user?.standardCodeFilledCount ?? Math.max(0, 4 - standardCodeMissingCount);
+  const shouldGateRecommendationRefresh = standardCodeMissingCount >= 3;
 
   useEffect(() => {
     if (location.state?.reason === "admin-required") {
@@ -1130,13 +1226,18 @@ export default function MainPage() {
   }, [navigate, showToast]);
 
   const redirectToProfileInfo = useCallback(() => {
-    showToast("주거·복지 표준코드가 많이 비어 있어 마이페이지로 먼저 이동합니다.", "info");
+    showToast("마이페이지 표준코드 입력 영역으로 이동합니다.", "info");
     navigate("/mypage?tab=0");
   }, [navigate, showToast]);
 
-  const handleRefreshRecommendations = async () => {
+  const handleRefreshRecommendations = async ({ bypassStandardCodeGate = false } = {}) => {
     if (!user?.hasPriorities) {
       redirectToPrioritySetup();
+      return;
+    }
+    if (shouldGateRecommendationRefresh && !bypassStandardCodeGate) {
+      setStandardCodeRefreshPrompt("refresh");
+      showToast("새로고침 전에 표준코드 입력 상태를 확인해주세요.", "info");
       return;
     }
     if (standardCodeMissingCount > 0) {
@@ -1156,13 +1257,14 @@ export default function MainPage() {
     finally { setRefreshingRec(false); }
   };
 
-  const handlePersonalRefresh = async () => {
+  const handlePersonalRefresh = async ({ bypassStandardCodeGate = false } = {}) => {
     if (!user?.hasPriorities) {
       redirectToPrioritySetup();
       return;
     }
-    if (standardCodeMissingCount >= 3) {
-      redirectToProfileInfo();
+    if (shouldGateRecommendationRefresh && !bypassStandardCodeGate) {
+      setStandardCodeRefreshPrompt("personal");
+      showToast("맞춤 재추천 전에 표준코드 입력 상태를 확인해주세요.", "info");
       return;
     }
     if (standardCodeMissingCount > 0) {
@@ -1207,8 +1309,8 @@ export default function MainPage() {
           <HeroLoggedIn
             user={user}
             navigate={navigate}
-            onRefresh={handleRefreshRecommendations}
-            onPersonalRefresh={handlePersonalRefresh}
+            onRefresh={() => handleRefreshRecommendations()}
+            onPersonalRefresh={() => handlePersonalRefresh()}
             refreshingRec={refreshingRec}
             personalRefreshing={personalRefreshing}
             totalPolicies={totalPolicies}
@@ -1236,6 +1338,25 @@ export default function MainPage() {
             filledCount={standardCodeFilledCount}
             missingLabels={standardCodeMissingLabels}
             navigate={navigate}
+          />
+        )}
+        {isLoggedIn && (
+          <RecommendationRefreshStandardCodePrompt
+            mode={standardCodeRefreshPrompt}
+            missingCount={standardCodeMissingCount}
+            filledCount={standardCodeFilledCount}
+            missingLabels={standardCodeMissingLabels}
+            onComplete={redirectToProfileInfo}
+            onContinue={() => {
+              const mode = standardCodeRefreshPrompt;
+              setStandardCodeRefreshPrompt(null);
+              if (mode === "personal") {
+                handlePersonalRefresh({ bypassStandardCodeGate: true });
+                return;
+              }
+              handleRefreshRecommendations({ bypassStandardCodeGate: true });
+            }}
+            onDismiss={() => setStandardCodeRefreshPrompt(null)}
           />
         )}
         {isLoggedIn && guideNudge && (
@@ -1298,7 +1419,7 @@ export default function MainPage() {
                 </div>
                 {(recError || user?.hasPriorities) && !recError && (
                   <button
-                    onClick={handlePersonalRefresh}
+                    onClick={() => handlePersonalRefresh()}
                     disabled={personalRefreshing}
                     style={{ marginTop: 14, padding: "10px 20px", background: A, color: "white", border: 0, borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer", opacity: personalRefreshing ? 0.7 : 1 }}
                   >
