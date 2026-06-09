@@ -3,6 +3,7 @@ import { defineConfig } from "@playwright/test";
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL || "http://127.0.0.1:5173";
 const apiBaseUrl = process.env.VITE_API_BASE_URL || "http://127.0.0.1:8082";
+const browserApiBaseUrl = process.env.PLAYWRIGHT_BROWSER_API_BASE_URL ?? "";
 const localLibDir = process.env.PLAYWRIGHT_LD_LIBRARY_PATH
   || path.resolve(process.cwd(), "../.tmp/playwright-libs/rootfs/usr/lib/x86_64-linux-gnu");
 const launchLdLibraryPath = [localLibDir, process.env.LD_LIBRARY_PATH].filter(Boolean).join(":");
@@ -32,7 +33,8 @@ export default defineConfig({
     timeout: 120 * 1000,
     env: {
       ...process.env,
-      VITE_API_BASE_URL: apiBaseUrl,
+      VITE_API_BASE_URL: browserApiBaseUrl,
+      VITE_API_PROXY_TARGET: process.env.VITE_API_PROXY_TARGET || apiBaseUrl,
     },
   },
   projects: [

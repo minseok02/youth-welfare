@@ -8,6 +8,7 @@ import Header from "../components/Header";
 import FloatingNav from "../components/FloatingNav";
 import IncomeCalculatorModal from "../components/IncomeCalculatorModal";
 import api from "../lib/axios";
+import { resolveSafeInternalPath } from "../lib/safeNavigation";
 import {
   deletePushSubscription,
   fetchMyPushSubscriptions,
@@ -898,7 +899,7 @@ export default function MyPage() {
       setPushPublicKey(publicKey.trim());
       setPushSubscriptions(subscriptions);
       try {
-        const currentSubscription = await getCurrentPushSubscription();
+        const currentSubscription = await getCurrentPushSubscription(publicKey);
         setCurrentPushEndpoint(currentSubscription?.endpoint ?? "");
       } catch {
         setCurrentPushEndpoint("");
@@ -1030,8 +1031,9 @@ export default function MyPage() {
       if (alert.status === "UNREAD") {
         await markAlertRead(alert.id, true);
       }
-      if (alert.deeplinkUrl) {
-        navigate(alert.deeplinkUrl, {
+      const safePath = resolveSafeInternalPath(alert.deeplinkUrl);
+      if (safePath) {
+        navigate(safePath, {
           state: {
             from: location,
           },
