@@ -77,6 +77,11 @@ public class CollectBatchService {
         if (!sourceRunResult.success() || !sourceRunResult.source().isListSource()) {
             return java.util.Optional.empty();
         }
+        if (sourceRunResult.result().failedCount() > 0) {
+            log.warn("[CollectBatchService] list diff snapshot skipped after partial list collect source={} failed={}",
+                    sourceRunResult.source().jobName(), sourceRunResult.result().failedCount());
+            return java.util.Optional.empty();
+        }
         try {
             CollectListDiffService.CollectListDiff diff =
                     collectListDiffService.recordSnapshot(sourceRunResult.source(), sourceRunResult.result());

@@ -14,6 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -73,5 +74,22 @@ class CollectBatchServiceTest {
                 .doesNotContain("serviceKey")
                 .doesNotContain("secret-key");
         verify(collectExecutionGuard).runExclusive(eq("collect-all"), any(Runnable.class));
+    }
+
+    @Test
+    @DisplayName("list source 가 partial success 이면 불완전한 DB 상태를 diff snapshot 기준선으로 저장하지 않는다")
+    void collectAllSkipsListDiffSnapshotAfterPartialListCollect() {
+        doAnswer(invocation -> {
+            Runnable task = invocation.getArgument(1);
+            task.run();
+            return null;
+        }).when(collectExecutionGuard).runExclusive(eq("collect-all"), any(Runnable.class));
+        when(collectSourceExecutionService.collectSource(any()))
+                .thenReturn(CollectResult.of(10, 9, 0, 0, 1));
+
+        CollectBatchRunResult result = collectBatchService.collectAllNow();
+
+        assertThat(result.completedWithFailures()).isFalse();
+        verify(collectListDiffService, never()).recordSnapshot(any(), any());
     }
 }
