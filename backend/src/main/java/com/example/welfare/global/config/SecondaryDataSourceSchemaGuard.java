@@ -35,7 +35,8 @@ public class SecondaryDataSourceSchemaGuard implements InitializingBean {
         String databaseName = extractDatabaseName(propertyName, jdbcUrl);
         if (!REQUIRED_PII_SCHEMA.equals(databaseName)) {
             throw new IllegalStateException(
-                    propertyName + " must point to `" + REQUIRED_PII_SCHEMA + "` but was `" + databaseName + "`: " + jdbcUrl
+                    propertyName + " must point to `" + REQUIRED_PII_SCHEMA + "` but was `" + databaseName + "`: "
+                            + sanitizeJdbcUrlForMessage(jdbcUrl)
             );
         }
     }
@@ -48,12 +49,14 @@ public class SecondaryDataSourceSchemaGuard implements InitializingBean {
         if (jdbcUrl.startsWith("jdbc:postgresql:")) {
             String schemaName = extractCurrentSchema(jdbcUrl);
             if (schemaName == null || schemaName.isBlank()) {
-                throw new IllegalStateException(propertyName + " must declare currentSchema for PostgreSQL URLs: " + jdbcUrl);
+                throw new IllegalStateException(propertyName + " must declare currentSchema for PostgreSQL URLs: "
+                        + sanitizeJdbcUrlForMessage(jdbcUrl));
             }
             return schemaName;
         }
 
-        throw new IllegalStateException(propertyName + " must be a jdbc:postgresql: URL: " + jdbcUrl);
+        throw new IllegalStateException(propertyName + " must be a jdbc:postgresql: URL: "
+                + sanitizeJdbcUrlForMessage(jdbcUrl));
     }
 
     private static String extractCurrentSchema(String jdbcUrl) {
@@ -70,5 +73,28 @@ public class SecondaryDataSourceSchemaGuard implements InitializingBean {
                 .map(value -> value.split(",", 2)[0])
                 .findFirst()
                 .orElse(null);
+    }
+
+    static String sanitizeJdbcUrlForMessage(String jdbcUrl) {
+        if (jdbcUrl == null) {
+            return null;
+        }
+        return Arrays.stream(jdbcUrl.split("&"))
+                .map(SecondaryDataSourceSchemaGuard::sanitizeJdbcUrlPart)
+                .reduce((left, right) -> left + "&" + right)
+                .orElse(jdbcUrl);
+    }
+
+    private static String sanitizeJdbcUrlPart(String part) {
+        int keyStart = Math.max(part.lastIndexOf('?'), 0);
+        int equals = part.indexOf('=', keyStart);
+        if (equals < 0) {
+            return part;
+        }
+        String key = part.substring(keyStart == 0 ? 0 : keyStart + 1, equals);
+        if (key.equalsIgnoreCase("password") || key.equalsIgnoreCase("pass") || key.equalsIgnoreCase("pwd")) {
+            return part.substring(0, equals + 1) + "<redacted>";
+        }
+        return part;
     }
 }

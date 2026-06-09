@@ -127,8 +127,8 @@ public class RawApiPayloadService {
             );
             return true;
         } catch (Exception e) {
-            log.warn("[RawApiPayloadService] raw 저장 실패 sourceType={} sourceId={} apiCategory={} err={}",
-                    sourceType, sourceId, apiCategory, e.getMessage());
+            log.warn("[RawApiPayloadService] raw 저장 실패 sourceType={} sourceId={} apiCategory={} errorType={}",
+                    sourceType, sourceId, apiCategory, e.getClass().getSimpleName());
             return false;
         }
     }

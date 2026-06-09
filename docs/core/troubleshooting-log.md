@@ -1,5 +1,50 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 1068) Playwright 전체 실행에서 단독 재실행은 통과하는 UI flake는 클릭 대상과 완료 조건을 함께 고정한다
+- 문제: CORS 수정 뒤에도 Playwright 전체 27개 실행에서 실패 위치가 매번 바뀌었다. 단독 재실행은 통과했고, 실패는 정책 목록 카드 클릭, 정책 상세 CTA 확인, 마이페이지 북마크 탭 렌더, 알림 read PATCH count, 메인 CTA URL 전환처럼 모두 “기능은 맞지만 테스트가 다음 상태를 너무 빨리 보는” 패턴이었다.
+- 해결: [smoke.spec.js](/home/minseok/youth-welfare/frontend/e2e/smoke.spec.js:1) 에 정책 상세/목록/북마크 탭 readiness helper를 추가하고, 클릭과 URL 전환은 `Promise.all` 로 묶었다. 정책 목록/마이페이지 북마크 카드는 텍스트 div 대신 실제 클릭 컨테이너를 안정적으로 잡도록 [PoliciesPage.jsx](/home/minseok/youth-welfare/frontend/src/pages/PoliciesPage.jsx:1), [MyPage.jsx](/home/minseok/youth-welfare/frontend/src/pages/MyPage.jsx:1) 에 테스트 전용 `data-testid` 를 붙였다. 알림 unread 테스트는 `PATCH /api/notifications/9001/read` response 완료 후 count를 확인한다.
+- 확인: `npm run lint`, `npm run build` 통과. `VITE_API_BASE_URL=http://127.0.0.1:18082`, `PLAYWRIGHT_GREP_INVERT='@admin-required|@dev-only'` 조건에서 전체 Playwright E2E 27개를 2회 연속 실행해 둘 다 `27 passed` 를 확인했다.
+
+## 1067) Playwright 브라우저 E2E만 `서버에 연결할 수 없습니다` 로 대량 실패하면 bootRun CORS를 먼저 본다
+- 문제: API smoke와 backend test는 통과하는데 Playwright 브라우저 E2E에서 로그인/정책목록/reset-password 요청이 네트워크 오류처럼 실패했다. 브라우저 화면에는 [ServerErrorBanner.jsx](/home/minseok/youth-welfare/frontend/src/components/ServerErrorBanner.jsx:1) 의 `서버에 연결할 수 없습니다` 배너가 뜨고, Playwright request 기반 API 조회는 성공하는 패턴이었다. 이는 backend API 자체 장애보다 브라우저 origin(`http://127.0.0.1:5173`)에 대한 CORS preflight 실패 가능성이 높다.
+- 원인: 로컬 `bootRun` 은 편의상 root `.env` 를 child env로 주입한다. `.env` 또는 source된 shell env의 `SECURITY_CORS_ALLOWED_ORIGINS` 가 운영 origin만 담고 있으면, `SPRING_PROFILES_ACTIVE=prod` 로 띄운 로컬 backend가 Vite origin을 허용하지 않는다.
+- 해결: [build.gradle](/home/minseok/youth-welfare/backend/build.gradle:1) 의 `bootRun` 에서 `SECURITY_CORS_ALLOWED_ORIGINS` 를 다시 주입할 때 기존 값은 보존하되 `http://127.0.0.1:5173`, `http://localhost:5173` 를 반드시 포함하게 했다. [BootRunCorsContractTest.java](/home/minseok/youth-welfare/backend/src/test/java/com/example/welfare/global/config/BootRunCorsContractTest.java:1) 로 이 계약을 고정했다.
+- 확인 명령: 로컬 E2E backend는 `SECURITY_CORS_ALLOWED_ORIGINS='http://127.0.0.1:5173,http://localhost:5173,https://youthmoa.kr' SERVER_PORT=18082 ./gradlew bootRun --no-daemon` 전제로 띄우고, frontend는 `VITE_API_BASE_URL='http://127.0.0.1:18082' PLAYWRIGHT_GREP_INVERT='@admin-required|@dev-only' npm run test:e2e` 로 확인한다.
+
+## 1066) 로컬 Docker PostgreSQL이 정상이어도 RDS bootstrap role/grant 누락은 별도로 잡아야 한다
+- 문제: 로컬 `docker-compose.yml` 은 `db(pgvector/PostgreSQL) + redis + app` 을 함께 띄우고, fresh volume에서는 `deploy/postgres/init/z90-create-runtime-db-users.sh` 가 role/grant를 자동 적용한다. 반면 운영 `docker-compose.prod.yml` 은 `app + redis` 만 띄우고 DB는 RDS라서 `deploy/postgres/bootstrap-rds-runtime.sh` 가 fresh RDS role/grant의 source-of-truth 다. 코드 점검 결과 RDS bootstrap에는 `recommendation_persistence_command_rw` 생성 블록이 빠져 있었고, `app_core_rw` 에서 `cluster_ai_results`, `collect_execution_locks`, `web_push_subscriptions` `DELETE` 를 회수하는 구문도 verifier 기대값과 불일치했다.
+- 해결: RDS bootstrap에 `recommendation_persistence_command_rw` `CREATE/ALTER ROLE` 을 추가하고, 로컬 init/verifier와 맞게 `cluster_ai_results`, `collect_execution_locks`, `web_push_subscriptions` `DELETE` revoke를 추가했다. [PostgresRuntimeScriptContractTest.java](/home/minseok/youth-welfare/backend/src/test/java/com/example/welfare/global/config/PostgresRuntimeScriptContractTest.java:1) 를 추가해 RDS bootstrap이 필수 runtime role 생성과 전용 command/cleanup DELETE revoke를 계속 포함하는지 정적 계약으로 고정했다.
+- 확인: 로컬 Docker는 `app + db + redis` 세 서비스가 healthy였고, DB 안에는 `pg_trgm`, `vector` extension과 runtime role들이 모두 존재했다. 컨테이너 내부 `psql` 로 직접 확인한 권한도 `app_core_rw` 의 전용 DELETE 권한은 `false`, `recommendation_persistence_command_rw` 의 `user_recommendations INSERT/DELETE/user_key SELECT` 는 `true` 였다.
+- 환경 차이: `verify-rds-runtime-privileges.sh` 는 EC2/RDS 운영용이라 host `psql` client가 필요하다. 현재 로컬 host에는 `psql` 이 없어 스크립트는 실행 전 단계에서 멈췄고, 같은 검증 쿼리는 Docker DB 컨테이너 내부 `psql` 로 대체 확인했다. 운영 EC2에서는 `postgresql-client` 설치 뒤 이 verifier를 그대로 실행해야 한다.
+
+## 1065) Gov24 `YOUTH_MID` bridge를 표시 label에만 연결하면 교육 priority 보정이 빠질 수 있다
+- 문제: `Gov24 -> YOUTH_MID` bridge는 recommendation projection의 `youthMajorLabel`, `youthMidLabel` 을 채우고 있었지만, `educationPriorityBoostEligible` 계산은 bridge 전 원본 `youthMajorLabel` 을 보고 있었다. 이러면 `unifiedCategory=기타` 인 Gov24 `보육·교육` row가 표시상으로는 `교육` bridge를 탔어도 교육 priority narrow boost 경로에는 빠질 수 있다.
+- 해결: [CanonicalRecommendationReadModelRepository.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/repository/CanonicalRecommendationReadModelRepository.java:1) 에서 bridge 이후의 `resolvedYouthMajorLabel` 을 `educationPriorityBoostEligible` 계산에 넘기도록 바꿨다. `Gov24 보육·교육 + 현금(장학금)` projection 테스트를 추가해 `youthMajorLabel=교육`, `youthMidLabel=교육비지원`, `priorityBuckets=EDUCATION`, `educationPriorityBoostEligible=true` 를 함께 고정했다.
+- 재발 방지: Gov24 bridge를 점검할 때는 API label 노출만 보지 않고, `priorityBuckets`, `DefaultPriorityMatcher`, `educationPriorityBoostEligible` 처럼 추천 품질에 쓰이는 projection 파생값까지 같이 본다. 단, 이 보정은 soft projection 경로이며 raw 조합값 hard eligibility fact 승격과는 분리한다.
+
+## 1064) OpenAI API가 기본 학습 미사용이어도 abuse monitoring retention 이 있으므로 서비스 코드에서 직접 식별자 미전송을 먼저 닫아야 한다
+- 문제: AI 품질과 개인정보 안전성을 볼 때 "OpenAI API는 기본적으로 학습에 쓰지 않는다"는 공급자 정책만 확인하면, 우리 서비스가 실제로 어떤 payload를 보내는지 놓칠 수 있다. 공식 문서 기준 API 입력/출력은 기본 학습 미사용이지만, abuse monitoring logs는 기본 생성될 수 있고 prompt/response 같은 customer content가 최대 30일 보관될 수 있다.
+- 확인: 추천 `RealtimeAiGateway` 는 `RecommendationUserSnapshot` 에서 나이대, `sido`, 소득분위, 취업상태만 prompt에 넣고 `userKey`, `regionCode` 는 넣지 않는다. 챗봇 `ChatAiGateway` 는 현재 질문, 최근 대화, 대화 연속 맥락을 `SensitiveTextRedactor` 로 마스킹한 뒤 보낸다. semantic retrieval query도 embedding 전 `SensitiveTextRedactor` 를 통과한다. OpenAI request body에는 사용자 추적용 `user`, `metadata`, 명시 저장 `store` 필드를 넣지 않는다.
+- 보강: `SensitiveTextRedactor` 가 `2001년 4월 30일`, `20010430`, `010.1234.5678`, `+82 10 ...`, 외국인등록번호 형태까지 마스킹하도록 확장했다. `RealtimeAiGatewayTest` 와 `ChatAiGatewayTest` 에 request body가 `store/user/metadata` 를 포함하지 않는 회귀를 추가했다.
+- 검증: `./gradlew test --tests com.example.welfare.global.util.SensitiveTextRedactorTest --tests com.example.welfare.chat.gateway.ChatAiGatewayTest --tests com.example.welfare.chat.service.ChatSemanticSearchServiceTest --tests com.example.welfare.chat.gateway.OpenAiChatEmbeddingGatewayTest --tests com.example.welfare.recommend.gateway.RealtimeAiGatewayTest` 통과.
+- 재발 방지: AI 경로를 추가할 때는 `openai-runtime-contract.md` 에 경로별 전송 데이터/장애 계약을 먼저 적고, 직접 식별자 corpus와 request body guard를 테스트로 같이 고정한다. 공급자 보관 정책은 보조 안전망으로만 보고, 서비스 코드는 최소전송을 기본값으로 유지한다.
+
+## 1063) 추천 메모는 prompt 지시만 믿으면 장문/개행/blank reason 이 캐시와 API까지 그대로 번질 수 있다
+- 문제: 사용자에게 보이는 `추천 메모`는 코드상 `aiReason` 이지만, 기존 경로는 OpenAI 응답 `reason` 을 거의 그대로 `ScoredCandidate`, `cluster_ai_results.ai_reason`, `user_recommendations.ai_reason`, `/api/recommendations` 응답으로 전달했다. 프롬프트에는 `reason은 20자 이내` 조건이 있었지만 서버 경계에서 trim, blank-to-null, 길이 제한, 개행 제거를 강제하지 않았다.
+- 영향: OpenAI가 blank reason 을 주면 `SCORED` 후보도 빈 메모처럼 보일 수 있고, 장문/개행 reason 은 DB `VARCHAR(500)` 범위 안에서는 저장되어 카드 UI 품질을 흔들 수 있었다. 또 군집 캐시 hit 경로와 기존 저장 row 조회 경로도 같은 품질 보정을 타지 않았다.
+- 해결: [RecommendationAiReasonSanitizer.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/support/RecommendationAiReasonSanitizer.java:1) 를 추가해 blank reason 은 `null`, 개행/탭/중복 공백은 단일 공백, 장문은 20 code point 이내로 정규화했다. 이 sanitizer를 `RealtimeAiGateway`, `AiScoringService`, `JpaClusterAiScoreCache`, `RecommendationPersistenceService`, `RecommendationResponse` 에 모두 적용했다.
+- 문서화: 사용자 노출 계약은 [recommendation-ai-reason-memo-contract.md](/home/minseok/youth-welfare/docs/recommendation/recommendation-ai-reason-memo-contract.md:1) 로 분리했고, `recommendation-current-state.md`, `recommendation-docs-index.md`, `api-mapping.md` 에 연결했다.
+- 검증: `./gradlew test --tests 'com.example.welfare.recommend.*'`, `./gradlew test`, `npm run lint`, `npm run build`, `git diff --check` 를 통과했다.
+- 재발 방지: 추천 메모 품질 문제를 볼 때는 먼저 `/api/recommendations` 의 `aiStatus` 와 `aiReason` 을 같이 본다. `NOT_REQUESTED` 는 OpenAI reason 미생성이 정상일 수 있으므로 AI 품질 문제로 단정하지 않고, `SCORED` + null reason 이 반복될 때 OpenAI 응답 reason coverage를 다시 본다.
+
+## 1062) 회원가입 개인정보 동의는 UI 체크박스만 추가하면 smoke/test 계정 생성 경로가 전부 깨진다
+- 문제: 회원가입 화면에 개인정보 수집 동의를 추가하는 것은 UI 변경처럼 보이지만, 실제 가입 계약은 `POST /api/auth/signup` 의 request DTO, backend validation, integration test, WebMvc test, Playwright fixture, smoke bootstrap script가 모두 공유한다. API 필수 필드만 늘리고 나머지 테스트/스크립트를 그대로 두면 로컬 검증이 대부분 `400 Bad Request` 로 실패한다.
+- 해결: `SignupRequest` 에 `privacyNoticeConfirmed=true` 필수 조건을 넣고, 추천용 선택정보가 있으면 `optionalProfileConsentAgreed=true`, 민감정보인 `disabilityGradeCode` 가 있으면 `sensitiveInfoConsentAgreed=true` 를 요구하게 했다. 만 14세 미만 생년월일도 가입 거부로 고정했다. 프론트 `SignupPage` 는 개인정보 처리방침 확인, 선택정보 동의, 민감정보 동의, 14세 이상 확인을 받도록 바꿨고 `/privacy` 페이지도 추가했다.
+- 같이 닫은 범위: 기존 smoke script와 e2e bootstrap signup payload에 `privacyNoticeConfirmed` 를 넣었다. 선택정보를 함께 넣는 데모/테스트 payload에는 `optionalProfileConsentAgreed` 도 넣어 실제 추천 프로필 저장 계약과 맞췄다.
+- 검증: `./gradlew test`, `./gradlew integrationTest`, `npm run lint`, `npm run build`, 변경된 smoke shell `bash -n`, `git diff --check` 를 통과했다.
+- 남은 환경 이슈: Playwright Chromium UI 실행은 로컬 시스템 라이브러리 `libnspr4.so` 부재로 브라우저 실행 전 단계에서 막혔다. 이건 앱 코드 결함이 아니라 로컬 Playwright runtime dependency 문제로 분리해 읽는다.
+- 재발 방지: 회원가입 필수 request field를 추가할 때는 `AuthControllerWebMvcTest`, integration signup helper, `frontend/e2e/smoke.spec.js`, `frontend/scripts/bootstrap-playwright-smoke-data.sh`, `deploy/smoke/*signup*` 또는 공통 signup helper를 한 번에 검색해 같이 갱신한다.
+
 ## 1061) Gov24 chunk collect를 넣고도 컨테이너를 재빌드하지 않으면 측정이 여전히 old `fetchAll + AbstractListCollectSourceAdapter` 경로를 읽게 된다
 - 문제: `Gov24CollectSourceAdapter` 를 chunk runtime collect로 바꾸고 실제 `POST /api/admin/collect/gov24` 를 측정했는데, 첫 실측 로그에는 여전히 `[Gov24Client] 수집 완료: 10954건`, `[FieldQuality][GOV24] total=10954`, `[CollectSourceAdapter][GOV24] 저장 완료: 10954건` 같은 old single-shot 패턴만 보였다. `api_sync_logs.metadata_json` 도 비어 있어 새 chunk metadata가 저장되지 않는 것처럼 보였다.
 - 원인: 로컬 app container가 이전 이미지였다. 코드만 바뀐 상태에서 `docker compose up -d --build app` 를 하지 않아, 런타임은 여전히 old `Gov24Client.fetchAll()` + `AbstractListCollectSourceAdapter` 경로를 타고 있었다.

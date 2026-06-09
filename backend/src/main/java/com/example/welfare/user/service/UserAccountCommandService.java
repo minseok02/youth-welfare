@@ -1,6 +1,5 @@
 package com.example.welfare.user.service;
 
-import com.example.welfare.chat.service.ChatSessionCleanupService;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.recommend.service.RecommendationRefreshCacheService;
@@ -17,16 +16,14 @@ import org.springframework.util.StringUtils;
 @RequiredArgsConstructor
 public class UserAccountCommandService {
 
-    private static final String REFRESH_TOKEN_PREFIX = "refresh:";
-
     private final ActiveUserReadService activeUserReadService;
     private final UserMetadataCommandRepository userMetadataCommandRepository;
     private final PasswordEncoder passwordEncoder;
     private final RedisTemplate<String, String> redisTemplate;
     private final AccessTokenRevocationService accessTokenRevocationService;
-    private final ChatSessionCleanupService chatSessionCleanupService;
     private final UserCoreSyncService userCoreSyncService;
     private final RecommendationRefreshCacheService recommendationRefreshCacheService;
+    private final UserWithdrawalDataCleanupService userWithdrawalDataCleanupService;
 
     @Transactional
     public void changePassword(Long userId, String currentPassword, String newPassword) {
@@ -50,11 +47,11 @@ public class UserAccountCommandService {
         }
 
         userMetadataCommandRepository.deleteAllByUserKey(userKey);
-        chatSessionCleanupService.deleteAllByUserKey(userKey);
-        redisTemplate.delete(REFRESH_TOKEN_PREFIX + userKey);
+        userWithdrawalDataCleanupService.cleanupByUserKey(userKey);
+        redisTemplate.delete(UserRedisKeys.refreshTokenKeys(userKey));
         revokePresentedAccessToken(accessToken);
         user.withdraw();
-        userCoreSyncService.syncFromUser(user);
+        userCoreSyncService.syncWithdrawnUser(user, userKey);
     }
 
     @Transactional

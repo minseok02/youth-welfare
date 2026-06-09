@@ -38,11 +38,16 @@ API / 응답 contract 문서군 진입점은 [system-docs-index.md](./system-doc
   - `password`
   - `name`
   - `birthDate`
-  - `sido`
-  - `sgg`
-  - `incomeLevel`
-  - `employmentStatus`
-  - `householdType`
+  - `privacyNoticeConfirmed` (필수, `true`)
+  - `optionalProfileConsentAgreed` (선택정보 저장 시 `true`)
+  - `sensitiveInfoConsentAgreed` (민감정보 저장 시 `true`)
+  - `sido`, `sgg`, `incomeLevel`, `employmentStatus`, `householdType`
+    - 추천용 선택정보이며 `optionalProfileConsentAgreed=true` 일 때만 저장 가능
+  - `houseTenureCode`, `housingTypeCode`, `basicLivingRecipientTypeCode`
+    - 추천용 선택정보이며 `optionalProfileConsentAgreed=true` 일 때만 저장 가능
+  - `disabilityGradeCode`
+    - 민감정보로 취급하며 `sensitiveInfoConsentAgreed=true` 일 때만 저장 가능
+- 만 14세 미만 생년월일은 현재 가입을 거부한다.
 - response
 
 ```json
@@ -484,6 +489,9 @@ public void resetAiScoreForClosed() {
   - `finalScore`
   - `aiScore`
   - `aiReason`
+    - 프론트 표시명은 `추천 메모`
+    - blank reason 은 null 로 내려갈 수 있으며, 이 경우 프론트가 canonical summary 기반 fallback 문구를 표시한다
+    - 서버 응답 기준 개행/중복 공백은 제거되고 20 code point 이내로 제한된다
   - `bookmarked`
   - `recommendedAt`
 

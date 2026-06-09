@@ -11,9 +11,11 @@ import com.example.welfare.chat.service.ChatSessionQueryService;
 import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.response.ApiResponse;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,6 +23,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/chat/sessions")
 @RequiredArgsConstructor
+@Validated
 public class ChatSessionController {
 
     private final ChatSessionCommandService chatSessionCommandService;
@@ -47,7 +50,7 @@ public class ChatSessionController {
     @GetMapping("/{sessionId}/messages")
     public ResponseEntity<ApiResponse<List<ChatMessageResponse>>> getMessages(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
-            @PathVariable Long sessionId) {
+            @PathVariable @Min(1) Long sessionId) {
         return ResponseEntity.ok(ApiResponse.success(
                 chatConversationService.getMessages(resolveUserId(authenticatedUser), sessionId)
         ));
@@ -56,7 +59,7 @@ public class ChatSessionController {
     @PostMapping("/{sessionId}/messages")
     public ResponseEntity<ApiResponse<ChatAnswerResponse>> sendMessage(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
-            @PathVariable Long sessionId,
+            @PathVariable @Min(1) Long sessionId,
             @Valid @RequestBody SendChatMessageRequest request) {
         return ResponseEntity.ok(ApiResponse.success(
                 chatConversationService.sendMessage(resolveUserId(authenticatedUser), sessionId, request)
@@ -66,7 +69,7 @@ public class ChatSessionController {
     @DeleteMapping("/{sessionId}")
     public ResponseEntity<ApiResponse<Void>> deleteSession(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
-            @PathVariable Long sessionId) {
+            @PathVariable @Min(1) Long sessionId) {
         chatSessionCommandService.deleteSession(resolveUserId(authenticatedUser), sessionId);
         return ResponseEntity.ok(ApiResponse.success(null));
     }

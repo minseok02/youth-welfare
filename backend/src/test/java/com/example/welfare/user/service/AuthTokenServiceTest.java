@@ -4,6 +4,7 @@ import com.example.welfare.chat.service.ChatSessionCleanupService;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.util.JwtUtil;
+import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.user.dto.response.TokenResponse;
 import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.entity.User;
@@ -25,6 +26,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -82,6 +84,13 @@ class AuthTokenServiceTest {
         assertThat(response.getAccessToken()).isEqualTo("new-access");
         assertThat(response.getRefreshToken()).isEqualTo("new-refresh");
         verify(jwtUtil).generateAccessToken("user-key-7", 7L, List.of("ROLE_USER"), 1_777_588_800_001L);
+        verify(valueOperations).set(
+                refreshKey("user-key-7"),
+                OpaqueTokenHash.sha256Hex("new-refresh"),
+                7,
+                java.util.concurrent.TimeUnit.DAYS
+        );
+        verify(redisTemplate, atLeastOnce()).delete("refresh:user-key-7");
     }
 
     @Test
@@ -97,7 +106,7 @@ class AuthTokenServiceTest {
                 .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-7"));
         when(authIdentityReadService.findByUserKey("user-key-7"))
                 .thenReturn(Optional.of(AuthUser.builder().userKey("user-key-7").emailLookupHash("email-hash").build()));
-        when(valueOperations.get("refresh:user-key-7")).thenReturn("refresh-token");
+        when(valueOperations.get(refreshKey("user-key-7"))).thenReturn(OpaqueTokenHash.sha256Hex("refresh-token"));
         when(jwtUtil.getSubject("refresh-token")).thenReturn("user-key-7");
         when(jwtUtil.getUserId("refresh-token")).thenReturn(7L);
         when(userSessionRevocationService.resolveNextAccessIssuedAtMillis(eq("user-key-7"), any(Long.class)))
@@ -110,7 +119,46 @@ class AuthTokenServiceTest {
 
         assertThat(response.getAccessToken()).isEqualTo("new-access");
         assertThat(response.getRefreshToken()).isEqualTo("new-refresh");
-        verify(valueOperations).set("refresh:user-key-7", "new-refresh", 7, java.util.concurrent.TimeUnit.DAYS);
+        verify(valueOperations).set(
+                refreshKey("user-key-7"),
+                OpaqueTokenHash.sha256Hex("new-refresh"),
+                7,
+                java.util.concurrent.TimeUnit.DAYS
+        );
+    }
+
+    @Test
+    @DisplayName("refresh는 legacy raw 저장 토큰도 1회 허용하고 새 토큰은 해시로 저장한다")
+    void refreshAllowsLegacyRawStoredRefreshTokenAndRotatesToHash() {
+        User user = User.builder()
+                .id(7L)
+                .userKey("user-key-7")
+                .email("user@example.com")
+                .passwordHash("hash")
+                .build();
+        when(activeUserReadService.getActiveUserContext(7L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-7"));
+        when(authIdentityReadService.findByUserKey("user-key-7"))
+                .thenReturn(Optional.of(AuthUser.builder().userKey("user-key-7").emailLookupHash("email-hash").build()));
+        when(valueOperations.get(refreshKey("user-key-7"))).thenReturn(null);
+        when(valueOperations.get("refresh:user-key-7")).thenReturn("legacy-refresh-token");
+        when(jwtUtil.getSubject("legacy-refresh-token")).thenReturn("user-key-7");
+        when(jwtUtil.getUserId("legacy-refresh-token")).thenReturn(7L);
+        when(userSessionRevocationService.resolveNextAccessIssuedAtMillis(eq("user-key-7"), any(Long.class)))
+                .thenReturn(1_777_588_800_010L);
+        when(jwtUtil.generateAccessToken("user-key-7", 7L, List.of("ROLE_USER"), 1_777_588_800_010L))
+                .thenReturn("new-access");
+        when(jwtUtil.generateRefreshToken("user-key-7", 7L)).thenReturn("new-refresh");
+
+        TokenResponse response = authTokenService.refresh("legacy-refresh-token", emailHash -> List.of("ROLE_USER"));
+
+        assertThat(response.getRefreshToken()).isEqualTo("new-refresh");
+        verify(valueOperations).set(
+                refreshKey("user-key-7"),
+                OpaqueTokenHash.sha256Hex("new-refresh"),
+                7,
+                java.util.concurrent.TimeUnit.DAYS
+        );
     }
 
     @Test
@@ -124,7 +172,7 @@ class AuthTokenServiceTest {
                 .build();
         when(activeUserReadService.getActiveUserContext(7L))
                 .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-7"));
-        when(valueOperations.get("refresh:user-key-7")).thenReturn("different-refresh-token");
+        when(valueOperations.get(refreshKey("user-key-7"))).thenReturn("different-refresh-token");
         when(jwtUtil.getSubject("refresh-token")).thenReturn("user-key-7");
         when(jwtUtil.getUserId("refresh-token")).thenReturn(7L);
 
@@ -133,7 +181,11 @@ class AuthTokenServiceTest {
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.REUSED_REFRESH_TOKEN);
 
-        verify(redisTemplate).delete("refresh:user-key-7");
+        verify(redisTemplate).delete(java.util.List.of(refreshKey("user-key-7"), "refresh:user-key-7"));
         verify(jwtUtil, never()).generateAccessToken(any(), any(), any());
+    }
+
+    private String refreshKey(String userKey) {
+        return "refresh:v2:" + RedisKeyHash.sha256Hex(userKey);
     }
 }

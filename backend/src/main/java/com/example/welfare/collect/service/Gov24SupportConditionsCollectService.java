@@ -78,7 +78,8 @@ public class Gov24SupportConditionsCollectService {
                 saved++;
             } catch (Exception e) {
                 failed++;
-                log.warn("[Gov24SupportConditionsCollectService] 저장 실패 sourceId={} err={}", service.getSourceId(), e.getMessage());
+                log.warn("[Gov24SupportConditionsCollectService] 저장 실패 sourceId={} errorType={}",
+                        service.getSourceId(), e.getClass().getSimpleName());
             }
         }
 
@@ -111,7 +112,8 @@ public class Gov24SupportConditionsCollectService {
             collectPolicyAggregateApplyService.replaceFactCodeSet(service, "GOV24_SUPPORT_CONDITION", aggregate);
             return CollectResult.of(1, 1, 0, 0, 0);
         } catch (Exception e) {
-            log.warn("[Gov24SupportConditionsCollectService] 단건 저장 실패 sourceId={} err={}", service.getSourceId(), e.getMessage());
+            log.warn("[Gov24SupportConditionsCollectService] 단건 저장 실패 sourceId={} errorType={}",
+                    service.getSourceId(), e.getClass().getSimpleName());
             return CollectResult.of(1, 0, 0, 0, 1);
         }
     }
@@ -126,8 +128,8 @@ public class Gov24SupportConditionsCollectService {
                 log.warn("[Gov24SupportConditionsCollectService] 응답 비어있음 sourceId={} attempt={}/{}",
                         service.getSourceId(), attempt, retryMaxAttempts);
             } catch (Exception e) {
-                log.warn("[Gov24SupportConditionsCollectService] API 오류 sourceId={} attempt={}/{} err={}",
-                        service.getSourceId(), attempt, retryMaxAttempts, e.getMessage());
+                log.warn("[Gov24SupportConditionsCollectService] API 오류 sourceId={} attempt={}/{} errorType={}",
+                        service.getSourceId(), attempt, retryMaxAttempts, e.getClass().getSimpleName());
             }
 
             if (attempt < retryMaxAttempts) {

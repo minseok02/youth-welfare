@@ -47,7 +47,7 @@ class UserPiiSyncProcessorTest {
     }
 
     @Test
-    @DisplayName("processor는 app_pii write 실패 시 예외를 삼키고 failed 상태를 남긴다")
+    @DisplayName("processor는 app_pii write 실패 시 민감정보 없는 failed 상태를 남긴다")
     void processMarksQueueFailedWhenAppPiiWriteFails() {
         UserPiiSyncQueue queue = UserPiiSyncQueue.builder()
                 .userKey("user-key-2")
@@ -55,7 +55,7 @@ class UserPiiSyncProcessorTest {
         queue.enqueue("enc-email", "enc-name", "enc-birth", "enc-phone");
 
         given(userPiiSyncQueueService.findOptional("user-key-2")).willReturn(Optional.of(queue));
-        org.mockito.BDDMockito.willThrow(new RuntimeException("app pii unavailable"))
+        org.mockito.BDDMockito.willThrow(new RuntimeException("insert failed values enc-email user@example.com"))
                 .given(userPiiCommandService)
                 .upsertUserPii("user-key-2", "enc-email", "enc-name", "enc-birth", "enc-phone");
 
@@ -67,6 +67,7 @@ class UserPiiSyncProcessorTest {
         assertThat(queue.getAttemptCount()).isEqualTo(1);
         assertThat(queue.getLastAttemptAt()).isNotNull();
         assertThat(queue.getLastSyncedAt()).isNull();
-        assertThat(queue.getLastError()).isEqualTo("app pii unavailable");
+        assertThat(queue.getLastError()).isEqualTo("PII sync failed (RuntimeException)");
+        assertThat(queue.getLastError()).doesNotContain("enc-email", "user@example.com");
     }
 }

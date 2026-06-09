@@ -67,6 +67,48 @@ class WebPushEndpointPolicyServiceTest {
     }
 
     @Test
+    @DisplayName("allowlist host라도 userinfo가 포함된 endpoint는 거부한다")
+    void validateSubscriptionEndpointRejectsUserInfo() {
+        WebPushEndpointPolicyService service = new WebPushEndpointPolicyService(
+                host -> List.of(),
+                "fcm.googleapis.com"
+        );
+
+        assertThatThrownBy(() -> service.validateSubscriptionEndpoint("https://token@fcm.googleapis.com/fcm/send/example"))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_INPUT);
+    }
+
+    @Test
+    @DisplayName("allowlist host라도 fragment가 포함된 endpoint는 거부한다")
+    void validateSubscriptionEndpointRejectsFragment() {
+        WebPushEndpointPolicyService service = new WebPushEndpointPolicyService(
+                host -> List.of(),
+                "fcm.googleapis.com"
+        );
+
+        assertThatThrownBy(() -> service.validateSubscriptionEndpoint("https://fcm.googleapis.com/fcm/send/example#fragment"))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_INPUT);
+    }
+
+    @Test
+    @DisplayName("allowlist host라도 443이 아닌 명시 포트는 거부한다")
+    void validateSubscriptionEndpointRejectsNonDefaultExplicitPort() {
+        WebPushEndpointPolicyService service = new WebPushEndpointPolicyService(
+                host -> List.of(),
+                "fcm.googleapis.com"
+        );
+
+        assertThatThrownBy(() -> service.validateSubscriptionEndpoint("https://fcm.googleapis.com:8443/fcm/send/example"))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_INPUT);
+    }
+
+    @Test
     @DisplayName("로그용 endpoint 설명은 전체 URL 대신 host만 반환한다")
     void describeEndpointForLogReturnsHostOnly() {
         WebPushEndpointPolicyService service = new WebPushEndpointPolicyService(

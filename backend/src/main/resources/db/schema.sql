@@ -603,6 +603,35 @@ CREATE INDEX IF NOT EXISTS idx_per_policy_created ON policy_error_reports (polic
 CREATE INDEX IF NOT EXISTS idx_per_status_created ON policy_error_reports (status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_per_user_key_created ON policy_error_reports (user_key, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS policy_duplicate_review_records (
+    id                   BIGSERIAL PRIMARY KEY,
+    source_type          VARCHAR(50) NOT NULL,
+    title                VARCHAR(255) NOT NULL,
+    host_org_key         VARCHAR(255) NOT NULL DEFAULT '',
+    host_org_label       VARCHAR(255),
+    review_note          TEXT,
+    reviewed_by_user_key VARCHAR(100) NOT NULL,
+    reviewed_at          TIMESTAMP NOT NULL,
+    created_at           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_policy_duplicate_review_records_group
+    ON policy_duplicate_review_records (source_type, title, host_org_key);
+
+CREATE TABLE IF NOT EXISTS policy_link_review_records (
+    id                   BIGSERIAL PRIMARY KEY,
+    service_id           BIGINT NOT NULL UNIQUE,
+    review_note          TEXT,
+    reviewed_by_user_key VARCHAR(100) NOT NULL,
+    reviewed_at          TIMESTAMP NOT NULL,
+    created_at           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_plrr_service FOREIGN KEY (service_id) REFERENCES welfare_services(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_plrr_reviewed_at ON policy_link_review_records (reviewed_at DESC);
+
 CREATE TABLE IF NOT EXISTS support_inquiries (
     id            BIGSERIAL PRIMARY KEY,
     user_id       BIGINT,

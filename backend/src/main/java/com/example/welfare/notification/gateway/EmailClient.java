@@ -8,6 +8,10 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+
 @Slf4j
 @Component
 public class EmailClient {
@@ -41,23 +45,33 @@ public class EmailClient {
                 message.setReplyTo(mailDeliveryProperties.getReplyTo());
             }
             mailSender.send(message);
-            log.info("[EmailClient] 발송 성공 provider={} to={}",
+            log.info("[EmailClient] 발송 성공 provider={} recipientRef={}",
                     mailDeliveryProperties.getProvider(),
-                    maskEmail(to));
+                    fingerprintEmail(to));
             return true;
         } catch (MailException e) {
-            log.error("[EmailClient] 발송 실패 provider={} to={}: {}",
+            log.error("[EmailClient] 발송 실패 provider={} recipientRef={} errorType={}",
                     mailDeliveryProperties.getProvider(),
-                    maskEmail(to),
-                    e.getMessage());
+                    fingerprintEmail(to),
+                    e.getClass().getSimpleName());
             return false;
         }
     }
 
-    private String maskEmail(String email) {
-        if (email == null || !email.contains("@")) return "***";
-        String local = email.split("@")[0];
-        String domain = email.split("@")[1];
-        return (local.length() > 2 ? local.substring(0, 2) + "***" : "***") + "@" + domain;
+    String fingerprintEmail(String email) {
+        if (!StringUtils.hasText(email)) {
+            return "unknown";
+        }
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(email.trim().toLowerCase().getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder();
+            for (int i = 0; i < 6; i++) {
+                hex.append(String.format("%02x", digest[i]));
+            }
+            return "sha256:" + hex;
+        } catch (NoSuchAlgorithmException e) {
+            return "unavailable";
+        }
     }
 }

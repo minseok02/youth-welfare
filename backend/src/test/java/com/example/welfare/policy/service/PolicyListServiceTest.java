@@ -288,4 +288,28 @@ class PolicyListServiceTest {
                 .extracting("errorCode")
                 .isEqualTo(com.example.welfare.global.exception.ErrorCode.INVALID_INPUT);
     }
+
+    @Test
+    @DisplayName("정책 목록 조회는 범위를 벗어난 incomeLevel을 invalid input으로 거부한다")
+    void getListRejectsOutOfRangeIncomeLevel() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> policyListService.getList(
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                12,
+                null,
+                null,
+                null,
+                null,
+                PageRequest.of(0, 20)
+        )).isInstanceOf(com.example.welfare.global.exception.CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(com.example.welfare.global.exception.ErrorCode.INVALID_INPUT);
+    }
 }

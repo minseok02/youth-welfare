@@ -39,13 +39,18 @@ import com.example.welfare.admin.dashboard.service.AdminPolicyErrorReportService
 import com.example.welfare.admin.dashboard.service.AdminPolicyDuplicateGroupService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyLinkReviewService;
 import com.example.welfare.admin.dashboard.service.AdminSupportInquiryService;
+import com.example.welfare.admin.service.AdminOperationRateLimitService;
 import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.response.ApiResponse;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -84,6 +89,7 @@ public class AdminDashboardController {
     private final AdminSupportInquiryService adminSupportInquiryService;
     private final AdminRecommendationReviewGatePromotionApprovalRecordService
             adminRecommendationReviewGatePromotionApprovalRecordService;
+    private final AdminOperationRateLimitService adminOperationRateLimitService;
 
     @GetMapping("/summary")
     public ResponseEntity<ApiResponse<AdminDashboardResponse>> getSummary(
@@ -144,14 +150,22 @@ public class AdminDashboardController {
 
     @GetMapping("/recommendation-diagnostics")
     public ResponseEntity<ApiResponse<AdminRecommendationCandidateDiagnosticResponse>> getRecommendationDiagnostics(
-            @RequestParam(name = "userKey") String userKey,
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @RequestParam(name = "userKey")
+            @NotBlank(message = "userKey는 필수입니다.")
+            @Size(max = 32, message = "userKey는 32자 이하여야 합니다.")
+            @Pattern(regexp = "^[A-Za-z0-9_-]+$", message = "userKey 형식이 올바르지 않습니다.")
+            String userKey,
             @RequestParam(name = "serviceId")
+            @Size(min = 1, max = 20, message = "serviceId는 1개 이상 20개 이하여야 합니다.")
             List<@Min(value = 1, message = "serviceId는 1 이상이어야 합니다.") Long> serviceIds
     ) {
         if (userKey == null || userKey.isBlank() || serviceIds == null || serviceIds.isEmpty()) {
             throw new CustomException(ErrorCode.INVALID_INPUT);
         }
-        log.info("[Admin] dashboard recommendation diagnostics 조회 userKey={} serviceIds={}", userKey, serviceIds);
+        adminOperationRateLimitService.checkExpensiveReadLimit(actorKey(authenticatedUser), "dashboard:recommendation-diagnostics");
+        log.info("[Admin] dashboard recommendation diagnostics 조회 userKey={} serviceIdCount={}",
+                userKey, serviceIds.size());
         return ResponseEntity.ok(ApiResponse.success(
                 adminDashboardRecommendationDiagnosticService.getRecommendationDiagnostics(userKey.trim(), serviceIds)
         ));
@@ -260,8 +274,9 @@ public class AdminDashboardController {
     public ResponseEntity<ApiResponse<AdminReviewActionResponse>> reviewPolicyErrorReport(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @org.springframework.web.bind.annotation.PathVariable Long reportId,
-            @RequestBody(required = false) AdminReviewActionRequest request
+            @Valid @RequestBody(required = false) AdminReviewActionRequest request
     ) {
+        adminOperationRateLimitService.checkMutationLimit(actorKey(authenticatedUser), "dashboard:policy-error-report-review");
         log.info("[Admin] dashboard policy error report review reportId={} actorUserKey={}",
                 reportId, authenticatedUser != null ? authenticatedUser.userKey() : null);
         return ResponseEntity.ok(ApiResponse.success(
@@ -276,10 +291,11 @@ public class AdminDashboardController {
     @PostMapping("/policy-duplicate-groups/review")
     public ResponseEntity<ApiResponse<AdminReviewActionResponse>> reviewPolicyDuplicateGroup(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
-            @RequestBody AdminPolicyDuplicateGroupReviewRequest request
+            @Valid @RequestBody AdminPolicyDuplicateGroupReviewRequest request
     ) {
-        log.info("[Admin] dashboard policy duplicate group review sourceType={} title={} actorUserKey={}",
-                request.sourceType(), request.title(), authenticatedUser != null ? authenticatedUser.userKey() : null);
+        adminOperationRateLimitService.checkMutationLimit(actorKey(authenticatedUser), "dashboard:policy-duplicate-group-review");
+        log.info("[Admin] dashboard policy duplicate group review sourceType={} hostOrgKey={} actorUserKey={}",
+                request.sourceType(), request.hostOrgKey(), authenticatedUser != null ? authenticatedUser.userKey() : null);
         return ResponseEntity.ok(ApiResponse.success(
                 adminPolicyDuplicateGroupService.markReviewed(
                         request,
@@ -292,8 +308,9 @@ public class AdminDashboardController {
     public ResponseEntity<ApiResponse<AdminReviewActionResponse>> reviewPolicyLink(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @org.springframework.web.bind.annotation.PathVariable Long serviceId,
-            @RequestBody(required = false) AdminReviewActionRequest request
+            @Valid @RequestBody(required = false) AdminReviewActionRequest request
     ) {
+        adminOperationRateLimitService.checkMutationLimit(actorKey(authenticatedUser), "dashboard:policy-link-review");
         log.info("[Admin] dashboard policy link review serviceId={} actorUserKey={}",
                 serviceId, authenticatedUser != null ? authenticatedUser.userKey() : null);
         return ResponseEntity.ok(ApiResponse.success(
@@ -325,8 +342,9 @@ public class AdminDashboardController {
     public ResponseEntity<ApiResponse<AdminReviewActionResponse>> reviewSupportInquiry(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @org.springframework.web.bind.annotation.PathVariable Long inquiryId,
-            @RequestBody(required = false) AdminReviewActionRequest request
+            @Valid @RequestBody(required = false) AdminReviewActionRequest request
     ) {
+        adminOperationRateLimitService.checkMutationLimit(actorKey(authenticatedUser), "dashboard:support-inquiry-review");
         log.info("[Admin] dashboard support inquiry review inquiryId={} actorUserKey={}",
                 inquiryId, authenticatedUser != null ? authenticatedUser.userKey() : null);
         return ResponseEntity.ok(ApiResponse.success(
@@ -341,10 +359,11 @@ public class AdminDashboardController {
     @PostMapping("/notification-backlog/hide-stale")
     public ResponseEntity<ApiResponse<AdminNotificationStaleHideResponse>> hideStaleNotificationBacklog(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
-            @RequestBody AdminNotificationStaleHideRequest request
+            @Valid @RequestBody AdminNotificationStaleHideRequest request
     ) {
-        log.info("[Admin] dashboard notification backlog hide kind={} title={} deeplink={} actorUserKey={}",
-                request.kind(), request.title(), request.deeplinkUrl(),
+        adminOperationRateLimitService.checkMutationLimit(actorKey(authenticatedUser), "dashboard:notification-backlog-hide-stale");
+        log.info("[Admin] dashboard notification backlog hide kind={} olderThanDays={} actorUserKey={}",
+                request.kind(), request.olderThanDays(),
                 authenticatedUser != null ? authenticatedUser.userKey() : null);
         return ResponseEntity.ok(ApiResponse.success(
                 adminNotificationBacklogService.hideStaleAlerts(request)
@@ -373,10 +392,11 @@ public class AdminDashboardController {
     public ResponseEntity<ApiResponse<AdminRecommendationReviewGatePromotionApprovalRecordResponse>>
     recordRecommendationReviewGatePromotionApproval(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
-            @RequestBody(required = false) AdminRecommendationReviewGatePromotionApprovalRecordRequest request
+            @Valid @RequestBody(required = false) AdminRecommendationReviewGatePromotionApprovalRecordRequest request
     ) {
         String actorUserKey = authenticatedUser != null ? authenticatedUser.userKey() : null;
         String approvalNote = request != null ? request.approvalNote() : null;
+        adminOperationRateLimitService.checkMutationLimit(actorUserKey, "dashboard:recommendation-promotion-approval-record");
         log.info("[Admin] recommendation review gate promotion approval record upsert actorUserKey={}", actorUserKey);
         return ResponseEntity.ok(ApiResponse.success(
                 adminRecommendationReviewGatePromotionApprovalRecordService.recordApproval(actorUserKey, approvalNote)
@@ -385,7 +405,13 @@ public class AdminDashboardController {
 
     @DeleteMapping("/recommendation-review-gate/promotion-approval-record")
     public ResponseEntity<ApiResponse<AdminRecommendationReviewGatePromotionApprovalRecordClearResponse>>
-    clearRecommendationReviewGatePromotionApproval() {
+    clearRecommendationReviewGatePromotionApproval(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser
+    ) {
+        adminOperationRateLimitService.checkMutationLimit(
+                actorKey(authenticatedUser),
+                "dashboard:recommendation-promotion-approval-clear"
+        );
         log.info("[Admin] recommendation review gate promotion approval record clear");
         return ResponseEntity.ok(ApiResponse.success(
                 adminRecommendationReviewGatePromotionApprovalRecordService.clearApproval()
@@ -413,5 +439,9 @@ public class AdminDashboardController {
         if (limit != null && (limit < 1 || limit > 20)) {
             throw new CustomException(ErrorCode.INVALID_INPUT);
         }
+    }
+
+    private String actorKey(AuthenticatedUser authenticatedUser) {
+        return authenticatedUser != null ? authenticatedUser.userKey() : "unknown";
     }
 }

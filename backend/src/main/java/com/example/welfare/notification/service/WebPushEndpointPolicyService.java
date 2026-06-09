@@ -75,7 +75,10 @@ public class WebPushEndpointPolicyService {
         }
 
         String host = endpoint.getHost();
-        if (!StringUtils.hasText(host) || endpoint.getPort() == 0) {
+        if (!StringUtils.hasText(host)
+                || StringUtils.hasText(endpoint.getUserInfo())
+                || StringUtils.hasText(endpoint.getRawFragment())
+                || (endpoint.getPort() != -1 && endpoint.getPort() != 443)) {
             throw new CustomException(ErrorCode.INVALID_INPUT);
         }
 

@@ -4,6 +4,7 @@ import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.dto.ScoredCandidate;
 import com.example.welfare.recommend.entity.AiScoreStatus;
 import com.example.welfare.recommend.gateway.AiRecommendationGateway;
+import com.example.welfare.recommend.support.RecommendationAiReasonSanitizer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,10 @@ public class AiScoringService {
     private final ClusterAiScoreCache clusterAiScoreCache;
 
     public List<ScoredCandidate> score(String clusterId, List<ScoredCandidate> candidates, RecommendationUserSnapshot user) {
+        if (candidates == null || candidates.isEmpty()) {
+            return List.of();
+        }
+
         // youth_all은 개인 프로필 기반 실시간 호출 (캐시 미사용)
         if ("youth_all".equals(clusterId)) {
             return aiRecommendationGateway.score(clusterId, candidates, user);
@@ -51,7 +56,11 @@ public class AiScoringService {
                         if (cached == null) {
                             return candidate;
                         }
-                        return candidate.withAiResult(cached.aiScore().doubleValue(), cached.aiReason(), AiScoreStatus.SCORED);
+                        return candidate.withAiResult(
+                                cached.aiScore().doubleValue(),
+                                RecommendationAiReasonSanitizer.sanitize(cached.aiReason()),
+                                AiScoreStatus.SCORED
+                        );
                     })
                     .toList();
         }
@@ -65,7 +74,7 @@ public class AiScoringService {
                 .map(candidate -> new ClusterAiScoreCache.ClusterAiScoreWrite(
                         candidate.getService(),
                         BigDecimal.valueOf(candidate.getAiScore()),
-                        candidate.getAiReason()
+                        RecommendationAiReasonSanitizer.sanitize(candidate.getAiReason())
                 ))
                 .toList());
 

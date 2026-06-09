@@ -86,7 +86,7 @@ class ApiSyncLogServiceTest {
                 .willAnswer(invocation -> invocation.getArgument(0));
 
         assertThatThrownBy(() -> apiSyncLogService.runWithLog("YOUTH", () -> {
-            throw new IllegalStateException("external api failed");
+            throw new IllegalStateException("https://apis.data.go.kr/path?serviceKey=secret-key");
         })).isInstanceOf(IllegalStateException.class);
 
         ArgumentCaptor<ApiSyncLog> captor = ArgumentCaptor.forClass(ApiSyncLog.class);
@@ -94,7 +94,8 @@ class ApiSyncLogServiceTest {
         ApiSyncLog failed = captor.getAllValues().get(1);
         assertThat(failed.getStatus()).isEqualTo(ApiSyncLog.SyncStatus.FAILED);
         assertThat(failed.getErrorCode()).isEqualTo("IllegalStateException");
-        assertThat(failed.getErrorMessage()).isEqualTo("external api failed");
+        assertThat(failed.getErrorMessage()).isEqualTo("collect job failed; see application logs with error_code");
+        assertThat(failed.getErrorMessage()).doesNotContain("serviceKey").doesNotContain("secret-key");
         assertThat(failed.getFinishedAt()).isNotNull();
     }
 

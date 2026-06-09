@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
-MIGRATION_FILE="${ROOT_DIR}/backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql"
+LEGACY_MYSQL_MIGRATION_FILE="${ROOT_DIR}/docs/archive/mysql-migrations/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql"
 ENV_FILE="${ENV_FILE:-}"
 QUEUE_BOOTSTRAP_SQL_FILE="$(mktemp)"
 
@@ -257,7 +257,7 @@ if [[ "${APPLY_PII_SYNC_QUEUE_MIGRATION}" == "true" ]]; then
   require_non_empty DB_MIGRATION_USERNAME "${DB_MIGRATION_USERNAME}"
   require_non_empty DB_MIGRATION_PASSWORD "${DB_MIGRATION_PASSWORD}"
   if queue_table_exists; then
-    echo "queue table already exists; skip legacy migration replay: ${MIGRATION_FILE}"
+    echo "queue table already exists; skip legacy MySQL migration reference: ${LEGACY_MYSQL_MIGRATION_FILE}"
   else
     cat <<'SQL' > "${QUEUE_BOOTSTRAP_SQL_FILE}"
 CREATE TABLE IF NOT EXISTS user_pii_sync_queue (
@@ -303,6 +303,8 @@ SIGNUP_STATUS="$(http_status POST "${APP_BASE_URL}/api/auth/signup" "${SIGNUP_FI
     \"password\": \"${SMOKE_PASSWORD}\",
     \"name\": \"${SMOKE_NAME_BEFORE}\",
     \"birthDate\": \"2000-05-10\",
+    \"privacyNoticeConfirmed\": true,
+    \"optionalProfileConsentAgreed\": true,
     \"sido\": \"서울특별시\",
     \"sgg\": \"관악구\",
     \"incomeLevel\": 4,

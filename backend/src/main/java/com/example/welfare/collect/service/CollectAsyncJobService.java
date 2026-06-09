@@ -51,7 +51,7 @@ public class CollectAsyncJobService {
                         requestedAt,
                         requestedAt,
                         "ExecutorRejected",
-                        e.getMessage()
+                        safeFailureMessage("ExecutorRejected")
                 ));
             }
             throw e;
@@ -84,30 +84,35 @@ public class CollectAsyncJobService {
                 snapshots.put(source, JobSnapshot.succeeded(requestedAt, startedAt, LocalDateTime.now()));
             }
         } catch (CustomException e) {
-            log.warn("[CollectAsyncJobService] async collect failed source={} errorCode={} msg={}",
-                    source.jobName(), e.getErrorCode().getCode(), e.getMessage());
+            log.warn("[CollectAsyncJobService] async collect failed source={} errorCode={}",
+                    source.jobName(), e.getErrorCode().getCode());
             synchronized (snapshots) {
                 snapshots.put(source, JobSnapshot.failed(
                         requestedAt,
                         startedAt,
                         LocalDateTime.now(),
                         e.getErrorCode().getCode(),
-                        e.getMessage()
+                        safeFailureMessage(e.getErrorCode().getCode())
                 ));
             }
         } catch (Exception e) {
-            log.warn("[CollectAsyncJobService] async collect failed source={} err={}",
-                    source.jobName(), e.getMessage(), e);
+            String errorType = e.getClass().getSimpleName();
+            log.warn("[CollectAsyncJobService] async collect failed source={} errorType={}",
+                    source.jobName(), errorType);
             synchronized (snapshots) {
                 snapshots.put(source, JobSnapshot.failed(
                         requestedAt,
                         startedAt,
                         LocalDateTime.now(),
-                        e.getClass().getSimpleName(),
-                        e.getMessage()
+                        errorType,
+                        safeFailureMessage(errorType)
                 ));
             }
         }
+    }
+
+    private String safeFailureMessage(String errorCode) {
+        return "async collect failed; see application logs with errorCode=" + errorCode;
     }
 
     private boolean hasActiveJob() {

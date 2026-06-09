@@ -72,19 +72,19 @@ export const ADMIN_DASHBOARD_FOCUS_KEYS = {
 // metricAction: within-section action buttons on individual cards
 export const ADMIN_DASHBOARD_JUMP_PRESETS = {
   attention: {
-    sectionDuration: 2000,
-    containerDuration: 1850,
-    focusDuration: 1300,
+    sectionDuration: 30000,
+    containerDuration: 30000,
+    focusDuration: 30000,
   },
   quickJump: {
-    sectionDuration: 1800,
-    containerDuration: 1700,
-    focusDuration: 1200,
+    sectionDuration: 30000,
+    containerDuration: 30000,
+    focusDuration: 30000,
   },
   metricAction: {
-    sectionDuration: 1600,
-    containerDuration: 1500,
-    focusDuration: 1100,
+    sectionDuration: 30000,
+    containerDuration: 30000,
+    focusDuration: 30000,
   },
 };
 

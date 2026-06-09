@@ -28,7 +28,9 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -113,6 +115,56 @@ class DeadlineReminderDispatchServiceTest {
                 eq(3)
         );
         verify(webPushDispatchService, never()).sendDeadlineReminder(any(), any(), anyInt());
+    }
+
+    @Test
+    @DisplayName("웹푸시 fan-out 이 실패해도 이미 성공한 deadline 이력을 실패로 되돌리지 않는다")
+    void sendBookmarkedDeadlineReminderDoesNotFailDispatchWhenWebPushFanOutThrows() {
+        NotificationTarget target = new NotificationTarget(1L, "user-key-1", "test@example.com",
+                User.NotificationPeriod.NONE, true, true, true, 0.0, 10);
+        User user = sampleUser();
+        WelfareService service = sampleService(11L, "청년 월세 지원", LocalDate.now().plusDays(2));
+        Notification notification = Notification.builder()
+                .id(1L)
+                .userKey("user-key-1")
+                .dispatchKey("deadline:user-key-1:" + LocalDate.now() + ":3")
+                .periodType(NotificationPeriodType.MANUAL)
+                .channel(NotificationChannel.EMAIL)
+                .status(NotificationStatus.PENDING)
+                .subject("[청년복지] 북마크 정책 마감 임박 알림")
+                .build();
+
+        given(activeUserReadService.getActiveUserByUserKey("user-key-1")).willReturn(user);
+        given(recommendationBookmarkReadService.findLatestBookmarkedRecommendations("user-key-1"))
+                .willReturn(List.of(sampleRecommendation(service)));
+        given(notificationHistoryService.reserveDispatch(
+                eq(user),
+                eq(NotificationPeriodType.MANUAL),
+                eq(NotificationChannel.EMAIL),
+                eq("deadline:user-key-1:" + LocalDate.now() + ":3"),
+                eq("[청년복지] 북마크 정책 마감 임박 알림")
+        )).willReturn(Optional.of(notification));
+        given(notificationMessageService.buildDeadlineReminderMessage("user-key-1", 1L, List.of(service), 3))
+                .willReturn("deadline-body");
+        given(notificationGateway.send("test@example.com", "[청년복지] 북마크 정책 마감 임박 알림", "deadline-body"))
+                .willReturn(true);
+        doThrow(new IllegalStateException("push unavailable"))
+                .when(webPushDispatchService)
+                .sendDeadlineReminder("user-key-1", List.of(service), 3);
+
+        DeadlineReminderDispatchService.DeadlineReminderDispatchResult result =
+                deadlineReminderDispatchService.sendBookmarkedDeadlineReminder(target, 3);
+
+        assertThat(result.status()).isEqualTo(DeadlineReminderDispatchService.DeadlineReminderDispatchStatus.SENT);
+        verify(notificationHistoryService, times(1)).saveDeadlineReminderResult(
+                eq(notification),
+                eq(NotificationStatus.SENT),
+                eq("deadline-body"),
+                eq(List.of(service)),
+                eq(null),
+                eq(true),
+                eq(3)
+        );
     }
 
     private User sampleUser() {

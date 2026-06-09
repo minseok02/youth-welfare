@@ -28,7 +28,7 @@ public class UserNotificationReadService {
     public List<NotificationTarget> getNotificationTargets(User.NotificationPeriod period) {
         return notificationTargetReadRepository.findNotificationTargetsByPeriod(period).stream()
                 .map(this::toNotificationTarget)
-                .filter(target -> !target.notificationEmailYn() || StringUtils.hasText(target.email()))
+                .filter(this::hasDeliverableNotificationChannel)
                 .toList();
     }
 
@@ -65,6 +65,13 @@ public class UserNotificationReadService {
                 row.notificationMinScore(),
                 row.displayCount()
         );
+    }
+
+    private boolean hasDeliverableNotificationChannel(NotificationTarget target) {
+        if (target.notificationInAppYn() || target.notificationWebPushYn()) {
+            return true;
+        }
+        return target.notificationEmailYn() && StringUtils.hasText(target.email());
     }
 
     private String decryptNullable(String encryptedValue) {

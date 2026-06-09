@@ -3,20 +3,77 @@ import { useAuthStore } from "../store/authStore";
 import { useNetworkStore } from "../store/networkStore";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim() || "";
+const DEFAULT_API_TIMEOUT_MS = 45000;
 const REFRESH_PATH = "/api/auth/refresh";
 const AUTH_PATH_PREFIX = "/api/auth/";
+const API_PATH_PREFIX = "/api/";
+
+const resolveTimeoutMillis = () => {
+  const rawValue = import.meta.env.VITE_API_TIMEOUT_MS?.trim();
+  const parsedValue = Number.parseInt(rawValue ?? "", 10);
+  return Number.isFinite(parsedValue) && parsedValue > 0
+    ? parsedValue
+    : DEFAULT_API_TIMEOUT_MS;
+};
+
+const runtimeOrigin = () => (
+  typeof window !== "undefined" && window.location?.origin
+    ? window.location.origin
+    : "http://localhost"
+);
+
+const configuredApiOrigin = () => {
+  try {
+    return new URL(apiBaseUrl || runtimeOrigin(), runtimeOrigin()).origin;
+  } catch {
+    return runtimeOrigin();
+  }
+};
 
 const api = axios.create({
   baseURL: apiBaseUrl,
   withCredentials: true,
+  timeout: resolveTimeoutMillis(),
+  timeoutErrorMessage: "서버 응답 시간이 초과되었습니다.",
 });
+
+const resolveRequestUrl = (config) => {
+  const rawUrl = config?.url ?? "";
+  try {
+    return new URL(rawUrl, config?.baseURL || apiBaseUrl || runtimeOrigin());
+  } catch {
+    return null;
+  }
+};
+
+const isTrustedApiRequest = (config) => {
+  const parsed = resolveRequestUrl(config);
+  return Boolean(parsed)
+    && parsed.origin === configuredApiOrigin()
+    && parsed.pathname.startsWith(API_PATH_PREFIX);
+};
+
+const isPathRequest = (config, pathOrPrefix, { prefix = false } = {}) => {
+  const parsed = resolveRequestUrl(config);
+  if (!parsed) return false;
+  return prefix
+    ? parsed.pathname.startsWith(pathOrPrefix)
+    : parsed.pathname === pathOrPrefix;
+};
+
+const clearAuthorizationHeader = (headers) => {
+  if (!headers) return;
+  delete headers.Authorization;
+  delete headers.authorization;
+};
 
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken;
-  if (token) {
+  config.headers = config.headers ?? {};
+  if (token && isTrustedApiRequest(config) && !config.skipAuth && !isPathRequest(config, REFRESH_PATH)) {
     config.headers.Authorization = `Bearer ${token}`;
-  } else if (config.headers?.Authorization) {
-    delete config.headers.Authorization;
+  } else {
+    clearAuthorizationHeader(config.headers);
   }
   return config;
 });
@@ -43,9 +100,8 @@ api.interceptors.response.use(
       useNetworkStore.getState().setServerDown(true);
     }
     const originalRequest = error.config;
-    const requestUrl = originalRequest?.url ?? "";
-    const isRefreshRequest = requestUrl.includes(REFRESH_PATH);
-    const isAuthRequest = requestUrl.includes(AUTH_PATH_PREFIX);
+    const isRefreshRequest = isPathRequest(originalRequest, REFRESH_PATH);
+    const isAuthRequest = isPathRequest(originalRequest, AUTH_PATH_PREFIX, { prefix: true });
 
     if (error.response?.status === 401 && !originalRequest?._retry && !isRefreshRequest && !isAuthRequest) {
       if (isRefreshing) {
@@ -53,6 +109,7 @@ api.interceptors.response.use(
           failedQueue.push({ resolve, reject });
         })
           .then((token) => {
+            originalRequest.headers = originalRequest.headers ?? {};
             originalRequest.headers.Authorization = `Bearer ${token}`;
             return api(originalRequest);
           })
@@ -63,7 +120,7 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const { data } = await api.post(REFRESH_PATH);
+        const { data } = await api.post(REFRESH_PATH, null, { skipAuth: true });
         const newToken = data?.data?.accessToken;
         if (!newToken) {
           throw new Error("refresh token rotation response missing accessToken");

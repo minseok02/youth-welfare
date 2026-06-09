@@ -150,7 +150,7 @@ public class BokjiroCentralClient {
         try {
             return PageFetchResult.success(xmlMapper.readValue(xml, BokjiroCentralDto.class));
         } catch (Exception e) {
-            log.error("[BokjiroCentralClient] 수집 실패 page={} parseErr={}", pageNo, e.getMessage(), e);
+            log.error("[BokjiroCentralClient] 수집 실패 page={} errorType={}", pageNo, e.getClass().getSimpleName());
             throw new CustomException(ErrorCode.COLLECT_API_FAILED);
         }
     }

@@ -98,12 +98,12 @@ public class BokjiroDetailClient {
                     .provisionType(text(root, "srvPvsnNm"))
                     .build();
         } catch (WebClientResponseException e) {
-            log.warn("[BokjiroDetailClient] 상세 조회 HTTP 예외 source={} servId={} status={} err={}",
-                    source, serviceId, e.getStatusCode().value(), e.getMessage());
+            log.warn("[BokjiroDetailClient] 상세 조회 HTTP 예외 source={} servId={} status={} errorType={}",
+                    source, serviceId, e.getStatusCode().value(), e.getClass().getSimpleName());
             throw new CustomException(ErrorCode.COLLECT_API_FAILED);
         } catch (Exception e) {
-            log.warn("[BokjiroDetailClient] 상세 조회 예외 source={} servId={} err={}",
-                    source, serviceId, e.getMessage());
+            log.warn("[BokjiroDetailClient] 상세 조회 예외 source={} servId={} errorType={}",
+                    source, serviceId, e.getClass().getSimpleName());
             throw new CustomException(ErrorCode.COLLECT_API_FAILED);
         }
     }
@@ -141,12 +141,12 @@ public class BokjiroDetailClient {
             int status = e.getStatusCode().value();
             boolean rateLimited = status == 429;
             boolean retryable = (status >= 500 && status < 600);
-            log.warn("[BokjiroDetailClient] 상세 조회 HTTP 예외 source={} servId={} status={} retryable={} err={}",
-                    source, serviceId, status, retryable, e.getMessage());
+            log.warn("[BokjiroDetailClient] 상세 조회 HTTP 예외 source={} servId={} status={} retryable={} errorType={}",
+                    source, serviceId, status, retryable, e.getClass().getSimpleName());
             return FetchResult.failure(retryable, rateLimited, status);
         } catch (Exception e) {
-            log.warn("[BokjiroDetailClient] 상세 조회 예외 source={} servId={} err={}",
-                    source, serviceId, e.getMessage());
+            log.warn("[BokjiroDetailClient] 상세 조회 예외 source={} servId={} errorType={}",
+                    source, serviceId, e.getClass().getSimpleName());
             return FetchResult.failure(true, false, null);
         }
     }

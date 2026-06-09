@@ -330,7 +330,7 @@ raw exact label summary(`gov24ServiceFieldLabel/gov24UserTypeLabel/gov24BenefitT
 같은 원칙으로 recommendation read-model projection 도 canonical term 우선으로 정리했다.
 - `gov24ServiceFieldLabel` 은 `GOV24_SERVICE_FIELD` term이 있으면 그 exact label을 우선 쓰고, 없으면 legacy summary label을 fallback 으로 쓴다.
 - `gov24UserTypeTokens`, `gov24BenefitTypeTokens` 도 term이 있으면 term 값을 그대로 쓰고, term이 없는 legacy row만 기존 raw summary label split 으로 fallback 한다.
-- 같은 canonical term이 recommendation projection에 들어와도, 현재는 `Gov24 -> YOUTH_MID` bridge를 자동으로 열지 않는다. 즉 `gov24ServiceFieldLabel=주거·자립`, `gov24UserTypeTokens=['개인']`, `gov24BenefitTypeTokens=['현금(융자)']` 같은 조합이 있어도 `youthMajorLabel`, `youthMidLabel` 은 별도 source-of-truth 없이는 계속 `null` 이다.
+- 같은 canonical term이 recommendation projection에 들어오면 `Gov24 -> YOUTH_MID` bridge도 bounded 하게 열린다. 즉 `gov24ServiceFieldLabel=주거·자립` 은 `youthMajorLabel=주거`, `youthMidLabel=주택 및 거주지` 로, `gov24ServiceFieldLabel=보육·교육` 은 `youthMajorLabel=교육` 과 title/benefitType 기반 `교육비지원|온라인교육|미래역량강화` 중 하나로 연결된다. 이 값은 response label 과 `educationPriorityBoostEligible` 판정에만 쓰며, raw 조합값을 `service_facts` hard eligibility 로 승격하지는 않는다.
 - recommendation scoring도 이제 같은 canonical term/projection truth를 soft signal로 읽는다.
   - `serviceField` 는 `주거·자립 -> HOUSING`, `고용·창업 -> JOB`, `보육·교육 -> EDUCATION`, `생활안정 -> FINANCE`, `문화·환경 -> CULTURE`, `보호·돌봄/임신·출산 -> FAMILY` bridge를 bounded additive bonus로만 소비한다.
   - `benefitType` 는 `현금(장학금)/기타(교육)`, `현금/현금(감면)/현금(보험)/현금(융자)`, `서비스(일자리)/기술지원`, `문화/여가지원`, `서비스(돌봄)` 같은 일부 managed token만 small bonus로 읽는다.

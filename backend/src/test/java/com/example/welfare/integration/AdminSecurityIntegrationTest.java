@@ -3,6 +3,7 @@ package com.example.welfare.integration;
 import com.example.welfare.collect.service.CollectSource;
 import com.example.welfare.collect.service.CollectAdminService;
 import com.example.welfare.global.util.JwtUtil;
+import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.repository.AuthUserRepository;
 import com.example.welfare.user.repository.UserPiiReadWriteRepository;
@@ -111,7 +112,9 @@ class AdminSecurityIntegrationTest {
                 user -> ADMIN_EMAIL.equals(user.getEmail())
                         || (user.getEmail() != null && user.getEmail().startsWith(TEST_EMAIL_PREFIX)),
                 userKey -> {
+                    redisTemplate.delete(refreshKey(userKey));
                     redisTemplate.delete("refresh:" + userKey);
+                    redisTemplate.delete(accessCutoffKey(userKey));
                     redisTemplate.delete("access-cutoff:" + userKey);
                     userPiiSyncQueueRepository.deleteByUserKey(userKey);
                 },
@@ -127,7 +130,8 @@ class AdminSecurityIntegrationTest {
                   "email": "%s",
                   "password": "%s",
                   "name": "관리자",
-                  "birthDate": "%s"
+                  "birthDate": "%s",
+                  "privacyNoticeConfirmed": true
                 }
                 """.formatted(ADMIN_EMAIL, TEST_PASSWORD, LocalDate.of(1998, 1, 10));
 
@@ -154,7 +158,8 @@ class AdminSecurityIntegrationTest {
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("C003"));
 
-        String adminAccessToken = loginAndExtractAccessToken(adminUser.getEmail(), TEST_PASSWORD);
+        TokenPair adminTokens = loginAndExtractTokenPair(adminUser.getEmail(), TEST_PASSWORD);
+        String adminAccessToken = adminTokens.accessToken();
         assertTrue(jwtUtil.getRoles(adminAccessToken).contains("ROLE_ADMIN"));
 
         mockMvc.perform(post("/api/admin/collect/youth")
@@ -163,8 +168,7 @@ class AdminSecurityIntegrationTest {
                 .andExpect(jsonPath("$.success").value(true));
 
         String adminUserKey = userRepository.findUserKeyById(adminUser.getId()).orElseThrow();
-        String refreshToken = redisTemplate.opsForValue().get("refresh:" + adminUserKey);
-        assertFalse(refreshToken == null || refreshToken.isBlank());
+        String refreshToken = adminTokens.refreshToken();
 
         String refreshedAccessToken = refreshAndExtractAccessToken(refreshToken);
         assertTrue(jwtUtil.getRoles(refreshedAccessToken).containsAll(List.of("ROLE_USER", "ROLE_ADMIN")));
@@ -183,10 +187,10 @@ class AdminSecurityIntegrationTest {
         doNothing().when(collectAdminService).collect(CollectSource.YOUTH);
         User adminUser = createUser(ADMIN_EMAIL);
 
-        String adminAccessToken = loginAndExtractAccessToken(adminUser.getEmail(), TEST_PASSWORD);
+        TokenPair adminTokens = loginAndExtractTokenPair(adminUser.getEmail(), TEST_PASSWORD);
+        String adminAccessToken = adminTokens.accessToken();
         String adminUserKey = userRepository.findUserKeyById(adminUser.getId()).orElseThrow();
-        String refreshToken = redisTemplate.opsForValue().get("refresh:" + adminUserKey);
-        assertFalse(refreshToken == null || refreshToken.isBlank());
+        String refreshToken = adminTokens.refreshToken();
 
         mockMvc.perform(post("/api/admin/collect/youth")
                         .header("Authorization", "Bearer " + adminAccessToken))
@@ -207,17 +211,17 @@ class AdminSecurityIntegrationTest {
     }
 
     @Test
-    @DisplayName("allowlist 제거 후 old admin access token은 유지되지만 refresh로 발급된 새 token부터 ROLE_ADMIN이 빠진다")
-    void allowlistRemovalKeepsOldAccessTokenButRefreshDropsAdminRole() throws Exception {
+    @DisplayName("allowlist 제거 후 old admin access token도 즉시 관리자 API에서 차단된다")
+    void allowlistRemovalBlocksOldAccessTokenAndRefreshDropsAdminRole() throws Exception {
         doNothing().when(collectAdminService).collect(CollectSource.YOUTH);
         User adminUser = createUser(ADMIN_EMAIL);
 
-        String adminAccessToken = loginAndExtractAccessToken(adminUser.getEmail(), TEST_PASSWORD);
+        TokenPair adminTokens = loginAndExtractTokenPair(adminUser.getEmail(), TEST_PASSWORD);
+        String adminAccessToken = adminTokens.accessToken();
         assertTrue(jwtUtil.getRoles(adminAccessToken).contains("ROLE_ADMIN"));
 
         String adminUserKey = userRepository.findUserKeyById(adminUser.getId()).orElseThrow();
-        String refreshToken = redisTemplate.opsForValue().get("refresh:" + adminUserKey);
-        assertFalse(refreshToken == null || refreshToken.isBlank());
+        String refreshToken = adminTokens.refreshToken();
 
         mockMvc.perform(post("/api/admin/collect/youth")
                         .header("Authorization", "Bearer " + adminAccessToken))
@@ -229,8 +233,9 @@ class AdminSecurityIntegrationTest {
 
         mockMvc.perform(post("/api/admin/collect/youth")
                         .header("Authorization", "Bearer " + adminAccessToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true));
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C003"));
 
         String refreshedAccessToken = refreshAndExtractAccessToken(refreshToken);
         assertFalse(jwtUtil.getRoles(refreshedAccessToken).contains("ROLE_ADMIN"));
@@ -248,10 +253,10 @@ class AdminSecurityIntegrationTest {
         doNothing().when(collectAdminService).collect(CollectSource.YOUTH);
         User adminUser = createUser(ADMIN_EMAIL);
 
-        String oldAdminAccessToken = loginAndExtractAccessToken(adminUser.getEmail(), TEST_PASSWORD);
+        TokenPair oldAdminTokens = loginAndExtractTokenPair(adminUser.getEmail(), TEST_PASSWORD);
+        String oldAdminAccessToken = oldAdminTokens.accessToken();
         String adminUserKey = userRepository.findUserKeyById(adminUser.getId()).orElseThrow();
-        String oldRefreshToken = redisTemplate.opsForValue().get("refresh:" + adminUserKey);
-        assertFalse(oldRefreshToken == null || oldRefreshToken.isBlank());
+        String oldRefreshToken = oldAdminTokens.refreshToken();
 
         mockMvc.perform(post("/api/admin/users/forced-logout")
                         .contentType("application/json")
@@ -335,6 +340,7 @@ class AdminSecurityIntegrationTest {
     private void deleteUserState(Long userId, String userKey) {
         transactionTemplate.executeWithoutResult(status -> {
             if (userKey != null) {
+                redisTemplate.delete(refreshKey(userKey));
                 redisTemplate.delete("refresh:" + userKey);
                 userPiiSyncQueueRepository.deleteByUserKey(userKey);
                 userPiiReadWriteRepository.deleteByUserKey(userKey);
@@ -349,6 +355,10 @@ class AdminSecurityIntegrationTest {
     }
 
     private String loginAndExtractAccessToken(String email, String password) throws Exception {
+        return loginAndExtractTokenPair(email, password).accessToken();
+    }
+
+    private TokenPair loginAndExtractTokenPair(String email, String password) throws Exception {
         String loginBody = """
                 {
                   "email": "%s",
@@ -356,17 +366,17 @@ class AdminSecurityIntegrationTest {
                 }
                 """.formatted(email, password);
 
-        String content = mockMvc.perform(post("/api/auth/login")
+        var result = mockMvc.perform(post("/api/auth/login")
                         .contentType("application/json")
                         .content(loginBody))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
+                .andReturn();
 
-        JsonNode root = objectMapper.readTree(content);
-        return root.path("data").path("accessToken").asText();
+        JsonNode root = objectMapper.readTree(result.getResponse().getContentAsString());
+        jakarta.servlet.http.Cookie refreshCookie = result.getResponse().getCookie("refresh_token");
+        assertFalse(refreshCookie == null || refreshCookie.getValue().isBlank());
+        return new TokenPair(root.path("data").path("accessToken").asText(), refreshCookie.getValue());
     }
 
     private String refreshAndExtractAccessToken(String refreshToken) throws Exception {
@@ -394,5 +404,16 @@ class AdminSecurityIntegrationTest {
                 .expiration(new Date(now.getTime() + accessExpiration))
                 .signWith(Keys.hmacShaKeyFor(secret.getBytes(java.nio.charset.StandardCharsets.UTF_8)))
                 .compact();
+    }
+
+    private String refreshKey(String userKey) {
+        return "refresh:v2:" + RedisKeyHash.sha256Hex(userKey);
+    }
+
+    private String accessCutoffKey(String userKey) {
+        return "access-cutoff:v2:" + RedisKeyHash.sha256Hex(userKey);
+    }
+
+    private record TokenPair(String accessToken, String refreshToken) {
     }
 }

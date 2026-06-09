@@ -50,7 +50,7 @@ public record CollectBatchRunResult(
                     false,
                     CollectResult.of(0, 0, 0, 0, 0),
                     errorCode,
-                    exception.getMessage()
+                    "collect source failed; see application logs with errorCode=" + errorCode
             );
         }
     }

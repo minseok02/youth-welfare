@@ -165,16 +165,16 @@ public class CollectItemSaver {
             } catch (Exception e) {
                 if (!isRetryableLockException(e) || attempt >= MAX_SAVE_ATTEMPTS) {
                     if (attempt > 1) {
-                        log.warn("[CollectItemSaver] 저장 재시도 실패 sourceType={} sourceId={} attempts={} err={}",
-                                sourceType, sourceId, attempt, e.getMessage());
+                        log.warn("[CollectItemSaver] 저장 재시도 실패 sourceType={} sourceId={} attempts={} errorType={}",
+                                sourceType, sourceId, attempt, e.getClass().getSimpleName());
                     }
                     rethrowUnchecked(e);
                     return;
                 }
 
                 long waitMs = BASE_BACKOFF_MS * attempt;
-                log.warn("[CollectItemSaver] 저장 재시도 sourceType={} sourceId={} attempt={}/{} waitMs={} err={}",
-                        sourceType, sourceId, attempt, MAX_SAVE_ATTEMPTS, waitMs, e.getMessage());
+                log.warn("[CollectItemSaver] 저장 재시도 sourceType={} sourceId={} attempt={}/{} waitMs={} errorType={}",
+                        sourceType, sourceId, attempt, MAX_SAVE_ATTEMPTS, waitMs, e.getClass().getSimpleName());
                 sleepQuietly(waitMs);
             }
         }

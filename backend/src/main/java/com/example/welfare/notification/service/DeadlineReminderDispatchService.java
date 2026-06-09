@@ -81,7 +81,12 @@ public class DeadlineReminderDispatchService {
                     days
             );
             if (target.notificationWebPushYn()) {
-                webPushDispatchService.sendDeadlineReminder(target.userKey(), services, days);
+                try {
+                    webPushDispatchService.sendDeadlineReminder(target.userKey(), services, days);
+                } catch (RuntimeException | LinkageError e) {
+                    log.warn("[DeadlineReminderDispatchService] deadline web push fan-out failed userId={}: {}",
+                            user.getId(), e.getMessage());
+                }
             }
 
             if (!sent) {

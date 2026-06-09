@@ -3,6 +3,7 @@ package com.example.welfare.recommend.service;
 import com.example.welfare.recommend.entity.ClusterAiResult;
 import com.example.welfare.recommend.repository.ClusterAiResultCommandRepository;
 import com.example.welfare.recommend.repository.ClusterAiResultReadRepository;
+import com.example.welfare.recommend.support.RecommendationAiReasonSanitizer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,7 +29,7 @@ public class JpaClusterAiScoreCache implements ClusterAiScoreCache {
                         result -> new CachedClusterAiScore(
                                 result.getService().getId(),
                                 result.getAiScore(),
-                                result.getAiReason()
+                                RecommendationAiReasonSanitizer.sanitize(result.getAiReason())
                         ),
                         (left, right) -> left,
                         LinkedHashMap::new
@@ -46,16 +47,17 @@ public class JpaClusterAiScoreCache implements ClusterAiScoreCache {
                 .collect(Collectors.toMap(result -> result.getService().getId(), result -> result));
 
         for (ClusterAiScoreWrite write : writes) {
+            String sanitizedReason = RecommendationAiReasonSanitizer.sanitize(write.aiReason());
             ClusterAiResult existing = existingByServiceId.get(write.service().getId());
             if (existing != null) {
-                existing.update(write.aiScore(), write.aiReason());
+                existing.update(write.aiScore(), sanitizedReason);
                 continue;
             }
             clusterAiResultCommandRepository.save(ClusterAiResult.builder()
                     .clusterId(clusterId)
                     .service(write.service())
                     .aiScore(write.aiScore())
-                    .aiReason(write.aiReason())
+                    .aiReason(sanitizedReason)
                     .build());
         }
     }

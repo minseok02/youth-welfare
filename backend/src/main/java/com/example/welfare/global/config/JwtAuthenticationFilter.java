@@ -3,6 +3,7 @@ package com.example.welfare.global.config;
 import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.util.JwtUtil;
+import com.example.welfare.user.service.AdminAccessAuthorityService;
 import com.example.welfare.user.service.UserSessionRevocationService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -21,6 +22,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final UserSessionRevocationService userSessionRevocationService;
+    private final AdminAccessAuthorityService adminAccessAuthorityService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -35,8 +37,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     throw new CustomException(com.example.welfare.global.exception.ErrorCode.UNAUTHORIZED);
                 }
                 AuthenticatedUser authenticatedUser = jwtUtil.getAuthenticatedUser(token);
+                var authorities = adminAccessAuthorityService.filterCurrentAuthorities(
+                        authenticatedUser,
+                        jwtUtil.getAuthorities(token)
+                );
                 UsernamePasswordAuthenticationToken auth =
-                        new UsernamePasswordAuthenticationToken(authenticatedUser, null, jwtUtil.getAuthorities(token));
+                        new UsernamePasswordAuthenticationToken(authenticatedUser, null, authorities);
                 SecurityContextHolder.getContext().setAuthentication(auth);
             } catch (CustomException e) {
                 // 유효하지 않거나 revoke된 토큰 — SecurityContext 미설정, 이후 인가 단계에서 거부됨

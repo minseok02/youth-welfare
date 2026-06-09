@@ -4,6 +4,7 @@ import { Alert, CircularProgress, Snackbar, useMediaQuery } from "@mui/material"
 import Header from "../components/Header";
 import FloatingNav from "../components/FloatingNav";
 import api from "../lib/axios";
+import { resolveSafeInternalPath } from "../lib/safeNavigation";
 
 const A = "#2563eb", A7 = "#1d4ed8", BG = "#f7f8fc", WHITE = "#fff";
 const WARN = "#ef4444";
@@ -151,8 +152,9 @@ export default function AlertsPage() {
       if (alert.status === "UNREAD") {
         await markAlertRead(alert.id, true);
       }
-      if (alert.deeplinkUrl) {
-        navigate(alert.deeplinkUrl, {
+      const safePath = resolveSafeInternalPath(alert.deeplinkUrl);
+      if (safePath) {
+        navigate(safePath, {
           state: {
             from: location,
           },

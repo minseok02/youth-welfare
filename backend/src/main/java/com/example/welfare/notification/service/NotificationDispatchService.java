@@ -87,7 +87,12 @@ public class NotificationDispatchService {
                     target.notificationInAppYn()
             );
             if (target.notificationWebPushYn()) {
-                webPushDispatchService.sendRecommendationDigest(target.userKey(), recommendations);
+                try {
+                    webPushDispatchService.sendRecommendationDigest(target.userKey(), recommendations);
+                } catch (RuntimeException | LinkageError e) {
+                    log.warn("[NotificationDispatchService] web push fan-out failed userId={}: {}",
+                            user.getId(), e.getMessage());
+                }
             }
 
             if (!sent) {

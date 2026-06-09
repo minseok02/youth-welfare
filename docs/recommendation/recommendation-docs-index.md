@@ -15,6 +15,7 @@
 ### 현재 코드/로컬 검증 기준
 
 - [recommendation-current-state.md](./recommendation-current-state.md)
+- [recommendation-ai-reason-memo-contract.md](./recommendation-ai-reason-memo-contract.md)
 - [recommendation-operation-checklist.md](./recommendation-operation-checklist.md)
 - [gov24-recommendation-audit-runbook.md](./gov24-recommendation-audit-runbook.md)
 - [recommendation-ctr-readiness-runbook.md](./recommendation-ctr-readiness-runbook.md)
@@ -153,6 +154,7 @@ recommendation closeout PR 관련 문서는 아래 순서로 읽는 편이 맞�
 ### 1. 현재 동작 기준
 
 - [recommendation-current-state.md](./recommendation-current-state.md)
+- [recommendation-ai-reason-memo-contract.md](./recommendation-ai-reason-memo-contract.md)
 
 이 문서는
 
@@ -161,6 +163,7 @@ recommendation closeout PR 관련 문서는 아래 순서로 읽는 편이 맞�
 - AI scoring
 - reranking
 - canonical projection bridge
+- 사용자 노출 추천 메모(`aiReason`) 생성/정규화/표시 계약
 
 를 빠르게 보는 current-state 문서입니다.
 

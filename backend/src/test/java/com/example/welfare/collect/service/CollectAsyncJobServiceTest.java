@@ -76,6 +76,25 @@ class CollectAsyncJobServiceTest {
 
         assertThat(response.state()).isEqualTo(AsyncCollectStatusResponse.AsyncCollectState.FAILED);
         assertThat(response.errorCode()).isEqualTo(ErrorCode.COLLECT_ALREADY_RUNNING.getCode());
+        assertThat(response.errorMessage()).contains("errorCode=" + ErrorCode.COLLECT_ALREADY_RUNNING.getCode());
+    }
+
+    @Test
+    @DisplayName("비동기 수집 실패 응답은 원문 예외 메시지를 노출하지 않는다")
+    void triggerFailureDoesNotExposeRawExceptionMessage() {
+        Executor directExecutor = Runnable::run;
+        CollectAsyncJobService service = new CollectAsyncJobService(collectAdminService, apiSyncLogRepository, directExecutor);
+        doThrow(new IllegalStateException("https://apis.data.go.kr/path?serviceKey=secret-key"))
+                .when(collectAdminService).collect(CollectSource.GOV24);
+
+        AsyncCollectStatusResponse response = service.trigger(CollectSource.GOV24);
+
+        assertThat(response.state()).isEqualTo(AsyncCollectStatusResponse.AsyncCollectState.FAILED);
+        assertThat(response.errorCode()).isEqualTo("IllegalStateException");
+        assertThat(response.errorMessage())
+                .contains("errorCode=IllegalStateException")
+                .doesNotContain("serviceKey")
+                .doesNotContain("secret-key");
     }
 
     @Test

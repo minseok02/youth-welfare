@@ -118,6 +118,8 @@ if [[ "${EXISTING_USER_COUNT}" == "0" ]]; then
         \"password\": \"${SMOKE_PASSWORD}\",
         \"name\": \"${SMOKE_NAME}\",
         \"birthDate\": \"${SMOKE_BIRTH_DATE}\",
+      \"privacyNoticeConfirmed\": true,
+      \"optionalProfileConsentAgreed\": true,
         \"sido\": \"${SMOKE_SIDO}\",
         \"sgg\": \"${SMOKE_SGG}\",
         \"incomeLevel\": ${SMOKE_INCOME_LEVEL},

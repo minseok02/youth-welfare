@@ -1,5 +1,6 @@
 package com.example.welfare.recommend.service;
 
+import com.example.welfare.global.util.RedisKeyHash;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,7 +39,7 @@ class RecommendationRefreshCacheServiceTest {
     @Test
     @DisplayName("userKey 마커가 있으면 recommendedAt token 을 복원한다")
     void findReusableRecommendedAtReturnsTokenWhenMarkerExists() {
-        when(valueOperations.get("recommend:refresh:user:user-key-1:education-bonus:false"))
+        when(valueOperations.get(cacheKey("user-key-1", false)))
                 .thenReturn("2026-05-04T12:00:00");
 
         assertThat(cacheService.findReusableRecommendedAt("user-key-1"))
@@ -50,7 +51,7 @@ class RecommendationRefreshCacheServiceTest {
     void markReusableStoresTtlMarker() {
         cacheService.markReusable("user-key-1", LocalDateTime.of(2026, 5, 4, 12, 0));
 
-        verify(valueOperations).set("recommend:refresh:user:user-key-1:education-bonus:false", "2026-05-04T12:00", 15, TimeUnit.MINUTES);
+        verify(valueOperations).set(cacheKey("user-key-1", false), "2026-05-04T12:00", 15, TimeUnit.MINUTES);
     }
 
     @Test
@@ -58,6 +59,7 @@ class RecommendationRefreshCacheServiceTest {
     void evictDeletesMarker() {
         cacheService.evict("user-key-1");
 
+        verify(redisTemplate).delete(cacheKey("user-key-1", false));
         verify(redisTemplate).delete("recommend:refresh:user:user-key-1:education-bonus:false");
     }
 
@@ -68,18 +70,24 @@ class RecommendationRefreshCacheServiceTest {
                 new RecommendationRefreshCacheService(redisTemplate, 15, true);
 
         assertThat(enabledCacheService.cacheKey("user-key-1"))
-                .isEqualTo("recommend:refresh:user:user-key-1:education-bonus:true");
+                .isEqualTo(cacheKey("user-key-1", true));
     }
 
     @Test
     @DisplayName("refresh token 형식이 깨져 있으면 마커를 제거하고 empty 를 반환한다")
     void findReusableRecommendedAtEvictsBrokenToken() {
-        when(valueOperations.get("recommend:refresh:user:user-key-1:education-bonus:false"))
+        when(valueOperations.get(cacheKey("user-key-1", false)))
                 .thenReturn("broken-token");
 
         Optional<LocalDateTime> result = cacheService.findReusableRecommendedAt("user-key-1");
 
         assertThat(result).isEmpty();
+        verify(redisTemplate).delete(cacheKey("user-key-1", false));
         verify(redisTemplate).delete("recommend:refresh:user:user-key-1:education-bonus:false");
+    }
+
+    private String cacheKey(String userKey, boolean educationBonusEnabled) {
+        return "recommend:refresh:user:v2:" + RedisKeyHash.sha256Hex(userKey)
+                + ":education-bonus:" + educationBonusEnabled;
     }
 }

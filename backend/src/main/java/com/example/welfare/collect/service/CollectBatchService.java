@@ -43,7 +43,8 @@ public class CollectBatchService {
             CollectResult result = collectSourceExecutionService.collectSource(source);
             return CollectBatchRunResult.SourceRunResult.success(source, result);
         } catch (Exception e) {
-            log.warn("[CollectBatchService][{}] 수집 실패 - 다음 source 계속 진행: {}", source.jobName(), e.getMessage(), e);
+            log.warn("[CollectBatchService][{}] 수집 실패 - 다음 source 계속 진행 errorType={}",
+                    source.jobName(), e.getClass().getSimpleName());
             return CollectBatchRunResult.SourceRunResult.failure(source, e);
         }
     }

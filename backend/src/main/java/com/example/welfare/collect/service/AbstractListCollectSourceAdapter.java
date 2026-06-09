@@ -42,8 +42,8 @@ public abstract class AbstractListCollectSourceAdapter<T> implements CollectSour
                 saved++;
             } catch (Exception e) {
                 failed++;
-                log.warn("[CollectSourceAdapter][{}] 저장 실패 {}={}: {}",
-                        source().jobName(), failureIdLabel(), itemId(item), e.getMessage());
+                log.warn("[CollectSourceAdapter][{}] 저장 실패 {}={} errorType={}",
+                        source().jobName(), failureIdLabel(), itemId(item), e.getClass().getSimpleName());
             }
         }
 

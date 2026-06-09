@@ -1,5 +1,6 @@
 package com.example.welfare.collect.controller;
 
+import com.example.welfare.admin.service.AdminOperationRateLimitService;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillService;
 import com.example.welfare.collect.dto.AsyncCollectStatusResponse;
 import com.example.welfare.collect.service.CollectAdminService;
@@ -11,11 +12,18 @@ import com.example.welfare.collect.service.CollectSource;
 import com.example.welfare.collect.dto.InvertedAgeBackfillResponse;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.response.ApiResponse;
 import com.example.welfare.policy.entity.WelfareService;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,6 +41,7 @@ import java.util.Locale;
 @RestController
 @RequestMapping("/api/admin/collect")
 @RequiredArgsConstructor
+@Validated
 public class CollectAdminController {
 
     static final int MAX_CALLS_PER_RUN_LIMIT = 5_000;
@@ -44,18 +53,34 @@ public class CollectAdminController {
     private final CollectAdminService collectAdminService;
     private final CollectAsyncJobService collectAsyncJobService;
     private final NormalizedPolicySidecarBackfillService normalizedPolicySidecarBackfillService;
+    private final AdminOperationRateLimitService adminOperationRateLimitService;
 
     @PostMapping("/all")
-    public ResponseEntity<ApiResponse<CollectAllResponse>> collectAll() {
+    public ResponseEntity<ApiResponse<CollectAllResponse>> collectAll(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser
+    ) {
+        adminOperationRateLimitService.checkMutationLimit(actorKey(authenticatedUser), "collect:all");
         log.info("[Admin] 전체 수집 수동 트리거");
         CollectBatchRunResult result = collectBatchService.collectAllNow();
         return ResponseEntity.ok(ApiResponse.success(CollectAllResponse.from(result)));
     }
 
     @PostMapping("/{sourceKey}")
-    public ResponseEntity<ApiResponse<String>> collectSource(@PathVariable String sourceKey,
-                                                             @RequestParam(required = false) Integer maxCallsPerRun,
-                                                             @RequestParam(required = false) String sourceId) {
+    public ResponseEntity<ApiResponse<String>> collectSource(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @PathVariable
+            @Size(max = 40, message = "sourceKey는 40자 이하여야 합니다.")
+            @Pattern(regexp = "^[a-z0-9-]+$", message = "sourceKey 형식이 올바르지 않습니다.")
+            String sourceKey,
+            @RequestParam(required = false)
+            @Min(value = 1, message = "maxCallsPerRun은 1 이상이어야 합니다.")
+            @Max(value = MAX_CALLS_PER_RUN_LIMIT, message = "maxCallsPerRun은 5000 이하여야 합니다.")
+            Integer maxCallsPerRun,
+            @RequestParam(required = false)
+            @Size(max = 100, message = "sourceId는 100자 이하여야 합니다.")
+            @Pattern(regexp = "^[A-Za-z0-9_-]+$", message = "sourceId 형식이 올바르지 않습니다.")
+            String sourceId) {
+        adminOperationRateLimitService.checkMutationLimit(actorKey(authenticatedUser), "collect:source");
         CollectSource source = CollectSource.fromPathKey(sourceKey);
         log.info("[Admin] {} 수집 수동 트리거", source.triggerLabel());
         if (sourceId != null && !sourceId.isBlank()) {
@@ -93,20 +118,33 @@ public class CollectAdminController {
     }
 
     @PostMapping("/{sourceKey}/async")
-    public ResponseEntity<ApiResponse<AsyncCollectStatusResponse>> collectSourceAsync(@PathVariable String sourceKey) {
+    public ResponseEntity<ApiResponse<AsyncCollectStatusResponse>> collectSourceAsync(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @PathVariable
+            @Size(max = 40, message = "sourceKey는 40자 이하여야 합니다.")
+            @Pattern(regexp = "^[a-z0-9-]+$", message = "sourceKey 형식이 올바르지 않습니다.")
+            String sourceKey) {
+        adminOperationRateLimitService.checkMutationLimit(actorKey(authenticatedUser), "collect:source-async");
         CollectSource source = CollectSource.fromPathKey(sourceKey);
         log.info("[Admin] {} 비동기 수집 수동 트리거", source.triggerLabel());
         return ResponseEntity.accepted().body(ApiResponse.success(collectAsyncJobService.trigger(source)));
     }
 
     @GetMapping("/{sourceKey}/async-status")
-    public ResponseEntity<ApiResponse<AsyncCollectStatusResponse>> collectSourceAsyncStatus(@PathVariable String sourceKey) {
+    public ResponseEntity<ApiResponse<AsyncCollectStatusResponse>> collectSourceAsyncStatus(
+            @PathVariable
+            @Size(max = 40, message = "sourceKey는 40자 이하여야 합니다.")
+            @Pattern(regexp = "^[a-z0-9-]+$", message = "sourceKey 형식이 올바르지 않습니다.")
+            String sourceKey) {
         CollectSource source = CollectSource.fromPathKey(sourceKey);
         return ResponseEntity.ok(ApiResponse.success(collectAsyncJobService.getStatus(source)));
     }
 
     @PostMapping("/youth-details")
-    public ResponseEntity<ApiResponse<String>> collectYouthDetails() {
+    public ResponseEntity<ApiResponse<String>> collectYouthDetails(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser
+    ) {
+        adminOperationRateLimitService.checkMutationLimit(actorKey(authenticatedUser), "collect:youth-details");
         log.info("[Admin] 온통청년 DETAIL 수집 수동 트리거");
         CollectResult result = collectAdminService.collectYouthDetails();
         return ResponseEntity.ok(ApiResponse.success(
@@ -117,9 +155,16 @@ public class CollectAdminController {
 
     @PostMapping("/inverted-age-backfill")
     public ResponseEntity<ApiResponse<InvertedAgeBackfillResponse>> backfillInvertedAges(
-            @RequestParam(required = false) List<WelfareService.SourceType> sourceType,
-            @RequestParam(defaultValue = "0") int limitPerSource
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @RequestParam(required = false)
+            @Size(max = 10, message = "sourceType은 10개 이하여야 합니다.")
+            List<WelfareService.SourceType> sourceType,
+            @RequestParam(defaultValue = "0")
+            @Min(value = 0, message = "limitPerSource는 0 이상이어야 합니다.")
+            @Max(value = MAX_LIMIT_PER_SOURCE, message = "limitPerSource는 1000 이하여야 합니다.")
+            int limitPerSource
     ) {
+        adminOperationRateLimitService.checkMutationLimit(actorKey(authenticatedUser), "collect:inverted-age-backfill");
         int effectiveLimitPerSource = normalizeLimitPerSource(limitPerSource);
         InvertedAgeBackfillResponse response =
                 collectAdminService.backfillInvertedAgeRanges(sourceType, effectiveLimitPerSource);
@@ -137,9 +182,17 @@ public class CollectAdminController {
 
     @PostMapping("/bokjiro-sidecars-backfill")
     public ResponseEntity<ApiResponse<SidecarBackfillResponse>> backfillBokjiroSidecars(
-            @RequestParam(defaultValue = "all") String scope,
-            @RequestParam(defaultValue = "0") int limitPerSource
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @RequestParam(defaultValue = "all")
+            @Size(max = 20, message = "scope는 20자 이하여야 합니다.")
+            @Pattern(regexp = "^[A-Za-z0-9_-]+$", message = "scope 형식이 올바르지 않습니다.")
+            String scope,
+            @RequestParam(defaultValue = "0")
+            @Min(value = 0, message = "limitPerSource는 0 이상이어야 합니다.")
+            @Max(value = MAX_LIMIT_PER_SOURCE, message = "limitPerSource는 1000 이하여야 합니다.")
+            int limitPerSource
     ) {
+        adminOperationRateLimitService.checkMutationLimit(actorKey(authenticatedUser), "collect:bokjiro-sidecars-backfill");
         int effectiveLimitPerSource = normalizeSidecarBackfillLimitPerSource(limitPerSource);
         String normalizedScope = scope.toLowerCase(Locale.ROOT);
         NormalizedPolicySidecarBackfillService.BackfillResult result = switch (normalizedScope) {
@@ -169,10 +222,18 @@ public class CollectAdminController {
 
     @PostMapping("/gov24-sidecars-backfill")
     public ResponseEntity<ApiResponse<SidecarBackfillResponse>> backfillGov24Sidecars(
-            @RequestParam(defaultValue = "list") String scope,
-            @RequestParam(defaultValue = "0") int limitPerSource,
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @RequestParam(defaultValue = "list")
+            @Size(max = 20, message = "scope는 20자 이하여야 합니다.")
+            @Pattern(regexp = "^[A-Za-z0-9_-]+$", message = "scope 형식이 올바르지 않습니다.")
+            String scope,
+            @RequestParam(defaultValue = "0")
+            @Min(value = 0, message = "limitPerSource는 0 이상이어야 합니다.")
+            @Max(value = MAX_LIMIT_PER_SOURCE, message = "limitPerSource는 1000 이하여야 합니다.")
+            int limitPerSource,
             @RequestParam(defaultValue = "false") boolean missingOnly
     ) {
+        adminOperationRateLimitService.checkMutationLimit(actorKey(authenticatedUser), "collect:gov24-sidecars-backfill");
         int effectiveLimitPerSource = normalizeSidecarBackfillLimitPerSource(limitPerSource);
         String normalizedScope = scope.toLowerCase(Locale.ROOT);
         NormalizedPolicySidecarBackfillService.BackfillResult result;
@@ -216,9 +277,17 @@ public class CollectAdminController {
 
     @PostMapping("/bokjiro-details-gap-fill")
     public ResponseEntity<ApiResponse<DetailGapFillResponse>> fillBokjiroDetailGaps(
-            @RequestParam(defaultValue = "1") int rounds,
-            @RequestParam(defaultValue = "1000") int maxCallsPerRound
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @RequestParam(defaultValue = "1")
+            @Min(value = 1, message = "rounds는 1 이상이어야 합니다.")
+            @Max(value = MAX_ROUNDS, message = "rounds는 10 이하여야 합니다.")
+            int rounds,
+            @RequestParam(defaultValue = "1000")
+            @Min(value = 1, message = "maxCallsPerRound는 1 이상이어야 합니다.")
+            @Max(value = MAX_CALLS_PER_ROUND, message = "maxCallsPerRound는 1000 이하여야 합니다.")
+            int maxCallsPerRound
     ) {
+        adminOperationRateLimitService.checkMutationLimit(actorKey(authenticatedUser), "collect:bokjiro-details-gap-fill");
         if (rounds <= 0
                 || rounds > MAX_ROUNDS
                 || maxCallsPerRound <= 0
@@ -272,6 +341,10 @@ public class CollectAdminController {
             throw new CustomException(ErrorCode.INVALID_INPUT);
         }
         return limitPerSource;
+    }
+
+    private String actorKey(AuthenticatedUser authenticatedUser) {
+        return authenticatedUser != null ? authenticatedUser.userKey() : "unknown";
     }
 
     public record SidecarBackfillResponse(

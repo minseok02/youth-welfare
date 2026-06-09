@@ -1187,6 +1187,8 @@ smoke_ensure_admin_account() {
         \"password\": \"${admin_password}\",
         \"name\": \"관리자\",
         \"birthDate\": \"1998-01-10\",
+      \"privacyNoticeConfirmed\": true,
+      \"optionalProfileConsentAgreed\": true,
         \"sido\": \"서울특별시\",
         \"sgg\": \"중구\",
         \"incomeLevel\": 5,

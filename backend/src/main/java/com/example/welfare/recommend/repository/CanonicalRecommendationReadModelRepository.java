@@ -490,7 +490,7 @@ public class CanonicalRecommendationReadModelRepository {
                     .educationPriorityBoostEligible(
                             RecommendationProjectionHeuristicSupport.educationPriorityBoostEligible(
                                     compatCategoryCode,
-                                    youthMajorLabel
+                                    resolvedYouthMajorLabel
                             )
                     )
                     .priorityBuckets(priorityBuckets)

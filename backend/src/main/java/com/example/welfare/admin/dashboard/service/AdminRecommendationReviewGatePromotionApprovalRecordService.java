@@ -3,6 +3,8 @@ package com.example.welfare.admin.dashboard.service;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordClearResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordResponse;
 import com.example.welfare.admin.dashboard.repository.RecommendationReviewGatePromotionApprovalCommandRepository;
+import com.example.welfare.global.exception.CustomException;
+import com.example.welfare.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +16,8 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class AdminRecommendationReviewGatePromotionApprovalRecordService {
 
+    private static final int MAX_APPROVAL_NOTE_LENGTH = 1000;
+
     private final RecommendationReviewGatePromotionApprovalCommandRepository commandRepository;
 
     @Transactional
@@ -23,7 +27,7 @@ public class AdminRecommendationReviewGatePromotionApprovalRecordService {
     ) {
         LocalDateTime now = LocalDateTime.now();
         String actorKey = StringUtils.hasText(approvedByUserKey) ? approvedByUserKey.trim() : "admin";
-        String note = StringUtils.hasText(approvalNote) ? approvalNote.trim() : null;
+        String note = normalizeApprovalNote(approvalNote);
 
         commandRepository.upsertApprovalRecord(
                 AdminDashboardQueryPolicy.REVIEW_GATE_PROMOTION_APPROVAL_KEY,
@@ -53,5 +57,16 @@ public class AdminRecommendationReviewGatePromotionApprovalRecordService {
                 AdminDashboardQueryPolicy.REVIEW_GATE_PROMOTION_APPROVAL_KEY,
                 true
         );
+    }
+
+    private String normalizeApprovalNote(String approvalNote) {
+        if (!StringUtils.hasText(approvalNote)) {
+            return null;
+        }
+        String note = approvalNote.trim();
+        if (note.length() > MAX_APPROVAL_NOTE_LENGTH) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+        return note;
     }
 }

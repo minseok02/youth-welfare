@@ -16,6 +16,31 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
 }
 
+function toUint8Array(value) {
+  if (!value) return null;
+  if (value instanceof Uint8Array) return value;
+  if (value instanceof ArrayBuffer) return new Uint8Array(value);
+  if (ArrayBuffer.isView(value)) {
+    return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+  }
+  return null;
+}
+
+function equalBytes(left, right) {
+  if (!left || !right || left.byteLength !== right.byteLength) return false;
+  for (let index = 0; index < left.byteLength; index += 1) {
+    if (left[index] !== right[index]) return false;
+  }
+  return true;
+}
+
+function subscriptionMatchesPublicKey(subscription, publicKey) {
+  if (!subscription || !publicKey) return true;
+  const actualKey = toUint8Array(subscription.options?.applicationServerKey);
+  if (!actualKey) return true;
+  return equalBytes(actualKey, urlBase64ToUint8Array(publicKey));
+}
+
 export function isWebPushSupported() {
   return (
     typeof window !== "undefined"
@@ -85,7 +110,7 @@ async function getReadyServiceWorkerRegistration() {
   return registration;
 }
 
-export async function getCurrentPushSubscription() {
+export async function getCurrentPushSubscription(publicKey) {
   if (!isWebPushSupported()) return null;
   const registration = await withTimeout(
     navigator.serviceWorker.getRegistration(),
@@ -93,11 +118,12 @@ export async function getCurrentPushSubscription() {
     "현재 브라우저 service worker 조회가 지연되고 있습니다.",
   );
   if (!registration) return null;
-  return withTimeout(
+  const subscription = await withTimeout(
     registration.pushManager.getSubscription(),
     3000,
     "현재 브라우저 푸시 구독 조회가 지연되고 있습니다.",
   );
+  return subscriptionMatchesPublicKey(subscription, publicKey) ? subscription : null;
 }
 
 export async function fetchPushPublicKey() {
@@ -135,6 +161,15 @@ export async function registerCurrentBrowserPush({ publicKey, deviceLabel, onSte
     5000,
     "브라우저 푸시 구독 상태 확인이 지연되고 있습니다. 잠시 후 다시 시도해주세요.",
   );
+  if (subscription && !subscriptionMatchesPublicKey(subscription, publicKey)) {
+    onStep?.("기존 브라우저 구독 갱신 중");
+    await withTimeout(
+      subscription.unsubscribe(),
+      5000,
+      "기존 브라우저 푸시 구독 갱신이 지연되고 있습니다. 새로고침 후 다시 시도해주세요.",
+    );
+    subscription = null;
+  }
   if (!subscription) {
     onStep?.("브라우저 구독 생성 중");
     subscription = await withTimeout(

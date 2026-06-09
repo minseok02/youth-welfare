@@ -83,7 +83,8 @@ public class Gov24DetailCollectService {
                 saved++;
             } catch (Exception e) {
                 failed++;
-                log.warn("[Gov24DetailCollectService] 저장 실패 sourceId={} err={}", service.getSourceId(), e.getMessage());
+                log.warn("[Gov24DetailCollectService] 저장 실패 sourceId={} errorType={}",
+                        service.getSourceId(), e.getClass().getSimpleName());
             }
         }
 
@@ -120,7 +121,8 @@ public class Gov24DetailCollectService {
             );
             return CollectResult.of(1, 1, 0, 0, 0);
         } catch (Exception e) {
-            log.warn("[Gov24DetailCollectService] 단건 저장 실패 sourceId={} err={}", service.getSourceId(), e.getMessage());
+            log.warn("[Gov24DetailCollectService] 단건 저장 실패 sourceId={} errorType={}",
+                    service.getSourceId(), e.getClass().getSimpleName());
             return CollectResult.of(1, 0, 0, 0, 1);
         }
     }
@@ -135,8 +137,8 @@ public class Gov24DetailCollectService {
                 log.warn("[Gov24DetailCollectService] DETAIL 응답 비어있음 sourceId={} attempt={}/{}",
                         service.getSourceId(), attempt, retryMaxAttempts);
             } catch (Exception e) {
-                log.warn("[Gov24DetailCollectService] DETAIL API 오류 sourceId={} attempt={}/{} err={}",
-                        service.getSourceId(), attempt, retryMaxAttempts, e.getMessage());
+                log.warn("[Gov24DetailCollectService] DETAIL API 오류 sourceId={} attempt={}/{} errorType={}",
+                        service.getSourceId(), attempt, retryMaxAttempts, e.getClass().getSimpleName());
             }
 
             if (attempt < retryMaxAttempts) {

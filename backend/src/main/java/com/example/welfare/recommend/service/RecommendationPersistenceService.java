@@ -5,6 +5,7 @@ import com.example.welfare.recommend.dto.ScoredCandidate;
 import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.repository.RecommendationPersistenceCommandRepository;
+import com.example.welfare.recommend.support.RecommendationAiReasonSanitizer;
 import com.example.welfare.user.entity.User;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
@@ -57,7 +58,7 @@ public class RecommendationPersistenceService {
                         .ruleBaseScore(BigDecimal.valueOf(c.getRuleBaseScore()))
                         .ruleWeightedScore(BigDecimal.valueOf(c.getRuleWeightedScore()))
                         .aiScore(c.getAiScore() != null ? BigDecimal.valueOf(c.getAiScore()) : null)
-                        .aiReason(c.getAiReason())
+                        .aiReason(RecommendationAiReasonSanitizer.sanitize(c.getAiReason()))
                         .aiStatus(c.getAiStatus())
                         .ruleWeightUsed(weight.getRuleWeight())
                         .aiWeightUsed(weight.getAiWeight())

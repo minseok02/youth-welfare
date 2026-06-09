@@ -98,7 +98,7 @@ public class Notification extends BaseTimeEntity {
     }
 
     public enum NotificationChannel {
-        // Existing MySQL enum columns store lowercase literals.
+        // Keep lowercase literals for the persisted PostgreSQL enum/string contract.
         email,
         kakao;
 

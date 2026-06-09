@@ -49,4 +49,23 @@ class SensitiveTextRedactorTest {
                 .doesNotContain("Open Youth Lab")
                 .doesNotContain("Korea University");
     }
+
+    @Test
+    @DisplayName("한국어 날짜와 숫자형 날짜, 점 구분 연락처, 외국인등록번호도 마스킹한다")
+    void redactsKoreanAndCompactIdentifierVariants() {
+        String source = "생일은 2001년 4월 30일, 다른 표기는 20010430, 연락처는 010.1234.5678로 주세요, 해외 표기는 +82 10 9876 5432, 외국인등록번호는 900101-5123456";
+
+        String redacted = SensitiveTextRedactor.redactDirectIdentifiers(source);
+
+        assertThat(redacted)
+                .contains("[REDACTED_BIRTH_DATE]")
+                .contains("[REDACTED_PHONE]")
+                .contains("[REDACTED_RRN]");
+        assertThat(redacted)
+                .doesNotContain("2001년 4월 30일")
+                .doesNotContain("20010430")
+                .doesNotContain("010.1234.5678")
+                .doesNotContain("+82 10 9876 5432")
+                .doesNotContain("900101-5123456");
+    }
 }

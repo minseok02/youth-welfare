@@ -99,6 +99,7 @@ fi
 
 load_env_file
 
+export ALLOW_LOCAL_DOCKER_DB="${ALLOW_LOCAL_DOCKER_DB:-true}"
 export DB_PASSWORD="${DB_PASSWORD:-smoke-db-password-2026!}"
 if [[ -z "${DB_USERNAME_WAS_SET}" ]]; then
   export DB_USERNAME="app_core_rw"

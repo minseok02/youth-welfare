@@ -48,14 +48,23 @@ def runtimeEnv = { String key ->
     System.getenv(key) ?: envFileValues[key]
 }
 def sanitizedJdbcUrl = { String value, String fallback ->
-    if (!value || value.startsWith('jdbc:mysql://') || value.startsWith('jdbc:postgresql://db:')) {
+    if (!value) {
+        return fallback
+    }
+    if (value.startsWith('jdbc:' + 'mysql://')) {
+        throw new GradleException('MySQL JDBC URLs are not supported on the PostgreSQL mainline. Use a jdbc:postgresql:// URL.')
+    }
+    if (value.startsWith('jdbc:postgresql://db:')) {
         return fallback
     }
     value
 }
 def sanitizedUsername = { String value, String fallback ->
-    if (!value || value == 'root') {
+    if (!value) {
         return fallback
+    }
+    if (value == 'root') {
+        throw new GradleException('root is not a supported runtime DB username on the PostgreSQL mainline. Use a split runtime role.')
     }
     value
 }
@@ -67,6 +76,32 @@ def sanitizedRedisHost = { String value ->
 }
 def sanitizedRedisPort = { String value ->
     value ?: '6379'
+}
+def stripOptionalQuotes = { String value ->
+    if (!value) {
+        return value
+    }
+    def trimmed = value.trim()
+    if (trimmed.length() >= 2 &&
+        ((trimmed.startsWith("'") && trimmed.endsWith("'")) || (trimmed.startsWith('"') && trimmed.endsWith('"')))) {
+        return trimmed.substring(1, trimmed.length() - 1)
+    }
+    trimmed
+}
+def bootRunCorsAllowedOrigins = { String value ->
+    def origins = []
+    stripOptionalQuotes(value)?.split(',')?.each { origin ->
+        def trimmed = stripOptionalQuotes(origin)
+        if (trimmed && !origins.contains(trimmed)) {
+            origins.add(trimmed)
+        }
+    }
+    ['http://127.0.0.1:5173', 'http://localhost:5173'].each { origin ->
+        if (!origins.contains(origin)) {
+            origins.add(origin)
+        }
+    }
+    origins.join(',')
 }
 
 dependencies {
@@ -162,6 +197,7 @@ bootRun {
     environment 'DB_NOTIFICATION_PII_RO_PASSWORD', runtimeEnv('DB_NOTIFICATION_PII_RO_PASSWORD') ?: (runtimeEnv('DB_PASSWORD') ?: '')
     environment 'REDIS_HOST', sanitizedRedisHost(runtimeEnv('REDIS_HOST'))
     environment 'REDIS_PORT', sanitizedRedisPort(runtimeEnv('REDIS_PORT'))
+    environment 'SECURITY_CORS_ALLOWED_ORIGINS', bootRunCorsAllowedOrigins(runtimeEnv('SECURITY_CORS_ALLOWED_ORIGINS'))
 }
 
 tasks.named('test') {

@@ -170,7 +170,7 @@ public class AuthController {
                 .httpOnly(true)
                 .secure(cookieSecure)
                 .path("/api/auth")
-                .sameSite("Lax")
+                .sameSite("Strict")
                 .maxAge(maxAgeSeconds)
                 .build();
     }

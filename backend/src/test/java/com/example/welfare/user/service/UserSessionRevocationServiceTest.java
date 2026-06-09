@@ -3,6 +3,7 @@ package com.example.welfare.user.service;
 import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.global.util.JwtUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -52,13 +53,14 @@ class UserSessionRevocationServiceTest {
     void revokeUserSessionsDeletesRefreshAndWritesCutoff() {
         userSessionRevocationService.revokeUserSessions("user-key-7", 1_777_588_800_000L);
 
-        verify(redisTemplate).delete("refresh:user-key-7");
+        verify(redisTemplate).delete(java.util.List.of(refreshKey("user-key-7"), "refresh:user-key-7"));
         verify(valueOperations).set(
-                "access-cutoff:user-key-7",
+                cutoffKey("user-key-7"),
                 "1777588800000",
                 3_660_000L,
                 TimeUnit.MILLISECONDS
         );
+        verify(redisTemplate).delete("access-cutoff:user-key-7");
     }
 
     @Test
@@ -77,6 +79,7 @@ class UserSessionRevocationServiceTest {
     void isAccessAllowedReturnsTrueWhenNoCutoffExists() {
         when(accessTokenRevocationService.isRevoked("access-token")).thenReturn(false);
         when(jwtUtil.getAuthenticatedUser("access-token")).thenReturn(new AuthenticatedUser(7L, "user-key-7"));
+        when(valueOperations.get(cutoffKey("user-key-7"))).thenReturn(null);
         when(valueOperations.get("access-cutoff:user-key-7")).thenReturn(null);
 
         boolean allowed = userSessionRevocationService.isAccessAllowed("access-token");
@@ -90,7 +93,7 @@ class UserSessionRevocationServiceTest {
     void isAccessAllowedReturnsFalseWhenIssuedAtIsBeforeCutoff() {
         when(accessTokenRevocationService.isRevoked("access-token")).thenReturn(false);
         when(jwtUtil.getAuthenticatedUser("access-token")).thenReturn(new AuthenticatedUser(7L, "user-key-7"));
-        when(valueOperations.get("access-cutoff:user-key-7")).thenReturn("2000");
+        when(valueOperations.get(cutoffKey("user-key-7"))).thenReturn("2000");
         when(jwtUtil.getIssuedAtMillis("access-token")).thenReturn(2000L);
 
         boolean allowed = userSessionRevocationService.isAccessAllowed("access-token");
@@ -103,7 +106,7 @@ class UserSessionRevocationServiceTest {
     void isAccessAllowedReturnsTrueWhenIssuedAtIsAfterCutoff() {
         when(accessTokenRevocationService.isRevoked("access-token")).thenReturn(false);
         when(jwtUtil.getAuthenticatedUser("access-token")).thenReturn(new AuthenticatedUser(7L, "user-key-7"));
-        when(valueOperations.get("access-cutoff:user-key-7")).thenReturn("2000");
+        when(valueOperations.get(cutoffKey("user-key-7"))).thenReturn("2000");
         when(jwtUtil.getIssuedAtMillis("access-token")).thenReturn(2001L);
 
         boolean allowed = userSessionRevocationService.isAccessAllowed("access-token");
@@ -114,7 +117,7 @@ class UserSessionRevocationServiceTest {
     @Test
     @DisplayName("새 access token 발급 시각은 기존 cutoff보다 작거나 같으면 cutoff 다음 millisecond로 보정한다")
     void resolveNextAccessIssuedAtMillisBumpsPastCutoff() {
-        when(valueOperations.get("access-cutoff:user-key-7")).thenReturn("2000");
+        when(valueOperations.get(cutoffKey("user-key-7"))).thenReturn("2000");
 
         long nextIssuedAt = userSessionRevocationService.resolveNextAccessIssuedAtMillis("user-key-7", 2000L);
 
@@ -126,12 +129,20 @@ class UserSessionRevocationServiceTest {
     void isAccessAllowedReturnsFalseForLegacyTokenWithoutIatm() {
         when(accessTokenRevocationService.isRevoked("access-token")).thenReturn(false);
         when(jwtUtil.getAuthenticatedUser("access-token")).thenReturn(new AuthenticatedUser(7L, "user-key-7"));
-        when(valueOperations.get("access-cutoff:user-key-7")).thenReturn("2000");
+        when(valueOperations.get(cutoffKey("user-key-7"))).thenReturn("2000");
         when(jwtUtil.getIssuedAtMillis("access-token"))
                 .thenThrow(new CustomException(ErrorCode.INVALID_TOKEN));
 
         boolean allowed = userSessionRevocationService.isAccessAllowed("access-token");
 
         assertThat(allowed).isFalse();
+    }
+
+    private String refreshKey(String userKey) {
+        return "refresh:v2:" + RedisKeyHash.sha256Hex(userKey);
+    }
+
+    private String cutoffKey(String userKey) {
+        return "access-cutoff:v2:" + RedisKeyHash.sha256Hex(userKey);
     }
 }

@@ -1,6 +1,7 @@
 package com.example.welfare.recommend.dto;
 
 import com.example.welfare.recommend.entity.UserRecommendation;
+import com.example.welfare.recommend.support.RecommendationAiReasonSanitizer;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -77,7 +78,7 @@ public class RecommendationResponse {
                 .finalScore(rec.getFinalScore())
                 .aiScore(rec.getAiScore())
                 .aiStatus(rec.getAiStatus().name())
-                .aiReason(rec.getAiReason())
+                .aiReason(RecommendationAiReasonSanitizer.sanitize(rec.getAiReason()))
                 .isBookmarked(rec.isBookmarked())
                 .recommendedAt(rec.getRecommendedAt())
                 .build();

@@ -21,6 +21,7 @@ import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
 import com.example.welfare.admin.dashboard.dto.AdminNotificationStaleHideResponse;
 import com.example.welfare.admin.dashboard.dto.AdminUserProfileStandardCodeCoverageResponse;
 import com.example.welfare.admin.dashboard.dto.AdminWrapperObservationResponse;
+import com.example.welfare.admin.service.AdminOperationRateLimitService;
 import com.example.welfare.collect.dto.InvertedAgeBackfillResponse;
 import com.example.welfare.admin.dashboard.service.AdminDashboardCollectService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardAttentionService;
@@ -74,6 +75,7 @@ import com.example.welfare.collect.service.StatusUpdateService;
 import com.example.welfare.user.controller.UserAdminController;
 import com.example.welfare.user.dto.response.UserMetadataUserKeyBackfillResponse;
 import com.example.welfare.user.dto.response.UserPiiBackfillResponse;
+import com.example.welfare.user.dto.response.UserPiiEncryptionRotationResponse;
 import com.example.welfare.user.dto.response.UserPiiSyncReplayResponse;
 import com.example.welfare.user.dto.response.UserPiiSyncStatusResponse;
 import com.example.welfare.user.service.UserMetadataUserKeyBackfillService;
@@ -81,6 +83,7 @@ import com.example.welfare.user.service.UserPiiBackfillService;
 import com.example.welfare.user.service.UserKeyLookupService;
 import com.example.welfare.user.service.UserPiiSyncReplayService;
 import com.example.welfare.user.service.UserPiiSyncStatusService;
+import com.example.welfare.user.service.AdminAccessAuthorityService;
 import com.example.welfare.user.service.UserSessionRevocationService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -192,6 +195,10 @@ class AdminSecurityWebMvcTest {
     @MockitoBean
     private JwtUtil jwtUtil;
     @MockitoBean
+    private AdminAccessAuthorityService adminAccessAuthorityService;
+    @MockitoBean
+    private AdminOperationRateLimitService adminOperationRateLimitService;
+    @MockitoBean
     private JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @Test
@@ -240,6 +247,24 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data").value("온통청년 수집 완료"));
 
         then(collectAdminService).should().collect(CollectSource.YOUTH);
+    }
+
+    @Test
+    @DisplayName("관리자 collect sourceId override는 제어문자와 query 조작 문자를 거부한다")
+    void collectSourceRejectsUnsafeSourceIdOverride() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+
+        mockMvc.perform(post("/api/admin/collect/gov24-detail")
+                        .queryParam("sourceId", "GOV24-1%0d%0aX-Injected:1")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        then(collectAdminService).shouldHaveNoInteractions();
     }
 
     @Test
@@ -376,6 +401,29 @@ class AdminSecurityWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.status").value("REVIEWED"));
+    }
+
+    @Test
+    @DisplayName("정책 중복 묶음 review API는 긴 reviewNote에 400을 반환한다")
+    void adminEndpointRejectsTooLongPolicyDuplicateGroupReviewNote() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+
+        mockMvc.perform(post("/api/admin/dashboard/policy-duplicate-groups/review")
+                        .header("Authorization", "Bearer admin-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "sourceType": "YOUTH",
+                                  "title": "청년문화예술패스",
+                                  "reviewNote": "%s"
+                                }
+                                """.formatted("x".repeat(1001))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
     }
 
     @Test
@@ -538,6 +586,24 @@ class AdminSecurityWebMvcTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("C001"));
+    }
+
+    @Test
+    @DisplayName("관리자 mutation rate limit 초과 시 429와 C005를 반환한다")
+    void adminEndpointRejectsMutationRateLimitExceeded() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        org.mockito.BDDMockito.willThrow(new CustomException(ErrorCode.ADMIN_OPERATION_RATE_LIMIT_EXCEEDED))
+                .given(adminOperationRateLimitService)
+                .checkMutationLimit("user-key-1", "collect:source");
+
+        mockMvc.perform(post("/api/admin/collect/youth")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C005"));
     }
 
     @Test
@@ -1096,6 +1162,30 @@ class AdminSecurityWebMvcTest {
     }
 
     @Test
+    @DisplayName("retrieval evaluation compare API는 튜닝 파라미터 범위 초과 시 400을 반환한다")
+    void adminEndpointRejectsInvalidRetrievalEvaluationCompareRequest() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+
+        mockMvc.perform(post("/api/admin/policies/retrieval-evaluations/compare")
+                        .header("Authorization", "Bearer admin-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "minResultCount": 201,
+                                  "semanticBlendLimit": 1,
+                                  "semanticOnlyLimit": 1,
+                                  "maxPreferredTermsInSearchKeyword": 2
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+    }
+
+    @Test
     @DisplayName("관리자 토큰으로 retrieval evaluation compare export API를 호출하면 비교 csv를 반환한다")
     void adminEndpointAllowsRetrievalEvaluationCompareExport() throws Exception {
         mockAuthenticatedToken("admin-token", List.of(
@@ -1140,6 +1230,47 @@ class AdminSecurityWebMvcTest {
 
         then(policyRetrievalEvaluationService).should().compareBaseline(org.mockito.ArgumentMatchers.any());
         then(policyRetrievalEvaluationExportService).should().toCsv(response);
+    }
+
+    @Test
+    @DisplayName("retrieval evaluation export API는 datasetKey를 안전한 파일명으로 변환한다")
+    void adminEndpointSanitizesRetrievalEvaluationExportFilename() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        PolicyRetrievalEvaluationResponse response = new PolicyRetrievalEvaluationResponse(
+                "retrieval\r\nbad\"name",
+                1,
+                1,
+                1,
+                1,
+                1,
+                0,
+                0,
+                0,
+                0,
+                1.0,
+                1.0,
+                1.0,
+                0.0,
+                0.0,
+                1.0,
+                1.0,
+                1.0,
+                0.0,
+                1.0,
+                1.0,
+                List.of()
+        );
+        given(policyRetrievalEvaluationService.evaluateBaseline()).willReturn(response);
+        given(policyRetrievalEvaluationExportService.toCsv(response)).willReturn("profile,datasetKey\n");
+
+        mockMvc.perform(get("/api/admin/policies/retrieval-evaluations/export")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition",
+                        "attachment; filename=\"retrieval_bad_name.csv\""));
     }
 
     @Test
@@ -2543,6 +2674,23 @@ class AdminSecurityWebMvcTest {
     }
 
     @Test
+    @DisplayName("recommendation diagnostics API는 userKey 형식 위반 시 400을 반환한다")
+    void adminEndpointRejectsInvalidRecommendationDiagnosticsUserKey() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+
+        mockMvc.perform(get("/api/admin/dashboard/recommendation-diagnostics")
+                        .param("userKey", "user-key-1\r\nx")
+                        .param("serviceId", "3686")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+    }
+
+    @Test
     @DisplayName("관리자 토큰으로 collect 실패 상세 API를 호출하면 collect failure 응답을 반환한다")
     void adminEndpointAllowsCollectFailures() throws Exception {
         mockAuthenticatedToken("admin-token", List.of(
@@ -3106,6 +3254,34 @@ class AdminSecurityWebMvcTest {
     }
 
     @Test
+    @DisplayName("관리자 토큰으로 pii encryption rotation API를 호출하면 legacy 암호문 회전을 실행한다")
+    void adminEndpointAllowsPiiEncryptionRotation() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(userPiiBackfillService.rotateLegacyEncryptedFields())
+                .willReturn(new UserPiiEncryptionRotationResponse(
+                        10,
+                        2,
+                        0,
+                        10,
+                        1,
+                        0
+                ));
+
+        mockMvc.perform(post("/api/admin/users/pii-encryption-rotation")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.userPiiProcessedCount").value(10))
+                .andExpect(jsonPath("$.data.userPiiUpdatedCount").value(2))
+                .andExpect(jsonPath("$.data.queueUpdatedCount").value(10));
+
+        then(userPiiBackfillService).should().rotateLegacyEncryptedFields();
+    }
+
+    @Test
     @DisplayName("pii sync replay API는 범위를 벗어난 limit에 400을 반환한다")
     void adminEndpointRejectsInvalidPiiSyncReplayLimit() throws Exception {
         mockAuthenticatedToken("admin-token", List.of(
@@ -3222,11 +3398,39 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.deeplinkUrl").value("/policies/2622"));
     }
 
+    @Test
+    @DisplayName("stale notification backlog hide API는 외부 deeplinkUrl에 400을 반환한다")
+    void adminEndpointRejectsExternalStaleNotificationHideDeeplink() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+
+        mockMvc.perform(post("/api/admin/dashboard/notification-backlog/hide-stale")
+                        .header("Authorization", "Bearer admin-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "kind": "DEADLINE_REMINDER",
+                                  "title": "북마크한 정책 마감이 임박했어요",
+                                  "deeplinkUrl": "https://evil.example/policies/2622",
+                                  "olderThanDays": 14
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+    }
+
     private void mockAuthenticatedToken(String token,
                                         List<SimpleGrantedAuthority> authorities) {
         doNothing().when(jwtUtil).validate(token);
         given(userSessionRevocationService.isAccessAllowed(token)).willReturn(true);
         given(jwtUtil.getAuthenticatedUser(token)).willReturn(new AuthenticatedUser(1L, "user-key-1"));
         given(jwtUtil.getAuthorities(token)).willReturn(List.copyOf(authorities));
+        given(adminAccessAuthorityService.filterCurrentAuthorities(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyCollection()
+        )).willReturn(List.copyOf(authorities));
     }
 }

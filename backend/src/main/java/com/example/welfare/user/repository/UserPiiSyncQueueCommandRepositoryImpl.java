@@ -14,4 +14,9 @@ public class UserPiiSyncQueueCommandRepositoryImpl implements UserPiiSyncQueueCo
     public UserPiiSyncQueue save(UserPiiSyncQueue queue) {
         return userPiiSyncQueueRepository.save(queue);
     }
+
+    @Override
+    public long deleteByUserKey(String userKey) {
+        return userPiiSyncQueueRepository.deleteByUserKey(userKey);
+    }
 }

@@ -8,6 +8,7 @@ import com.example.welfare.recommend.gateway.AiRecommendationGateway;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -59,6 +60,27 @@ class AiScoringServiceTest {
     }
 
     @Test
+    @DisplayName("cache hit reason은 화면 노출 전에 한 줄 20자 이내로 정규화한다")
+    void scoreSanitizesCachedReason() {
+        AiScoringService service = new AiScoringService(aiRecommendationGateway, clusterAiScoreCache);
+        RecommendationUserSnapshot snapshot = snapshot();
+        ScoredCandidate candidate = candidate(1L, "정책1");
+        Map<Long, ClusterAiScoreCache.CachedClusterAiScore> cache = new LinkedHashMap<>();
+        cache.put(1L, new ClusterAiScoreCache.CachedClusterAiScore(
+                1L,
+                BigDecimal.valueOf(81.5),
+                "  지역\n청년\t주거 지원 조건과 지역 조건이 잘 맞아요  "
+        ));
+        when(clusterAiScoreCache.findByClusterId("cluster-a")).thenReturn(cache);
+
+        List<ScoredCandidate> scored = service.score("cluster-a", List.of(candidate), snapshot);
+
+        assertThat(scored).singleElement().satisfies(value ->
+                assertThat(value.getAiReason()).isEqualTo("지역 청년 주거 지원 조건과 지역 조")
+        );
+    }
+
+    @Test
     @DisplayName("cache miss 시 gateway 결과를 cache abstraction 으로 저장한다")
     void scoreStoresGatewayResultsThroughCacheAbstraction() {
         AiScoringService service = new AiScoringService(aiRecommendationGateway, clusterAiScoreCache);
@@ -76,6 +98,38 @@ class AiScoringServiceTest {
             assertThat(value.getAiReason()).isEqualTo("gateway");
         });
         verify(clusterAiScoreCache).saveAll(eq("cluster-b"), anyList());
+    }
+
+    @Test
+    @DisplayName("cache miss 결과 저장 시 blank reason은 cache에 null로 저장한다")
+    void scoreStoresSanitizedGatewayReasonThroughCacheAbstraction() {
+        AiScoringService service = new AiScoringService(aiRecommendationGateway, clusterAiScoreCache);
+        RecommendationUserSnapshot snapshot = snapshot();
+        ScoredCandidate candidate = candidate(3L, "정책3");
+        when(clusterAiScoreCache.findByClusterId("cluster-b")).thenReturn(Map.of());
+        when(aiRecommendationGateway.score("cluster-b", List.of(candidate), snapshot)).thenAnswer(invocation -> {
+            return List.of(candidate.withAiResult(88.0, "   \n  ", AiScoreStatus.SCORED));
+        });
+
+        service.score("cluster-b", List.of(candidate), snapshot);
+
+        ArgumentCaptor<List<ClusterAiScoreCache.ClusterAiScoreWrite>> captor = ArgumentCaptor.forClass(List.class);
+        verify(clusterAiScoreCache).saveAll(eq("cluster-b"), captor.capture());
+        assertThat(captor.getValue()).singleElement().satisfies(write ->
+                assertThat(write.aiReason()).isNull()
+        );
+    }
+
+    @Test
+    @DisplayName("후보가 없으면 cache/gateway 호출 없이 빈 결과를 반환한다")
+    void scoreReturnsEmptyResultWhenCandidatesEmpty() {
+        AiScoringService service = new AiScoringService(aiRecommendationGateway, clusterAiScoreCache);
+
+        List<ScoredCandidate> scored = service.score("cluster-b", List.of(), snapshot());
+
+        assertThat(scored).isEmpty();
+        verify(clusterAiScoreCache, never()).findByClusterId("cluster-b");
+        verify(aiRecommendationGateway, never()).score(eq("cluster-b"), anyList(), eq(snapshot()));
     }
 
     private RecommendationUserSnapshot snapshot() {

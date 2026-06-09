@@ -1,5 +1,6 @@
 package com.example.welfare.recommend.service;
 
+import com.example.welfare.global.util.RedisKeyHash;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -19,7 +20,8 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class RecommendationRefreshCacheService {
 
-    private static final String REFRESH_CACHE_PREFIX = "recommend:refresh:user:";
+    private static final String REFRESH_CACHE_PREFIX = "recommend:refresh:user:v2:";
+    private static final String LEGACY_REFRESH_CACHE_PREFIX = "recommend:refresh:user:";
 
     private final RedisTemplate<String, String> redisTemplate;
     private final long ttlMinutes;
@@ -41,13 +43,16 @@ public class RecommendationRefreshCacheService {
         }
         String value = redisTemplate.opsForValue().get(cacheKey(userKey));
         if (!StringUtils.hasText(value)) {
+            value = redisTemplate.opsForValue().get(legacyCacheKey(userKey));
+        }
+        if (!StringUtils.hasText(value)) {
             return Optional.empty();
         }
         try {
             return Optional.of(LocalDateTime.parse(value));
         } catch (DateTimeParseException e) {
-            log.warn("[RecommendationRefreshCacheService] 잘못된 refresh cache token 형식으로 재사용 마커를 제거합니다. userKey={} value={}",
-                    userKey, value);
+            log.warn("[RecommendationRefreshCacheService] 잘못된 refresh cache token 형식으로 재사용 마커를 제거합니다. userKeyHash={}",
+                    RedisKeyHash.sha256Hex(userKey));
             evict(userKey);
             return Optional.empty();
         }
@@ -74,9 +79,14 @@ public class RecommendationRefreshCacheService {
             return;
         }
         redisTemplate.delete(cacheKey(userKey));
+        redisTemplate.delete(legacyCacheKey(userKey));
     }
 
     String cacheKey(String userKey) {
-        return REFRESH_CACHE_PREFIX + userKey + ":education-bonus:" + educationCanonicalBonusEnabled;
+        return REFRESH_CACHE_PREFIX + RedisKeyHash.sha256Hex(userKey) + ":education-bonus:" + educationCanonicalBonusEnabled;
+    }
+
+    private String legacyCacheKey(String userKey) {
+        return LEGACY_REFRESH_CACHE_PREFIX + userKey + ":education-bonus:" + educationCanonicalBonusEnabled;
     }
 }

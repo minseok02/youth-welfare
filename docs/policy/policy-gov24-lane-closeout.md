@@ -212,6 +212,12 @@ acceptance suite step `15377ms` 로 확인했습니다. 이전 generic writer �
 - `행정·안전` -> `참여권리 / 정책인프라구축`
 - `농림축산어업` -> `일자리 / 재직자`
 
+이 bridge는 recommendation projection의 표시 label뿐 아니라 `educationPriorityBoostEligible`
+판정에도 연결됩니다. 따라서 `unifiedCategory=기타` 인 `Gov24` row라도
+`serviceField=보육·교육` 으로 `youthMajorLabel=교육` 이 해석되면 교육 priority narrow boost 경로에
+들어갑니다. 단, 이 경로도 soft projection 보정이며 `Gov24` raw 조합값을 hard eligibility fact로
+승격하는 것은 아닙니다.
+
 ### 6. stable internal code
 
 `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE_TOKEN`, `GOV24_BENEFIT_TYPE_TOKEN` 은

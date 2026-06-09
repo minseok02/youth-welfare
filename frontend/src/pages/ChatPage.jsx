@@ -35,6 +35,23 @@ const SUGGESTED_PROMPTS = [
   "지금 바로 신청 가능한 생활비 지원 정책을 알려주세요.",
 ];
 const MAX_CHAT_MESSAGE_LENGTH = 2000;
+const DEFAULT_CHAT_SEND_TIMEOUT_MS = 60000;
+
+const resolveChatSendTimeoutMillis = () => {
+  const rawValue = import.meta.env.VITE_CHAT_SEND_TIMEOUT_MS?.trim();
+  const parsedValue = Number.parseInt(rawValue ?? "", 10);
+  return Number.isFinite(parsedValue) && parsedValue > 0
+    ? parsedValue
+    : DEFAULT_CHAT_SEND_TIMEOUT_MS;
+};
+
+const CHAT_SEND_TIMEOUT_MS = resolveChatSendTimeoutMillis();
+
+const isTimeoutError = (error) => (
+  error?.code === "ECONNABORTED"
+  || error?.code === "ETIMEDOUT"
+  || /timeout|시간이 초과/i.test(error?.message ?? "")
+);
 
 const formatSessionTitle = (title) => title?.trim() || "새 대화";
 
@@ -147,6 +164,8 @@ export default function ChatPage() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [creatingSession, setCreatingSession] = useState(false);
   const [sending, setSending] = useState(false);
+  const [sendElapsedSeconds, setSendElapsedSeconds] = useState(0);
+  const sendStartedAtRef = useRef(null);
   const [deletingSessionId, setDeletingSessionId] = useState(null);
   const [latestAnswerMeta, setLatestAnswerMeta] = useState(null);
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
@@ -182,6 +201,20 @@ export default function ChatPage() {
       invalidSessionQueryRef.current = null;
     }
   }, [querySessionId]);
+
+  useEffect(() => {
+    if (!sending || !sendStartedAtRef.current) {
+      setSendElapsedSeconds(0);
+      return undefined;
+    }
+
+    const updateElapsedSeconds = () => {
+      setSendElapsedSeconds(Math.max(0, Math.floor((Date.now() - sendStartedAtRef.current) / 1000)));
+    };
+    updateElapsedSeconds();
+    const intervalId = window.setInterval(updateElapsedSeconds, 1000);
+    return () => window.clearInterval(intervalId);
+  }, [sending]);
 
   const enrichPolicyMeta = useCallback(async (serviceIds) => {
     const uniqueIds = [...new Set(serviceIds)].filter((serviceId) => !policyMetaRef.current[serviceId]);
@@ -412,6 +445,8 @@ export default function ChatPage() {
     }
 
     setDraft((current) => (current.trim() === content ? "" : current));
+    sendStartedAtRef.current = Date.now();
+    setSendElapsedSeconds(0);
     setSending(true);
 
     let sessionId = activeSessionId;
@@ -446,7 +481,11 @@ export default function ChatPage() {
     ]);
 
     try {
-      const { data } = await api.post(`/api/chat/sessions/${sessionId}/messages`, { content, branchKey });
+      const { data } = await api.post(
+        `/api/chat/sessions/${sessionId}/messages`,
+        { content, branchKey },
+        { timeout: CHAT_SEND_TIMEOUT_MS }
+      );
       const payload = data?.data;
       const references = payload?.references ?? [];
       if (references.length) {
@@ -483,10 +522,14 @@ export default function ChatPage() {
       } else if (errorCode === "CH001") {
         showToast("선택한 대화 세션을 찾지 못했습니다. 목록을 새로고침했습니다.", "warning");
         await loadSessions();
+      } else if (isTimeoutError(error)) {
+        showToast("서버 응답이 지연되어 전송을 중단했습니다. 잠시 후 다시 시도해주세요.", "error");
       } else {
         showToast("답변을 생성하지 못했습니다.", "error");
       }
     } finally {
+      sendStartedAtRef.current = null;
+      setSendElapsedSeconds(0);
       setSending(false);
     }
   }, [activeSessionId, createSession, loadMessages, loadSessions, sending, showToast]);
@@ -920,7 +963,7 @@ export default function ChatPage() {
                         endIcon={sending ? <CircularProgress size={16} color="inherit" /> : <SendRoundedIcon />}
                         disabled={!draft.trim() || sending}
                       >
-                        {sending ? "전송 중" : "질문 보내기"}
+                        {sending ? `전송 중 ${sendElapsedSeconds}초` : "질문 보내기"}
                       </Button>
                     </Stack>
                   </Stack>

@@ -83,6 +83,48 @@ class RecommendationPersistenceServiceTest {
     }
 
     @Test
+    @DisplayName("추천 메모는 저장 전 공백을 정리하고 20자 이내로 제한한다")
+    void saveSanitizesAiReasonBeforePersistence() {
+        User user = User.builder().id(7L).userKey("user-key-7").build();
+        WelfareService service = WelfareService.builder()
+                .id(11L)
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("Y1")
+                .title("청년 정책")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+        ScoredCandidate candidate = ScoredCandidate.builder()
+                .service(service)
+                .ruleBaseScore(10.0)
+                .ruleWeightedScore(12.0)
+                .aiScore(88.0)
+                .aiReason("  지역\n청년\t주거 지원 조건과 지역 조건이 잘 맞아요  ")
+                .finalScore(0.73)
+                .build();
+        ScoreWeight weight = ScoreWeight.builder()
+                .weightKey("COLD_START")
+                .ruleWeight(BigDecimal.valueOf(0.8))
+                .aiWeight(BigDecimal.valueOf(0.2))
+                .minLogCount(0)
+                .isActive(true)
+                .build();
+
+        when(recommendationBookmarkStateReadService.findLatestBookmarkStateByServiceId("user-key-7"))
+                .thenReturn(java.util.Map.of());
+        when(welfareServiceRepository.findExistingIdsByIdIn(java.util.List.of(11L)))
+                .thenReturn(java.util.List.of(11L));
+        when(recommendationPersistenceCommandRepository.replaceAllForUser(org.mockito.ArgumentMatchers.eq("user-key-7"), anyList()))
+                .thenAnswer(invocation -> invocation.getArgument(1));
+
+        recommendationPersistenceService.save(user, List.of(candidate), weight);
+
+        ArgumentCaptor<List> captor = ArgumentCaptor.forClass(List.class);
+        verify(recommendationPersistenceCommandRepository).replaceAllForUser(org.mockito.ArgumentMatchers.eq("user-key-7"), captor.capture());
+        UserRecommendation saved = (UserRecommendation) captor.getValue().get(0);
+        assertThat(saved.getAiReason()).isEqualTo("지역 청년 주거 지원 조건과 지역 조");
+    }
+
+    @Test
     @DisplayName("새 추천 저장 시 기존 최신 추천의 북마크 상태를 이어받는다")
     void saveCarriesOverBookmarkState() {
         User user = User.builder().id(7L).userKey("user-key-7").build();

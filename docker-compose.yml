@@ -60,6 +60,8 @@ services:
   db:
     image: pgvector/pgvector:pg16
     container_name: youth-welfare-db
+    labels:
+      com.youth-welfare.local-db-guard: ${ALLOW_LOCAL_DOCKER_DB:?Refusing to start local PostgreSQL. Use docker-compose.prod.yml on EC2/RDS; set ALLOW_LOCAL_DOCKER_DB=true only for the local Docker stack.}
     ports:
       - "127.0.0.1:5433:5432"
     environment:

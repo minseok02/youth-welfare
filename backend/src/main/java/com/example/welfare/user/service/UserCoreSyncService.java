@@ -24,6 +24,7 @@ public class UserCoreSyncService {
     private final UserPiiSyncQueueService userPiiSyncQueueService;
     private final UserPlainPiiReadService userPlainPiiReadService;
     private final AuthIdentityReadService authIdentityReadService;
+    private final UserPiiCommandService userPiiCommandService;
     private final AesEncryptUtil aesEncryptUtil;
     private final ApplicationEventPublisher applicationEventPublisher;
 
@@ -38,6 +39,27 @@ public class UserCoreSyncService {
     public void syncFromUser(User user, UserPlainPii pii) {
         String userKey = userKeyLookupService.findRequired(user.getId());
         syncFromUser(user, userKey, pii);
+    }
+
+    @Transactional
+    public void syncWithdrawnUser(User user, String userKey) {
+        String emailLookupHash = authIdentityReadService.findByUserKey(userKey)
+                .map(AuthUser::getEmailLookupHash)
+                .orElseGet(() -> EmailLookupKeyGenerator.hash("withdrawn:" + userKey));
+
+        userCoreProjectionSyncService.syncAuthUser(user, userKey, emailLookupHash);
+        userCoreProjectionSyncService.syncUserProfile(
+                user,
+                userKey,
+                null,
+                null,
+                null,
+                false,
+                false
+        );
+        userPiiSyncQueueService.deleteByUserKey(userKey);
+        userPiiCommandService.deleteByUserKey(userKey);
+        user.clearPlainProfilePii();
     }
 
     private void syncFromUser(User user, String userKey, UserPlainPii pii) {
@@ -57,6 +79,7 @@ public class UserCoreSyncService {
                 pii.hasBirthDate()
         );
         syncUserPii(user, userKey, pii);
+        user.clearPlainProfilePii();
     }
 
     private void syncUserPii(User user, String userKey, UserPlainPii pii) {

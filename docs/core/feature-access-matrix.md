@@ -41,7 +41,7 @@
 | 관리자 대시보드 API | X | X | O | `/api/admin/**` + `ROLE_ADMIN` 필요 |
 | 관리자 수집 실행 API | X | X | O | `/api/admin/collect/**` |
 | 관리자 강제 로그아웃 API | X | X | O | `/api/admin/users/forced-logout` |
-| 관리자 전용 웹 페이지 | X | X | X | 현재 별도 프론트 admin page 없음, 관리자 API 중심 |
+| 관리자 전용 웹 페이지 | X | X | O | `/admin/dashboard`, 프론트 `RequireAdmin` + 백엔드 `/api/admin/**` |
 
 표기:
 
@@ -99,19 +99,19 @@
 
 ## 관리자 계정 정리
 
-현재 관리자 권한은 **별도 관리자 웹 UI** 가 아니라:
+현재 관리자 권한은 **관리자 대시보드 웹 UI와 운영 API 권한**으로 사용되며:
 
 1. 일반 로그인 가능한 사용자 row가 있고
 2. 그 이메일이 `SECURITY_ADMIN_EMAILS` allowlist 에 포함될 때
 3. 로그인 JWT에 `ROLE_ADMIN` 이 들어가는 방식입니다.
 
-즉 현재 관리자 계정은 “운영자 API 호출 권한 계정”에 가깝습니다.
+즉 현재 관리자 계정은 `/admin/dashboard` 접근과 운영자 API 호출 권한을 함께 갖습니다.
 
 ## 현재 프로젝트 기준 결론
 
 1. 비로그인은 공개 정책 조회와 URL 기반 필터 상태 유지까지만 가능합니다.
 2. 추천, 챗, 북마크, 마이페이지 같은 개인화 기능은 모두 로그인 필요입니다.
-3. 관리자 계정은 존재할 수 있지만, 현재 프론트에 관리자 전용 페이지는 없고 관리자 API 권한용입니다.
+3. 관리자 계정은 `/admin/dashboard` 관리자 페이지와 관리자 API를 사용할 수 있습니다.
 
 ## 근거 파일
 

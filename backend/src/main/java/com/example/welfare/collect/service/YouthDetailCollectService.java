@@ -53,7 +53,8 @@ public class YouthDetailCollectService {
                 detail = youthApiClient.fetchDetail(service.getSourceId());
             } catch (Exception e) {
                 failed++;
-                log.warn("[YouthDetailCollectService] DETAIL API 오류 sourceId={} err={}", service.getSourceId(), e.getMessage());
+                log.warn("[YouthDetailCollectService] DETAIL API 오류 sourceId={} errorType={}",
+                        service.getSourceId(), e.getClass().getSimpleName());
                 continue;
             }
             if (detail == null) {
@@ -79,7 +80,8 @@ public class YouthDetailCollectService {
                 saved++;
             } catch (Exception e) {
                 failed++;
-                log.warn("[YouthDetailCollectService] 저장 실패 sourceId={} err={}", service.getSourceId(), e.getMessage());
+                log.warn("[YouthDetailCollectService] 저장 실패 sourceId={} errorType={}",
+                        service.getSourceId(), e.getClass().getSimpleName());
             }
         }
 

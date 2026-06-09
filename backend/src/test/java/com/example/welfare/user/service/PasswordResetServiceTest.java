@@ -2,6 +2,7 @@ package com.example.welfare.user.service;
 
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.notification.gateway.EmailClient;
 import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.entity.User;
@@ -22,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -80,14 +82,26 @@ class PasswordResetServiceTest {
         when(userNotificationReadService.getNotificationEmailByUserKey("user-key-7")).thenReturn("pii@example.com");
         when(valueOperations.setIfAbsent(any(String.class), eq("1"), eq(60L), eq(TimeUnit.SECONDS)))
                 .thenReturn(true);
+        when(valueOperations.get(passwordResetUserKey("user-key-7"))).thenReturn(null);
         when(valueOperations.get("password-reset:user:user-key-7")).thenReturn(null);
         when(emailClient.send(eq("pii@example.com"), eq("[청년복지] 비밀번호 재설정 안내"), any(String.class)))
                 .thenReturn(true);
 
         passwordResetService.requestPasswordReset("USER@example.com");
 
-        verify(valueOperations).set(eq("password-reset:user:user-key-7"), any(String.class), eq(30L), eq(java.util.concurrent.TimeUnit.MINUTES));
-        verify(valueOperations).set(org.mockito.ArgumentMatchers.startsWith("password-reset:"), eq("user-key-7"), eq(30L), eq(java.util.concurrent.TimeUnit.MINUTES));
+        verify(valueOperations).set(
+                argThat(key -> key.matches("password-reset:[0-9a-f]{64}")),
+                eq("user-key-7"),
+                eq(30L),
+                eq(java.util.concurrent.TimeUnit.MINUTES)
+        );
+        verify(valueOperations).set(
+                eq(passwordResetUserKey("user-key-7")),
+                argThat(value -> value.matches("[0-9a-f]{64}")),
+                eq(30L),
+                eq(java.util.concurrent.TimeUnit.MINUTES)
+        );
+        verify(redisTemplate).delete("password-reset:user:user-key-7");
         verify(emailClient).send(eq("pii@example.com"), eq("[청년복지] 비밀번호 재설정 안내"), org.mockito.ArgumentMatchers.contains("/reset-password#token="));
     }
 
@@ -113,7 +127,7 @@ class PasswordResetServiceTest {
         passwordResetService.requestPasswordReset("user@example.com");
 
         verify(emailClient, never()).send(any(), any(), any());
-        verify(valueOperations, never()).set(eq("password-reset:user:user-key-7"), any(String.class), any(Long.class), any());
+        verify(valueOperations, never()).set(eq(passwordResetUserKey("user-key-7")), any(String.class), any(Long.class), any());
     }
 
     @Test
@@ -168,19 +182,47 @@ class PasswordResetServiceTest {
                 .passwordHash("old-hash")
                 .loginFailCount(3)
                 .build();
-        when(valueOperations.get("password-reset:reset-token")).thenReturn("user-key-7");
+        String resetTokenHash = OpaqueTokenHash.sha256Hex("reset-token");
+        when(valueOperations.get("password-reset:" + resetTokenHash)).thenReturn("user-key-7");
         when(activeUserReadService.findOptionalActiveUserByUserKey("user-key-7")).thenReturn(Optional.of(user));
-        when(valueOperations.get("password-reset:user:user-key-7")).thenReturn("reset-token");
+        when(valueOperations.get(passwordResetUserKey("user-key-7"))).thenReturn(resetTokenHash);
         when(passwordEncoder.encode("new-password123")).thenReturn("encoded-password");
 
         passwordResetService.confirmPasswordReset("reset-token", "new-password123");
 
         verify(userCoreSyncService).syncFromUser(user);
+        verify(redisTemplate).delete("password-reset:" + resetTokenHash);
         verify(redisTemplate).delete("password-reset:reset-token");
+        verify(redisTemplate).delete(passwordResetUserKey("user-key-7"));
         verify(redisTemplate).delete("password-reset:user:user-key-7");
         verify(userSessionRevocationService).revokeUserSessions(eq("user-key-7"), any(Long.class));
         assertThat(user.getPasswordHash()).isEqualTo("encoded-password");
         assertThat(user.getLoginFailCount()).isZero();
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 확인은 legacy raw token 저장값도 허용하고 폐기한다")
+    void confirmPasswordResetAcceptsLegacyRawTokenStorage() {
+        User user = User.builder()
+                .id(7L)
+                .userKey("user-key-7")
+                .email("user@example.com")
+                .passwordHash("old-hash")
+                .build();
+        when(valueOperations.get("password-reset:" + OpaqueTokenHash.sha256Hex("legacy-token"))).thenReturn(null);
+        when(valueOperations.get("password-reset:legacy-token")).thenReturn("user-key-7");
+        when(activeUserReadService.findOptionalActiveUserByUserKey("user-key-7")).thenReturn(Optional.of(user));
+        when(valueOperations.get(passwordResetUserKey("user-key-7"))).thenReturn(null);
+        when(valueOperations.get("password-reset:user:user-key-7")).thenReturn("legacy-token");
+        when(passwordEncoder.encode("new-password123")).thenReturn("encoded-password");
+
+        passwordResetService.confirmPasswordReset("legacy-token", "new-password123");
+
+        verify(userCoreSyncService).syncFromUser(user);
+        verify(redisTemplate).delete("password-reset:" + OpaqueTokenHash.sha256Hex("legacy-token"));
+        verify(redisTemplate).delete("password-reset:legacy-token");
+        verify(redisTemplate).delete(passwordResetUserKey("user-key-7"));
+        verify(redisTemplate).delete("password-reset:user:user-key-7");
     }
 
     @Test
@@ -192,9 +234,10 @@ class PasswordResetServiceTest {
                 .email("user@example.com")
                 .passwordHash("old-hash")
                 .build();
-        when(valueOperations.get("password-reset:old-token")).thenReturn("user-key-7");
+        String oldTokenHash = OpaqueTokenHash.sha256Hex("old-token");
+        when(valueOperations.get("password-reset:" + oldTokenHash)).thenReturn("user-key-7");
         when(activeUserReadService.findOptionalActiveUserByUserKey("user-key-7")).thenReturn(Optional.of(user));
-        when(valueOperations.get("password-reset:user:user-key-7")).thenReturn("new-token");
+        when(valueOperations.get(passwordResetUserKey("user-key-7"))).thenReturn(OpaqueTokenHash.sha256Hex("new-token"));
 
         assertThatThrownBy(() -> passwordResetService.confirmPasswordReset("old-token", "new-password123"))
                 .isInstanceOf(CustomException.class)
@@ -202,5 +245,9 @@ class PasswordResetServiceTest {
                 .isEqualTo(ErrorCode.PASSWORD_RESET_TOKEN_INVALID);
 
         verify(passwordEncoder, never()).encode(any());
+    }
+
+    private String passwordResetUserKey(String userKey) {
+        return "password-reset:user:v2:" + RedisKeyHash.sha256Hex(userKey);
     }
 }

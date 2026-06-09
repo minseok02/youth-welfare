@@ -8,5 +8,7 @@ public interface UserPiiBackfillReadRepository {
 
     List<UserPiiBackfillStateReadModel> findMissingEncryptedFields();
 
+    List<UserPiiReadModel> findLegacyEncryptedFields();
+
     Map<String, UserLegacyPiiSourceReadModel> findLegacySourceByUserKeys(Collection<String> userKeys);
 }

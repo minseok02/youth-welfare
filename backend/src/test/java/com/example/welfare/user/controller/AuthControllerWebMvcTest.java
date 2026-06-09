@@ -18,6 +18,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.http.HttpHeaders;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.BDDMockito.then;
@@ -31,6 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(AuthController.class)
 @AutoConfigureMockMvc(addFilters = false)
+@TestPropertySource(properties = "auth.refresh.cookie-secure=true")
 class AuthControllerWebMvcTest {
 
     @Autowired
@@ -165,7 +167,14 @@ class AuthControllerWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(header().string(HttpHeaders.SET_COOKIE,
-                        org.hamcrest.Matchers.containsString("refresh_token=")));
+                        org.hamcrest.Matchers.allOf(
+                                org.hamcrest.Matchers.containsString("refresh_token="),
+                                org.hamcrest.Matchers.containsString("Path=/api/auth"),
+                                org.hamcrest.Matchers.containsString("Max-Age=0"),
+                                org.hamcrest.Matchers.containsString("Secure"),
+                                org.hamcrest.Matchers.containsString("HttpOnly"),
+                                org.hamcrest.Matchers.containsString("SameSite=Strict")
+                        )));
 
         then(authSessionService).should().logoutByRefreshToken("refresh-token-value", "access-token-value");
     }
@@ -212,6 +221,26 @@ class AuthControllerWebMvcTest {
     }
 
     @Test
+    @DisplayName("비밀번호 재설정 요청은 254자를 넘는 이메일을 서비스 호출 전에 거부한다")
+    void requestPasswordResetRejectsTooLongEmail() throws Exception {
+        String tooLongEmail = "a".repeat(245) + "@example.com";
+
+        mockMvc.perform(post("/api/auth/password-reset/request")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "%s"
+                                }
+                                """.formatted(tooLongEmail)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        then(authRateLimitService).should(never()).checkPasswordResetRequestLimit(org.mockito.ArgumentMatchers.any());
+        then(passwordResetService).should(never()).requestPasswordReset(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     @DisplayName("비밀번호 재설정 확인은 토큰과 새 비밀번호를 받아 처리한다")
     void confirmPasswordResetWithoutAuthentication() throws Exception {
         mockMvc.perform(post("/api/auth/password-reset/confirm")
@@ -226,6 +255,27 @@ class AuthControllerWebMvcTest {
                 .andExpect(jsonPath("$.success").value(true));
 
         then(passwordResetService).should().confirmPasswordReset("reset-token", "new-password123");
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 확인은 100자를 넘는 토큰을 서비스 호출 전에 거부한다")
+    void confirmPasswordResetRejectsTooLongToken() throws Exception {
+        String tooLongToken = "a".repeat(101);
+
+        mockMvc.perform(post("/api/auth/password-reset/confirm")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "token": "%s",
+                                  "newPassword": "new-password123"
+                                }
+                                """.formatted(tooLongToken)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        then(passwordResetService).should(never())
+                .confirmPasswordReset(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -244,7 +294,16 @@ class AuthControllerWebMvcTest {
                                 }
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true));
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(header().string(HttpHeaders.SET_COOKIE,
+                        org.hamcrest.Matchers.allOf(
+                                org.hamcrest.Matchers.containsString("refresh_token=refresh-token"),
+                                org.hamcrest.Matchers.containsString("Path=/api/auth"),
+                                org.hamcrest.Matchers.containsString("Max-Age=604800"),
+                                org.hamcrest.Matchers.containsString("Secure"),
+                                org.hamcrest.Matchers.containsString("HttpOnly"),
+                                org.hamcrest.Matchers.containsString("SameSite=Strict")
+                        )));
 
         then(authRateLimitService).should().checkLoginLimit("fp-login");
         then(authLoginService).should().login(org.mockito.ArgumentMatchers.any());
@@ -270,6 +329,27 @@ class AuthControllerWebMvcTest {
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("A010"));
 
+        then(authLoginService).should(never()).login(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("로그인은 100자를 넘는 비밀번호를 서비스 호출 전에 거부한다")
+    void loginRejectsTooLongPassword() throws Exception {
+        String tooLongPassword = "a".repeat(101);
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "user@example.com",
+                                  "password": "%s"
+                                }
+                                """.formatted(tooLongPassword)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        then(authRateLimitService).should(never()).checkLoginLimit(org.mockito.ArgumentMatchers.any());
         then(authLoginService).should(never()).login(org.mockito.ArgumentMatchers.any());
     }
 
@@ -306,11 +386,120 @@ class AuthControllerWebMvcTest {
                                   "email": "user@example.com",
                                   "password": "%s",
                                   "name": "홍길동",
-                                  "birthDate": "2001-01-01"
+                                  "birthDate": "2001-01-01",
+                                  "privacyNoticeConfirmed": true
                                 }
                                 """.formatted(longPassword)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false));
+
+        then(authSignupService).should(never()).signup(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("회원가입은 254자를 넘는 이메일을 거부한다")
+    void signupRejectsTooLongEmail() throws Exception {
+        String tooLongEmail = "a".repeat(245) + "@example.com";
+
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "%s",
+                                  "password": "password123!",
+                                  "name": "홍길동",
+                                  "birthDate": "2001-01-01",
+                                  "privacyNoticeConfirmed": true
+                                }
+                                """.formatted(tooLongEmail)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        then(authSignupService).should(never()).signup(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("회원가입은 개인정보 처리 안내 확인 없이는 가입을 거부한다")
+    void signupRejectsMissingPrivacyNoticeConfirmation() throws Exception {
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "user@example.com",
+                                  "password": "password123!",
+                                  "name": "홍길동",
+                                  "birthDate": "2001-01-01"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        then(authSignupService).should(never()).signup(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("회원가입은 선택 개인정보 동의 없이 추천용 선택정보를 저장하지 않는다")
+    void signupRejectsOptionalProfileWithoutConsent() throws Exception {
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "user@example.com",
+                                  "password": "password123!",
+                                  "name": "홍길동",
+                                  "birthDate": "2001-01-01",
+                                  "privacyNoticeConfirmed": true,
+                                  "incomeLevel": 5
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        then(authSignupService).should(never()).signup(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("회원가입은 민감정보 동의 없이 장애등급 정보를 저장하지 않는다")
+    void signupRejectsSensitiveInfoWithoutConsent() throws Exception {
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "user@example.com",
+                                  "password": "password123!",
+                                  "name": "홍길동",
+                                  "birthDate": "2001-01-01",
+                                  "privacyNoticeConfirmed": true,
+                                  "disabilityGradeCode": "011"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        then(authSignupService).should(never()).signup(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("회원가입은 만 14세 미만 생년월일을 거부한다")
+    void signupRejectsUnderFourteen() throws Exception {
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "user@example.com",
+                                  "password": "password123!",
+                                  "name": "홍길동",
+                                  "birthDate": "2020-01-01",
+                                  "privacyNoticeConfirmed": true
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
 
         then(authSignupService).should(never()).signup(org.mockito.ArgumentMatchers.any());
     }

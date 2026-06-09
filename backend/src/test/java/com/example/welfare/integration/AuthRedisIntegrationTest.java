@@ -8,6 +8,7 @@ import com.example.welfare.chat.repository.ChatSessionCleanupCommandRepository;
 import com.example.welfare.chat.repository.ChatSessionRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.welfare.global.util.AesEncryptUtil;
+import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.notification.gateway.EmailClient;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.repository.UserPiiReadWriteRepository;
@@ -96,6 +97,7 @@ class AuthRedisIntegrationTest {
                 userRepository,
                 user -> user.getEmail() != null && user.getEmail().startsWith(TEST_EMAIL_PREFIX),
                 userKey -> {
+                    redisTemplate.delete(refreshKey(userKey));
                     redisTemplate.delete("refresh:" + userKey);
                     chatSessionCleanupCommandRepository.deleteByUserKey(userKey);
                     userPiiSyncQueueRepository.deleteByUserKey(userKey);
@@ -128,7 +130,8 @@ class AuthRedisIntegrationTest {
                   "email": "%s",
                   "password": "password123",
                   "name": "홍길동",
-                  "birthDate": "%s"
+                  "birthDate": "%s",
+                  "privacyNoticeConfirmed": true
                 }
                 """.formatted(email, LocalDate.of(1998, 1, 10));
         markEmailVerified(email);
@@ -159,7 +162,8 @@ class AuthRedisIntegrationTest {
                                   "email": "%s",
                                   "password": "password123",
                                   "name": "홍길동",
-                                  "birthDate": "%s"
+                                  "birthDate": "%s",
+                                  "privacyNoticeConfirmed": true
                                 }
                                 """.formatted(email, LocalDate.of(1998, 1, 10))))
                 .andExpect(status().isOk())
@@ -197,7 +201,8 @@ class AuthRedisIntegrationTest {
                                   "email": "%s",
                                   "password": "password123",
                                   "name": "홍길동",
-                                  "birthDate": "%s"
+                                  "birthDate": "%s",
+                                  "privacyNoticeConfirmed": true
                                 }
                                 """.formatted(email, LocalDate.of(1998, 1, 10))))
                 .andExpect(status().isOk())
@@ -243,7 +248,8 @@ class AuthRedisIntegrationTest {
                                   "email": "%s",
                                   "password": "password123",
                                   "name": "홍길동",
-                                  "birthDate": "%s"
+                                  "birthDate": "%s",
+                                  "privacyNoticeConfirmed": true
                                 }
                                 """.formatted(email, LocalDate.of(1998, 1, 10))))
                 .andExpect(status().isOk())
@@ -257,7 +263,8 @@ class AuthRedisIntegrationTest {
                                   "email": "%s",
                                   "password": "different-password123",
                                   "name": "김철수",
-                                  "birthDate": "%s"
+                                  "birthDate": "%s",
+                                  "privacyNoticeConfirmed": true
                                 }
                                 """.formatted(email, LocalDate.of(1999, 2, 20))))
                 .andExpect(status().isOk())
@@ -289,7 +296,7 @@ class AuthRedisIntegrationTest {
     }
 
     @Test
-    @DisplayName("회원가입-로그인-재발급-로그아웃 흐름은 MySQL과 Redis에 상태를 반영한다")
+    @DisplayName("회원가입-로그인-재발급-로그아웃 흐름은 PostgreSQL과 Redis에 상태를 반영한다")
     void signupLoginRefreshLogoutFlow() throws Exception {
         given(emailClient.send(anyString(), anyString(), anyString())).willReturn(true);
 
@@ -300,6 +307,8 @@ class AuthRedisIntegrationTest {
                   "password": "password123",
                   "name": "홍길동",
                   "birthDate": "%s",
+                  "privacyNoticeConfirmed": true,
+                  "optionalProfileConsentAgreed": true,
                   "sido": "서울특별시",
                   "sgg": "강남구",
                   "incomeLevel": 5,
@@ -343,19 +352,21 @@ class AuthRedisIntegrationTest {
                 .andReturn();
         String loginAccessToken = extractAccessToken(loginResult.getResponse().getContentAsString());
 
-        String storedRefreshToken = redisTemplate.opsForValue().get("refresh:" + userKey);
-        assertNotNull(storedRefreshToken);
+        String storedRefreshTokenHash = redisTemplate.opsForValue().get(refreshKey(userKey));
+        assertNotNull(storedRefreshTokenHash);
+        String refreshToken = extractRefreshTokenCookie(loginResult);
 
         var refreshResult = mockMvc.perform(post("/api/auth/refresh")
-                        .header("X-Refresh-Token", storedRefreshToken))
+                        .header("X-Refresh-Token", refreshToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
                 .andReturn();
         String refreshedAccessToken = extractAccessToken(refreshResult.getResponse().getContentAsString());
 
-        String rotatedRefreshToken = redisTemplate.opsForValue().get("refresh:" + userKey);
-        assertNotNull(rotatedRefreshToken);
+        String rotatedRefreshTokenHash = redisTemplate.opsForValue().get(refreshKey(userKey));
+        assertNotNull(rotatedRefreshTokenHash);
+        String rotatedRefreshToken = extractRefreshTokenCookie(refreshResult);
 
         mockMvc.perform(post("/api/auth/logout")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + refreshedAccessToken)
@@ -363,6 +374,7 @@ class AuthRedisIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
+        assertNull(redisTemplate.opsForValue().get(refreshKey(userKey)));
         assertNull(redisTemplate.opsForValue().get("refresh:" + userKey));
         assertThat(chatSessionRepository.findById(chatSession.getId())).isEmpty();
         assertEquals(0L, chatMessageRepository.countBySessionId(chatSession.getId()));
@@ -399,7 +411,8 @@ class AuthRedisIntegrationTest {
                   "email": "%s",
                   "password": "password123",
                   "name": "홍길동",
-                  "birthDate": "%s"
+                  "birthDate": "%s",
+                  "privacyNoticeConfirmed": true
                 }
                 """.formatted(email, LocalDate.of(1998, 1, 10));
         given(emailClient.send(anyString(), anyString(), anyString())).willReturn(true);
@@ -481,10 +494,21 @@ class AuthRedisIntegrationTest {
         return OBJECT_MAPPER.readTree(body).path("data").path("accessToken").asText();
     }
 
+    private String extractRefreshTokenCookie(org.springframework.test.web.servlet.MvcResult result) {
+        jakarta.servlet.http.Cookie cookie = result.getResponse().getCookie("refresh_token");
+        assertThat(cookie).isNotNull();
+        assertThat(cookie.getValue()).isNotBlank();
+        return cookie.getValue();
+    }
+
     private void markEmailVerified(String email) {
         redisTemplate.opsForValue().set(
                 "email-verify:verified:" + EmailLookupKeyGenerator.hash(email),
                 "1"
         );
+    }
+
+    private String refreshKey(String userKey) {
+        return "refresh:v2:" + RedisKeyHash.sha256Hex(userKey);
     }
 }

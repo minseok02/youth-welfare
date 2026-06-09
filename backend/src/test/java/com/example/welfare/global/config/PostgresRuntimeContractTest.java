@@ -1,0 +1,139 @@
+package com.example.welfare.global.config;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.stream.Stream;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class PostgresRuntimeContractTest {
+
+    @Test
+    @DisplayName("활성 런타임 설정은 PostgreSQL driver와 PostgreSQL JDBC URL만 사용한다")
+    void activeRuntimeConfigUsesPostgresOnly() throws IOException {
+        List<Path> runtimeFiles = List.of(
+                Path.of("build.gradle"),
+                Path.of("src/main/resources/application.yml"),
+                Path.of("src/main/resources/application-prod.yml"),
+                Path.of("../docker-compose.yml"),
+                Path.of("../docker-compose.prod.yml"),
+                Path.of("../.env.example"),
+                Path.of("../env.production.example")
+        );
+
+        for (Path runtimeFile : runtimeFiles) {
+            String content = Files.readString(runtimeFile);
+
+            assertThat(content)
+                    .as(runtimeFile.toString())
+                    .doesNotContain("com.mysql")
+                    .doesNotContain("mysql-connector")
+                    .doesNotContain("org.hibernate.dialect.MySQL")
+                    .doesNotContain("jdbc:" + "mysql://");
+        }
+    }
+
+    @Test
+    @DisplayName("PostgreSQL schema는 MySQL 전용 DDL/DML 문법을 포함하지 않는다")
+    void schemaSqlDoesNotContainMysqlOnlySyntax() throws IOException {
+        String schema = Files.readString(Path.of("src/main/resources/db/schema.sql"));
+
+        assertThat(schema).doesNotContain(forbiddenMysqlSqlTokens());
+    }
+
+    @Test
+    @DisplayName("활성 DB resource migration에는 MySQL 전용 SQL 문법을 포함하지 않는다")
+    void activeDbResourceMigrationsDoNotContainMysqlOnlySyntax() throws IOException {
+        List<Path> migrationFiles;
+        try (Stream<Path> paths = Files.walk(Path.of("src/main/resources/db"))) {
+            migrationFiles = paths
+                    .filter(Files::isRegularFile)
+                    .filter(path -> path.toString().endsWith(".sql"))
+                    .toList();
+        }
+
+        for (Path migrationFile : migrationFiles) {
+            assertThat(Files.readString(migrationFile))
+                    .as(migrationFile.toString())
+                    .doesNotContain(forbiddenMysqlSqlTokens());
+        }
+    }
+
+    private String[] forbiddenMysqlSqlTokens() {
+        return new String[]{
+                "USE youth_welfare",
+                "AUTO_INCREMENT",
+                "ON DUPLICATE KEY",
+                "INSERT IGNORE",
+                "REPLACE INTO",
+                "ENGINE=",
+                "engine=InnoDB",
+                "CHARSET=",
+                "charset=utf8mb4",
+                "COLLATE=",
+                "TINYINT",
+                "UNSIGNED",
+                "LONGTEXT",
+                "MEDIUMTEXT",
+                "DROP FOREIGN KEY",
+                "MODIFY COLUMN",
+                " ADD INDEX ",
+                " ADD KEY ",
+                " AFTER ",
+                "SET SESSION sql_log_bin",
+                "`"
+        };
+    }
+
+    @Test
+    @DisplayName("PostgreSQL schema는 PostgreSQL extension과 sequence-friendly ID 타입을 사용한다")
+    void schemaSqlContainsPostgresRuntimeFeatures() throws IOException {
+        String schema = Files.readString(Path.of("src/main/resources/db/schema.sql"));
+
+        assertThat(schema)
+                .contains("CREATE EXTENSION IF NOT EXISTS pgcrypto")
+                .contains("CREATE EXTENSION IF NOT EXISTS pg_trgm")
+                .contains("CREATE EXTENSION IF NOT EXISTS vector")
+                .contains("BIGSERIAL");
+    }
+
+    @Test
+    @DisplayName("Gradle runtime env 보정은 MySQL URL과 root 계정을 fail-fast 한다")
+    void gradleRuntimeEnvRejectsLegacyMysqlFallbacks() throws IOException {
+        String buildGradle = Files.readString(Path.of("build.gradle"));
+
+        assertThat(buildGradle)
+                .contains("throw new GradleException('MySQL JDBC URLs are not supported")
+                .contains("throw new GradleException('root is not a supported runtime DB username")
+                .contains("value.startsWith('jdbc:' + 'mysql://')");
+    }
+
+    @Test
+    @DisplayName("운영 compose는 app/redis만 포함하고 DB 서비스는 포함하지 않는다")
+    void prodComposeDoesNotDefineDatabaseService() throws IOException {
+        String prodCompose = Files.readString(Path.of("../docker-compose.prod.yml"));
+
+        assertThat(prodCompose)
+                .contains("  app:")
+                .contains("  redis:")
+                .doesNotContain("  db:")
+                .doesNotContain("5432:5432")
+                .doesNotContain("5433:5432")
+                .doesNotContain("postgres_data");
+    }
+
+    @Test
+    @DisplayName("로컬 compose DB는 명시적 허용값 없이는 시작되지 않는다")
+    void localComposeDatabaseRequiresExplicitGuard() throws IOException {
+        String localCompose = Files.readString(Path.of("../docker-compose.yml"));
+
+        assertThat(localCompose)
+                .contains("  db:")
+                .contains("ALLOW_LOCAL_DOCKER_DB:?");
+    }
+}

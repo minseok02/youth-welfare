@@ -21,6 +21,7 @@ public class ApiSyncLog extends BaseTimeEntity {
 
     private static final int ERROR_CODE_MAX_LENGTH = 50;
     private static final int ERROR_MESSAGE_MAX_LENGTH = 1000;
+    private static final String SAFE_FAILURE_MESSAGE = "collect job failed; see application logs with error_code";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -89,7 +90,7 @@ public class ApiSyncLog extends BaseTimeEntity {
         this.finishedAt = LocalDateTime.now();
         this.failedCount = Math.max(this.failedCount, 1);
         this.errorCode = truncate(throwable.getClass().getSimpleName(), ERROR_CODE_MAX_LENGTH);
-        this.errorMessage = truncate(throwable.getMessage(), ERROR_MESSAGE_MAX_LENGTH);
+        this.errorMessage = truncate(SAFE_FAILURE_MESSAGE, ERROR_MESSAGE_MAX_LENGTH);
     }
 
     private String truncate(String value, int maxLength) {

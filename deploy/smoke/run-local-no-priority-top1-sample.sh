@@ -166,6 +166,8 @@ for sample_index in $(seq 1 "${SAMPLE_COUNT}"); do
         \"password\": \"${SMOKE_PASSWORD}\",
         \"name\": \"${SMOKE_NAME}\",
         \"birthDate\": \"${SMOKE_BIRTH_DATE}\",
+      \"privacyNoticeConfirmed\": true,
+      \"optionalProfileConsentAgreed\": true,
         \"sido\": \"${SMOKE_SIDO}\",
         \"sgg\": \"${SMOKE_SGG}\",
         \"incomeLevel\": ${SMOKE_INCOME_LEVEL},

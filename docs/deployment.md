@@ -116,7 +116,8 @@ ENV_FILE=.env.production bash deploy/postgres/bootstrap-rds-runtime.sh
 3. schema/table/sequence grant 적용
 4. `deploy/postgres/patches/*.sql` 순차 적용
 
-현재 기준으로 이 bootstrap에는 `chat_session_cleanup_rw`, `cluster_ai_cleanup_rw`,
+현재 기준으로 이 bootstrap에는 `recommendation_review_gate_command_rw`,
+`recommendation_persistence_command_rw`, `chat_session_cleanup_rw`, `cluster_ai_cleanup_rw`,
 `recommendation_retention_cleanup_rw`, `collect_execution_lock_cleanup_rw`,
 `web_push_subscription_cleanup_rw` 전용 role까지 포함됩니다.
 
@@ -267,13 +268,16 @@ bash deploy/smoke/run-local-admin-forced-logout-smoke.sh
 ## 10. 로컬과 운영을 섞지 않는 원칙
 
 - 로컬:
-  - `docker compose up -d`
+  - `.env` 에 `ALLOW_LOCAL_DOCKER_DB=true` 를 명시한 뒤 `docker compose up -d`
   - `.env`
   - `db` 컨테이너 포함
 - 운영:
   - `docker compose -f docker-compose.prod.yml`
   - `.env.production`
   - `db` 컨테이너 없음, RDS 사용
+
+`docker-compose.yml` 의 `db` 서비스는 `ALLOW_LOCAL_DOCKER_DB` 가 없으면 compose 해석 단계에서 실패한다.
+운영 EC2/RDS 서버에서는 이 값을 설정하지 않는다. 서버에서 실수로 `docker compose up -d` 를 실행하면 로컬 PostgreSQL 컨테이너가 생성되기 전에 막히는 것이 정상이다.
 
 즉:
 

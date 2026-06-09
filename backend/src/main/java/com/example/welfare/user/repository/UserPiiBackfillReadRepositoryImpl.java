@@ -21,6 +21,11 @@ public class UserPiiBackfillReadRepositoryImpl implements UserPiiBackfillReadRep
     }
 
     @Override
+    public List<UserPiiReadModel> findLegacyEncryptedFields() {
+        return userPiiReadWriteRepository.findLegacyEncryptedFields();
+    }
+
+    @Override
     public Map<String, UserLegacyPiiSourceReadModel> findLegacySourceByUserKeys(Collection<String> userKeys) {
         if (userKeys.isEmpty()) {
             return Map.of();

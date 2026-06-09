@@ -23,4 +23,6 @@ public interface UserPiiSyncQueueReadRepository {
     List<String> findReplayFailedUserKeys(int limit);
 
     List<String> findReplayPendingUserKeys(int limit);
+
+    List<UserPiiSyncQueue> findLegacyEncryptedPayloads();
 }
