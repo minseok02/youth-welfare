@@ -70,7 +70,31 @@ public class NotificationScheduleService {
     private void sendNotifications(NotificationPeriod period, String label) {
         List<NotificationTarget> targets = userNotificationReadService.getNotificationTargets(period);
         log.info("[NotificationScheduleService] {} 알림 대상: {}명", label, targets.size());
-        targets.forEach(notificationDispatchService::sendTopRecommendations);
+        int sent = 0;
+        int noRecommendations = 0;
+        int skippedWindow = 0;
+        int failed = 0;
+        int conflicts = 0;
+        int unexpectedFailures = 0;
+        for (NotificationTarget target : targets) {
+            try {
+                NotificationDispatchService.NotificationDispatchResult result =
+                        notificationDispatchService.sendTopRecommendations(target);
+                switch (result.status()) {
+                    case SENT -> sent++;
+                    case NO_RECOMMENDATIONS -> noRecommendations++;
+                    case SKIPPED_WINDOW -> skippedWindow++;
+                    case FAILED -> failed++;
+                    case RESERVATION_CONFLICT -> conflicts++;
+                }
+            } catch (RuntimeException | LinkageError e) {
+                unexpectedFailures++;
+                log.error("[NotificationScheduleService] {} 알림 대상 처리 실패 userId={} userKey={}: {}",
+                        label, target.userId(), target.userKey(), e.getMessage());
+            }
+        }
+        log.info("[NotificationScheduleService] {} 알림 대상={} sent={} noRecommendations={} skippedWindow={} failed={} conflicts={} unexpectedFailures={}",
+                label, targets.size(), sent, noRecommendations, skippedWindow, failed, conflicts, unexpectedFailures);
     }
 
     private void sendDeadlineReminders(NotificationPeriod period, int days, String label) {
@@ -79,17 +103,24 @@ public class NotificationScheduleService {
         int noCandidates = 0;
         int failed = 0;
         int conflicts = 0;
+        int unexpectedFailures = 0;
         for (NotificationTarget target : targets) {
-            DeadlineReminderDispatchService.DeadlineReminderDispatchResult result =
-                    deadlineReminderDispatchService.sendBookmarkedDeadlineReminder(target, days);
-            switch (result.status()) {
-                case SENT -> sent++;
-                case NO_CANDIDATES -> noCandidates++;
-                case FAILED -> failed++;
-                case RESERVATION_CONFLICT -> conflicts++;
+            try {
+                DeadlineReminderDispatchService.DeadlineReminderDispatchResult result =
+                        deadlineReminderDispatchService.sendBookmarkedDeadlineReminder(target, days);
+                switch (result.status()) {
+                    case SENT -> sent++;
+                    case NO_CANDIDATES -> noCandidates++;
+                    case FAILED -> failed++;
+                    case RESERVATION_CONFLICT -> conflicts++;
+                }
+            } catch (RuntimeException | LinkageError e) {
+                unexpectedFailures++;
+                log.error("[NotificationScheduleService] {} 알림 대상 처리 실패 userId={} userKey={}: {}",
+                        label, target.userId(), target.userKey(), e.getMessage());
             }
         }
-        log.info("[NotificationScheduleService] {} 알림 대상={} days={} sent={} noCandidates={} failed={} conflicts={}",
-                label, targets.size(), days, sent, noCandidates, failed, conflicts);
+        log.info("[NotificationScheduleService] {} 알림 대상={} days={} sent={} noCandidates={} failed={} conflicts={} unexpectedFailures={}",
+                label, targets.size(), days, sent, noCandidates, failed, conflicts, unexpectedFailures);
     }
 }

@@ -14,6 +14,7 @@ import com.example.welfare.notification.service.WebPushDispatchService;
 import com.example.welfare.notification.service.WebPushSubscriptionCommandService;
 import com.example.welfare.notification.service.WebPushSubscriptionReadService;
 import com.example.welfare.user.service.ActiveUserReadService;
+import com.example.welfare.user.service.AdminAccessAuthorityService;
 import com.example.welfare.user.service.UserAccountCommandService;
 import com.example.welfare.user.service.UserNotificationReadService;
 import com.example.welfare.user.service.UserSessionRevocationService;
@@ -70,6 +71,8 @@ class NotificationSecurityWebMvcTest {
     @MockitoBean
     private UserNotificationReadService userNotificationReadService;
     @MockitoBean
+    private AdminAccessAuthorityService adminAccessAuthorityService;
+    @MockitoBean
     private JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @Test
@@ -116,5 +119,9 @@ class NotificationSecurityWebMvcTest {
         given(userSessionRevocationService.isAccessAllowed(token)).willReturn(true);
         given(jwtUtil.getAuthenticatedUser(token)).willReturn(new AuthenticatedUser(1L, "user-key-1"));
         given(jwtUtil.getAuthorities(token)).willReturn(List.copyOf(authorities));
+        given(adminAccessAuthorityService.filterCurrentAuthorities(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyCollection()
+        )).willReturn(List.copyOf(authorities));
     }
 }

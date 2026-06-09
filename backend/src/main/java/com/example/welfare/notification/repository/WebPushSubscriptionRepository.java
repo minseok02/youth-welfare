@@ -13,4 +13,6 @@ public interface WebPushSubscriptionRepository extends JpaRepository<WebPushSubs
     Optional<WebPushSubscription> findByIdAndUserKey(Long id, String userKey);
 
     List<WebPushSubscription> findByUserKeyAndEnabledTrueOrderByCreatedAtDesc(String userKey);
+
+    long countByUserKeyAndEnabledTrue(String userKey);
 }

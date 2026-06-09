@@ -1,5 +1,16 @@
 self.FALLBACK_NOTIFICATION_URL = "/mypage?tab=3";
 
+const sanitizeNotificationText = (value, fallback, maxLength) => {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return fallback;
+  }
+  return trimmed.length > maxLength ? trimmed.slice(0, maxLength) : trimmed;
+};
+
 const resolveSafeNotificationUrl = (rawUrl) => {
   if (typeof rawUrl !== "string") {
     return self.FALLBACK_NOTIFICATION_URL;
@@ -54,9 +65,12 @@ self.addEventListener("push", (event) => {
     payload = fallback;
   }
 
+  const title = sanitizeNotificationText(payload.title, fallback.title, 100);
+  const body = sanitizeNotificationText(payload.body, fallback.body, 500);
+
   event.waitUntil(
-    self.registration.showNotification(payload.title, {
-      body: payload.body,
+    self.registration.showNotification(title, {
+      body,
       icon: "/favicon.svg",
       badge: "/favicon.svg",
       data: {

@@ -55,4 +55,16 @@ class EmailClientTest {
 
         assertThat(sent).isFalse();
     }
+
+    @Test
+    @DisplayName("메일 로그 식별자는 원본 이메일과 도메인을 노출하지 않는 해시 지문이다")
+    void fingerprintEmailDoesNotExposeAddress() {
+        EmailClient emailClient = new EmailClient(javaMailSender, MailDeliveryProperties.defaults());
+
+        String fingerprint = emailClient.fingerprintEmail("User@Example.com");
+
+        assertThat(fingerprint).startsWith("sha256:");
+        assertThat(fingerprint).doesNotContain("User", "user", "Example", "example", "@");
+        assertThat(fingerprint).isEqualTo(emailClient.fingerprintEmail(" user@example.com "));
+    }
 }

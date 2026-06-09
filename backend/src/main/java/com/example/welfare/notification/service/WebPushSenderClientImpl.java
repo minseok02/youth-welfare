@@ -14,6 +14,9 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @Slf4j
 @Component
@@ -34,6 +37,9 @@ public class WebPushSenderClientImpl implements WebPushSenderClient {
     @Value("${notification.web-push.subject:}")
     private String subject;
 
+    @Value("${notification.web-push.send-timeout-seconds:10}")
+    private long sendTimeoutSeconds;
+
     @Override
     public boolean isConfigured() {
         return StringUtils.hasText(subject)
@@ -48,6 +54,10 @@ public class WebPushSenderClientImpl implements WebPushSenderClient {
         }
         if (!webPushEndpointPolicyService.isAllowedSubscriptionEndpoint(subscription.getEndpoint())) {
             return WebPushSendResult.disable("web push endpoint rejected by policy");
+        }
+        if (!webPushKeyValidator.isValidSubscriptionPublicKey(subscription.getP256dh())
+                || !webPushKeyValidator.isValidAuthSecret(subscription.getAuthSecret())) {
+            return WebPushSendResult.disable("web push subscription keys rejected by policy");
         }
 
         try {
@@ -67,7 +77,14 @@ public class WebPushSenderClientImpl implements WebPushSenderClient {
                             payload
                     );
 
-            HttpResponse response = pushService.send(notification);
+            Future<HttpResponse> responseFuture = pushService.sendAsync(notification);
+            HttpResponse response;
+            try {
+                response = responseFuture.get(Math.max(1L, sendTimeoutSeconds), TimeUnit.SECONDS);
+            } catch (TimeoutException e) {
+                responseFuture.cancel(true);
+                return WebPushSendResult.failure("web push send timed out");
+            }
             int statusCode = response.getStatusLine().getStatusCode();
             if (statusCode >= 200 && statusCode < 300) {
                 return WebPushSendResult.sent();
@@ -80,15 +97,15 @@ public class WebPushSenderClientImpl implements WebPushSenderClient {
             log.warn("[WebPushSenderClient] web push send failed endpointHost={}: {}",
                     webPushEndpointPolicyService.describeEndpointForLog(subscription.getEndpoint()),
                     e.getMessage());
-            return WebPushSendResult.failure(e.getMessage());
+            return WebPushSendResult.failure("web push send failed");
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return WebPushSendResult.failure(e.getMessage());
+            return WebPushSendResult.failure("web push send interrupted");
         } catch (RuntimeException | LinkageError e) {
             log.warn("[WebPushSenderClient] web push sender initialization failed endpointHost={}: {}",
                     webPushEndpointPolicyService.describeEndpointForLog(subscription.getEndpoint()),
                     e.getMessage());
-            return WebPushSendResult.failure(e.getMessage());
+            return WebPushSendResult.failure("web push sender initialization failed");
         }
     }
 }
