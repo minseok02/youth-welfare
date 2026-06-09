@@ -607,7 +607,7 @@ test("정책 목록 검색 query는 상세 진입 후 브라우저 back과 상�
 });
 
 test("정책 상세는 요약 정보와 오류 제보 CTA를 보여준다", async ({ page, request }) => {
-  const firstPolicy = await openFirstSearchResult(page, request, "월세");
+  const firstPolicy = await openFirstSearchResult(page, request, "청년");
 
   await expectPolicyDetailReady(page, firstPolicy);
   await expect(page.getByText("지원지역", { exact: true })).toBeVisible();
@@ -677,7 +677,7 @@ test("공개 사용자 핵심 흐름은 홈에서 가이드를 보고 정책 상
   await page.getByRole("button", { name: "정책 검색하기", exact: true }).first().click();
   await expect(page).toHaveURL(/\/policies$/);
 
-  const firstPolicy = await openFirstSearchResult(page, request, "월세");
+  const firstPolicy = await openFirstSearchResult(page, request, "청년");
   await expectPolicyDetailReady(page, firstPolicy);
 });
 
