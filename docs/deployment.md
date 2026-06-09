@@ -7,8 +7,8 @@
 
 현재 기준:
 
-- 로컬 개발/검증은 계속 [docker-compose.yml](/home/minseok/youth-welfare/docker-compose.yml:1) 을 사용한다.
-- 운영 EC2는 [docker-compose.prod.yml](/home/minseok/youth-welfare/docker-compose.prod.yml:1) 을 사용한다.
+- 로컬 개발/검증은 계속 [docker-compose.yml](/home/ubuntu/youth-welfare/docker-compose.yml:1) 을 사용한다.
+- 운영 EC2는 [docker-compose.prod.yml](/home/ubuntu/youth-welfare/docker-compose.prod.yml:1) 을 사용한다.
 - 운영 DB는 Docker 컨테이너가 아니라 `Amazon RDS for PostgreSQL 16` 이다.
 
 ## 1. 구조 차이
@@ -41,16 +41,16 @@ RDS PostgreSQL 16
 
 ## 2. 파일 역할
 
-- 로컬 compose: [docker-compose.yml](/home/minseok/youth-welfare/docker-compose.yml:1)
-- 운영 compose: [docker-compose.prod.yml](/home/minseok/youth-welfare/docker-compose.prod.yml:1)
-- 운영 env 예시: [env.production.example](/home/minseok/youth-welfare/env.production.example:1)
-- RDS bootstrap script: [bootstrap-rds-runtime.sh](/home/minseok/youth-welfare/deploy/postgres/bootstrap-rds-runtime.sh:1)
-- RDS privilege verify: [verify-rds-runtime-privileges.sh](/home/minseok/youth-welfare/deploy/postgres/verify-rds-runtime-privileges.sh:1)
-- cutover verify wrapper: [run-prod-cutover-verification.sh](/home/minseok/youth-welfare/deploy/smoke/run-prod-cutover-verification.sh:1)
+- 로컬 compose: [docker-compose.yml](/home/ubuntu/youth-welfare/docker-compose.yml:1)
+- 운영 compose: [docker-compose.prod.yml](/home/ubuntu/youth-welfare/docker-compose.prod.yml:1)
+- 운영 env 예시: [env.production.example](/home/ubuntu/youth-welfare/env.production.example:1)
+- RDS bootstrap script: [bootstrap-rds-runtime.sh](/home/ubuntu/youth-welfare/deploy/postgres/bootstrap-rds-runtime.sh:1)
+- RDS privilege verify: [verify-rds-runtime-privileges.sh](/home/ubuntu/youth-welfare/deploy/postgres/verify-rds-runtime-privileges.sh:1)
+- cutover verify wrapper: [run-prod-cutover-verification.sh](/home/ubuntu/youth-welfare/deploy/smoke/run-prod-cutover-verification.sh:1)
 - nginx 예시:
-  - bootstrap HTTP only: [youth-welfare.bootstrap.conf](/home/minseok/youth-welfare/deploy/nginx/youth-welfare.bootstrap.conf:1)
-  - HTTPS: [youth-welfare.conf](/home/minseok/youth-welfare/deploy/nginx/youth-welfare.conf:1)
-  - edge verify: [verify-edge-baseline.sh](/home/minseok/youth-welfare/deploy/nginx/verify-edge-baseline.sh:1)
+  - bootstrap HTTP only: [youth-welfare.bootstrap.conf](/home/ubuntu/youth-welfare/deploy/nginx/youth-welfare.bootstrap.conf:1)
+  - HTTPS: [youth-welfare.conf](/home/ubuntu/youth-welfare/deploy/nginx/youth-welfare.conf:1)
+  - edge verify: [verify-edge-baseline.sh](/home/ubuntu/youth-welfare/deploy/nginx/verify-edge-baseline.sh:1)
 
 ## 3. 운영 `.env.production`
 
@@ -168,7 +168,6 @@ bash deploy/postgres/verify-rds-runtime-privileges.sh
 ## 7. 운영 app/redis 기동
 
 ```bash
-APP_ENV_FILE=.env.production \
 docker compose --env-file .env.production -f docker-compose.prod.yml up -d redis app
 ```
 
@@ -176,12 +175,15 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up -d redis
 
 - `app` 을 `127.0.0.1:8082`
 - `redis` 를 `127.0.0.1:6379`
+- `app.env_file` 을 `${APP_RUNTIME_ENV_FILE:-.env.runtime.production}`
 
 에 바인딩한다. nginx는 host에서 `127.0.0.1:8082` 로 reverse proxy 한다.
 
+운영 서버의 `.env.production` 은 compose interpolation용 파일이며, `APP_RUNTIME_ENV_FILE` 로 실제 app runtime env 파일을 지정한다. 값이 없으면 기본값 `.env.runtime.production` 을 사용한다.
+
 현재 운영 compose hardening 기준:
 
-- `app` 이미지는 [backend/Dockerfile](/home/minseok/youth-welfare/backend/Dockerfile:1) 에서 `UID/GID 10001` non-root 사용자로 실행한다.
+- `app` 이미지는 [backend/Dockerfile](/home/ubuntu/youth-welfare/backend/Dockerfile:1) 에서 `UID/GID 10001` non-root 사용자로 실행한다.
 - `app` 은 `read_only: true`, `/tmp` tmpfs, `security_opt: no-new-privileges:true`, `pids_limit: 256`, `mem_limit: 1g` 를 사용한다.
 - `redis` 는 현재 persistence를 기대하지 않는 운영 구조를 전제로 `read_only: true`, `/data`/`/tmp` tmpfs, `security_opt: no-new-privileges:true`, `pids_limit: 128`, `mem_limit: 256m` 으로 띄운다.
 - app가 임시 파일을 써야 하는 경로는 `/tmp` 로 제한되고, Dockerfile entrypoint는 `-Djava.io.tmpdir=/tmp` 를 강제한다.
@@ -190,8 +192,8 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up -d redis
 
 현재 conf 기준:
 
-- HTTP bootstrap only: [youth-welfare.bootstrap.conf](/home/minseok/youth-welfare/deploy/nginx/youth-welfare.bootstrap.conf:1)
-- HTTPS: [youth-welfare.conf](/home/minseok/youth-welfare/deploy/nginx/youth-welfare.conf:1)
+- HTTP bootstrap only: [youth-welfare.bootstrap.conf](/home/ubuntu/youth-welfare/deploy/nginx/youth-welfare.bootstrap.conf:1)
+- HTTPS: [youth-welfare.conf](/home/ubuntu/youth-welfare/deploy/nginx/youth-welfare.conf:1)
 
 즉 app 컨테이너는 외부에 직접 노출하지 않고, nginx가 `127.0.0.1:8082` 로 프록시한다.
 

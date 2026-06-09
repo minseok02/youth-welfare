@@ -29,8 +29,9 @@ bash deploy/smoke/run-nightly-ops-handoff.sh
 
 1. `run-nightly-standard-code-observation.sh`
 2. `run-nightly-policy-quality-observation.sh`
-3. `run-local-collect-governance-observation-suite.sh`
-4. `run-local-auth-observation-suite.sh`
+3. `run-local-policy-data-triage-observation-suite.sh`
+4. `run-local-collect-governance-observation-suite.sh`
+5. `run-local-auth-observation-suite.sh`
 
 기본값에서 제외되는 lane:
 
