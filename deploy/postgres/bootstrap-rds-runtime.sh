@@ -288,6 +288,10 @@ SELECT format('GRANT INSERT, DELETE ON TABLE public.user_recommendations TO %I',
 WHERE to_regclass('public.user_recommendations') IS NOT NULL \gexec
 SELECT format('GRANT SELECT (user_key) ON TABLE public.user_recommendations TO %I', :'db_recommendation_persistence_command_username')
 WHERE to_regclass('public.user_recommendations') IS NOT NULL \gexec
+SELECT format('GRANT DELETE ON TABLE public.recent_policy_views TO %I', :'db_recommendation_persistence_command_username')
+WHERE to_regclass('public.recent_policy_views') IS NOT NULL \gexec
+SELECT format('GRANT SELECT (user_key) ON TABLE public.recent_policy_views TO %I', :'db_recommendation_persistence_command_username')
+WHERE to_regclass('public.recent_policy_views') IS NOT NULL \gexec
 SELECT format('GRANT USAGE, SELECT ON SEQUENCE public.user_recommendations_id_seq TO %I', :'db_recommendation_persistence_command_username')
 WHERE to_regclass('public.user_recommendations_id_seq') IS NOT NULL \gexec
 SELECT format('GRANT DELETE ON TABLE public.chat_sessions TO %I', :'db_chat_session_cleanup_username')

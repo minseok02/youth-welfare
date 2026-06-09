@@ -13,17 +13,27 @@ services:
     ports:
       - "127.0.0.1:8082:8080"
     env_file:
-      - ${APP_ENV_FILE:-.env.production}
+      - ${APP_RUNTIME_ENV_FILE:-.env.runtime.production}
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
     depends_on:
       redis:
         condition: service_healthy
+    user: "10001:10001"
+    init: true
     read_only: true
     tmpfs:
       - /tmp:size=64m,mode=1777
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
     pids_limit: 256
     mem_limit: 1g
     logging: *json-logging
@@ -32,19 +42,24 @@ services:
   redis:
     image: redis:7-alpine
     container_name: youth-welfare-redis
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
     ports:
       - "127.0.0.1:6379:6379"
+    user: "999:1000"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+    init: true
     read_only: true
     tmpfs:
-      - /data:size=64m,mode=700
+      - /data:size=64m,mode=700,uid=999,gid=1000
       - /tmp:size=16m,mode=1777
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
     pids_limit: 128
     mem_limit: 256m
     logging: *json-logging

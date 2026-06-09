@@ -243,6 +243,10 @@ expect_master_bool recommendation_persistence_command_user_key_select t \
   "select has_column_privilege('${DB_RECOMMENDATION_PERSISTENCE_COMMAND_USERNAME}', 'public.user_recommendations', 'user_key', 'SELECT')"
 expect_master_bool recommendation_persistence_command_sequence_usage t \
   "select has_sequence_privilege('${DB_RECOMMENDATION_PERSISTENCE_COMMAND_USERNAME}', 'public.user_recommendations_id_seq', 'USAGE')"
+expect_master_bool recommendation_persistence_command_recent_policy_views_delete t \
+  "select has_table_privilege('${DB_RECOMMENDATION_PERSISTENCE_COMMAND_USERNAME}', 'public.recent_policy_views', 'DELETE')"
+expect_master_bool recommendation_persistence_command_recent_policy_views_user_key_select t \
+  "select has_column_privilege('${DB_RECOMMENDATION_PERSISTENCE_COMMAND_USERNAME}', 'public.recent_policy_views', 'user_key', 'SELECT')"
 expect_master_bool chat_session_cleanup_delete t \
   "select has_table_privilege('${DB_CHAT_SESSION_CLEANUP_USERNAME}', 'public.chat_sessions', 'DELETE')"
 expect_master_bool chat_session_cleanup_select_id t \
