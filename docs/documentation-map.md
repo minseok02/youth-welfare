@@ -34,6 +34,7 @@
 - [project-spec.md](./project-spec.md)
 - [README.md](./README.md)
 - [current-state.md](./current-state.md)
+- [stabilization-checklist.md](core/stabilization-checklist.md)
 - [work-guide.md](./work-guide.md)
 - [architecture.md](./architecture.md)
 - [api-mapping.md](core/api-mapping.md)

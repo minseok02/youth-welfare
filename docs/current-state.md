@@ -4,7 +4,8 @@
 
 ## 한 줄 요약
 
-- 현재 active main track은 운영 인프라 확장보다 로컬 기능/구조 검증과 회귀 방지입니다.
+- 현재 active main track은 기능 추가가 아니라 안정화와 회귀 방지입니다.
+- 안정화 단계의 작업 기준은 [stabilization-checklist.md](core/stabilization-checklist.md) 를 먼저 봅니다.
 - 최근 보안/운영 follow-up은 [core/security-hardening-current-state.md](./core/security-hardening-current-state.md) 를 먼저 봅니다.
 - 실제 운영 전환 절차가 필요할 때만 [deployment.md](./deployment.md) 를 같이 봅니다.
 
@@ -23,6 +24,7 @@
 
 ## 지금 먼저 볼 문서
 
+- 안정화 체크리스트: [stabilization-checklist.md](core/stabilization-checklist.md)
 - 인증 문서군 진입점: [auth-docs-index.md](auth/auth-docs-index.md)
 - 수집 문서군 진입점: [collect-docs-index.md](collect/collect-docs-index.md)
 - 추천 문서군 진입점: [recommendation-docs-index.md](recommendation/recommendation-docs-index.md)
