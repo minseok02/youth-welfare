@@ -315,6 +315,111 @@ function StandardCodePromptCard({ missing, filledCount, onComplete, editing }) {
   );
 }
 
+function StandardCodeSaveReminder({
+  visible,
+  missing,
+  filledCount,
+  hasPriorities,
+  onComplete,
+  onGoPriority,
+  onGoRecommendations,
+  onDismiss,
+}) {
+  if (!visible) {
+    return null;
+  }
+
+  const complete = missing.length === 0;
+
+  return (
+    <div style={{
+      background: WHITE,
+      border: `1px solid ${complete ? "#bbf7d0" : LINE}`,
+      borderRadius: 18,
+      padding: 20,
+      marginBottom: 16,
+      display: "flex",
+      justifyContent: "space-between",
+      gap: 16,
+      alignItems: "center",
+      flexWrap: "wrap",
+      boxShadow: "0 8px 22px rgba(20,30,80,0.06)",
+    }}>
+      <div style={{ flex: "1 1 380px", minWidth: 240 }}>
+        <div style={{ fontSize: 12, fontWeight: 800, color: complete ? "#059669" : A, letterSpacing: "0.04em" }}>
+          저장 완료
+        </div>
+        <div style={{ fontSize: 16, fontWeight: 800, color: INK, marginTop: 6 }}>
+          {complete
+            ? "주거·복지 표준코드 4/4개가 추천에 반영됩니다"
+            : `주거·복지 표준코드 ${filledCount}/4개 입력됨`}
+        </div>
+        <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.6 }}>
+          {complete
+            ? hasPriorities
+              ? "메인에서 맞춤 재추천을 실행하면 최신 정보 기준으로 다시 받을 수 있습니다."
+              : "다음으로 추천 우선순위를 설정하면 최신 정보가 더 안정적으로 반영됩니다."
+            : `남은 ${missing.join(", ")} 항목까지 채우면 주거·복지 자격조건 매칭이 더 정확해집니다.`}
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+        <button
+          onClick={complete ? (hasPriorities ? onGoRecommendations : onGoPriority) : onComplete}
+          style={{
+            padding: "12px 16px",
+            borderRadius: 12,
+            border: 0,
+            background: A,
+            color: WHITE,
+            fontSize: 13,
+            fontWeight: 800,
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {complete ? (hasPriorities ? "맞춤 추천 보기 →" : "우선순위 설정하기 →") : "남은 항목 계속 채우기 →"}
+        </button>
+        {!complete && (
+          <button
+            onClick={hasPriorities ? onGoRecommendations : onGoPriority}
+            style={{
+              padding: "12px 14px",
+              borderRadius: 12,
+              border: `1px solid ${LINE}`,
+              background: WHITE,
+              color: INK2,
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {hasPriorities ? "맞춤 추천 보기" : "우선순위 설정"}
+          </button>
+        )}
+        <button
+          onClick={onDismiss}
+          aria-label="표준코드 저장 안내 닫기"
+          style={{
+            width: 42,
+            height: 42,
+            borderRadius: 12,
+            border: `1px solid ${LINE}`,
+            background: LINE2,
+            color: INK3,
+            fontSize: 18,
+            fontWeight: 800,
+            cursor: "pointer",
+            lineHeight: 1,
+          }}
+        >
+          ×
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function SidebarNav({ active, onChange, bookmarkCount, alertUnreadCount }) {
   const isMobile = useMediaQuery("(max-width: 1199px)");
 
@@ -469,6 +574,7 @@ export default function MyPage() {
   const [editing, setEditing] = useState(false);
   const [infoLoading, setInfoLoading] = useState(false);
   const [nameError, setNameError] = useState("");
+  const [standardCodeSaveReminderOpen, setStandardCodeSaveReminderOpen] = useState(false);
 
   const [priorities, setPriorities] = useState([]);
   const [priorityLoading, setPriorityLoading] = useState(false);
@@ -571,6 +677,7 @@ export default function MyPage() {
 
   const focusStandardCodeSection = useCallback(() => {
     setEditing(true);
+    setStandardCodeSaveReminderOpen(false);
     window.setTimeout(() => {
       document.getElementById("profile-standard-code-section")?.scrollIntoView({
         behavior: "smooth",
@@ -578,6 +685,16 @@ export default function MyPage() {
       });
     }, 0);
   }, []);
+
+  const goToPrioritySettings = useCallback(() => {
+    setStandardCodeSaveReminderOpen(false);
+    handleTabChange("pref");
+    window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 0);
+  }, [handleTabChange]);
+
+  const goToRecommendations = useCallback(() => {
+    navigate("/");
+  }, [navigate]);
 
   // ── Data fetch ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -701,7 +818,15 @@ export default function MyPage() {
         disabilityGradeCode: myInfo.disabilityGradeCode || undefined,
       });
       setProfileCompleteness(localCompletionPct);
+      setUser({
+        ...(myInfo.name ? { name: myInfo.name } : {}),
+        hasPriorities: priorities.length > 0,
+        standardCodeFilledCount,
+        standardCodeMissingCount: standardCodeMissingLabels.length,
+        missingStandardCodeLabels: standardCodeMissingLabels,
+      });
       setEditing(false);
+      setStandardCodeSaveReminderOpen(true);
       if (standardCodeMissingLabels.length === 0 && priorities.length > 0) {
         showToast("저장되었습니다. 주거·복지 표준코드 4개와 우선순위가 추천에 반영됩니다");
       } else if (standardCodeMissingLabels.length === 0) {
@@ -749,6 +874,7 @@ export default function MyPage() {
       await api.put("/api/users/me/priorities", { priorityCodes: priorities });
       setUser({ hasPriorities: true });
       setProfileCompleteness(Math.max(profileCompleteness ?? 0, localCompletionPct));
+      setStandardCodeSaveReminderOpen(true);
       if (standardCodeMissingLabels.length === 0) {
         showToast("우선순위와 특화 대상이 저장되었습니다. 현재 표준코드 4개도 함께 추천에 반영됩니다");
       } else {
@@ -1321,6 +1447,17 @@ export default function MyPage() {
                   filledCount={standardCodeFilledCount}
                   onComplete={focusStandardCodeSection}
                   editing={editing}
+                />
+
+                <StandardCodeSaveReminder
+                  visible={standardCodeSaveReminderOpen}
+                  missing={standardCodeMissingLabels}
+                  filledCount={standardCodeFilledCount}
+                  hasPriorities={priorities.length > 0}
+                  onComplete={focusStandardCodeSection}
+                  onGoPriority={goToPrioritySettings}
+                  onGoRecommendations={goToRecommendations}
+                  onDismiss={() => setStandardCodeSaveReminderOpen(false)}
                 />
 
                 <div id="profile-standard-code-section">
