@@ -18,6 +18,8 @@
 - notification failed count: `0`
 - notification stale 14d target: `0`
 - notification unread: `14` (`RECOMMENDATION_DIGEST`), stale 7d `0`
+- standard-code missing all: total `299`, non-example `2`, EXAMPLE_SMOKE `297`
+- standard-code reconcile/conflict candidates: `0`
 - policy duplicate/link open queue: `0`
 - policy triage: `REVIEW_QUEUE_CLOSED_RAW_BACKLOG_REMAINS`
 - recommendation precheck: `KEEP_OBSERVING`

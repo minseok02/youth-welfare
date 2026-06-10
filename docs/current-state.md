@@ -133,6 +133,8 @@
 - housing standard code matrix audit: `bash deploy/smoke/run-local-housing-standard-code-matrix-audit.sh`
 - welfare standard code matrix audit: `bash deploy/smoke/run-local-welfare-standard-code-matrix-audit.sh`
 - user profile standard code coverage audit: `bash deploy/smoke/run-local-user-profile-standard-code-coverage-audit.sh`
+  - 2026-06-10 server/RDS latest 기준 `users_missing_all_standard_codes=299` 이지만, origin breakdown은 `non_example=2`, `EXAMPLE_SMOKE=297` 입니다.
+  - `safe_reconcile_candidate_rows=0`, `conflicting_value_gap_rows=0` 이므로 현재는 DB 자동 보정 대상이 아니라 사용자 입력/관찰 backlog 입니다.
 - collect governance observation suite: `APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-collect-governance-observation-suite.sh`
 - server/RDS collect governance observation suite: `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-collect-governance-observation-suite.sh`
   - latest artifact: `tmp/collect-governance-observation/latest-collect-governance-observation-summary.txt`, `tmp/collect-governance-observation/latest-collect-governance-observation-note.md`, `tmp/collect-governance-observation/latest-collect-governance-observation.json`
@@ -149,7 +151,7 @@
   - latest artifact: `tmp/ops-observation/latest-ops-observation-summary.txt`, `tmp/ops-observation/latest-ops-observation-note.md`, `tmp/ops-observation/latest-ops-observation.json`
   - attention feed is included in the same summary/json (`attention_feed_*`, `attention_feed.items`)
   - admin dashboard summary notification section now includes `notification_unread_alerts`, `notification_retryable_failed_notifications`, `notification_terminal_failed_notifications`
-  - standard code coverage is included in the same summary/json (`user_profile_standard_code_*`)
+  - standard code coverage is included in the same summary/json (`user_profile_standard_code_*`), including `non_example` and `EXAMPLE_SMOKE` origin breakdown
   - recommendation standard code effect/matrix is included in the same summary/json (`recommendation_standard_code_*`)
   - adoption audit is included in the same summary/json (`recommendation_standard_code_adoption_*`)
   - `KEEP_ARTIFACTS=false` 기본값에서도 latest summary/json 과 `tmp/ops-observation/latest/` snapshot은 남습니다.

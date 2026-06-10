@@ -260,6 +260,12 @@ open_circuits = int(collect.get("open_collect_circuits", "0"))
 users_missing_all_standard_codes = int(standard_code_coverage.get("users_missing_all_standard_codes", "0") or 0)
 total_users = int(standard_code_coverage.get("total_users", "0") or 0)
 safe_reconcile_candidate_rows = int(standard_code_coverage.get("safe_reconcile_candidate_rows", "0") or 0)
+non_example_users_missing_all_standard_codes = int(
+    standard_code_coverage.get("non_example_users_missing_all_standard_codes", "0") or 0
+)
+example_smoke_users_missing_all_standard_codes = int(
+    standard_code_coverage.get("example_smoke_users_missing_all_standard_codes", "0") or 0
+)
 standard_code_coverage_status = "skipped"
 if run_standard_code_coverage_audit:
     standard_code_coverage_status = "ok" if standard_code_coverage else "missing"
@@ -410,6 +416,17 @@ if run_standard_code_coverage_audit:
         f"user_profile_standard_code_total_users={total_users}",
         f"user_profile_standard_code_users_with_any_standard_code={standard_code_coverage.get('users_with_any_standard_code', '')}",
         f"user_profile_standard_code_users_missing_all_standard_codes={users_missing_all_standard_codes}",
+        f"user_profile_standard_code_non_example_total_users={standard_code_coverage.get('non_example_total_users', '')}",
+        f"user_profile_standard_code_non_example_users_with_any_standard_code={standard_code_coverage.get('non_example_users_with_any_standard_code', '')}",
+        f"user_profile_standard_code_non_example_users_missing_all_standard_codes={non_example_users_missing_all_standard_codes}",
+        f"user_profile_standard_code_non_example_safe_reconcile_candidate_rows={standard_code_coverage.get('non_example_safe_reconcile_candidate_rows', '')}",
+        f"user_profile_standard_code_non_example_conflicting_value_gap_rows={standard_code_coverage.get('non_example_conflicting_value_gap_rows', '')}",
+        f"user_profile_standard_code_real_user_total_users={standard_code_coverage.get('real_user_total_users', '')}",
+        f"user_profile_standard_code_real_user_users_missing_all_standard_codes={standard_code_coverage.get('real_user_users_missing_all_standard_codes', '')}",
+        f"user_profile_standard_code_example_smoke_total_users={standard_code_coverage.get('example_smoke_total_users', '')}",
+        f"user_profile_standard_code_example_smoke_users_missing_all_standard_codes={example_smoke_users_missing_all_standard_codes}",
+        f"user_profile_standard_code_bounded_local_total_users={standard_code_coverage.get('bounded_local_total_users', '')}",
+        f"user_profile_standard_code_bounded_local_users_missing_all_standard_codes={standard_code_coverage.get('bounded_local_users_missing_all_standard_codes', '')}",
         f"user_profile_standard_code_house_tenure_filled={standard_code_coverage.get('users_house_tenure_code_filled', '')}",
         f"user_profile_standard_code_housing_type_filled={standard_code_coverage.get('users_housing_type_code_filled', '')}",
         f"user_profile_standard_code_basic_living_filled={standard_code_coverage.get('users_basic_living_recipient_type_code_filled', '')}",
@@ -507,6 +524,17 @@ if run_standard_code_coverage_audit:
         "total_users": total_users,
         "users_with_any_standard_code": int(standard_code_coverage.get("users_with_any_standard_code", "0") or 0),
         "users_missing_all_standard_codes": users_missing_all_standard_codes,
+        "non_example_total_users": int(standard_code_coverage.get("non_example_total_users", "0") or 0),
+        "non_example_users_with_any_standard_code": int(standard_code_coverage.get("non_example_users_with_any_standard_code", "0") or 0),
+        "non_example_users_missing_all_standard_codes": non_example_users_missing_all_standard_codes,
+        "non_example_safe_reconcile_candidate_rows": int(standard_code_coverage.get("non_example_safe_reconcile_candidate_rows", "0") or 0),
+        "non_example_conflicting_value_gap_rows": int(standard_code_coverage.get("non_example_conflicting_value_gap_rows", "0") or 0),
+        "real_user_total_users": int(standard_code_coverage.get("real_user_total_users", "0") or 0),
+        "real_user_users_missing_all_standard_codes": int(standard_code_coverage.get("real_user_users_missing_all_standard_codes", "0") or 0),
+        "example_smoke_total_users": int(standard_code_coverage.get("example_smoke_total_users", "0") or 0),
+        "example_smoke_users_missing_all_standard_codes": example_smoke_users_missing_all_standard_codes,
+        "bounded_local_total_users": int(standard_code_coverage.get("bounded_local_total_users", "0") or 0),
+        "bounded_local_users_missing_all_standard_codes": int(standard_code_coverage.get("bounded_local_users_missing_all_standard_codes", "0") or 0),
         "users_house_tenure_code_filled": int(standard_code_coverage.get("users_house_tenure_code_filled", "0") or 0),
         "users_housing_type_code_filled": int(standard_code_coverage.get("users_housing_type_code_filled", "0") or 0),
         "users_basic_living_recipient_type_code_filled": int(standard_code_coverage.get("users_basic_living_recipient_type_code_filled", "0") or 0),
@@ -572,6 +600,8 @@ note_lines = [
     f"- `recommendation_real_user_traffic_gate_in_window`: `{dashboard.get('recommendation_real_user_traffic_gate_in_window', '')}`",
     f"- `user_profile_standard_code_coverage_status`: `{standard_code_coverage_status}`",
     f"- `user_profile_standard_code_users_missing_all_standard_codes`: `{users_missing_all_standard_codes}`",
+    f"- `user_profile_standard_code_non_example_users_missing_all_standard_codes`: `{non_example_users_missing_all_standard_codes}`",
+    f"- `user_profile_standard_code_example_smoke_users_missing_all_standard_codes`: `{example_smoke_users_missing_all_standard_codes}`",
     f"- `recommendation_standard_code_observation_status`: `{recommendation_standard_code_observation_status}`",
     f"- `policy_data_triage_observation_status`: `{policy_data_triage_observation_status}`",
     f"- `policy_data_triage_decision_class`: `{policy_data_triage_observation.get('decision_class', '')}`",

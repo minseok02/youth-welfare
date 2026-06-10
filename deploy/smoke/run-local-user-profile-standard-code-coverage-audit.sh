@@ -17,6 +17,7 @@ RESULT_ROW="$(smoke_db_query "
 WITH joined AS (
     SELECT
         u.user_key,
+        COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') AS account_origin,
         up.user_key IS NOT NULL AS has_profile_row,
         NULLIF(BTRIM(u.house_tenure_code), '') AS u_house_tenure_code,
         NULLIF(BTRIM(u.housing_type_code), '') AS u_housing_type_code,
@@ -78,7 +79,18 @@ SELECT
     COUNT(*) FILTER (WHERE profile_only_gap) AS profile_only_gap_rows,
     COUNT(*) FILTER (WHERE user_only_gap) AS user_only_gap_rows,
     COUNT(*) FILTER (WHERE profile_only_gap OR user_only_gap) AS safe_reconcile_candidate_rows,
-    COUNT(*) FILTER (WHERE conflicting_value_gap) AS conflicting_value_gap_rows
+    COUNT(*) FILTER (WHERE conflicting_value_gap) AS conflicting_value_gap_rows,
+    COUNT(*) FILTER (WHERE account_origin <> 'EXAMPLE_SMOKE') AS non_example_total_users,
+    COUNT(*) FILTER (WHERE account_origin <> 'EXAMPLE_SMOKE' AND u_filled_count > 0) AS non_example_users_with_any_standard_code,
+    COUNT(*) FILTER (WHERE account_origin <> 'EXAMPLE_SMOKE' AND u_filled_count = 0) AS non_example_users_missing_all_standard_codes,
+    COUNT(*) FILTER (WHERE account_origin <> 'EXAMPLE_SMOKE' AND (profile_only_gap OR user_only_gap)) AS non_example_safe_reconcile_candidate_rows,
+    COUNT(*) FILTER (WHERE account_origin <> 'EXAMPLE_SMOKE' AND conflicting_value_gap) AS non_example_conflicting_value_gap_rows,
+    COUNT(*) FILTER (WHERE account_origin = 'REAL_USER') AS real_user_total_users,
+    COUNT(*) FILTER (WHERE account_origin = 'REAL_USER' AND u_filled_count = 0) AS real_user_users_missing_all_standard_codes,
+    COUNT(*) FILTER (WHERE account_origin = 'EXAMPLE_SMOKE') AS example_smoke_total_users,
+    COUNT(*) FILTER (WHERE account_origin = 'EXAMPLE_SMOKE' AND u_filled_count = 0) AS example_smoke_users_missing_all_standard_codes,
+    COUNT(*) FILTER (WHERE account_origin = 'BOUNDED_LOCAL') AS bounded_local_total_users,
+    COUNT(*) FILTER (WHERE account_origin = 'BOUNDED_LOCAL' AND u_filled_count = 0) AS bounded_local_users_missing_all_standard_codes
 FROM scored;
 ")"
 
@@ -103,6 +115,17 @@ keys = [
     "user_only_gap_rows",
     "safe_reconcile_candidate_rows",
     "conflicting_value_gap_rows",
+    "non_example_total_users",
+    "non_example_users_with_any_standard_code",
+    "non_example_users_missing_all_standard_codes",
+    "non_example_safe_reconcile_candidate_rows",
+    "non_example_conflicting_value_gap_rows",
+    "real_user_total_users",
+    "real_user_users_missing_all_standard_codes",
+    "example_smoke_total_users",
+    "example_smoke_users_missing_all_standard_codes",
+    "bounded_local_total_users",
+    "bounded_local_users_missing_all_standard_codes",
 ]
 values = sys.argv[1].rstrip("\n").split("\t")
 for key, value in zip(keys, values):

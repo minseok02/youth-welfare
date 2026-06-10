@@ -272,6 +272,14 @@ if run_ops_observation == "true":
         f"{ops_observation_summary.get('user_profile_standard_code_users_missing_all_standard_codes', '')}"
     )
     lines.append(
+        f"ops_user_profile_standard_code_non_example_users_missing_all_standard_codes="
+        f"{ops_observation_summary.get('user_profile_standard_code_non_example_users_missing_all_standard_codes', '')}"
+    )
+    lines.append(
+        f"ops_user_profile_standard_code_example_smoke_users_missing_all_standard_codes="
+        f"{ops_observation_summary.get('user_profile_standard_code_example_smoke_users_missing_all_standard_codes', '')}"
+    )
+    lines.append(
         f"ops_recommendation_standard_code_housing_positive_rule_delta_rows="
         f"{ops_observation_summary.get('recommendation_standard_code_housing_positive_rule_delta_rows', '')}"
     )

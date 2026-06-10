@@ -53,6 +53,8 @@ ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8
 - `attention_feed_item_count`
 - `attention_feed_item_titles`
 - `users_missing_all_standard_codes`
+- `non_example_users_missing_all_standard_codes`
+- `example_smoke_users_missing_all_standard_codes`
 - `users_with_any_standard_code`
 - `safe_reconcile_candidate_rows`
 - `conflicting_value_gap_rows`
@@ -66,6 +68,7 @@ ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8
 
 `standard-code-backlog` attention item은 단순 미입력 잔량이면 `info` 로 읽고,
 `safe_reconcile_candidate_rows > 0` 또는 `conflicting_value_gap_rows > 0` 일 때만 운영자가 바로 처리할 `warning` 으로 봅니다.
+전체 미입력 잔량은 smoke 계정으로 크게 부풀 수 있으므로, 운영 판단은 `user_profile_standard_code_non_example_users_missing_all_standard_codes` 를 같이 봅니다.
 
 wrapper promoted alert의 current-priority 비교는 비교 대상 metric이 현재/이전 summary 양쪽에 모두 있을 때만 해석합니다.
 이전 summary의 `active_baseline_user_profile_standard_code_users_missing_all_standard_codes` 가 비어 있으면 `0명` 으로 보정하지 않고 `이전값 없음` 으로 읽습니다.

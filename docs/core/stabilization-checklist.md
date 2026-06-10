@@ -107,6 +107,7 @@ nightly는 즉시 기능 수정으로 들어가지 않습니다.
 - `safe_reconcile_candidate_rows > 0`: bounded reconcile 후보
 - `conflicting_value_gap_rows > 0`: 수동 conflict 확인 후보
 - `safe_reconcile_candidate_rows = 0` 이고 `conflicting_value_gap_rows = 0`: 사용자 입력 유도/관찰
+- 2026-06-10 server/RDS latest: `users_missing_all_standard_codes=299` 중 `non_example=2`, `EXAMPLE_SMOKE=297`, `safe_reconcile_candidate_rows=0`, `conflicting_value_gap_rows=0`
 
 ## 알림 backlog 기준
 

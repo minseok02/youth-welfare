@@ -260,6 +260,14 @@ if run_active_baseline == "true":
         f"{active_baseline_values.get('ops_user_profile_standard_code_users_missing_all_standard_codes', '')}"
     )
     lines.append(
+        f"active_baseline_user_profile_standard_code_non_example_users_missing_all_standard_codes="
+        f"{active_baseline_values.get('ops_user_profile_standard_code_non_example_users_missing_all_standard_codes', '')}"
+    )
+    lines.append(
+        f"active_baseline_user_profile_standard_code_example_smoke_users_missing_all_standard_codes="
+        f"{active_baseline_values.get('ops_user_profile_standard_code_example_smoke_users_missing_all_standard_codes', '')}"
+    )
+    lines.append(
         f"active_baseline_recommendation_standard_code_housing_positive_rule_delta_rows="
         f"{active_baseline_values.get('ops_recommendation_standard_code_housing_positive_rule_delta_rows', '')}"
     )
