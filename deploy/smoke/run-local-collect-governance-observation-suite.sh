@@ -69,6 +69,7 @@ data = payload["data"]
 lanes = data["collectSourceLanes"]
 
 scheduled = [lane for lane in lanes if lane["executionMode"] == "SCHEDULED"]
+rotation = [lane for lane in lanes if lane["executionMode"] == "ROTATION"]
 manual = [lane for lane in lanes if lane["executionMode"] == "MANUAL"]
 open_circuits = [c for c in data["circuitStatuses"] if c.get("open") is True]
 latest_failed = [lane["laneKey"] for lane in lanes if (lane.get("latestRun") or {}).get("status") == "FAILED"]
@@ -85,7 +86,7 @@ elif data["partialSuccessJobsInWindow"] > 0:
     next_action = "docs/collect/collect-ops.md"
 else:
     decision_class = "BASELINE_HEALTHY"
-    operator_reading = "Collect governance baseline is healthy. Keep nightly/manual lane inventory as-is and only reopen collect tuning if drift or repeated partials appear."
+    operator_reading = "Collect governance baseline is healthy. Keep scheduled, rotation, and manual lane inventory as-is and only reopen collect tuning if drift or repeated partials appear."
     next_action = "docs/collect/collect-current-state.md"
 
 summary_lines = [
@@ -98,6 +99,7 @@ summary_lines = [
     f"open_collect_circuits={len(open_circuits)}",
     f"lane_count={len(lanes)}",
     f"scheduled_lane_count={len(scheduled)}",
+    f"rotation_lane_count={len(rotation)}",
     f"manual_lane_count={len(manual)}",
     f"latest_failed_lane_keys={','.join(latest_failed) if latest_failed else '(none)'}",
     f"latest_partial_lane_keys={','.join(latest_partial) if latest_partial else '(none)'}",
@@ -117,6 +119,7 @@ json_payload = {
     "open_collect_circuits": len(open_circuits),
     "lane_count": len(lanes),
     "scheduled_lane_count": len(scheduled),
+    "rotation_lane_count": len(rotation),
     "manual_lane_count": len(manual),
     "latest_failed_lane_keys": latest_failed,
     "latest_partial_lane_keys": latest_partial,
@@ -135,6 +138,7 @@ note_lines = [
     f"- `partial_success_jobs_in_window`: `{data.get('partialSuccessJobsInWindow', 0)}`",
     f"- `open_collect_circuits`: `{len(open_circuits)}`",
     f"- `scheduled_lane_count`: `{len(scheduled)}`",
+    f"- `rotation_lane_count`: `{len(rotation)}`",
     f"- `manual_lane_count`: `{len(manual)}`",
     f"- `latest_failed_lane_keys`: `{','.join(latest_failed) if latest_failed else '(none)'}`",
     f"- `latest_partial_lane_keys`: `{','.join(latest_partial) if latest_partial else '(none)'}`",
@@ -147,7 +151,8 @@ note_lines = [
     "",
     "## Lane Snapshot",
     "",
-    f"- nightly/scheduled lanes: `{len(scheduled)}`",
+    f"- scheduled snapshot lanes: `{len(scheduled)}`",
+    f"- rotation/forced detail lanes: `{len(rotation)}`",
     f"- manual/on-demand lanes: `{len(manual)}`",
 ]
 note_out.write_text("\n".join(note_lines) + "\n", encoding="utf-8")

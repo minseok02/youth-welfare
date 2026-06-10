@@ -19,7 +19,7 @@
 실행 체크리스트나 장애 기록 양식은 별도 문서를 봅니다.
 현재 collect 문서 해석도 `phase-plan` 의 긴 전환 로그보다 이 문서와 `collect-operation-checklist`, `collect-ops` 를 우선합니다.
 
-daily operator entrypoint는 [collect-governance-observation-runbook.md](./collect-governance-observation-runbook.md) 와 `bash deploy/smoke/run-local-collect-governance-observation-suite.sh` 입니다. 이 wrapper는 `collect-failures` 전체 contract 대신 `nightly/manual lane count`, `latest failed/partial lane`, `open circuit`, `next_action` 을 compact하게 요약하고 `latest-collect-governance-observation-note.md` 사람용 artifact도 남깁니다.
+daily operator entrypoint는 [collect-governance-observation-runbook.md](./collect-governance-observation-runbook.md) 와 `bash deploy/smoke/run-local-collect-governance-observation-suite.sh` 입니다. 이 wrapper는 `collect-failures` 전체 contract 대신 `scheduled/rotation/manual lane count`, `latest failed/partial lane`, `open circuit`, `next_action` 을 compact하게 요약하고 `latest-collect-governance-observation-note.md` 사람용 artifact도 남깁니다.
 
 source별 retry/rate-limit/duplicate-run guard inventory를 다시 볼 때는 [collect-source-resilience-audit-runbook.md](./collect-source-resilience-audit-runbook.md) 와 `bash deploy/smoke/run-local-collect-source-resilience-audit.sh` 를 먼저 씁니다. 이 audit는 `collectSourceLanes.configEntries` 를 재사용해 lane별 resilience metadata drift를 compact하게 다시 읽습니다.
 
@@ -42,7 +42,7 @@ source별 retry/rate-limit/duplicate-run guard inventory를 다시 볼 때는 [c
 
 ## 현재 collect/runtime governance inventory
 
-`collect-failures` 는 이제 실패/partial/streak/circuit 뿐 아니라 "어떤 lane이 nightly고 어떤 lane이 manual인지", lane별 `api_sync_logs` 기준 마지막 실행 요약, 그리고 pacing/budget/retry 같은 `config summary` 도 같이 반환합니다.
+`collect-failures` 는 이제 실패/partial/streak/circuit 뿐 아니라 "어떤 lane이 scheduled, rotation, manual인지", lane별 `api_sync_logs` 기준 마지막 실행 요약, 그리고 pacing/budget/retry 같은 `config summary` 도 같이 반환합니다.
 이 inventory는 외부 API를 실제로 치는 lane만 대상으로 하며, raw replay 기반 sidecar backfill은 여기서 제외합니다.
 
 ### nightly scheduled lane

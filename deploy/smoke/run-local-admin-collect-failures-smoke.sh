@@ -120,7 +120,7 @@ lane_keys = set()
 for lane in lanes:
     lane_key = lane["laneKey"]
     lane_keys.add(lane_key)
-    assert lane["executionMode"] in {"SCHEDULED", "MANUAL"}, f"unexpected executionMode: {lane['executionMode']}"
+    assert lane["executionMode"] in {"SCHEDULED", "ROTATION", "MANUAL"}, f"unexpected executionMode: {lane['executionMode']}"
     assert lane["laneType"] in {"SNAPSHOT", "DETAIL", "ENRICHMENT", "MAINTENANCE"}, f"unexpected laneType: {lane['laneType']}"
     assert isinstance(lane["label"], str) and lane["label"], "label missing"
     assert isinstance(lane["resourceProfile"], str) and lane["resourceProfile"], "resourceProfile missing"

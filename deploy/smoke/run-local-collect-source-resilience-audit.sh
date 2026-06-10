@@ -105,6 +105,7 @@ missing_rate_limit_lanes = []
 missing_lock_guard_lanes = []
 manual_lanes = []
 scheduled_lanes = []
+rotation_lanes = []
 
 for lane in lanes:
     key = lane["laneKey"]
@@ -112,6 +113,8 @@ for lane in lanes:
     labels = set(entries.keys())
     if lane["executionMode"] == "MANUAL":
         manual_lanes.append(key)
+    elif lane["executionMode"] == "ROTATION":
+        rotation_lanes.append(key)
     else:
         scheduled_lanes.append(key)
     if "재시도" in labels:
@@ -151,6 +154,7 @@ summary_lines = [
     f"summary_window_days={data.get('windowDays', '')}",
     f"lane_count={len(lanes)}",
     f"scheduled_lane_count={len(scheduled_lanes)}",
+    f"rotation_lane_count={len(rotation_lanes)}",
     f"manual_lane_count={len(manual_lanes)}",
     f"retry_lane_keys={','.join(retry_lanes) if retry_lanes else '(none)'}",
     f"rate_limit_lane_keys={','.join(rate_limit_lanes) if rate_limit_lanes else '(none)'}",
@@ -174,6 +178,7 @@ json_payload = {
     "summary_window_days": data.get("windowDays"),
     "lane_count": len(lanes),
     "scheduled_lane_count": len(scheduled_lanes),
+    "rotation_lane_count": len(rotation_lanes),
     "manual_lane_count": len(manual_lanes),
     "retry_lane_keys": retry_lanes,
     "rate_limit_lane_keys": rate_limit_lanes,
@@ -198,6 +203,7 @@ note_lines = [
     f"- `decision_class`: `{decision_class}`",
     f"- `lane_count`: `{len(lanes)}`",
     f"- `scheduled_lane_count`: `{len(scheduled_lanes)}`",
+    f"- `rotation_lane_count`: `{len(rotation_lanes)}`",
     f"- `manual_lane_count`: `{len(manual_lanes)}`",
     f"- `retry_lane_keys`: `{','.join(retry_lanes) if retry_lanes else '(none)'}`",
     f"- `rate_limit_lane_keys`: `{','.join(rate_limit_lanes) if rate_limit_lanes else '(none)'}`",

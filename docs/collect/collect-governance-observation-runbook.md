@@ -5,7 +5,7 @@
 ## 목적
 
 이 문서는 collect/admin runtime을 다시 설계하는 문서가 아닙니다.
-현재 nightly/manual lane inventory와 latest run summary를
+현재 scheduled/rotation/manual lane inventory와 latest run summary를
 operator가 **하루 단위로 어떻게 읽을지** 를 짧게 고정하는 runbook 입니다.
 
 핵심 질문은 아래입니다.
@@ -46,6 +46,7 @@ bash deploy/smoke/run-local-collect-governance-observation-suite.sh
 - `partial_success_jobs_in_window`
 - `open_collect_circuits`
 - `scheduled_lane_count`
+- `rotation_lane_count`
 - `manual_lane_count`
 - `latest_failed_lane_keys`
 - `latest_partial_lane_keys`
@@ -57,7 +58,7 @@ bash deploy/smoke/run-local-collect-governance-observation-suite.sh
 ### `decision_class=BASELINE_HEALTHY`
 
 - collect governance baseline은 건강합니다.
-- nightly/manual lane inventory를 그대로 유지합니다.
+- scheduled/rotation/manual lane inventory를 그대로 유지합니다.
 - 다음 액션:
   - current-state 문서만 유지 관찰
 
@@ -83,6 +84,7 @@ bash deploy/smoke/run-local-collect-governance-observation-suite.sh
 - `partial_success_jobs_in_window`
 - `open_collect_circuits`
 - `scheduled_lane_count`
+- `rotation_lane_count`
 - `manual_lane_count`
 - `latest_failed_lane_keys`
 - `latest_partial_lane_keys`
