@@ -15,6 +15,8 @@
 - collect/runtime: 로컬 full collect, ops baseline, broad quality 재검사까지 다시 green
 - recommendation/policy: 각 current-state 문서와 runbook을 기준으로 baseline 유지 단계
 - 프론트: 기본 연동, lint, build, browser smoke까지 확인 완료
+- 2026-06-10 server/RDS 안정화 sweep 기준: `ops observation=BASELINE_HEALTHY`, attention warning `0`, collect 실패/partial/circuit `0`, policy review `OPEN` queue `0`, recommendation `KEEP_OBSERVING`, frontend deployed-origin smoke `30 passed`
+- 2026-06-10 DB closeout 기준: RDS runtime privilege verification 통과, `db/migration` active version 중복 제거 및 계약 테스트 추가
 
 ## 지금 먼저 할 일
 
@@ -86,7 +88,7 @@
   - `2주 이상 unread` 가 특정 정책/링크 target에 몰리는지 확인합니다.
   - 운영 기준은 [core/notification-stale-target-audit-runbook.md](./core/notification-stale-target-audit-runbook.md) 를 봅니다.
   - 첫 local triage target이었던 `/policies/2622` stale deadline reminder cluster (`5 users / 5 rows`) 는 `hide-stale` 경로로 정리됐습니다.
-  - 현재 latest 기준은 `stale_14d_total=0`, `decision_class=NO_STALE_TARGETS` 이고, 남은 unread backlog는 `unread_total=24`, `stale_unread_7d=12` 수준의 recommendation digest tail 입니다.
+  - 현재 latest 기준은 `stale_14d_total=0`, `decision_class=NO_STALE_TARGETS` 이고, 남은 unread backlog는 `unread_total=24`, `stale_unread_7d=10` 수준의 recommendation digest tail 입니다.
   - server/RDS 최신 sample 기준 unread는 `digest=24`, `deadline=0`, `system=0`, failed notification은 `0` 입니다.
   - 즉 현재 알림 운영 우선순위는 `14일 초과 stale cluster hide` 보다 `7일 초과 recommendation digest tail의 cadence/가치` 를 관찰하는 단계입니다.
 

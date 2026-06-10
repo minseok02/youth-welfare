@@ -131,12 +131,12 @@ bash deploy/smoke/run-local-notification-stale-target-audit.sh
 - `unread_total=24`
 - `unread_digest=24`
 - `unread_deadline=0`
-- `stale_unread_7d=12`
+- `stale_unread_7d=10`
 - `stale_unread_14d=0`
 
 수준의 `7일 초과 recommendation digest tail` 로 읽는 편이 맞다.
 
-2026-06-09 최신 server/RDS target audit 기준:
+2026-06-10 최신 server/RDS target audit 기준:
 
 - `stale_14d_total=0`
 - `stale_14d_groups=0`

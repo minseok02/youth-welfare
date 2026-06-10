@@ -58,7 +58,7 @@ bash deploy/smoke/run-local-notification-backlog-sample-audit.sh
 
 ## 현재 server/RDS 기준
 
-2026-06-09 최신 server/RDS sample audit 기준:
+2026-06-10 최신 server/RDS sample audit 기준:
 
 - `decision_class=STALE_UNREAD_7D_SAMPLE_REVIEW`
 - `unread_total=24`
@@ -68,7 +68,7 @@ bash deploy/smoke/run-local-notification-backlog-sample-audit.sh
 - `system_unread=0`
 - `users_with_2plus_unread=2`
 - `users_with_5plus_unread=2`
-- `stale_unread_7d=12`
+- `stale_unread_7d=10`
 - `stale_unread_14d=0`
 
 즉 현재 sample은 deadline reminder 정리나 시스템 알림 장애가 아니라, 소수 사용자에게 남은 recommendation digest unread tail 이다.

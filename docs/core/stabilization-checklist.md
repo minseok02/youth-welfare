@@ -130,11 +130,11 @@ bash deploy/smoke/run-local-notification-stale-target-audit.sh
 - `stale_14d_total > 0`: `hide-stale` 후보를 target 단위로 좁혀 처리
 - `stale_unread_7d > 0` 이고 14일 이상이 아니면: cadence/가치 관찰
 
-2026-06-09 server/RDS 기준 current reading:
+2026-06-10 server/RDS 기준 current reading:
 
 - failed notification은 없음
 - `unread_total=24`, 모두 `RECOMMENDATION_DIGEST`
-- `stale_unread_7d=12`
+- `stale_unread_7d=10`
 - `stale_unread_14d=0`
 - stale target audit은 `NO_STALE_TARGETS`
 
@@ -157,12 +157,12 @@ bash deploy/smoke/run-local-policy-data-triage-observation-suite.sh
 
 raw duplicate/link 숫자가 남아 있어도 운영 `OPEN` queue가 0이면 새 작업을 열지 않습니다.
 
-2026-06-09 server/RDS 기준 current reading:
+2026-06-10 server/RDS 기준 current reading:
 
 - `policy_duplicate_open_groups=0`
 - `policy_duplicate_open_rows=0`
 - `policy_link_open_reviews=0`
-- raw 후보는 `duplicate_groups_youth=82`, `duplicate_groups_bokjiro_local=59`, `active_visible_youth_total=172`
+- raw 후보는 `duplicate_groups_youth=82`, `duplicate_groups_bokjiro_local=59`, `active_visible_youth_total=163`
 - `decision_class=REVIEW_QUEUE_CLOSED_RAW_BACKLOG_REMAINS`
 
 따라서 현재 정책 backlog는 처리 queue가 아니라 raw 품질 잔량 관찰 단계입니다.
@@ -188,7 +188,7 @@ bash deploy/smoke/run-local-recommendation-reopen-precheck.sh
 
 `reopen_allowed=false` 이면 추천 로직을 수정하지 않습니다.
 
-2026-06-09 server/RDS 기준 current reading:
+2026-06-10 server/RDS 기준 current reading:
 
 - `reopen_precheck_status=KEEP_OBSERVING`
 - `real_user_dashboard_gate=DEFERRED_REAL_USER_SAMPLE_THIN`

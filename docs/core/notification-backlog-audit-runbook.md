@@ -94,14 +94,14 @@ bash deploy/smoke/run-local-notification-backlog-audit.sh
 
 ## 현재 server/RDS 기준
 
-2026-06-09 최신 server/RDS audit 기준:
+2026-06-10 최신 server/RDS audit 기준:
 
 - `decision_class=STALE_UNREAD_ALERT_REVIEW_PRIORITY`
 - `unread_total=24`
 - `unread_digest=24`
 - `unread_deadline=0`
 - `unread_system=0`
-- `stale_unread_7d=12`
+- `stale_unread_7d=10`
 - `stale_unread_14d=0`
 - `retryable_failed_total=0`
 - `retryable_failed_due_now=0`

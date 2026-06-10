@@ -35,7 +35,7 @@ backend/src/main/resources/db/migration/V2026_05_15_02__add_user_alerts.sql
 backend/src/main/resources/db/migration/V2026_05_15_03__add_web_push_subscriptions.sql
 backend/src/main/resources/db/migration/V2026_05_16_01__add_notification_channel_flags.sql
 backend/src/main/resources/db/migration/V2026_05_17_01__add_ai_status_to_user_recommendations.sql
-backend/src/main/resources/db/migration/V2026_05_17_01__add_user_account_origin.sql
+backend/src/main/resources/db/migration/V2026_05_17_02__add_user_account_origin.sql
 ```
 
 대표 증상:
@@ -46,7 +46,7 @@ backend/src/main/resources/db/migration/V2026_05_17_01__add_user_account_origin.
 
 주의:
 - `2026-05-17` 서버 재기동에서도 실제로 `users.account_origin` 누락 때문에 첫 부팅이 실패했다.
-- 따라서 기존 volume에서는 `V2026_05_17_01__add_ai_status_to_user_recommendations.sql` 만이 아니라 `V2026_05_17_01__add_user_account_origin.sql` 도 함께 봐야 한다.
+- 따라서 기존 volume에서는 `V2026_05_17_01__add_ai_status_to_user_recommendations.sql` 만이 아니라 `V2026_05_17_02__add_user_account_origin.sql` 도 함께 봐야 한다.
 
 수동 적용 후에는 다시:
 

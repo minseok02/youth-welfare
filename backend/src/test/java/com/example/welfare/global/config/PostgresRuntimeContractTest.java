@@ -7,6 +7,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -62,6 +64,29 @@ class PostgresRuntimeContractTest {
                     .as(migrationFile.toString())
                     .doesNotContain(forbiddenMysqlSqlTokens());
         }
+    }
+
+    @Test
+    @DisplayName("활성 DB resource migration version은 중복되지 않는다")
+    void activeDbResourceMigrationVersionsAreUnique() throws IOException {
+        List<Path> migrationFiles;
+        try (Stream<Path> paths = Files.list(Path.of("src/main/resources/db/migration"))) {
+            migrationFiles = paths
+                    .filter(Files::isRegularFile)
+                    .filter(path -> path.getFileName().toString().matches("^V.+__.+\\.sql$"))
+                    .toList();
+        }
+
+        Map<String, List<String>> filesByVersion = migrationFiles.stream()
+                .collect(Collectors.groupingBy(
+                        path -> path.getFileName().toString().replaceFirst("^V(.+)__.+\\.sql$", "$1"),
+                        Collectors.mapping(path -> path.getFileName().toString(), Collectors.toList())
+                ));
+
+        assertThat(filesByVersion)
+                .allSatisfy((version, files) -> assertThat(files)
+                        .as("migration version %s", version)
+                        .hasSize(1));
     }
 
     private String[] forbiddenMysqlSqlTokens() {

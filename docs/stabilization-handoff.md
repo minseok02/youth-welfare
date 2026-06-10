@@ -9,7 +9,7 @@
 
 ## 현재 기준선
 
-2026-06-09 server/RDS 기준:
+2026-06-10 server/RDS 기준:
 
 - app health: `UP`
 - ops observation: `BASELINE_HEALTHY`
@@ -17,11 +17,15 @@
 - wrapper promoted alert: `info`
 - notification failed count: `0`
 - notification stale 14d target: `0`
+- notification unread: `24` (`RECOMMENDATION_DIGEST`), stale 7d `10`
 - policy duplicate/link open queue: `0`
 - policy triage: `REVIEW_QUEUE_CLOSED_RAW_BACKLOG_REMAINS`
 - recommendation precheck: `KEEP_OBSERVING`
 - recommendation gate: `DEFERRED_REAL_USER_SAMPLE_THIN`
 - recommendation leader signal: `EXAMPLE_SMOKE_ONLY_LEADER`
+- DB runtime privilege verification: passed
+- DB migration resource versions: unique
+- frontend deployed-origin observation: lint/build/browser smoke green
 
 ## 먼저 볼 문서
 
