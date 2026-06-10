@@ -133,12 +133,14 @@ bash deploy/smoke/run-local-recommendation-observation-suite.sh
 
 ## 현재 server/RDS 기준
 
-2026-06-09 최신 reopen precheck 기준:
+2026-06-10 최신 reopen precheck 기준:
 
 - `reopen_precheck_status=KEEP_OBSERVING`
 - `real_user_dashboard_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
 - `real_user_breakdown_cohort_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
 - `real_user_review_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
+- `dashboard_real_user_users_in_window=1`
+- `breakdown_real_user_users_in_window=1`
 - `real_user_top1_leader_signal_summary=EXAMPLE_SMOKE_ONLY_LEADER`
 - `review_gate_policy_promotion_execution_status=DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW`
 

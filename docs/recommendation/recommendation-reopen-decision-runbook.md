@@ -26,8 +26,9 @@
 현재 기본 해석은 아래와 같습니다.
 
 - `REAL_USER` readiness gate가 deferred면 이 문서를 바로 쓰지 않습니다.
-- `2026-06-09` server/RDS current truth는 `KEEP_OBSERVING` 입니다.
+- `2026-06-10` server/RDS current truth는 `KEEP_OBSERVING` 입니다.
 - 최신 precheck 기준 `real_user_dashboard_gate=DEFERRED_REAL_USER_SAMPLE_THIN`, `real_user_breakdown_cohort_gate=DEFERRED_REAL_USER_SAMPLE_THIN`, `real_user_top1_leader_signal_summary=EXAMPLE_SMOKE_ONLY_LEADER` 입니다.
+- 최신 precheck 기준 real-user 표본은 dashboard/breakdown 모두 `1` 명이라 reopen 근거로 읽지 않습니다.
 - policy promotion도 `KEEP_PRIMARY_BASELINE`, `NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW`, `DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW` 로 읽습니다.
 - reopen 판단은 gate 확인 뒤에만 들어옵니다.
 
@@ -62,7 +63,7 @@ bash deploy/smoke/run-local-recommendation-reopen-precheck.sh
 
 ## 현재 server/RDS 기준
 
-2026-06-09 최신 precheck 기준:
+2026-06-10 최신 precheck 기준:
 
 - `reopen_precheck_status=KEEP_OBSERVING`
 - `reopen_precheck_reason=INVESTIGATE_SAME_PROFILE_EXAMPLE_VS_REAL_USER_DIFFERENTIAL`
