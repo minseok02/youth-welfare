@@ -133,12 +133,12 @@ bash deploy/smoke/run-local-notification-stale-target-audit.sh
 2026-06-10 server/RDS 기준 current reading:
 
 - failed notification은 없음
-- `unread_total=24`, 모두 `RECOMMENDATION_DIGEST`
-- `stale_unread_7d=10`
+- `unread_total=14`, 모두 `RECOMMENDATION_DIGEST`
+- `stale_unread_7d=0`
 - `stale_unread_14d=0`
 - stale target audit은 `NO_STALE_TARGETS`
 
-따라서 현재 알림 backlog는 장애나 hide 작업이 아니라 `7일 초과 recommendation digest tail` 관찰 단계입니다.
+따라서 현재 알림 backlog는 장애나 stale hide 작업이 아니라 최근 recommendation digest unread 총량 관찰 단계입니다.
 
 ## 정책 backlog 기준
 

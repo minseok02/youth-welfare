@@ -128,13 +128,13 @@ bash deploy/smoke/run-local-notification-stale-target-audit.sh
 
 현재 server/RDS 기준 남은 unread backlog는 broad stale cluster가 아니라:
 
-- `unread_total=24`
-- `unread_digest=24`
+- `unread_total=14`
+- `unread_digest=14`
 - `unread_deadline=0`
-- `stale_unread_7d=10`
+- `stale_unread_7d=0`
 - `stale_unread_14d=0`
 
-수준의 `7일 초과 recommendation digest tail` 로 읽는 편이 맞다.
+수준의 최근 recommendation digest unread tail 로 읽는 편이 맞다.
 
 2026-06-10 최신 server/RDS target audit 기준:
 

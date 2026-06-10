@@ -88,9 +88,9 @@
   - `2주 이상 unread` 가 특정 정책/링크 target에 몰리는지 확인합니다.
   - 운영 기준은 [core/notification-stale-target-audit-runbook.md](./core/notification-stale-target-audit-runbook.md) 를 봅니다.
   - 첫 local triage target이었던 `/policies/2622` stale deadline reminder cluster (`5 users / 5 rows`) 는 `hide-stale` 경로로 정리됐습니다.
-  - 현재 latest 기준은 `stale_14d_total=0`, `decision_class=NO_STALE_TARGETS` 이고, 남은 unread backlog는 `unread_total=24`, `stale_unread_7d=10` 수준의 recommendation digest tail 입니다.
-  - server/RDS 최신 sample 기준 unread는 `digest=24`, `deadline=0`, `system=0`, failed notification은 `0` 입니다.
-  - 즉 현재 알림 운영 우선순위는 `14일 초과 stale cluster hide` 보다 `7일 초과 recommendation digest tail의 cadence/가치` 를 관찰하는 단계입니다.
+  - 현재 latest 기준은 `stale_14d_total=0`, `decision_class=NO_STALE_TARGETS` 이고, 남은 unread backlog는 `unread_total=14`, `stale_unread_7d=0` 수준의 최근 recommendation digest tail 입니다.
+  - server/RDS 최신 sample 기준 unread는 `digest=14`, `deadline=0`, `system=0`, failed notification은 `0` 입니다.
+  - 즉 현재 알림 운영 우선순위는 stale 정리가 아니라 최근 recommendation digest unread 총량 관찰입니다.
 
 ## 작업 전 기본 검증 기준
 

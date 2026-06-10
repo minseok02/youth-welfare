@@ -96,19 +96,19 @@ bash deploy/smoke/run-local-notification-backlog-audit.sh
 
 2026-06-10 최신 server/RDS audit 기준:
 
-- `decision_class=STALE_UNREAD_ALERT_REVIEW_PRIORITY`
-- `unread_total=24`
-- `unread_digest=24`
+- `decision_class=UNREAD_ALERT_BACKLOG`
+- `unread_total=14`
+- `unread_digest=14`
 - `unread_deadline=0`
 - `unread_system=0`
-- `stale_unread_7d=10`
+- `stale_unread_7d=0`
 - `stale_unread_14d=0`
 - `retryable_failed_total=0`
 - `retryable_failed_due_now=0`
 - `terminal_failed_total=0`
 
-즉 현재 알림 backlog는 전송 실패나 14일 이상 stale target cluster가 아니라 `7일 초과 recommendation digest unread tail` 로 읽는다.
-이 상태에서는 `hide-stale` 을 바로 태우지 않고, sample/target audit로 digest cadence와 landing 기대 행동을 관찰한다.
+즉 현재 알림 backlog는 전송 실패나 stale target cluster가 아니라 최근 recommendation digest unread 총량으로 읽는다.
+2026-06-10에는 EXAMPLE_SMOKE 계정에 남은 7일 초과 digest tail(`/policies/3651`, `/policies/3728`, 각 5건)을 `hide-stale olderThanDays=7` 로 bounded 정리했고, 재확인 결과 `stale_unread_7d=0` 이다.
 
 ## stale unread 7일/14일 해석
 

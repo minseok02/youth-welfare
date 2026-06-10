@@ -17,7 +17,7 @@
 - wrapper promoted alert: `info`
 - notification failed count: `0`
 - notification stale 14d target: `0`
-- notification unread: `24` (`RECOMMENDATION_DIGEST`), stale 7d `10`
+- notification unread: `14` (`RECOMMENDATION_DIGEST`), stale 7d `0`
 - policy duplicate/link open queue: `0`
 - policy triage: `REVIEW_QUEUE_CLOSED_RAW_BACKLOG_REMAINS`
 - recommendation precheck: `KEEP_OBSERVING`
