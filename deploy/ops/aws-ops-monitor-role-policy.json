@@ -1,0 +1,58 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ManageYouthWelfareCloudWatchAlarms",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:DescribeAlarmHistory",
+        "cloudwatch:DescribeAlarms",
+        "cloudwatch:DisableAlarmActions",
+        "cloudwatch:EnableAlarmActions",
+        "cloudwatch:PutMetricAlarm",
+        "cloudwatch:SetAlarmState"
+      ],
+      "Resource": [
+        "arn:aws:cloudwatch:ap-northeast-2:857721769929:alarm:youth-welfare-*",
+        "arn:aws:cloudwatch:us-east-1:857721769929:alarm:youth-welfare-*"
+      ]
+    },
+    {
+      "Sid": "ManageYouthWelfareSnsAlertTopics",
+      "Effect": "Allow",
+      "Action": [
+        "sns:CreateTopic",
+        "sns:GetTopicAttributes",
+        "sns:ListSubscriptionsByTopic",
+        "sns:ListTopics",
+        "sns:Publish",
+        "sns:SetTopicAttributes",
+        "sns:Subscribe",
+        "sns:Unsubscribe"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ManageRoute53HealthChecks",
+      "Effect": "Allow",
+      "Action": [
+        "route53:ChangeTagsForResource",
+        "route53:CreateHealthCheck",
+        "route53:DeleteHealthCheck",
+        "route53:GetHealthCheck",
+        "route53:GetHealthCheckStatus",
+        "route53:ListHealthChecks",
+        "route53:UpdateHealthCheck"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ReadEc2InstanceIdentity",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeInstances"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
