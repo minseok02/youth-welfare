@@ -133,6 +133,21 @@ tail -n 20 /var/log/youth-welfare/ops/app-watchdog.log
 - 로그에 `health=UP`
 - Healthchecks.io dashboard의 last ping이 갱신됨
 
+## 로그 관리
+
+watchdog과 docker prune 로그는 `/var/log/youth-welfare/ops/*.log` 에 쌓입니다. 운영 서버에는 아래로 logrotate 설정을 설치합니다.
+
+```bash
+bash deploy/ops/install-ops-logrotate.sh
+```
+
+기본 정책:
+
+- daily 회전
+- 14개 보관
+- 압축
+- 빈 로그는 회전하지 않음
+
 장애 알림 경로 테스트는 운영 트래픽 시간대를 피해서 수행합니다. 실제 컨테이너를 멈추는 테스트 대신 아래처럼 잘못된 URL과 임시 상태/로그 디렉터리를 주면 재시작 없이 실패 카운트 경로만 확인할 수 있습니다.
 
 ```bash
