@@ -451,8 +451,8 @@ export const adminDashboardFixtures = {
     recentInquiries: [
       {
         inquiryId: 501,
-        categoryCode: "RECOMMENDATION_CHATBOT",
-        categoryLabel: "추천/챗봇",
+        categoryCode: "USAGE_QUESTION",
+        categoryLabel: "사용법 질문",
         contactEmail: "user@example.com",
         message: "챗봇이 이전 질문 맥락을 잘 못 이어갑니다.",
         routePath: "/chat",
@@ -461,8 +461,8 @@ export const adminDashboardFixtures = {
       },
       {
         inquiryId: 502,
-        categoryCode: "SEARCH_FILTER",
-        categoryLabel: "정책 검색/필터",
+        categoryCode: "BUG_ERROR",
+        categoryLabel: "오류/버그",
         contactEmail: "another@example.com",
         message: "필터가 바로 적용되는지 헷갈립니다.",
         routePath: "/policies",

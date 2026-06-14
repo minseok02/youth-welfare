@@ -4,6 +4,7 @@ import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
+import com.example.welfare.user.service.UserProfileStandardCodeValidator;
 
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -74,10 +75,10 @@ public final class RecommendationMatchingSupport {
                 if (val.contains("기초생활") && user.incomeLevel() <= 1) return true;
             }
 
-            if (user.basicLivingRecipientTypeCode() != null && val.contains("기초생활")) {
+            if (hasApplicableProfileCode(user.basicLivingRecipientTypeCode()) && val.contains("기초생활")) {
                 return true;
             }
-            if (user.disabilityGradeCode() != null && val.contains("장애")) {
+            if (hasApplicableProfileCode(user.disabilityGradeCode()) && val.contains("장애")) {
                 return true;
             }
 
@@ -100,7 +101,7 @@ public final class RecommendationMatchingSupport {
         }
 
         if (projection.beneficiaryTerms().contains("기초생활수급자")
-                && (user.basicLivingRecipientTypeCode() != null || user.incomeLevel() <= 1)) {
+                && (hasApplicableProfileCode(user.basicLivingRecipientTypeCode()) || user.incomeLevel() <= 1)) {
             return true;
         }
         return projection.beneficiaryTerms().contains("차상위계층") && user.incomeLevel() <= 3;
@@ -207,7 +208,7 @@ public final class RecommendationMatchingSupport {
                 return true;
             }
         }
-        if (user.disabilityGradeCode() != null) {
+        if (hasApplicableProfileCode(user.disabilityGradeCode())) {
             if (projection != null
                     && projection.specialTargetBuckets().contains(RecommendationProjectionHeuristicSupport.SPECIAL_TARGET_DISABILITY)) {
                 return true;
@@ -219,6 +220,16 @@ public final class RecommendationMatchingSupport {
             }
         }
         return false;
+    }
+
+    /**
+     * 표준코드 보유 여부. null/빈 값은 미응답, "해당하지 않음"(NOT_APPLICABLE) sentinel은 명시적 미보유이므로
+     * 둘 다 매칭에서 미보유로 본다. 실제 코드값이 있을 때만 보유로 판정한다.
+     */
+    private static boolean hasApplicableProfileCode(String code) {
+        return code != null
+                && !code.isBlank()
+                && !UserProfileStandardCodeValidator.NOT_APPLICABLE_CODE.equals(code);
     }
 
     private static boolean containsAnySignal(String normalizedHousehold, Set<String> signals) {

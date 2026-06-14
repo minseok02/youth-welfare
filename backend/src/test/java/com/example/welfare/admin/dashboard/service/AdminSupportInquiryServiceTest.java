@@ -3,6 +3,7 @@ package com.example.welfare.admin.dashboard.service;
 import com.example.welfare.admin.dashboard.dto.AdminReviewActionResponse;
 import com.example.welfare.admin.dashboard.dto.AdminQueueStatusFilter;
 import com.example.welfare.admin.dashboard.dto.AdminSupportInquiryResponse;
+import com.example.welfare.notification.gateway.EmailClient;
 import com.example.welfare.support.entity.SupportInquiry;
 import com.example.welfare.support.repository.SupportInquiryRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -27,6 +28,9 @@ class AdminSupportInquiryServiceTest {
     @Mock
     private SupportInquiryRepository supportInquiryRepository;
 
+    @Mock
+    private EmailClient emailClient;
+
     @InjectMocks
     private AdminSupportInquiryService adminSupportInquiryService;
 
@@ -36,7 +40,7 @@ class AdminSupportInquiryServiceTest {
         SupportInquiry inquiry = SupportInquiry.builder()
                 .id(21L)
                 .contactEmail("user@example.com")
-                .category(SupportInquiry.Category.SEARCH_FILTER)
+                .category(SupportInquiry.Category.BUG_ERROR)
                 .message("필터가 왜 바로 적용되는지 헷갈립니다.")
                 .routePath("/policies")
                 .userKey("user-key-21")
@@ -53,7 +57,7 @@ class AdminSupportInquiryServiceTest {
         assertEquals(6L, response.openCount());
         assertEquals(3L, response.recentOpenCount24h());
         assertEquals(1, response.recentInquiries().size());
-        assertEquals("SEARCH_FILTER", response.recentInquiries().get(0).categoryCode());
+        assertEquals("BUG_ERROR", response.recentInquiries().get(0).categoryCode());
     }
 
     @Test
@@ -62,7 +66,7 @@ class AdminSupportInquiryServiceTest {
         SupportInquiry inquiry = SupportInquiry.builder()
                 .id(23L)
                 .contactEmail("reviewed@example.com")
-                .category(SupportInquiry.Category.RECOMMENDATION_CHATBOT)
+                .category(SupportInquiry.Category.USAGE_QUESTION)
                 .message("처리 완료된 문의")
                 .routePath("/chat")
                 .userKey("user-key-23")
@@ -87,7 +91,7 @@ class AdminSupportInquiryServiceTest {
         SupportInquiry inquiry = SupportInquiry.builder()
                 .id(22L)
                 .contactEmail("help@example.com")
-                .category(SupportInquiry.Category.RECOMMENDATION_CHATBOT)
+                .category(SupportInquiry.Category.USAGE_QUESTION)
                 .message("챗봇이 이전 질문을 잘 못 이어갑니다.")
                 .routePath("/chatbot")
                 .userKey("user-key-22")

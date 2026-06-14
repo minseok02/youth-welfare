@@ -54,8 +54,8 @@ class SupportControllerWebMvcTest {
         given(supportInquiryCommandService.submit(isNull(), isNull(), any()))
                 .willReturn(new SupportInquiryResponse(
                         1L,
-                        "GENERAL_FEEDBACK",
-                        "기타 의견/제안",
+                        "ETC",
+                        "기타",
                         "user@example.com",
                         "OPEN",
                         LocalDateTime.of(2026, 6, 4, 12, 0)
@@ -65,7 +65,7 @@ class SupportControllerWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "category": "GENERAL_FEEDBACK",
+                                  "category": "ETC",
                                   "contactEmail": "user@example.com",
                                   "message": "서비스가 좋아요",
                                   "routePath": "/guide"
@@ -73,7 +73,7 @@ class SupportControllerWebMvcTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.categoryCode").value("GENERAL_FEEDBACK"))
+                .andExpect(jsonPath("$.data.categoryCode").value("ETC"))
                 .andExpect(jsonPath("$.data.contactEmail").value("user@example.com"));
 
         then(supportInquiryRateLimitService).should().checkInquiryLimit("fp:fp-support");
@@ -92,7 +92,7 @@ class SupportControllerWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "category": "GENERAL_FEEDBACK",
+                                  "category": "ETC",
                                   "contactEmail": "user@example.com",
                                   "message": "서비스가 좋아요",
                                   "routePath": "/guide"
@@ -114,7 +114,7 @@ class SupportControllerWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "category": "GENERAL_FEEDBACK",
+                                  "category": "ETC",
                                   "contactEmail": "user@example.com",
                                   "message": "서비스가 좋아요",
                                   "routePath": "https://evil.example/guide"

@@ -413,7 +413,7 @@ class AdminDashboardAttentionServiceTest {
                 1,
                 1,
                 List.of(new AdminSupportInquiryResponse.Item(
-                        21L, "SEARCH_FILTER", "정책 검색/필터", "user@example.com",
+                        21L, "BUG_ERROR", "오류/버그", "user@example.com",
                         "필터가 왜 바로 적용되는지 헷갈립니다.", "/policies", "user-key-21",
                         LocalDateTime.of(2026, 6, 4, 9, 50),
                         "OPEN", null, null, null

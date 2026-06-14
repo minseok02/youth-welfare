@@ -5,9 +5,11 @@ import com.example.welfare.admin.dashboard.dto.AdminSupportInquiryResponse;
 import com.example.welfare.admin.dashboard.dto.AdminReviewActionResponse;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.notification.gateway.EmailClient;
 import com.example.welfare.support.entity.SupportInquiry;
 import com.example.welfare.support.repository.SupportInquiryRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,11 +17,15 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AdminSupportInquiryService {
 
+    private static final String REPLY_EMAIL_SUBJECT = "[청년복지] 문의하신 내용에 답변드립니다";
+
     private final SupportInquiryRepository supportInquiryRepository;
+    private final EmailClient emailClient;
 
     @Transactional(readOnly = true)
     public AdminSupportInquiryResponse getRecentInquiries(Integer requestedLimit) {
@@ -74,6 +80,12 @@ public class AdminSupportInquiryService {
         SupportInquiry inquiry = supportInquiryRepository.findById(inquiryId)
                 .orElseThrow(() -> new CustomException(ErrorCode.INVALID_INPUT));
         inquiry.markReviewed(normalizeReviewNote(reviewNote), normalizeAdminUserKey(adminUserKey), LocalDateTime.now());
+
+        String answer = inquiry.getReviewNote();
+        if (answer != null && !answer.isBlank()) {
+            sendReplyEmail(inquiry, answer);
+        }
+
         return new AdminReviewActionResponse(
                 inquiry.getId(),
                 inquiry.getStatus().name(),
@@ -81,6 +93,31 @@ public class AdminSupportInquiryService {
                 inquiry.getReviewedByUserKey(),
                 inquiry.getReviewedAt()
         );
+    }
+
+    /**
+     * 답변(reviewNote)이 등록되면 문의자가 입력한 contactEmail로 답변을 발송한다.
+     * 발송 실패는 로깅만 하고 검토 처리 자체는 성공으로 둔다. (EmailClient가 예외를 삼키고 boolean을 반환)
+     */
+    private void sendReplyEmail(SupportInquiry inquiry, String answer) {
+        String body = """
+                안녕하세요, 청년복지플랫폼입니다.
+                보내주신 문의에 답변드립니다.
+
+                [문의 유형] %s
+
+                [문의 내용]
+                %s
+
+                [답변]
+                %s
+
+                추가로 궁금한 점이 있으면 서비스 내 '서비스 문의'로 다시 보내주세요.
+                """.formatted(inquiry.getCategory().getLabel(), inquiry.getMessage(), answer);
+        boolean sent = emailClient.send(inquiry.getContactEmail(), REPLY_EMAIL_SUBJECT, body);
+        if (!sent) {
+            log.warn("[AdminSupportInquiry] 답변 이메일 발송 실패 inquiryId={}", inquiry.getId());
+        }
     }
 
     private String normalizeAdminUserKey(String adminUserKey) {

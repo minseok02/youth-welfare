@@ -1324,9 +1324,9 @@ test("admin dashboard 서비스 문의 섹션은 열린 문의 recent queue를 �
   await expect(supportInquiriesSection.getByText("처리완료", { exact: true }).first()).toBeVisible();
   await expect(supportInquiriesSection.getByText("전체", { exact: true }).first()).toBeVisible();
   await expect(supportInquiriesSection.getByText("1", { exact: true }).first()).toBeVisible();
-  await expect(supportInquiriesSection.getByText("추천/챗봇", { exact: true }).first()).toBeVisible();
+  await expect(supportInquiriesSection.getByText("사용법 질문", { exact: true }).first()).toBeVisible();
   await expect(supportInquiriesSection.getByText("챗봇이 이전 질문 맥락을 잘 못 이어갑니다.", { exact: true })).toBeVisible();
-  await expect(supportInquiriesSection.getByText("정책 검색/필터", { exact: true }).first()).toBeVisible();
+  await expect(supportInquiriesSection.getByText("오류/버그", { exact: true }).first()).toBeVisible();
   await expect(supportInquiriesSection.getByText("필터가 바로 적용되는지 헷갈립니다.", { exact: true })).toBeVisible();
 });
 
