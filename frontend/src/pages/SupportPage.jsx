@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Alert, Snackbar, useMediaQuery } from "@mui/material";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import { useLocation, useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import FloatingNav from "../components/FloatingNav";
@@ -21,12 +22,37 @@ const OK_BG = "#ecfdf5";
 const OK = "#047857";
 
 const SUPPORT_CATEGORIES = [
-  { value: "ACCOUNT_LOGIN", label: "로그인/계정" },
-  { value: "RECOMMENDATION_CHATBOT", label: "추천/챗봇" },
-  { value: "ALERTS_BOOKMARKS", label: "알림/북마크" },
-  { value: "SEARCH_FILTER", label: "정책 검색/필터" },
-  { value: "GENERAL_FEEDBACK", label: "기타 의견/제안" },
+  { value: "BUG_ERROR", label: "오류/버그" },
+  { value: "USAGE_QUESTION", label: "사용법 질문" },
+  { value: "IMPROVEMENT_SUGGESTION", label: "개선 제안" },
+  { value: "ACCOUNT_ISSUE", label: "계정 문제" },
+  { value: "ETC", label: "기타" },
 ];
+
+const ROUTE_OPTIONS = [
+  { value: "", label: "선택 안 함" },
+  { value: "/", label: "맞춤정책 (홈)" },
+  { value: "/policies", label: "정책검색" },
+  { value: "/policies/:id", label: "정책 상세" },
+  { value: "/chat", label: "AI 챗봇" },
+  { value: "/mypage", label: "마이페이지" },
+  { value: "/alerts", label: "알림" },
+  { value: "/guide", label: "이용가이드" },
+  { value: "/login", label: "로그인" },
+  { value: "/signup", label: "회원가입" },
+  { value: "/support", label: "문의하기 (현재 화면)" },
+];
+
+function matchRouteOption(pathname) {
+  if (!pathname) {
+    return "";
+  }
+  if (/^\/policies\/[^/]+$/.test(pathname)) {
+    return "/policies/:id";
+  }
+  const exact = ROUTE_OPTIONS.find((item) => item.value === pathname);
+  return exact ? exact.value : "";
+}
 
 function SectionCard({ title, body, tone = "default" }) {
   const styles = tone === "warn"
@@ -55,11 +81,13 @@ export default function SupportPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { isLoggedIn, user } = useAuthStore();
-  const [category, setCategory] = useState("GENERAL_FEEDBACK");
+  const [category, setCategory] = useState("BUG_ERROR");
   const [contactEmail, setContactEmail] = useState(user?.email ?? "");
-  const [routePath, setRoutePath] = useState(location.state?.from?.pathname ?? "");
+  const [routePath, setRoutePath] = useState(matchRouteOption(location.state?.from?.pathname));
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [submittedEmail, setSubmittedEmail] = useState("");
   const [toast, setToast] = useState({ open: false, severity: "success", message: "" });
 
   const authState = useMemo(() => ({ from: location }), [location]);
@@ -82,8 +110,9 @@ export default function SupportPage() {
         message: message.trim(),
         routePath: routePath.trim() || null,
       });
+      setSubmittedEmail(contactEmail.trim());
       setMessage("");
-      showToast("success", "문의가 접수되었습니다. 확인 후 답변드리겠습니다.");
+      setSubmitted(true);
     } catch (error) {
       showToast("error", error?.response?.data?.message || "문의 접수에 실패했습니다.");
     } finally {
@@ -128,6 +157,39 @@ export default function SupportPage() {
           />
         </section>
 
+        {submitted && (
+          <section style={{ marginTop: 34, background: WHITE, border: `1px solid ${LINE}`, borderRadius: 24, padding: isMobile ? "32px 20px" : "44px 36px", textAlign: "center" }}>
+            <CheckCircleOutlineIcon sx={{ fontSize: 56, color: "#16a34a" }} />
+            <div style={{ marginTop: 12, fontSize: 22, fontWeight: 800, color: INK, letterSpacing: "-0.02em" }}>문의가 접수되었어요</div>
+            <div style={{ marginTop: 10, fontSize: 14, color: INK2, lineHeight: 1.7, maxWidth: 480, margin: "10px auto 0" }}>
+              {isLoggedIn
+                ? <>답변은 입력하신 이메일(<b style={{ color: INK }}>{submittedEmail}</b>)과 마이페이지 <b style={{ color: INK }}>문의 내역</b>에서 확인할 수 있어요.</>
+                : <>답변은 입력하신 이메일(<b style={{ color: INK }}>{submittedEmail}</b>)로 보내드려요.</>}
+            </div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginTop: 24 }}>
+              {isLoggedIn && (
+                <button onClick={() => navigate("/mypage?tab=6")} style={{ padding: "12px 18px", borderRadius: 12, border: 0, background: A, color: WHITE, fontSize: 14, fontWeight: 800, cursor: "pointer" }}>
+                  문의 내역 보기
+                </button>
+              )}
+              <button onClick={() => { setSubmitted(false); setMessage(""); }} style={{ padding: "12px 18px", borderRadius: 12, border: `1px solid ${LINE}`, background: WHITE, color: INK, fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+                다시 문의하기
+              </button>
+              <button
+                onClick={() => {
+                  const from = location.state?.from;
+                  if (from?.pathname) navigate(`${from.pathname}${from.search ?? ""}`, { state: from.state });
+                  else navigate("/");
+                }}
+                style={{ padding: "12px 18px", borderRadius: 12, border: `1px solid ${LINE}`, background: WHITE, color: INK2, fontSize: 14, fontWeight: 700, cursor: "pointer" }}
+              >
+                돌아가기
+              </button>
+            </div>
+          </section>
+        )}
+
+        {!submitted && (
         <section style={{ marginTop: 34, background: WHITE, border: `1px solid ${LINE}`, borderRadius: 24, padding: isMobile ? "22px 16px" : "28px 28px 24px" }}>
           <div style={{ fontSize: 24, fontWeight: 800, color: INK, letterSpacing: "-0.03em" }}>문의 남기기</div>
           <div style={{ marginTop: 8, fontSize: 14, lineHeight: 1.7, color: INK2 }}>
@@ -157,16 +219,24 @@ export default function SupportPage() {
                 placeholder="example@email.com"
                 style={{ height: 46, borderRadius: 12, border: `1px solid ${LINE}`, padding: "0 14px", fontSize: 14, color: INK, background: WHITE }}
               />
+              <span style={{ fontSize: 12, color: INK3, lineHeight: 1.55 }}>
+                {isLoggedIn
+                  ? "계정 이메일로 자동 입력했어요. 다른 곳으로 받고 싶으면 바꿔도 돼요. 답변은 이메일과 마이페이지 '문의 내역'에서 확인할 수 있어요."
+                  : "답변은 입력하신 이메일로만 보내드려요. 로그인 후 문의하면 마이페이지 '문의 내역'에서도 답변을 확인할 수 있어요."}
+              </span>
             </label>
 
             <label style={{ display: "grid", gap: 8 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: INK2 }}>어느 화면에서 불편했나요? (선택)</span>
-              <input
+              <select
                 value={routePath}
                 onChange={(event) => setRoutePath(event.target.value)}
-                placeholder="/chat, /policies, /mypage"
                 style={{ height: 46, borderRadius: 12, border: `1px solid ${LINE}`, padding: "0 14px", fontSize: 14, color: INK, background: WHITE }}
-              />
+              >
+                {ROUTE_OPTIONS.map((item) => (
+                  <option key={item.value} value={item.value}>{item.label}</option>
+                ))}
+              </select>
             </label>
 
             <label style={{ display: "grid", gap: 8 }}>
@@ -232,6 +302,7 @@ export default function SupportPage() {
             </div>
           </div>
         </section>
+        )}
       </main>
 
       <FloatingNav />

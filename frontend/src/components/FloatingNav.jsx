@@ -133,11 +133,13 @@ export default function FloatingNav() {
       }}
     >
       <Paper
-        elevation={3}
+        elevation={0}
         sx={{
-          borderRadius: 4,
+          borderRadius: "12px",
           overflow: "hidden",
-          boxShadow: "0 4px 20px rgba(2,128,144,0.15)",
+          bgcolor: "white",
+          border: "1px solid rgba(2,128,144,0.10)",
+          boxShadow: "0 12px 32px rgba(2,128,144,0.22)",
         }}
       >
         {visibleItems.map((item, idx) => {
@@ -148,13 +150,14 @@ export default function FloatingNav() {
               <Box
                 onClick={() => handleNavigate(item)}
                 sx={{
+                  position: "relative",
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
                   justifyContent: "center",
                   gap: 0.5,
-                  px: 1.5,
-                  py: 1.4,
+                  px: 1.75,
+                  py: 1.5,
                   cursor: "pointer",
                   bgcolor: active ? "primary.main" : "white",
                   color: active ? "white" : "text.secondary",
@@ -164,7 +167,7 @@ export default function FloatingNav() {
                     bgcolor: active ? "primary.dark" : "rgba(2,128,144,0.07)",
                     color: active ? "white" : "primary.main",
                   },
-                  minWidth: 64,
+                  minWidth: 68,
                 }}
               >
                 <Badge

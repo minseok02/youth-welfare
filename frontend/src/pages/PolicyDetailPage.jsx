@@ -5,6 +5,20 @@ import Header from "../components/Header";
 import FloatingNav from "../components/FloatingNav";
 import api from "../lib/axios";
 import { useAuthStore } from "../store/authStore";
+import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
+import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
+import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
+import ComputerOutlinedIcon from "@mui/icons-material/ComputerOutlined";
+import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
+import BusinessOutlinedIcon from "@mui/icons-material/BusinessOutlined";
+import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
+import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import CallOutlinedIcon from "@mui/icons-material/CallOutlined";
+import OutlinedFlagIcon from "@mui/icons-material/OutlinedFlag";
+import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
+import LightbulbOutlinedIcon from "@mui/icons-material/LightbulbOutlined";
+import SentimentDissatisfiedOutlinedIcon from "@mui/icons-material/SentimentDissatisfiedOutlined";
 
 const A = "#2563eb";
 const A7 = "#1d4ed8";
@@ -617,14 +631,14 @@ export default function PolicyDetailPage() {
     const regionSummary = regionText || "전국/원문 확인";
 
     return [
-      { ico: "👤", label: "신청대상", value: audienceSummary },
-      { ico: "🧭", label: "지원분야", value: categorySummary },
-      { ico: "💰", label: "지원형태", value: supportSummary },
-      { ico: "💻", label: "신청경로", value: applyPathSummary },
-      { ico: "📍", label: "지원지역", value: regionSummary },
-      { ico: "🏢", label: "소관기관", value: orgSummary },
-      { ico: "📅", label: "신청기간", value: period },
-      { ico: "🎯", label: "키워드", value: visibleTags.slice(0, 4).join(" · ") || NO_DATA },
+      { Icon: PersonOutlineIcon, label: "신청대상", value: audienceSummary },
+      { Icon: CategoryOutlinedIcon, label: "지원분야", value: categorySummary },
+      { Icon: PaymentsOutlinedIcon, label: "지원형태", value: supportSummary },
+      { Icon: ComputerOutlinedIcon, label: "신청경로", value: applyPathSummary },
+      { Icon: PlaceOutlinedIcon, label: "지원지역", value: regionSummary },
+      { Icon: BusinessOutlinedIcon, label: "소관기관", value: orgSummary },
+      { Icon: CalendarMonthOutlinedIcon, label: "신청기간", value: period },
+      { Icon: LocalOfferOutlinedIcon, label: "키워드", value: visibleTags.slice(0, 4).join(" · ") || NO_DATA },
     ];
   }, [gov24BenefitTypeDisplayText, gov24UserTypeDisplayText, policy, regionText, visibleTags]);
 
@@ -928,7 +942,7 @@ export default function PolicyDetailPage() {
 
         {loading ? <Spinner /> : !policy ? (
           <div style={{ textAlign: "center", padding: "80px 0", color: INK3 }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>😢</div>
+            <div style={{ marginBottom: 16 }}><SentimentDissatisfiedOutlinedIcon sx={{ fontSize: 48, color: INK3 }} /></div>
             <div style={{ fontSize: 20, fontWeight: 700, color: INK, marginBottom: 8 }}>정책 정보를 찾지 못했습니다</div>
             <div style={{ fontSize: 14 }}>목록으로 돌아가 다른 정책을 선택해주세요.</div>
             <button onClick={() => navigate(`${listBackTarget.pathname}${listBackTarget.search ?? ""}`)} style={{ marginTop: 24, padding: "10px 24px", borderRadius: 8, background: A, color: WHITE, border: 0, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
@@ -958,9 +972,9 @@ export default function PolicyDetailPage() {
                   {policy.title}
                 </h1>
                 <div style={{ display: "flex", gap: 18, fontSize: 13, color: INK3, flexWrap: "wrap" }}>
-                  {(policy.hostOrg || policy.operatingOrg) && <span>🏢 {policy.hostOrg || policy.operatingOrg}</span>}
-                  {regionText && <span>📍 {regionText}</span>}
-                  {policy.viewCount != null && <span>👀 {policy.viewCount.toLocaleString()}명이 봤어요</span>}
+                  {(policy.hostOrg || policy.operatingOrg) && <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><BusinessOutlinedIcon sx={{ fontSize: 15 }} /> {policy.hostOrg || policy.operatingOrg}</span>}
+                  {regionText && <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><PlaceOutlinedIcon sx={{ fontSize: 15 }} /> {regionText}</span>}
+                  {policy.viewCount != null && <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><VisibilityOutlinedIcon sx={{ fontSize: 15 }} /> {policy.viewCount.toLocaleString()}명이 봤어요</span>}
                 </div>
                 {gov24MetaTags.length > 0 && (
                   <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
@@ -1018,8 +1032,8 @@ export default function PolicyDetailPage() {
                 <div style={{ background: AS, borderRadius: 16, padding: 24, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "20px 24px" }}>
                   {summaryRows.map((r) => (
                     <div key={r.label} style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
-                      <div style={{ width: 40, height: 40, borderRadius: 10, background: WHITE, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0, boxShadow: "0 1px 4px rgba(37,99,235,0.1)" }}>
-                        {r.ico}
+                      <div style={{ width: 40, height: 40, borderRadius: 10, background: WHITE, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 1px 4px rgba(37,99,235,0.1)" }}>
+                        <r.Icon sx={{ fontSize: 22, color: A }} />
                       </div>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontSize: 11, fontWeight: 600, color: INK3 }}>{r.label}</div>
@@ -1147,7 +1161,7 @@ export default function PolicyDetailPage() {
                     {contacts.map((c, i) => (
                       <div key={i} style={{ background: WHITE, border: `1px solid ${LINE}`, borderRadius: 10, padding: "12px 14px" }}>
                         {c.name && <div style={{ fontSize: 13, fontWeight: 700, color: INK }}>{c.name}</div>}
-                        {c.phone && <div style={{ fontSize: 13, color: INK3, marginTop: 2 }}>📞 {c.phone}</div>}
+                        {c.phone && <div style={{ fontSize: 13, color: INK3, marginTop: 2, display: "flex", alignItems: "center", gap: 4 }}><CallOutlinedIcon sx={{ fontSize: 14 }} /> {c.phone}</div>}
                       </div>
                     ))}
                   </div>
@@ -1402,7 +1416,7 @@ export default function PolicyDetailPage() {
                       display: "flex", justifyContent: "center", alignItems: "center", gap: 6,
                     }}
                   >
-                    ⚑ 정책 오류 제보
+                    <OutlinedFlagIcon sx={{ fontSize: 16 }} /><span>정책 오류 제보</span>
                   </button>
                 </div>
 
@@ -1414,14 +1428,14 @@ export default function PolicyDetailPage() {
                     navigator.clipboard.writeText(window.location.href);
                     setToast({ open: true, msg: "링크를 복사했어요", severity: "success" });
                   }}
-                  style={{ width: "100%", padding: "10px 0", borderRadius: 10, background: LINE2, color: INK2, fontSize: 12, fontWeight: 700, border: 0, cursor: "pointer" }}
+                  style={{ width: "100%", padding: "10px 0", borderRadius: 10, background: LINE2, color: INK2, fontSize: 12, fontWeight: 700, border: 0, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}
                 >
-                  🔗 링크 복사
+                  <ContentCopyOutlinedIcon sx={{ fontSize: 15 }} /><span>링크 복사</span>
                 </button>
               </div>
 
               <div style={{ background: AS, border: `1px solid ${A}33`, borderRadius: 16, padding: 20, marginTop: 16 }}>
-                <div style={{ fontSize: 13, fontWeight: 800, color: AI }}>💡 내가 자격될까?</div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: AI, display: "flex", alignItems: "center", gap: 4 }}><LightbulbOutlinedIcon sx={{ fontSize: 16 }} /><span>내가 자격될까?</span></div>
                 <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.6 }}>
                   {isLoggedIn
                     ? "마이페이지에서 내 조건을 설정하면 자격 여부를 자동으로 확인해드려요."

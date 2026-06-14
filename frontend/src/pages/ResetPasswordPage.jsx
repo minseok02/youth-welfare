@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Alert, CircularProgress, Snackbar } from "@mui/material";
+import HomeIcon from "@mui/icons-material/Home";
 import api from "../lib/axios";
 
 const A = "#2563eb", A7 = "#1d4ed8";
@@ -114,15 +115,15 @@ export default function ResetPasswordPage() {
   return (
     <div style={{ minHeight: "100vh", background: BG, display: "flex", flexDirection: "column" }}>
       <div style={{ background: A, padding: "14px 24px", display: "flex", alignItems: "center", cursor: "pointer" }} onClick={() => navigate("/")}>
-        <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, marginRight: 8 }}>🏠</div>
+        <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", color: WHITE, marginRight: 8 }}><HomeIcon sx={{ fontSize: 18 }} /></div>
         <span style={{ fontSize: 16, fontWeight: 700, color: WHITE }}>청년복지플랫폼</span>
       </div>
 
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "32px 16px" }}>
         <div style={{ width: "100%", maxWidth: 460, background: WHITE, borderRadius: 20, border: `1px solid ${LINE}`, padding: "48px 40px", boxShadow: "0 4px 24px rgba(37,99,235,0.06)" }}>
           <div style={{ textAlign: "center", marginBottom: 36 }}>
-            <div style={{ width: 56, height: 56, borderRadius: 16, background: `linear-gradient(135deg,${A},#1e3a8a)`, margin: "0 auto 16px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>
-              🔑
+            <div style={{ width: 56, height: 56, borderRadius: 16, background: `linear-gradient(135deg,${A},#1e3a8a)`, margin: "0 auto 16px", display: "flex", alignItems: "center", justifyContent: "center", color: WHITE }}>
+              <HomeIcon sx={{ fontSize: 30 }} />
             </div>
             <div style={{ fontSize: 22, fontWeight: 800, color: INK, letterSpacing: "-0.02em", marginBottom: 6 }}>
               {hasToken ? "새 비밀번호 설정" : "비밀번호 재설정"}

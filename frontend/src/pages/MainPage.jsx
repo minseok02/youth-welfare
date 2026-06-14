@@ -51,62 +51,18 @@ const mapRec = (r) => ({
 
 const nonBlank = (value) => (value || "").trim();
 
-const compactJoin = (values, limit = 2) => {
-  const unique = [];
-  values.forEach((value) => {
-    const trimmed = nonBlank(value);
-    if (!trimmed || unique.includes(trimmed)) {
-      return;
-    }
-    unique.push(trimmed);
-  });
-  return unique.slice(0, limit);
-};
-
-const buildFallbackRecommendationMemo = (rec) => {
-  const supportLabels = compactJoin([
-    rec.youthMidLabel,
-    rec.provisionMethodLabel,
-    rec.gov24BenefitTypeLabel,
-    rec.gov24ServiceFieldLabel,
-    rec.youthMajorLabel,
-    rec.category !== "기타" ? rec.category : "",
-  ]);
-
-  if (supportLabels.length >= 2) {
-    return `${supportLabels[0]} · ${supportLabels[1]} 기준으로 먼저 보여드렸어요.`;
-  }
-  if (supportLabels.length === 1) {
-    return `${supportLabels[0]} 기준으로 먼저 보여드렸어요.`;
-  }
-
-  const audienceLabels = compactJoin([
-    rec.gov24UserTypeLabel,
-    rec.source,
-    rec.sourceTypeLabel ? `${rec.sourceTypeLabel} 정책` : "",
-  ], 1);
-
-  if (audienceLabels.length === 1) {
-    return `${audienceLabels[0]} 분류를 기준으로 먼저 보여드렸어요.`;
-  }
-
-  return "정책 분류와 기본 자격 신호를 기준으로 먼저 보여드렸어요.";
-};
-
 const resolveRecommendationMemo = (rec) => {
   const aiReason = nonBlank(rec.aiReason);
-  if (aiReason) {
-    return {
-      heading: "추천 메모",
-      body: `"${aiReason}"`,
-      accentColor: A,
-    };
+  if (!aiReason) {
+    // AI가 이유를 붙인 경우에만 메모를 노출한다.
+    // (정상 동작에서는 메인 노출 6건이 AI_TOP_N=12 안에 들어 거의 항상 채워지고,
+    //  AI 호출 실패·rule-only·부분 누락 같은 비정상 상황에서만 숨겨진다.)
+    return null;
   }
-
   return {
-    heading: rec.aiStatus === "NOT_REQUESTED" ? "추천 단서" : "추천 메모",
-    body: buildFallbackRecommendationMemo(rec),
-    accentColor: INK2,
+    heading: "추천 메모",
+    body: `"${aiReason}"`,
+    accentColor: A,
   };
 };
 
@@ -135,12 +91,12 @@ const OK_BG = "#ecfdf5";
 const GUIDE_NUDGE_STORAGE_KEY = "yw-guide-nudge-seen-v1";
 
 const CATEGORY_META = [
-  { value: "일자리",        label: "일자리",        emoji: "💼", bg: "#dbeafe" },
-  { value: "주거",          label: "주거",          emoji: "🏠", bg: "#fef3c7" },
-  { value: "교육·직업훈련", label: "교육·직업훈련", emoji: "🎓", bg: "#dcfce7" },
-  { value: "금융·생활지원", label: "금융·생활지원", emoji: "💰", bg: "#fce7f3" },
-  { value: "건강·의료",     label: "건강·의료",     emoji: "🩺", bg: "#e0e7ff" },
-  { value: "참여·기회",     label: "참여·기회",     emoji: "👥", bg: "#fed7aa" },
+  { value: "일자리",        label: "일자리",        bg: "#dbeafe", fg: "#2563eb" },
+  { value: "주거",          label: "주거",          bg: "#fef3c7", fg: "#f59e0b" },
+  { value: "교육·직업훈련", label: "교육·직업훈련", bg: "#dcfce7", fg: "#16a34a" },
+  { value: "금융·생활지원", label: "금융·생활지원", bg: "#fce7f3", fg: "#db2777" },
+  { value: "건강·의료",     label: "건강·의료",     bg: "#e0e7ff", fg: "#0d9488" },
+  { value: "참여·기회",     label: "참여·기회",     bg: "#fed7aa", fg: "#7c3aed" },
 ];
 
 const POPULAR_CATEGORIES = ["일자리", "교육·직업훈련", "금융·생활지원", "주거", "건강·의료", "참여·기회"];
@@ -378,7 +334,7 @@ function HeroLoggedIn({
                 추천 정확도 보강
               </span>
               <span style={{ fontSize: 13, opacity: 0.9 }}>
-                표준코드 {4 - standardCodeMissingCount}/4 입력됨 · {standardCodeMissingLabels.join(", ")} 미입력
+                주거·생활 여건 {4 - standardCodeMissingCount}/4 입력됨 · {standardCodeMissingLabels.join(", ")} 미입력
               </span>
               <button
                 onClick={() => navigate("/mypage?tab=0")}
@@ -458,20 +414,23 @@ function HeroLoggedIn({
 
 function CategoryBar({ counts, navigate }) {
   const isMobile = useMediaQuery("(max-width: 1199px)");
+  const isPhone = useMediaQuery("(max-width: 600px)");
   return (
-    <section style={{ marginTop: 32, display: "grid", gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : "repeat(6, 1fr)", gap: 12 }}>
+    <section style={{ marginTop: 32, display: "grid", gridTemplateColumns: isPhone ? "repeat(2, 1fr)" : isMobile ? "repeat(3, 1fr)" : "repeat(6, 1fr)", gap: 12 }}>
       {CATEGORY_META.map((c) => (
         <div
           key={c.value}
           onClick={() => navigate(`/policies?category=${encodeURIComponent(c.value)}`)}
-          style={{ background: "white", border: `1px solid ${LINE}`, borderRadius: 16, padding: isMobile ? "14px 8px" : "20px 16px", textAlign: "center", cursor: "pointer", transition: "transform .15s, box-shadow .15s" }}
-          onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(37,99,235,0.12)"; }}
-          onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}
+          style={{ background: "white", border: `1px solid ${LINE}`, borderRadius: 14, padding: isMobile ? "10px 12px" : "20px 18px", display: "flex", flexDirection: "column", gap: isMobile ? 3 : 6, cursor: "pointer", transition: "transform .15s, box-shadow .15s, border-color .15s" }}
+          onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(37,99,235,0.10)"; e.currentTarget.style.borderColor = c.fg; }}
+          onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; e.currentTarget.style.borderColor = LINE; }}
         >
-          <div style={{ width: isMobile ? 40 : 52, height: isMobile ? 40 : 52, borderRadius: 14, background: c.bg, margin: "0 auto 8px" }} />
-          <div style={{ fontSize: isMobile ? 12 : 13, fontWeight: 700, color: INK }}>{c.label}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ width: 12, height: 12, borderRadius: "50%", background: c.fg, flexShrink: 0 }} />
+            <div style={{ fontSize: isMobile ? 14 : 15, fontWeight: 700, color: INK, letterSpacing: "-0.01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{c.label}</div>
+          </div>
           {counts[c.value] > 0 && (
-            <div style={{ fontSize: 11, color: INK3, marginTop: 2 }}>{counts[c.value].toLocaleString()}개</div>
+            <div style={{ fontSize: 12, color: INK3, fontWeight: 600, paddingLeft: 20 }}>{counts[c.value].toLocaleString()}개</div>
           )}
         </div>
       ))}
@@ -520,6 +479,7 @@ function DeadlineRail({ policies, navigate, onPolicyNavigate }) {
 }
 
 function RecentViewedRail({ policies, navigate, onPolicyNavigate }) {
+  const isMobile = useMediaQuery("(max-width: 1199px)");
   if (!policies.length) return null;
   return (
     <section style={{ marginTop: 48 }}>
@@ -537,7 +497,7 @@ function RecentViewedRail({ policies, navigate, onPolicyNavigate }) {
           마이페이지에서 보기 →
         </button>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: `repeat(${policies.length}, 1fr)`, gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? `repeat(${Math.min(2, policies.length)}, 1fr)` : `repeat(${policies.length}, 1fr)`, gap: 14 }}>
         {policies.map((policy) => (
           <div
             key={policy.id}
@@ -766,7 +726,7 @@ function StandardCodePromptBanner({ missingCount, filledCount, missingLabels, na
           추천 정확도 보강
         </div>
         <div style={{ fontSize: 18, fontWeight: 800, color: INK, marginTop: 6, letterSpacing: "-0.02em" }}>
-          주거·복지 표준코드 {filledCount}/4개 입력됨
+          주거·생활 여건 {filledCount}/4개 입력됨
         </div>
         <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.6 }}>
           아직 비어 있는 항목: {missingLabels.join(", ")}. 채워두면 주거·복지 자격조건 매칭과 맞춤 추천이 더 정확해집니다.
@@ -825,7 +785,7 @@ function RecommendationRefreshStandardCodePrompt({
           추천 전 확인
         </div>
         <div style={{ fontSize: 17, fontWeight: 800, color: INK, marginTop: 6, letterSpacing: "-0.01em" }}>
-          표준코드 {filledCount}/4개 입력 상태입니다
+          주거·생활 여건 {filledCount}/4개 입력 상태입니다
         </div>
         <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.6 }}>
           {missingLabels.join(", ")} 항목이 비어 있어 {actionLabel} 전에 채우면 주거·복지 조건 매칭이 더 안정됩니다.
@@ -846,7 +806,7 @@ function RecommendationRefreshStandardCodePrompt({
             whiteSpace: "nowrap",
           }}
         >
-          표준코드 먼저 채우기 →
+          주거·생활 여건 먼저 채우기 →
         </button>
         <button
           onClick={onContinue}
@@ -1054,11 +1014,11 @@ export default function MainPage() {
     }
 
     if (nudge.kind === "both") {
-      showToast(`로그인되었습니다. 우선순위와 표준코드 ${nudge.filledCount}/4 입력 상태를 함께 채우면 추천 품질이 더 빨리 안정됩니다.`, "info");
+      showToast(`로그인되었습니다. 우선순위와 주거·생활 여건 ${nudge.filledCount}/4 입력 상태를 함께 채우면 추천 품질이 더 빨리 안정됩니다.`, "info");
     } else if (nudge.kind === "priorities") {
       showToast("로그인되었습니다. 다음으로 우선순위를 설정하면 추천 품질이 더 안정됩니다.", "info");
     } else if (nudge.kind === "standardCodes") {
-      showToast(`로그인되었습니다. 표준코드 ${nudge.filledCount}/4 입력 상태입니다. 남은 ${nudge.missingLabels.join(", ")}를 채우면 추천 정확도가 더 올라갑니다.`, "info");
+      showToast(`로그인되었습니다. 주거·생활 여건 ${nudge.filledCount}/4 입력 상태입니다. 남은 ${nudge.missingLabels.join(", ")}를 채우면 추천 정확도가 더 올라갑니다.`, "info");
     }
 
     const nextState = { ...(location.state || {}) };
@@ -1226,7 +1186,7 @@ export default function MainPage() {
   }, [navigate, showToast]);
 
   const redirectToProfileInfo = useCallback(() => {
-    showToast("마이페이지 표준코드 입력 영역으로 이동합니다.", "info");
+    showToast("마이페이지 주거·생활 여건 입력 영역으로 이동합니다.", "info");
     navigate("/mypage?tab=0");
   }, [navigate, showToast]);
 
@@ -1237,11 +1197,11 @@ export default function MainPage() {
     }
     if (shouldGateRecommendationRefresh && !bypassStandardCodeGate) {
       setStandardCodeRefreshPrompt("refresh");
-      showToast("새로고침 전에 표준코드 입력 상태를 확인해주세요.", "info");
+      showToast("새로고침 전에 주거·생활 여건 입력 상태를 확인해주세요.", "info");
       return;
     }
     if (standardCodeMissingCount > 0) {
-      showToast(`표준코드 ${standardCodeFilledCount}/4 입력 상태로 추천을 새로 불러옵니다. 남은 ${standardCodeMissingLabels.join(", ")}까지 채우면 더 정확해집니다.`, "info");
+      showToast(`주거·생활 여건 ${standardCodeFilledCount}/4 입력 상태로 추천을 새로 불러옵니다. 남은 ${standardCodeMissingLabels.join(", ")}까지 채우면 더 정확해집니다.`, "info");
     }
     setRefreshingRec(true);
     try {
@@ -1264,11 +1224,11 @@ export default function MainPage() {
     }
     if (shouldGateRecommendationRefresh && !bypassStandardCodeGate) {
       setStandardCodeRefreshPrompt("personal");
-      showToast("맞춤 재추천 전에 표준코드 입력 상태를 확인해주세요.", "info");
+      showToast("맞춤 재추천 전에 주거·생활 여건 입력 상태를 확인해주세요.", "info");
       return;
     }
     if (standardCodeMissingCount > 0) {
-      showToast(`표준코드 ${standardCodeFilledCount}/4 입력 상태로 개인 맞춤 재추천을 진행합니다. 남은 ${standardCodeMissingLabels.join(", ")}를 채우면 더 정교해집니다.`, "info");
+      showToast(`주거·생활 여건 ${standardCodeFilledCount}/4 입력 상태로 개인 맞춤 재추천을 진행합니다. 남은 ${standardCodeMissingLabels.join(", ")}를 채우면 더 정교해집니다.`, "info");
     }
     setPersonalRefreshing(true);
     try {
@@ -1469,7 +1429,7 @@ export default function MainPage() {
                   .map(cat => {
                     const meta = CATEGORY_META.find(c => c.value === cat);
                     const policy = teaserPolicies[cat]?.[0];
-                    return policy ? { id: policy.id, title: policy.title, bg: meta?.bg, category: cat } : null;
+                    return policy ? { id: policy.id, title: policy.title, fg: meta?.fg, category: cat } : null;
                   })
                   .filter(Boolean);
                 if (!previewItems.length) return null;
@@ -1481,10 +1441,10 @@ export default function MainPage() {
                         onClick={() => navigateToPolicyDetail(item.id)}
                         style={{ display: "flex", alignItems: "center", gap: 12, background: "#f7f8fc", borderRadius: 12, padding: "12px 16px", minWidth: 220, cursor: "pointer" }}
                       >
-                        <div style={{ width: 36, height: 36, borderRadius: 10, background: item.bg, flexShrink: 0 }} />
+                        <span style={{ width: 12, height: 12, borderRadius: "50%", background: item.fg, flexShrink: 0 }} />
                         <div style={{ minWidth: 0 }}>
                           <div style={{ fontSize: 13, fontWeight: 700, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 160 }}>{item.title}</div>
-                          <div style={{ fontSize: 12, color: A, fontWeight: 600, marginTop: 1 }}>{item.category}</div>
+                          <div style={{ fontSize: 12, color: INK3, fontWeight: 600, marginTop: 1 }}>{item.category}</div>
                         </div>
                       </div>
                     ))}
@@ -1520,9 +1480,22 @@ export default function MainPage() {
               <div style={{ marginTop: 6 }}>© 2026 청년복지플랫폼. 정책 데이터는 온통청년·복지로·Gov24에서 제공받습니다.</div>
             </div>
             <div style={{ display: "flex", gap: 18 }}>
-              <span>이용약관</span>
-              <span>개인정보처리방침</span>
-              <span>고객센터</span>
+              <span
+                onClick={() => navigate("/privacy")}
+                style={{ cursor: "pointer" }}
+                onMouseEnter={e => { e.currentTarget.style.color = A; }}
+                onMouseLeave={e => { e.currentTarget.style.color = ""; }}
+              >
+                개인정보처리방침
+              </span>
+              <span
+                onClick={() => navigate("/support", { state: { from: location } })}
+                style={{ cursor: "pointer" }}
+                onMouseEnter={e => { e.currentTarget.style.color = A; }}
+                onMouseLeave={e => { e.currentTarget.style.color = ""; }}
+              >
+                고객센터
+              </span>
             </div>
           </div>
         </footer>
