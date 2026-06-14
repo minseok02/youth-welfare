@@ -125,7 +125,7 @@ async function expectPolicyDetailReady(page, policy, { requireErrorReport = true
   await expect(page.getByText("요약 정보", { exact: true })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("button", { name: /뒤로가기/ })).toBeVisible({ timeout: 15_000 });
   if (requireErrorReport) {
-    await expect(page.getByRole("button", { name: "⚑ 정책 오류 제보", exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("button", { name: "정책 오류 제보", exact: true })).toBeVisible({ timeout: 15_000 });
   }
 }
 
@@ -655,14 +655,14 @@ test("서비스 문의 페이지는 공개 문의를 접수하고 성공 안내�
   await page.getByLabel("문의 내용").fill("추천 결과가 기대와 다르게 보여서 사용 문의를 남깁니다.");
   await page.getByRole("button", { name: "문의 보내기", exact: true }).click();
 
-  await expect(page.getByText("문의가 접수되었습니다. 확인 후 답변드리겠습니다.", { exact: true })).toBeVisible();
+  await expect(page.getByText("문의가 접수되었어요", { exact: true })).toBeVisible();
 });
 
 test("비로그인 정책 상세 오류 제보는 로그인으로 분기한다", async ({ page, request }) => {
   const firstPolicy = await openFirstSearchResult(page, request, "청년");
   await expectPolicyDetailReady(page, firstPolicy);
 
-  await page.getByRole("button", { name: "⚑ 정책 오류 제보", exact: true }).click();
+  await page.getByRole("button", { name: "정책 오류 제보", exact: true }).click();
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByPlaceholder("example@email.com")).toBeVisible();
 });
@@ -754,9 +754,9 @@ test("메인 개인 맞춤 재추천 CTA는 표준코드 공백이 크면 확인
   await expect(page.getByText("추천 정확도 보강", { exact: true }).first()).toBeVisible();
   await page.getByRole("button", { name: "맞춤 재추천 →", exact: true }).click();
   await expect(page.getByText("추천 전 확인", { exact: true })).toBeVisible();
-  await expect(page.getByText("표준코드 1/4개 입력 상태입니다", { exact: true })).toBeVisible();
+  await expect(page.getByText("주거·생활 여건 1/4개 입력 상태입니다", { exact: true })).toBeVisible();
   await clickAndWaitForUrl(
-    page.getByRole("button", { name: "표준코드 먼저 채우기 →", exact: true }),
+    page.getByRole("button", { name: "주거·생활 여건 먼저 채우기 →", exact: true }),
     page,
     /\/mypage\?tab=0$/
   );
@@ -806,7 +806,7 @@ test("마이페이지 내 정보 저장 후 표준코드 리마인드는 남은 
   await page.getByRole("button", { name: "수정", exact: true }).click();
   await page.getByRole("button", { name: "저장", exact: true }).click();
   await expect(page.getByText("저장 완료", { exact: true })).toBeVisible();
-  await expect(page.getByText("주거·복지 표준코드 1/4개 입력됨", { exact: true })).toBeVisible();
+  await expect(page.getByText("주거·생활 여건 1/4개 입력됨", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "남은 항목 계속 채우기 →", exact: true }).click();
   await expect(page.locator("#profile-standard-code-section")).toBeVisible();
 });
@@ -838,7 +838,7 @@ test("로그인 직후 메인에서는 우선순위와 표준코드 공백에 �
   await page.goto("/login");
   await loginThroughForm(page, userCredentials);
 
-  await expect(page.getByText("로그인되었습니다. 우선순위와 표준코드 1/4 입력 상태를 함께 채우면 추천 품질이 더 빨리 안정됩니다.")).toBeVisible();
+  await expect(page.getByText("로그인되었습니다. 우선순위와 주거·생활 여건 1/4 입력 상태를 함께 채우면 추천 품질이 더 빨리 안정됩니다.")).toBeVisible();
 });
 
 test("로그인 사용자 핵심 흐름은 메인에서 가이드와 추천 보강으로 이어진다", async ({ page }) => {
@@ -1324,9 +1324,9 @@ test("admin dashboard 서비스 문의 섹션은 열린 문의 recent queue를 �
   await expect(supportInquiriesSection.getByText("처리완료", { exact: true }).first()).toBeVisible();
   await expect(supportInquiriesSection.getByText("전체", { exact: true }).first()).toBeVisible();
   await expect(supportInquiriesSection.getByText("1", { exact: true }).first()).toBeVisible();
-  await expect(supportInquiriesSection.getByText("추천/챗봇", { exact: true }).first()).toBeVisible();
+  await expect(supportInquiriesSection.getByText("사용법 질문", { exact: true }).first()).toBeVisible();
   await expect(supportInquiriesSection.getByText("챗봇이 이전 질문 맥락을 잘 못 이어갑니다.", { exact: true })).toBeVisible();
-  await expect(supportInquiriesSection.getByText("정책 검색/필터", { exact: true }).first()).toBeVisible();
+  await expect(supportInquiriesSection.getByText("오류/버그", { exact: true }).first()).toBeVisible();
   await expect(supportInquiriesSection.getByText("필터가 바로 적용되는지 헷갈립니다.", { exact: true })).toBeVisible();
 });
 

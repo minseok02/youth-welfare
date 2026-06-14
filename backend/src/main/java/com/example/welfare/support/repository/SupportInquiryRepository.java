@@ -16,4 +16,6 @@ public interface SupportInquiryRepository extends JpaRepository<SupportInquiry, 
     List<SupportInquiry> findByStatusOrderByCreatedAtDesc(SupportInquiry.Status status, Pageable pageable);
 
     List<SupportInquiry> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+    List<SupportInquiry> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
 }

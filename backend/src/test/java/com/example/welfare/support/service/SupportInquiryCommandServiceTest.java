@@ -51,7 +51,7 @@ class SupportInquiryCommandServiceTest {
                 3L,
                 "user-key-3",
                 new SupportInquiryCreateRequest(
-                        SupportInquiry.Category.RECOMMENDATION_CHATBOT,
+                        SupportInquiry.Category.USAGE_QUESTION,
                         "user@example.com",
                         "추천 메모가 왜 이렇게 나오는지 궁금합니다.",
                         "/chat"
@@ -63,7 +63,7 @@ class SupportInquiryCommandServiceTest {
         assertEquals(SupportInquiry.Status.OPEN, captor.getValue().getStatus());
         assertEquals("user@example.com", captor.getValue().getContactEmail());
         assertEquals("/chat", captor.getValue().getRoutePath());
-        assertEquals("RECOMMENDATION_CHATBOT", response.categoryCode());
+        assertEquals("USAGE_QUESTION", response.categoryCode());
     }
 
     @Test
@@ -73,7 +73,7 @@ class SupportInquiryCommandServiceTest {
                 null,
                 null,
                 new SupportInquiryCreateRequest(
-                        SupportInquiry.Category.GENERAL_FEEDBACK,
+                        SupportInquiry.Category.ETC,
                         " ",
                         "문의 내용",
                         null

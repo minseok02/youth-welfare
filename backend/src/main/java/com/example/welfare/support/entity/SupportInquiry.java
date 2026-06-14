@@ -69,11 +69,11 @@ public class SupportInquiry extends BaseTimeEntity {
     }
 
     public enum Category {
-        ACCOUNT_LOGIN("로그인/계정"),
-        RECOMMENDATION_CHATBOT("추천/챗봇"),
-        ALERTS_BOOKMARKS("알림/북마크"),
-        SEARCH_FILTER("정책 검색/필터"),
-        GENERAL_FEEDBACK("기타 의견/제안");
+        BUG_ERROR("오류/버그"),
+        USAGE_QUESTION("사용법 질문"),
+        IMPROVEMENT_SUGGESTION("개선 제안"),
+        ACCOUNT_ISSUE("계정 문제"),
+        ETC("기타");
 
         private final String label;
 

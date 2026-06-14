@@ -1,21 +1,28 @@
 package com.example.welfare.support.controller;
 
 import com.example.welfare.global.auth.AuthenticatedUser;
+import com.example.welfare.global.exception.CustomException;
+import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.response.ApiResponse;
 import com.example.welfare.global.web.ClientFingerprintService;
+import com.example.welfare.support.dto.MySupportInquiryResponse;
 import com.example.welfare.support.dto.SupportInquiryCreateRequest;
 import com.example.welfare.support.dto.SupportInquiryResponse;
 import com.example.welfare.support.service.SupportInquiryCommandService;
+import com.example.welfare.support.service.SupportInquiryQueryService;
 import com.example.welfare.support.service.SupportInquiryRateLimitService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/support")
@@ -23,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class SupportController {
 
     private final SupportInquiryCommandService supportInquiryCommandService;
+    private final SupportInquiryQueryService supportInquiryQueryService;
     private final SupportInquiryRateLimitService supportInquiryRateLimitService;
     private final ClientFingerprintService clientFingerprintService;
 
@@ -40,6 +48,17 @@ public class SupportController {
                         request
                 )
         ));
+    }
+
+    @GetMapping("/inquiries/me")
+    public ResponseEntity<ApiResponse<List<MySupportInquiryResponse>>> getMyInquiries(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser
+    ) {
+        Long userId = authenticatedUser != null ? authenticatedUser.userId() : null;
+        if (userId == null) {
+            throw new CustomException(ErrorCode.UNAUTHORIZED);
+        }
+        return ResponseEntity.ok(ApiResponse.success(supportInquiryQueryService.getMyInquiries(userId)));
     }
 
     private String resolveRateLimitActorKey(AuthenticatedUser authenticatedUser, HttpServletRequest httpServletRequest) {

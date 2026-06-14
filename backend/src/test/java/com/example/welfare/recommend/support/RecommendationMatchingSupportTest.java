@@ -39,6 +39,35 @@ class RecommendationMatchingSupportTest {
     }
 
     @Test
+    @DisplayName("기초생활수급권자 '해당하지 않음'(NONE)은 보유로 보지 않아 소득분위 없이는 매칭하지 않는다")
+    void doesNotMatchBeneficiaryBucketWhenRecipientCodeIsNotApplicable() {
+        RecommendationUserSnapshot user = snapshot((byte) 5, null, null, List.of(), "NONE", null);
+        RecommendationCandidateProjection projection = RecommendationCandidateProjection.builder()
+                .targetGroupBuckets(Set.of(RecommendationProjectionHeuristicSupport.BENEFICIARY_SUPPORT_BUCKET))
+                .beneficiaryTerms(Set.of("기초생활수급자"))
+                .build();
+
+        assertThat(RecommendationMatchingSupport.beneficiaryBucketMatches(user, projection)).isFalse();
+    }
+
+    @Test
+    @DisplayName("장애등급 '해당하지 않음'(NONE)은 보유로 보지 않아 장애 bucket과 매칭하지 않는다")
+    void doesNotMatchSpecialTargetWhenDisabilityCodeIsNotApplicable() {
+        RecommendationUserSnapshot user = snapshot((byte) 5, null, null, List.of(), null, "NONE");
+        RecommendationCandidateProjection projection = RecommendationCandidateProjection.builder()
+                .specialTargetBuckets(Set.of(RecommendationProjectionHeuristicSupport.SPECIAL_TARGET_DISABILITY))
+                .build();
+
+        assertThat(RecommendationMatchingSupport.specialTargetMatches(
+                user,
+                Set.of(),
+                WelfareService.builder().title("일반 지원").build(),
+                List.of(),
+                projection
+        )).isFalse();
+    }
+
+    @Test
     @DisplayName("special target signal은 projection bucket이 있으면 raw text 없이도 true가 된다")
     void detectsSpecialTargetSignalFromProjection() {
         RecommendationCandidateProjection projection = RecommendationCandidateProjection.builder()

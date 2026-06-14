@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Snackbar, Alert, CircularProgress } from "@mui/material";
+import { Snackbar, Alert, CircularProgress, Dialog, DialogContent, IconButton, useMediaQuery } from "@mui/material";
+import HomeIcon from "@mui/icons-material/Home";
+import CloseIcon from "@mui/icons-material/Close";
 import api from "../lib/axios";
+import PrivacyPolicyContent from "../components/PrivacyPolicyContent";
+import PrioritySortableList from "../components/PrioritySortableList";
 import { fetchProfileStandardCodebookOptions } from "../lib/officialCodebookOptions";
 import {
   REGIONS,
@@ -29,14 +33,14 @@ const INCOME_ROWS = [
 ];
 
 const PRIORITY_OPTIONS = [
-  { value: "HOUSING",       label: "주거",       ico: "🏠" },
-  { value: "JOB",           label: "일자리",     ico: "💼" },
-  { value: "EDUCATION",     label: "교육·직업훈련", ico: "📚" },
-  { value: "FINANCE",       label: "금융·생활",  ico: "💰" },
-  { value: "CULTURE",       label: "문화·여가",  ico: "🎨" },
-  { value: "PARTICIPATION", label: "참여·기회",  ico: "🤝" },
-  { value: "FAMILY",        label: "가족·돌봄",  ico: "👨‍👩‍👧" },
-  { value: "DEADLINE",      label: "마감임박",   ico: "⏰" },
+  { value: "HOUSING",       label: "주거",          fg: "#f59e0b" },
+  { value: "JOB",           label: "일자리",         fg: "#2563eb" },
+  { value: "EDUCATION",     label: "교육·직업훈련",  fg: "#16a34a" },
+  { value: "FINANCE",       label: "금융·생활",      fg: "#db2777" },
+  { value: "CULTURE",       label: "문화·여가",      fg: "#7c3aed" },
+  { value: "PARTICIPATION", label: "참여·기회",      fg: "#ea580c" },
+  { value: "FAMILY",        label: "가족·돌봄",      fg: "#0d9488" },
+  { value: "DEADLINE",      label: "마감임박",        fg: "#dc2626" },
 ];
 
 const HOUSEHOLD_TYPES = ["1인가구", "한부모", "다자녀", "조손", "기타"];
@@ -48,14 +52,14 @@ const EMPTY_PROFILE_CODE_OPTIONS = {
 };
 
 const iCss = (err) => ({
-  width: "100%", padding: "11px 14px", borderRadius: 10,
+  width: "100%", padding: "11px 14px", borderRadius: 8,
   border: `1.5px solid ${err ? WARN : LINE}`,
   background: WHITE, fontSize: 14, fontFamily: "inherit", color: INK,
   outline: "none", boxSizing: "border-box",
 });
 
 const selCss = (disabled) => ({
-  width: "100%", padding: "11px 14px", borderRadius: 10,
+  width: "100%", padding: "11px 14px", borderRadius: 8,
   border: `1.5px solid ${LINE}`, background: disabled ? LINE2 : WHITE,
   fontSize: 14, fontFamily: "inherit", color: INK, outline: "none",
   boxSizing: "border-box", appearance: "none", cursor: disabled ? "not-allowed" : "pointer",
@@ -75,6 +79,7 @@ function Field({ label, error, hint, children }) {
 export default function SignupPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const isMobile = useMediaQuery("(max-width: 600px)");
   const nestedFromState = location.state?.from?.state ?? {};
   const chatFrom = location.state?.chatFrom ?? nestedFromState.chatFrom;
   const postLoginAction = location.state?.postLoginAction ?? nestedFromState.postLoginAction;
@@ -96,6 +101,7 @@ export default function SignupPage() {
   const [pw, setPw] = useState("");
   const [pwConfirm, setPwConfirm] = useState("");
   const [privacyNoticeConfirmed, setPrivacyNoticeConfirmed] = useState(false);
+  const [privacyModalOpen, setPrivacyModalOpen] = useState(false);
 
   // Step 2
   const [birthYear, setBirthYear] = useState("");
@@ -114,10 +120,10 @@ export default function SignupPage() {
   const [optionalProfileConsentAgreed, setOptionalProfileConsentAgreed] = useState(false);
   const [sensitiveInfoConsentAgreed, setSensitiveInfoConsentAgreed] = useState(false);
   const [profileCodeOptions, setProfileCodeOptions] = useState(EMPTY_PROFILE_CODE_OPTIONS);
+  const [step2Attempted, setStep2Attempted] = useState(false);
 
   // Step 3
   const [priorities, setPriorities] = useState([]);
-  const [dragIdx, setDragIdx] = useState(null);
 
   const showToast = (msg, severity = "info") => setToast({ open: true, msg, severity });
 
@@ -159,27 +165,41 @@ export default function SignupPage() {
     fourteenBirthday.setFullYear(birthday.getFullYear() + 14);
     return fourteenBirthday <= today;
   })();
-  const step2Valid = birthDateComplete && birthDateAtLeastFourteen;
+  const hasOptionalProfileInput = Boolean(
+    region || subRegion || ward || income || employ || householdType
+    || houseTenureCode || housingTypeCode || basicLivingRecipientTypeCode
+  );
+  const optionalConsentRequired = hasOptionalProfileInput && !optionalProfileConsentAgreed;
+  const step2Valid = birthDateComplete && birthDateAtLeastFourteen && !optionalConsentRequired;
+
+  const birthDone = birthDateComplete && birthDateAtLeastFourteen;
+  const birthError = step2Attempted && !birthDone;
+  const consentError = step2Attempted && optionalConsentRequired;
+  const birthBorderColor = step2Attempted ? (birthDone ? SUCCESS : WARN) : LINE;
+
+  const handleStep2Next = () => {
+    setStep2Attempted(true);
+    if (!birthDateComplete) {
+      showToast("생년월일을 입력해주세요", "warning");
+      return;
+    }
+    if (!birthDateAtLeastFourteen) {
+      showToast("만 14세 미만은 회원가입을 할 수 없습니다", "warning");
+      return;
+    }
+    if (optionalConsentRequired) {
+      showToast("입력하신 추천 정보를 저장하려면 선택 개인정보 수집 및 이용에 동의 체크해 주세요.", "warning");
+      return;
+    }
+    setStep(2);
+  };
 
   const resetEmailVerification = () => {
     setEmailVerified(false); setCodeSent(false); setCodeInput(""); setCodeMsg("");
   };
 
-  const clearOptionalProfileFields = () => {
-    setRegion("");
-    setSubRegion("");
-    setWard("");
-    setIncome("");
-    setEmploy("");
-    setHouseholdType("");
-    setHouseTenureCode("");
-    setHousingTypeCode("");
-    setBasicLivingRecipientTypeCode("");
-  };
-
   const handleOptionalProfileConsentChange = (checked) => {
     setOptionalProfileConsentAgreed(checked);
-    if (!checked) clearOptionalProfileFields();
   };
 
   const handleSensitiveInfoConsentChange = (checked) => {
@@ -209,7 +229,7 @@ export default function SignupPage() {
     try {
       await api.post("/api/auth/email-verification/verify", null, { params: { email, code: codeInput.trim() } });
       setEmailVerified(true);
-      setCodeMsg("✅ 이메일 인증이 완료되었습니다.");
+      setCodeMsg("이메일 인증이 완료되었습니다.");
     } catch {
       setCodeMsg("인증코드가 올바르지 않거나 만료되었습니다.");
     } finally {
@@ -261,17 +281,6 @@ export default function SignupPage() {
     else if (priorities.length < 5) setPriorities([...priorities, val]);
   };
   const removePriority = (val) => setPriorities(priorities.filter(p => p !== val));
-  const handleDragStart = (idx) => setDragIdx(idx);
-  const handleDragOver = (e, idx) => {
-    e.preventDefault();
-    if (dragIdx === null || dragIdx === idx) return;
-    const arr = [...priorities];
-    const [moved] = arr.splice(dragIdx, 1);
-    arr.splice(idx, 0, moved);
-    setPriorities(arr);
-    setDragIdx(idx);
-  };
-  const handleDragEnd = () => setDragIdx(null);
   const districtOptions = getDistrictOptions(region);
   const wardOptions = getWardOptions(region, subRegion);
   const selectedStandardCodeCount = [
@@ -290,16 +299,15 @@ export default function SignupPage() {
   return (
     <div style={{ minHeight: "100vh", background: BG, display: "flex", flexDirection: "column" }}>
       <div style={{ background: A, padding: "14px 24px", display: "flex", alignItems: "center", cursor: "pointer" }} onClick={() => navigate("/")}>
-        <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, marginRight: 8 }}>🏠</div>
+        <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", color: WHITE, marginRight: 8 }}><HomeIcon sx={{ fontSize: 18 }} /></div>
         <span style={{ fontSize: 16, fontWeight: 700, color: WHITE }}>청년복지플랫폼</span>
       </div>
 
       <div style={{ flex: 1, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "32px 16px 64px" }}>
-        <div style={{ width: "100%", maxWidth: 540, background: WHITE, borderRadius: 20, border: `1px solid ${LINE}`, padding: "40px", boxShadow: "0 4px 24px rgba(37,99,235,0.06)" }}>
+        <div style={{ width: "100%", maxWidth: 540, background: WHITE, borderRadius: 20, border: `1px solid ${LINE}`, padding: isMobile ? "28px 16px" : "40px", boxShadow: "0 4px 24px rgba(37,99,235,0.06)" }}>
           {/* Title */}
           <div style={{ textAlign: "center", marginBottom: 32 }}>
-            <div style={{ fontSize: 22, fontWeight: 800, color: INK, letterSpacing: "-0.02em", marginBottom: 4 }}>회원가입</div>
-            <div style={{ fontSize: 14, color: INK3 }}>청년복지플랫폼에 오신 것을 환영해요 👋</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: INK, letterSpacing: "-0.02em" }}>회원가입</div>
           </div>
 
           {/* Stepper */}
@@ -354,7 +362,9 @@ export default function SignupPage() {
                   </button>
                 </div>
                 {codeMsg && (
-                  <div style={{ fontSize: 12, marginTop: 6, color: emailVerified ? "#166534" : INK3 }}>{codeMsg}</div>
+                  <div style={{ fontSize: 12, marginTop: 6, color: emailVerified ? "#166534" : INK3 }}>
+                    {emailVerified && <span style={{ fontWeight: 800 }}>✔ </span>}{codeMsg}
+                  </div>
                 )}
                 {codeSent && !emailVerified && (
                   <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
@@ -377,19 +387,19 @@ export default function SignupPage() {
               </Field>
 
               <Field label="비밀번호 *" hint="8자 이상, 영문+숫자 조합"
-                error={pw.length > 0 && !pwValid ? "8~100자, 영문+숫자 조합으로 입력해주세요" : ""}>
+                error={pw.length > 0 && !pwValid ? "8자 이상, 영문+숫자 조합으로 입력해주세요" : ""}>
                 <input style={iCss(pw.length > 0 && !pwValid)} type="password" value={pw} onChange={e => setPw(e.target.value)} placeholder="비밀번호 입력" />
               </Field>
 
               <Field label="비밀번호 확인 *"
                 error={pwConfirm.length > 0 && !pwMatch ? "비밀번호가 일치하지 않습니다" : ""}
-                hint={pwMatch ? "✅ 비밀번호가 일치합니다" : ""}>
+                hint={pwMatch ? <span style={{ color: "#166534" }}><span style={{ fontWeight: 800 }}>✔ </span>비밀번호가 일치합니다</span> : ""}>
                 <input style={iCss(pwConfirm.length > 0 && !pwMatch)} type="password" value={pwConfirm} onChange={e => setPwConfirm(e.target.value)} placeholder="비밀번호 다시 입력" />
               </Field>
 
               <label style={{
                 display: "flex", gap: 10, alignItems: "flex-start", padding: "13px 14px",
-                border: `1px solid ${privacyNoticeConfirmed ? A : LINE}`, borderRadius: 12,
+                border: `1px solid ${privacyNoticeConfirmed ? A : LINE}`, borderRadius: 8,
                 background: privacyNoticeConfirmed ? AS : "#f8fafc", cursor: "pointer",
               }}>
                 <input
@@ -400,9 +410,13 @@ export default function SignupPage() {
                 />
                 <span style={{ fontSize: 13, color: INK2, lineHeight: 1.55 }}>
                   계정 생성 및 서비스 제공을 위한 개인정보 처리 안내를 확인했습니다.
-                  <a href="/privacy" target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ color: A, fontWeight: 800, marginLeft: 4 }}>
+                  <button
+                    type="button"
+                    onClick={e => { e.preventDefault(); e.stopPropagation(); setPrivacyModalOpen(true); }}
+                    style={{ color: A, fontWeight: 800, marginLeft: 4, background: "none", border: 0, padding: 0, cursor: "pointer", textDecoration: "underline", font: "inherit" }}
+                  >
                     개인정보 처리방침
-                  </a>
+                  </button>
                 </span>
               </label>
 
@@ -433,19 +447,25 @@ export default function SignupPage() {
 
               <Field label="생년월일 *">
                 <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr 1fr", gap: 8 }}>
-                  <select style={selCss(false)} value={birthYear} onChange={e => { setBirthYear(e.target.value); setBirthDay(""); }}>
+                  <select style={{ ...selCss(false), borderColor: birthBorderColor }} value={birthYear} onChange={e => { setBirthYear(e.target.value); setBirthDay(""); }}>
                     <option value="">년도</option>
                     {Array.from({ length: 127 }, (_, i) => 2026 - i).map(y => <option key={y} value={String(y)}>{y}년</option>)}
                   </select>
-                  <select style={selCss(false)} value={birthMonth} onChange={e => { setBirthMonth(e.target.value); setBirthDay(""); }}>
+                  <select style={{ ...selCss(false), borderColor: birthBorderColor }} value={birthMonth} onChange={e => { setBirthMonth(e.target.value); setBirthDay(""); }}>
                     <option value="">월</option>
                     {Array.from({ length: 12 }, (_, i) => i + 1).map(m => <option key={m} value={String(m)}>{m}월</option>)}
                   </select>
-                  <select style={selCss(!birthMonth)} disabled={!birthMonth} value={birthDay} onChange={e => setBirthDay(e.target.value)}>
+                  <select style={{ ...selCss(!birthMonth), borderColor: birthBorderColor }} disabled={!birthMonth} value={birthDay} onChange={e => setBirthDay(e.target.value)}>
                     <option value="">일</option>
                     {Array.from({ length: birthYear && birthMonth ? new Date(birthYear, birthMonth, 0).getDate() : 31 }, (_, i) => i + 1).map(d => <option key={d} value={String(d)}>{d}일</option>)}
                   </select>
                 </div>
+                {step2Attempted && birthDone && (
+                  <div style={{ fontSize: 12, color: SUCCESS, fontWeight: 700, marginTop: 6 }}>✔ 생년월일 입력 완료</div>
+                )}
+                {birthError && !birthDateComplete && (
+                  <div style={{ fontSize: 12, color: WARN, marginTop: 6 }}>생년월일을 모두 선택해주세요</div>
+                )}
               </Field>
 
               {birthDateComplete && !birthDateAtLeastFourteen && (
@@ -456,8 +476,8 @@ export default function SignupPage() {
 
               <label style={{
                 display: "flex", gap: 10, alignItems: "flex-start", padding: "13px 14px",
-                border: `1px solid ${optionalProfileConsentAgreed ? A : LINE}`, borderRadius: 12,
-                background: optionalProfileConsentAgreed ? AS : "#f8fafc", cursor: "pointer",
+                border: `1.5px solid ${consentError ? WARN : (step2Attempted && optionalProfileConsentAgreed) ? SUCCESS : LINE}`, borderRadius: 8,
+                background: (step2Attempted && optionalProfileConsentAgreed) ? "#ecfdf5" : consentError ? "#fef2f2" : "#f8fafc", cursor: "pointer",
               }}>
                 <input
                   type="checkbox"
@@ -470,21 +490,27 @@ export default function SignupPage() {
                   <span style={{ display: "block", color: INK3, marginTop: 2 }}>
                     지역, 소득수준, 취업상태, 가구형태, 주거 및 수급 관련 정보가 포함됩니다.
                   </span>
+                  {step2Attempted && optionalProfileConsentAgreed && (
+                    <span style={{ display: "block", color: SUCCESS, fontWeight: 700, marginTop: 6 }}>✔ 동의 완료</span>
+                  )}
+                  {consentError && (
+                    <span style={{ display: "block", color: WARN, fontWeight: 700, marginTop: 6 }}>추천 정보를 저장하려면 동의가 필요해요</span>
+                  )}
                 </span>
               </label>
 
               <Field label="주소">
                 <div style={{ display: "grid", gridTemplateColumns: wardOptions.length > 0 ? "1fr 1fr 1fr" : "1fr 1fr", gap: 8 }}>
-                  <select style={selCss(!optionalProfileConsentAgreed)} disabled={!optionalProfileConsentAgreed} value={region} onChange={e => { setRegion(e.target.value); setSubRegion(""); setWard(""); }}>
+                  <select style={selCss(false)} value={region} onChange={e => { setRegion(e.target.value); setSubRegion(""); setWard(""); }}>
                     <option value="">시/도 선택</option>
                     {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
                   </select>
-                  <select style={selCss(!optionalProfileConsentAgreed || districtOptions.length === 0)} disabled={!optionalProfileConsentAgreed || districtOptions.length === 0} value={subRegion} onChange={e => { setSubRegion(e.target.value); setWard(""); }}>
+                  <select style={selCss(districtOptions.length === 0)} disabled={districtOptions.length === 0} value={subRegion} onChange={e => { setSubRegion(e.target.value); setWard(""); }}>
                     <option value="">시/군/구 선택</option>
                     {districtOptions.map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
                   {wardOptions.length > 0 && (
-                    <select style={selCss(!optionalProfileConsentAgreed)} disabled={!optionalProfileConsentAgreed} value={ward} onChange={e => setWard(e.target.value)}>
+                    <select style={selCss(false)} value={ward} onChange={e => setWard(e.target.value)}>
                       <option value="">구 선택</option>
                       {wardOptions.map((value) => <option key={value} value={value}>{value}</option>)}
                     </select>
@@ -493,24 +519,23 @@ export default function SignupPage() {
               </Field>
 
               <Field label="소득수준">
-                <div style={{ border: `1px solid ${LINE}`, borderRadius: 12, overflow: "hidden" }}>
+                <div style={{ border: `1px solid ${LINE}`, borderRadius: 8, overflow: "hidden" }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", background: BG, padding: "10px 16px", fontSize: 12, fontWeight: 700, color: INK2, borderBottom: `1px solid ${LINE}` }}>
                     <div>분위 기준</div>
                     <div style={{ borderLeft: `1px solid ${LINE}`, paddingLeft: 16 }}>보기 쉬운 기준</div>
                   </div>
                   {INCOME_ROWS.map(row => (
-                    <label key={row.value} onClick={() => optionalProfileConsentAgreed && setIncome(String(row.value))} style={{
+                    <label key={row.value} onClick={() => setIncome(String(row.value))} style={{
                       display: "grid", gridTemplateColumns: "1fr 1fr", padding: "12px 16px",
-                      borderBottom: `1px solid ${LINE2}`, cursor: optionalProfileConsentAgreed ? "pointer" : "not-allowed", alignItems: "center",
+                      borderBottom: `1px solid ${LINE2}`, cursor: "pointer", alignItems: "center",
                       background: income === String(row.value) ? AS : WHITE,
-                      opacity: optionalProfileConsentAgreed ? 1 : 0.55,
                     }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
-                        <input type="radio" readOnly disabled={!optionalProfileConsentAgreed} checked={income === String(row.value)} onChange={() => {}} style={{ accentColor: A }} />
+                        <input type="radio" readOnly checked={income === String(row.value)} onChange={() => {}} style={{ accentColor: A }} />
                         {row.left}
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: INK2, borderLeft: `1px solid ${LINE2}`, paddingLeft: 16 }}>
-                        <input type="radio" readOnly disabled={!optionalProfileConsentAgreed} checked={income === String(row.value)} onChange={() => {}} style={{ accentColor: A }} />
+                        <input type="radio" readOnly checked={income === String(row.value)} onChange={() => {}} style={{ accentColor: A }} />
                         {row.right}
                       </div>
                     </label>
@@ -523,12 +548,11 @@ export default function SignupPage() {
                   {["재직중", "구직중", "학생", "기타"].map(v => {
                     const active = employ === v;
                     return (
-                      <button key={v} disabled={!optionalProfileConsentAgreed} onClick={() => setEmploy(v)} style={{
-                        padding: "11px 8px", borderRadius: 10,
+                      <button key={v} onClick={() => setEmploy(v)} style={{
+                        padding: "11px 4px", borderRadius: 10, whiteSpace: "nowrap",
                         border: `1.5px solid ${active ? A : LINE}`,
                         background: active ? AS : WHITE, color: active ? AI : INK2,
-                        fontSize: 13, fontWeight: 700, cursor: optionalProfileConsentAgreed ? "pointer" : "not-allowed",
-                        opacity: optionalProfileConsentAgreed ? 1 : 0.55,
+                        fontSize: 13, fontWeight: 700, cursor: "pointer",
                       }}>
                         {v}
                       </button>
@@ -542,12 +566,11 @@ export default function SignupPage() {
                   {HOUSEHOLD_TYPES.map(v => {
                     const active = householdType === v;
                     return (
-                      <button key={v} disabled={!optionalProfileConsentAgreed} onClick={() => setHouseholdType(v)} style={{
-                        padding: "11px 8px", borderRadius: 10,
+                      <button key={v} onClick={() => setHouseholdType(v)} style={{
+                        padding: "11px 4px", borderRadius: 10, whiteSpace: "nowrap",
                         border: `1.5px solid ${active ? A : LINE}`,
                         background: active ? AS : WHITE, color: active ? AI : INK2,
-                        fontSize: 13, fontWeight: 700, cursor: optionalProfileConsentAgreed ? "pointer" : "not-allowed",
-                        opacity: optionalProfileConsentAgreed ? 1 : 0.55,
+                        fontSize: 13, fontWeight: 700, cursor: "pointer",
                       }}>
                         {v}
                       </button>
@@ -557,25 +580,26 @@ export default function SignupPage() {
               </Field>
 
               <Field label="주거 및 생활 여건" hint="선택 입력이지만 주거·복지 자격조건 매칭 정확도를 높여요">
-                <div style={{ padding: "12px 14px", borderRadius: 12, background: "#f8fafc", border: `1px solid ${LINE2}`, fontSize: 12, color: INK2, lineHeight: 1.6 }}>
-                  입력한 표준코드는 회원가입 직후부터 추천 점수에 반영됩니다.
+                <div style={{ padding: "12px 14px", borderRadius: 8, background: "#f8fafc", border: `1px solid ${LINE2}`, fontSize: 12, color: INK2, lineHeight: 1.6 }}>
+                  입력한 주거·생활 여건은 회원가입 직후부터 추천 점수에 반영됩니다.
                   현재 <span style={{ color: AI, fontWeight: 800 }}>{selectedStandardCodeCount}/3개</span> 선택됨
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
-                  <select style={selCss(!optionalProfileConsentAgreed)} disabled={!optionalProfileConsentAgreed} value={houseTenureCode} onChange={e => setHouseTenureCode(e.target.value)}>
+                  <select style={selCss(false)} value={houseTenureCode} onChange={e => setHouseTenureCode(e.target.value)}>
                     <option value="">주거형태 선택</option>
                     {profileCodeOptions.houseTenure.map((option) => (
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </select>
-                  <select style={selCss(!optionalProfileConsentAgreed)} disabled={!optionalProfileConsentAgreed} value={housingTypeCode} onChange={e => setHousingTypeCode(e.target.value)}>
+                  <select style={selCss(false)} value={housingTypeCode} onChange={e => setHousingTypeCode(e.target.value)}>
                     <option value="">주택유형 선택</option>
                     {profileCodeOptions.housingType.map((option) => (
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </select>
-                  <select style={selCss(!optionalProfileConsentAgreed)} disabled={!optionalProfileConsentAgreed} value={basicLivingRecipientTypeCode} onChange={e => setBasicLivingRecipientTypeCode(e.target.value)}>
+                  <select style={selCss(false)} value={basicLivingRecipientTypeCode} onChange={e => setBasicLivingRecipientTypeCode(e.target.value)}>
                     <option value="">기초생활수급권자 선택</option>
+                    <option value="NONE">해당하지 않음</option>
                     {profileCodeOptions.basicLivingRecipientType.map((option) => (
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
@@ -585,7 +609,7 @@ export default function SignupPage() {
 
               <label style={{
                 display: "flex", gap: 10, alignItems: "flex-start", padding: "13px 14px",
-                border: `1px solid ${sensitiveInfoConsentAgreed ? A : LINE}`, borderRadius: 12,
+                border: `1px solid ${sensitiveInfoConsentAgreed ? A : LINE}`, borderRadius: 8,
                 background: sensitiveInfoConsentAgreed ? AS : "#f8fafc", cursor: "pointer",
               }}>
                 <input
@@ -605,6 +629,7 @@ export default function SignupPage() {
               <Field label="장애 관련 정보" hint="선택 입력이며, 민감정보 동의 시에만 저장됩니다">
                 <select style={selCss(!sensitiveInfoConsentAgreed)} disabled={!sensitiveInfoConsentAgreed} value={disabilityGradeCode} onChange={e => setDisabilityGradeCode(e.target.value)}>
                   <option value="">장애등급 선택</option>
+                  <option value="NONE">해당하지 않음</option>
                   {profileCodeOptions.disabilityGrade.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
@@ -615,13 +640,10 @@ export default function SignupPage() {
                 <button onClick={() => setStep(0)} style={{ flex: 1, padding: "13px 0", borderRadius: 10, border: `1.5px solid ${LINE}`, background: WHITE, color: INK2, fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
                   ← 이전
                 </button>
-                <button disabled={!step2Valid} onClick={() => setStep(2)} style={btnPrimary(!step2Valid)}>
+                <button onClick={handleStep2Next} style={{ ...btnPrimary(false), flex: 2, width: "auto", whiteSpace: "nowrap" }}>
                   다음 →
                 </button>
               </div>
-              {!birthDateComplete && (
-                <div style={{ fontSize: 12, color: WARN, textAlign: "center" }}>생년월일을 입력해야 다음 단계로 진행할 수 있습니다</div>
-              )}
             </div>
           )}
 
@@ -633,7 +655,7 @@ export default function SignupPage() {
                 <div style={{ fontSize: 13, color: INK3 }}>최대 5개 선택 · 순서가 중요해요 (건너뛸 수 있어요)</div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 10 }}>
                 {PRIORITY_OPTIONS.map(c => {
                   const idx = priorities.indexOf(c.value);
                   const active = idx >= 0;
@@ -641,19 +663,20 @@ export default function SignupPage() {
                     <button key={c.value} onClick={() => togglePriority(c.value)}
                       disabled={!active && priorities.length >= 5}
                       style={{
-                        position: "relative", padding: "20px 10px 14px", borderRadius: 14,
+                        position: "relative", padding: "14px 14px", borderRadius: 12,
                         border: `2px solid ${active ? A : LINE}`,
                         background: active ? AS : WHITE,
-                        textAlign: "center", cursor: (!active && priorities.length >= 5) ? "not-allowed" : "pointer",
+                        textAlign: "left", cursor: (!active && priorities.length >= 5) ? "not-allowed" : "pointer",
                         opacity: (!active && priorities.length >= 5) ? 0.5 : 1,
+                        display: "flex", alignItems: "center", gap: 8,
                       }}>
+                      <span style={{ width: 12, height: 12, borderRadius: "50%", background: c.fg, flexShrink: 0 }} />
+                      <div style={{ fontSize: 13, fontWeight: 700, color: active ? AI : INK, letterSpacing: "-0.02em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{c.label}</div>
                       {active && (
-                        <span style={{ position: "absolute", top: 7, right: 7, width: 20, height: 20, borderRadius: "50%", background: A, color: WHITE, fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <span style={{ position: "absolute", top: 6, right: 6, width: 18, height: 18, borderRadius: "50%", background: A, color: WHITE, fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>
                           {idx + 1}
                         </span>
                       )}
-                      <div style={{ fontSize: 24, marginBottom: 6 }}>{c.ico}</div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: active ? AI : INK }}>{c.label}</div>
                     </button>
                   );
                 })}
@@ -661,30 +684,17 @@ export default function SignupPage() {
 
               {priorities.length > 0 && (
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: INK2, marginBottom: 8 }}>선택한 우선순위 (드래그로 순서 조정)</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    {priorities.map((val, i) => {
+                  <div style={{ fontSize: 13, fontWeight: 700, color: INK2, marginBottom: 8 }}>선택한 우선순위 (끌어서 순서 조정 · 모바일은 길게 눌러 끌기)</div>
+                  <PrioritySortableList
+                    priorities={priorities}
+                    onReorder={setPriorities}
+                    onRemove={removePriority}
+                    getMeta={(val) => {
                       const c = PRIORITY_OPTIONS.find(o => o.value === val);
-                      return (
-                        <div key={val} draggable
-                          onDragStart={() => handleDragStart(i)}
-                          onDragOver={e => handleDragOver(e, i)}
-                          onDragEnd={handleDragEnd}
-                          style={{
-                            display: "flex", alignItems: "center", gap: 12, padding: "12px 14px",
-                            background: dragIdx === i ? AS : BG,
-                            border: `1px solid ${dragIdx === i ? A : LINE}`,
-                            borderRadius: 10, cursor: "grab",
-                          }}>
-                          <span style={{ color: INK3, fontSize: 14 }}>⋮⋮</span>
-                          <span style={{ width: 24, height: 24, borderRadius: "50%", background: A, color: WHITE, fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{i + 1}</span>
-                          <span style={{ fontSize: 16 }}>{c?.ico}</span>
-                          <span style={{ fontSize: 13, fontWeight: 700, flex: 1, color: INK }}>{c?.label}</span>
-                          <button onClick={() => removePriority(val)} style={{ background: "transparent", border: 0, color: INK3, fontSize: 14, cursor: "pointer", padding: "2px 6px" }}>✕</button>
-                        </div>
-                      );
-                    })}
-                  </div>
+                      return { label: c?.label, fg: c?.fg };
+                    }}
+                    compact
+                  />
                 </div>
               )}
 
@@ -692,8 +702,8 @@ export default function SignupPage() {
                 <button onClick={() => setStep(1)} style={{ flex: 1, padding: "13px 0", borderRadius: 10, border: `1.5px solid ${LINE}`, background: WHITE, color: INK2, fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
                   ← 이전
                 </button>
-                <button disabled={loading || !step2Valid} onClick={handleSignup} style={btnPrimary(loading || !step2Valid)}>
-                  {loading ? <CircularProgress size={20} sx={{ color: WHITE }} /> : "가입 완료 🎉"}
+                <button disabled={loading || !step2Valid} onClick={handleSignup} style={{ ...btnPrimary(loading || !step2Valid), flex: 2, width: "auto", whiteSpace: "nowrap" }}>
+                  {loading ? <CircularProgress size={20} sx={{ color: WHITE }} /> : "가입 완료"}
                 </button>
               </div>
             </div>
@@ -704,6 +714,19 @@ export default function SignupPage() {
       <Snackbar open={toast.open} autoHideDuration={3000} onClose={() => setToast(t => ({ ...t, open: false }))} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
         <Alert severity={toast.severity}>{toast.msg}</Alert>
       </Snackbar>
+
+      <Dialog open={privacyModalOpen} onClose={() => setPrivacyModalOpen(false)} maxWidth="md" fullWidth scroll="paper">
+        <IconButton
+          aria-label="닫기"
+          onClick={() => setPrivacyModalOpen(false)}
+          sx={{ position: "absolute", right: 8, top: 8, zIndex: 1, color: "#6b7280" }}
+        >
+          <CloseIcon />
+        </IconButton>
+        <DialogContent dividers>
+          <PrivacyPolicyContent />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

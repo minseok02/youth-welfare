@@ -10,6 +10,7 @@ import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNone
 import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
 import { useAuthStore } from "../store/authStore";
 import { useUnreadAlertCount } from "../lib/useUnreadAlertCount";
+import { performServerLogout } from "../lib/session";
 import api from "../lib/axios";
 
 const formatAlertTime = (value) => {
@@ -35,13 +36,21 @@ const formatAlertTime = (value) => {
 export default function Header() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isLoggedIn, user } = useAuthStore();
+  const { isLoggedIn, user, logout } = useAuthStore();
   const queryClient = useQueryClient();
   const unreadAlertCount = useUnreadAlertCount(isLoggedIn);
   const [alertAnchorEl, setAlertAnchorEl] = useState(null);
+  const [userMenuAnchorEl, setUserMenuAnchorEl] = useState(null);
 
   const handleAlertMenu = (e) => setAlertAnchorEl(e.currentTarget);
   const handleAlertClose = () => setAlertAnchorEl(null);
+  const userMenuOpen = Boolean(userMenuAnchorEl);
+  const handleUserMenu = (e) => setUserMenuAnchorEl(e.currentTarget);
+  const handleUserMenuClose = () => setUserMenuAnchorEl(null);
+  const handleLogout = () => {
+    handleUserMenuClose();
+    performServerLogout(logout).then(() => navigate("/"));
+  };
   const authFromState = {
     from: location,
   };
@@ -152,9 +161,10 @@ export default function Header() {
                   size="small"
                   onClick={handleAlertMenu}
                   sx={{
-                    border: "1px solid rgba(255,255,255,0.35)",
-                    bgcolor: "rgba(255,255,255,0.08)",
-                    "&:hover": { bgcolor: "rgba(255,255,255,0.15)" },
+                    order: 5,
+                    border: "1px solid rgba(255,255,255,0.3)",
+                    bgcolor: "rgba(255,255,255,0.1)",
+                    "&:hover": { bgcolor: "rgba(255,255,255,0.18)" },
                   }}
                 >
                   <Badge color="error" badgeContent={unreadBadge} invisible={unreadAlertCount <= 0}>
@@ -252,11 +262,13 @@ export default function Header() {
                     startIcon={<AdminPanelSettingsOutlinedIcon fontSize="small" />}
                     onClick={() => navigate("/admin/dashboard")}
                     sx={{
+                      order: 4,
                       display: { xs: "none", lg: "inline-flex" },
                       fontSize: { xs: 12, sm: 13 },
                       color: "white",
-                      bgcolor: "rgba(255,255,255,0.12)",
-                      border: "1px solid rgba(255,255,255,0.2)",
+                      bgcolor: "rgba(255,255,255,0.1)",
+                      border: "1px solid rgba(255,255,255,0.3)",
+                      borderRadius: 2,
                       minWidth: "auto",
                       px: { xs: 1, sm: 1.25 },
                       "&:hover": { bgcolor: "rgba(255,255,255,0.18)" },
@@ -275,14 +287,14 @@ export default function Header() {
                   size="small"
                   onClick={() => navigate("/guide")}
                   sx={{
+                    order: 1,
                     display: "inline-flex",
                     fontSize: { xs: 12, sm: 13 },
-                    color: "white",
-                    bgcolor: "rgba(255,255,255,0.08)",
-                    border: "1px solid rgba(255,255,255,0.18)",
+                    fontWeight: 500,
+                    color: "rgba(255,255,255,0.92)",
                     minWidth: "auto",
-                    px: { xs: 1, sm: 1.25 },
-                    "&:hover": { bgcolor: "rgba(255,255,255,0.14)" },
+                    px: { xs: 0.75, sm: 1 },
+                    "&:hover": { bgcolor: "rgba(255,255,255,0.12)" },
                   }}
                 >
                   <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
@@ -297,38 +309,76 @@ export default function Header() {
                   size="small"
                   onClick={() => navigate("/support", { state: authFromState })}
                   sx={{
+                    order: 2,
                     display: { xs: "none", md: "inline-flex" },
                     fontSize: 13,
-                    color: "white",
-                    bgcolor: "rgba(255,255,255,0.08)",
-                    border: "1px solid rgba(255,255,255,0.18)",
+                    fontWeight: 500,
+                    color: "rgba(255,255,255,0.92)",
                     minWidth: "auto",
-                    px: 1.25,
-                    "&:hover": { bgcolor: "rgba(255,255,255,0.14)" },
+                    px: 1,
+                    "&:hover": { bgcolor: "rgba(255,255,255,0.12)" },
                   }}
                 >
                   서비스 문의
                 </Button>
+                <Box
+                  sx={{
+                    order: 3,
+                    display: { xs: "none", lg: "block" },
+                    width: "1px",
+                    height: 20,
+                    bgcolor: "rgba(255,255,255,0.28)",
+                    mx: 0.5,
+                  }}
+                />
                 <Button
-                  variant="outlined"
                   color="inherit"
                   size="small"
-                  onClick={() => navigate(`${mypageTarget.pathname}${mypageTarget.search ?? ""}`, {
-                    state: mypageTarget.state,
-                  })}
+                  onClick={handleUserMenu}
                   sx={{
+                    order: 6,
                     display: { xs: "none", lg: "inline-flex" },
-                    borderColor: "rgba(255,255,255,0.6)",
+                    bgcolor: "rgba(255,255,255,0.1)",
+                    border: "1px solid rgba(255,255,255,0.3)",
                     borderRadius: 2,
                     fontSize: { xs: 12, sm: 13 },
+                    fontWeight: 700,
                     minWidth: "auto",
                     px: { xs: 1, sm: 1.25 },
+                    gap: 0.25,
+                    "&:hover": { bgcolor: "rgba(255,255,255,0.18)" },
                   }}
                 >
                   <Badge color="error" badgeContent={unreadBadge} invisible={unreadAlertCount <= 0} overlap="rectangular">
-                    <span>마이페이지</span>
+                    <span>{user?.name ? `${user.name}님` : "내 계정"}</span>
                   </Badge>
+                  <Box component="span" sx={{ fontSize: 10, lineHeight: 1, ml: 0.25 }}>▾</Box>
                 </Button>
+                <Menu
+                  anchorEl={userMenuAnchorEl}
+                  open={userMenuOpen}
+                  onClose={handleUserMenuClose}
+                  anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                  transformOrigin={{ vertical: "top", horizontal: "right" }}
+                >
+                  <MenuItem
+                    onClick={() => {
+                      handleUserMenuClose();
+                      navigate(`${mypageTarget.pathname}${mypageTarget.search ?? ""}`, { state: mypageTarget.state });
+                    }}
+                  >
+                    마이페이지
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() => {
+                      handleUserMenuClose();
+                      navigate("/mypage?tab=5");
+                    }}
+                  >
+                    비밀번호 변경
+                  </MenuItem>
+                  <MenuItem onClick={handleLogout}>로그아웃</MenuItem>
+                </Menu>
               </>
             ) : (
               <>

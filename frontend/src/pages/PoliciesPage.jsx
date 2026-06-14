@@ -8,6 +8,8 @@ import BookmarkIcon from "@mui/icons-material/Bookmark";
 import SearchIcon from "@mui/icons-material/Search";
 import ViewListIcon from "@mui/icons-material/ViewList";
 import GridViewIcon from "@mui/icons-material/GridView";
+import BusinessOutlinedIcon from "@mui/icons-material/BusinessOutlined";
+import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
 import Header from "../components/Header";
 import FloatingNav from "../components/FloatingNav";
 import IncomeCalculatorModal from "../components/IncomeCalculatorModal";
@@ -374,7 +376,7 @@ function StandardCodePolicyPrompt({
           추천 정확도 보강
         </div>
         <div style={{ fontSize: 17, fontWeight: 800, color: INK, marginTop: 6, letterSpacing: "-0.02em" }}>
-          주거·복지 표준코드 {filledCount}/4개 입력됨
+          주거·생활 여건 {filledCount}/4개 입력됨
         </div>
         <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.6 }}>
           정책 목록 필터링은 되고 있지만, 아직 비어 있는 항목 {missingLabels.join(", ")} 때문에
@@ -396,7 +398,7 @@ function StandardCodePolicyPrompt({
           boxShadow: "0 8px 24px rgba(37,99,235,0.14)",
         }}
       >
-        표준코드 채우기 →
+        주거·생활 여건 채우기 →
       </button>
     </section>
   );
@@ -478,9 +480,9 @@ function PolicyRow({ p, onNavigate, onBookmark }) {
         <PolicyMetaBadges badges={p.youthOfficialBadges?.length ? p.youthOfficialBadges : p.gov24Badges} />
         <div style={{ display: "flex", gap: 14, marginTop: 10, fontSize: 12, color: INK3, flexWrap: "wrap" }}>
           {p.sourceTypeLabel && <span>출처 {p.sourceTypeLabel}</span>}
-          {p.orgName && <span>🏢 {p.orgName}</span>}
-          {p.regionText && <span>📍 {p.regionText}</span>}
-          {!p.orgName && p.source && <span>🏢 {p.source}</span>}
+          {p.orgName && <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><BusinessOutlinedIcon sx={{ fontSize: 14 }} /> {p.orgName}</span>}
+          {p.regionText && <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><PlaceOutlinedIcon sx={{ fontSize: 14 }} /> {p.regionText}</span>}
+          {!p.orgName && p.source && <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><BusinessOutlinedIcon sx={{ fontSize: 14 }} /> {p.source}</span>}
         </div>
       </div>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0, gap: 4 }}>
@@ -520,7 +522,7 @@ function PolicyCard({ p, onNavigate, onBookmark }) {
       <PolicyMetaBadges badges={p.youthOfficialBadges?.length ? p.youthOfficialBadges : p.gov24Badges} />
       <div style={{ display: "flex", gap: 10, marginTop: 8, fontSize: 12, color: INK3, flexWrap: "wrap" }}>
         {p.sourceTypeLabel && <span>출처 {p.sourceTypeLabel}</span>}
-        {p.source && <span>🏢 {p.source}</span>}
+        {p.source && <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><BusinessOutlinedIcon sx={{ fontSize: 14 }} /> {p.source}</span>}
       </div>
     </div>
   );
@@ -1213,7 +1215,7 @@ export default function PoliciesPage() {
               onClick={() => setIncomeCalcOpen(true)}
               style={{ marginTop: 8, background: "none", border: "none", fontSize: 12, color: A, cursor: "pointer", fontWeight: 600, padding: 0 }}
             >
-              🔗 소득분위 확인하기
+              소득분위 확인하기
             </button>
           </FilterSection>
 
@@ -1322,7 +1324,7 @@ export default function PoliciesPage() {
         </aside>
 
         {/* ── 결과 영역 ── */}
-        <div>
+        <div style={{ minWidth: 0 }}>
           {isLoggedIn && !user?.hasPriorities && (
             <PriorityPolicyPrompt onNavigate={() => navigate("/mypage?tab=1")} />
           )}
@@ -1348,7 +1350,7 @@ export default function PoliciesPage() {
                   cursor: "pointer",
                 }}
               >
-                🔧 필터{activeFilters.length > 0 ? ` (${activeFilters.length}개 적용됨)` : ""}
+                필터{activeFilters.length > 0 ? ` (${activeFilters.length}개 적용됨)` : ""}
               </button>
             </div>
           )}
@@ -1435,8 +1437,7 @@ export default function PoliciesPage() {
             )
           ) : (
             <div style={{ textAlign: "center", padding: "64px 24px", background: "white", borderRadius: 16, border: `1px solid ${LINE}` }}>
-              <div style={{ fontSize: 40 }}>🔍</div>
-              <div style={{ marginTop: 12, fontSize: 15, color: INK2 }}>
+              <div style={{ fontSize: 15, color: INK2 }}>
                 {hasSearch || hasActiveFilters ? "조건에 맞는 정책을 찾지 못했어요" : "검색 결과가 없습니다"}
               </div>
               <div style={{ marginTop: 6, fontSize: 13, color: INK3 }}>

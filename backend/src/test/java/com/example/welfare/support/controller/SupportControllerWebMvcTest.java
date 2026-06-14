@@ -7,6 +7,7 @@ import com.example.welfare.global.response.ApiResponse;
 import com.example.welfare.global.web.ClientFingerprintService;
 import com.example.welfare.support.dto.SupportInquiryResponse;
 import com.example.welfare.support.service.SupportInquiryCommandService;
+import com.example.welfare.support.service.SupportInquiryQueryService;
 import com.example.welfare.support.service.SupportInquiryRateLimitService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,6 +42,8 @@ class SupportControllerWebMvcTest {
     @MockitoBean
     private SupportInquiryCommandService supportInquiryCommandService;
     @MockitoBean
+    private SupportInquiryQueryService supportInquiryQueryService;
+    @MockitoBean
     private SupportInquiryRateLimitService supportInquiryRateLimitService;
     @MockitoBean
     private ClientFingerprintService clientFingerprintService;
@@ -54,8 +57,8 @@ class SupportControllerWebMvcTest {
         given(supportInquiryCommandService.submit(isNull(), isNull(), any()))
                 .willReturn(new SupportInquiryResponse(
                         1L,
-                        "GENERAL_FEEDBACK",
-                        "기타 의견/제안",
+                        "ETC",
+                        "기타",
                         "user@example.com",
                         "OPEN",
                         LocalDateTime.of(2026, 6, 4, 12, 0)
@@ -65,7 +68,7 @@ class SupportControllerWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "category": "GENERAL_FEEDBACK",
+                                  "category": "ETC",
                                   "contactEmail": "user@example.com",
                                   "message": "서비스가 좋아요",
                                   "routePath": "/guide"
@@ -73,7 +76,7 @@ class SupportControllerWebMvcTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.categoryCode").value("GENERAL_FEEDBACK"))
+                .andExpect(jsonPath("$.data.categoryCode").value("ETC"))
                 .andExpect(jsonPath("$.data.contactEmail").value("user@example.com"));
 
         then(supportInquiryRateLimitService).should().checkInquiryLimit("fp:fp-support");
@@ -92,7 +95,7 @@ class SupportControllerWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "category": "GENERAL_FEEDBACK",
+                                  "category": "ETC",
                                   "contactEmail": "user@example.com",
                                   "message": "서비스가 좋아요",
                                   "routePath": "/guide"
@@ -114,7 +117,7 @@ class SupportControllerWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "category": "GENERAL_FEEDBACK",
+                                  "category": "ETC",
                                   "contactEmail": "user@example.com",
                                   "message": "서비스가 좋아요",
                                   "routePath": "https://evil.example/guide"
