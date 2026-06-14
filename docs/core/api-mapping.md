@@ -490,7 +490,7 @@ public void resetAiScoreForClosed() {
   - `aiScore`
   - `aiReason`
     - 프론트 표시명은 `추천 메모`
-    - blank reason 은 null 로 내려갈 수 있으며, 이 경우 프론트가 canonical summary 기반 fallback 문구를 표시한다
+    - blank reason 은 null 로 내려갈 수 있으며, 이 경우 프론트는 추천 메모를 표시하지 않는다 (상세는 recommendation-ai-reason-memo-contract.md "메모 노출 정책")
     - 서버 응답 기준 개행/중복 공백은 제거되고 20 code point 이내로 제한된다
   - `bookmarked`
   - `recommendedAt`

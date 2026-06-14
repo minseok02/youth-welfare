@@ -22,7 +22,17 @@
    - 기존 DB row 에 긴 값이나 개행이 남아 있어도 API 응답에서 sanitize 합니다.
 6. `MainPage`
    - `aiReason` 이 있으면 `추천 메모`로 표시합니다.
-   - `aiReason` 이 없으면 `youthMidLabel`, `provisionMethodLabel`, `gov24BenefitTypeLabel`, `gov24ServiceFieldLabel` 같은 canonical summary field 기반 fallback 문구를 표시합니다.
+   - `aiReason` 이 없으면 메모를 표시하지 않습니다. (이유는 아래 "메모 노출 정책" 참고)
+
+## 메모 노출 정책
+
+**기존 동작**: `aiReason` 이 없으면(AI 미적용·실패 시) `youthMidLabel`·`provisionMethodLabel`·`gov24BenefitTypeLabel`·`gov24ServiceFieldLabel` 같은 canonical summary field 로 fallback 문구("○○ 기준으로 먼저 보여드렸어요")를 만들어 항상 메모를 표시했습니다.
+
+**변경 동작**: `aiReason` 이 없으면 메모를 표시하지 않습니다. `resolveRecommendationMemo` 가 `null` 을 반환하고, 카드는 메모 영역 자체를 렌더하지 않습니다.
+
+**이유**: 현재 설계상 AI는 상시 적용되고, 메인 노출 6건은 `AI_TOP_N=12` 안에 들어 평상시 거의 항상 AI 이유가 붙습니다. AI가 빠지는 경우(`CALL_FAILED`/`RULE_ONLY`/`PARTIAL_MISSING`/blank reason)는 비상·예외 상황인데, 이때 rule 기반 fallback 문구는 카테고리를 되읊는 수준이라 내용이 빈약하고 "기계가 대충 채운 근거"처럼 보여 오히려 신뢰를 떨어뜨렸습니다. 빈약한 이유를 억지로 보여주느니 숨기는 편이 낫다고 판단했습니다.
+
+**주의**: 이 결정은 "AI 상시 ON" 전제에 기댑니다. 비용 등으로 rule-only 모드를 상시 운영하게 되면 모든 카드에서 메모가 사라지므로, 그때는 노출 정책(예: 품질 높은 fallback만 노출)을 재검토해야 합니다.
 
 ## 품질 기준
 
@@ -65,7 +75,7 @@ npm run build
 ### 메모가 안 보인다
 
 1. `/api/recommendations` 응답의 `aiReason` 이 null 인지 봅니다.
-2. `aiStatus` 가 `NOT_REQUESTED` 이면 fallback 메모가 나오는 것이 정상입니다.
+2. `aiReason` 이 null 이면(`NOT_REQUESTED`/`CALL_FAILED`/`RULE_ONLY`/`PARTIAL_MISSING`/blank reason 등) 메모를 숨기는 것이 정상입니다. (위 "메모 노출 정책" 참고)
 3. `SCORED` 인데 `aiReason` 이 null 이면 OpenAI 응답 reason 이 blank 였거나 sanitizer에서 blank 처리된 것입니다.
 
 ### 메모가 너무 길거나 개행이 보인다
