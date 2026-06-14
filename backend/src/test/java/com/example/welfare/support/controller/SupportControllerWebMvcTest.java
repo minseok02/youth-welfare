@@ -7,6 +7,7 @@ import com.example.welfare.global.response.ApiResponse;
 import com.example.welfare.global.web.ClientFingerprintService;
 import com.example.welfare.support.dto.SupportInquiryResponse;
 import com.example.welfare.support.service.SupportInquiryCommandService;
+import com.example.welfare.support.service.SupportInquiryQueryService;
 import com.example.welfare.support.service.SupportInquiryRateLimitService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -40,6 +41,8 @@ class SupportControllerWebMvcTest {
 
     @MockitoBean
     private SupportInquiryCommandService supportInquiryCommandService;
+    @MockitoBean
+    private SupportInquiryQueryService supportInquiryQueryService;
     @MockitoBean
     private SupportInquiryRateLimitService supportInquiryRateLimitService;
     @MockitoBean
