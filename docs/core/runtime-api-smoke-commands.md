@@ -34,6 +34,15 @@ deploy/smoke/run-local-similar-users-viewed-smoke.sh
 이 스크립트는 `signup -> login -> similar-users-viewed` 를 한 번에 확인합니다.
 로컬 표본이 얇으면 `result_count=0` 도 정상이며, 이때도 `success=true`, `data=[]` 계약은 지켜져야 합니다.
 
+배포 뒤 `result_count=0` 원인을 read-only aggregate로 분해할 때는 아래 audit을 사용합니다.
+
+```bash
+deploy/smoke/run-local-similar-users-viewed-audit.sh
+```
+
+서버/RDS에서는 `ENV_FILE=.env.production SMOKE_DB_MODE=postgres KEEP_ARTIFACTS=true` 를 붙입니다.
+해석 기준은 [recommendation-similar-users-viewed-audit-runbook.md](../recommendation/recommendation-similar-users-viewed-audit-runbook.md) 를 봅니다.
+
 `@example.com` 이 아닌 bounded local seed를 하나 만들어 `BOUNDED_LOCAL` cohort가 비지 않는지 같이 보고 싶으면 아래 스크립트를 사용합니다.
 
 ```bash

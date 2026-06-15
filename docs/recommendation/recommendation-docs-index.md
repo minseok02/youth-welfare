@@ -27,6 +27,7 @@
 - [recommendation-region-mismatch-repair-runbook.md](./recommendation-region-mismatch-repair-runbook.md)
 - [recommendation-real-user-cohort-library-manifest.md](./recommendation-real-user-cohort-library-manifest.md)
 - [recommendation-similar-users-viewed-policy.md](./recommendation-similar-users-viewed-policy.md)
+- [recommendation-similar-users-viewed-audit-runbook.md](./recommendation-similar-users-viewed-audit-runbook.md)
 - [recommendation-real-user-exclusion-readiness-check-runbook.md](./recommendation-real-user-exclusion-readiness-check-runbook.md)
 - [recommendation-review-gate-blocker-audit-runbook.md](./recommendation-review-gate-blocker-audit-runbook.md)
 - [recommendation-same-profile-origin-differential-audit-runbook.md](./recommendation-same-profile-origin-differential-audit-runbook.md)
@@ -72,6 +73,7 @@
 - `bash deploy/smoke/run-local-ctr-readiness-audit.sh`
 - `bash deploy/smoke/run-local-recommendation-concentration-audit.sh`
 - `bash deploy/smoke/run-local-similar-users-viewed-smoke.sh`
+- `bash deploy/smoke/run-local-similar-users-viewed-audit.sh`
 - `bash deploy/smoke/run-local-real-user-readiness-check.sh`
 - `bash deploy/smoke/run-local-real-user-cohort-library-seed.sh`
 - `bash deploy/smoke/run-local-recommendation-review-gate-blocker-audit.sh`
