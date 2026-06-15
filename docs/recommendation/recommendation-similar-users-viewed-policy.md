@@ -85,6 +85,21 @@ bash deploy/smoke/run-local-similar-users-viewed-audit.sh
 조회 이력은 정책 자격 충족이나 신청 의사를 직접 의미하지 않으므로, 메인 추천 점수나 review gate 판단의 source of truth로 쓰지 않습니다.
 실사용자 표본이 얇은 동안에는 결과가 비거나 소수 사용자 행동에 흔들릴 수 있습니다.
 
+### 2026-06-15 운영 관찰 기록
+
+서버/RDS 기준 `ba651649d4dfcdbec6bad45dc141eb35f50d3d57` audit 결과는 정상 관찰 상태입니다.
+
+- `expected_index_count=5` 로 read path 인덱스 5개가 모두 적용되어 있습니다.
+- `similar_users_viewed_audit=passed` 입니다.
+- `active_real_users=2` 이므로 현재 계약인 `minSimilarUsers=2` 를 구조적으로 만족하기 어렵습니다.
+- `candidate_policy_groups_before_exclusions=22` 이므로 후보 생성 경로는 살아 있습니다.
+- `candidate_policy_groups_min_sample=0`, `result_policy_groups=0` 은 `REAL_USER` 표본 부족에 따른 정상 결과로 봅니다.
+- `decision_class=REAL_USER_SAMPLE_THIN` 이며, similar-users-viewed는 관찰 상태를 유지합니다.
+- `minSimilarUsers`, similarity threshold, 30일 window, 기능 로직은 변경하지 않습니다.
+- actuator metrics 노출은 별도 운영 정책 작업으로 유지합니다.
+
+다음 audit은 `REAL_USER` 가 최소 3명 이상, 가능하면 최근 조회가 있는 `REAL_USER` 가 5~10명 이상 쌓인 뒤 다시 실행합니다.
+
 ## 확장 포인트
 
 1. 유사 사용자 최소 표본을 운영 설정으로 분리

@@ -83,6 +83,25 @@ stdout도 `key=value` summary를 그대로 출력합니다.
 초기 배포 직후 `RECENT_VIEW_SAMPLE_THIN` 또는 `REAL_USER_SAMPLE_THIN` 은 정상 관찰 상태입니다.
 이 경우 `minSimilarUsers`, similarity threshold, 30일 window를 바로 튜닝하지 않습니다.
 
+### 2026-06-15 서버/RDS 관찰 기록
+
+`ba651649d4dfcdbec6bad45dc141eb35f50d3d57` 기준 운영 audit 결과는 `REAL_USER_SAMPLE_THIN` 입니다.
+
+- `similar_users_viewed_audit=passed`
+- `expected_index_count=5`
+- `active_real_users=2`
+- `profiles_with_similarity_signals=2`
+- `recent_view_users_window=2`
+- `sampled_target_users=2`
+- `sampled_targets_with_eligible_similar_users=2`
+- `candidate_policy_groups_before_exclusions=22`
+- `candidate_policy_groups_min_sample=0`
+- `result_policy_groups=0`
+
+해석은 정상 관찰 상태입니다. 현재 `REAL_USER` 수가 2명이므로 정책별 최소 유사 사용자 표본 `2명` 계약을 구조적으로 만족할 수 없습니다. 후보 생성 경로는 살아 있으므로 바로 threshold를 낮추지 않습니다.
+
+후속은 `REAL_USER` 최소 3명 이상, 가능하면 최근 조회가 있는 `REAL_USER` 5~10명 이상이 쌓인 뒤 audit을 재실행하는 것입니다. actuator metrics 노출은 별도 운영 정책 작업으로 유지합니다.
+
 튜닝 검토는 아래가 동시에 보일 때만 엽니다.
 
 1. `active_real_users` 와 `recent_view_users_window` 가 충분히 증가했다.
