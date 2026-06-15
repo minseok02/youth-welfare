@@ -25,6 +25,15 @@ deploy/smoke/run-local-recommendation-click-smoke.sh
 이 스크립트는 `signup -> login -> recommendations refresh -> first recommendation detail(serviceId + logId) -> recommendation_logs.is_clicked=1` 을 한 번에 확인합니다.
 앱 재기동 직후 startup race가 있으면 `HEALTH_RETRY_COUNT`, `HEALTH_RETRY_DELAY_SECONDS` 로 health check 재시도 횟수를 늘릴 수 있습니다.
 
+비슷한 사용자들이 본 정책 섹션의 API 계약은 아래 스크립트로 확인합니다.
+
+```bash
+deploy/smoke/run-local-similar-users-viewed-smoke.sh
+```
+
+이 스크립트는 `signup -> login -> similar-users-viewed` 를 한 번에 확인합니다.
+로컬 표본이 얇으면 `result_count=0` 도 정상이며, 이때도 `success=true`, `data=[]` 계약은 지켜져야 합니다.
+
 `@example.com` 이 아닌 bounded local seed를 하나 만들어 `BOUNDED_LOCAL` cohort가 비지 않는지 같이 보고 싶으면 아래 스크립트를 사용합니다.
 
 ```bash

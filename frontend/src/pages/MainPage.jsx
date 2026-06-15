@@ -49,9 +49,44 @@ const mapRec = (r) => ({
   bookmarked: Boolean(r.isBookmarked),
 });
 
+const mapPolicySummaryCard = (policy, extra = {}) => ({
+  id: policy.id,
+  logId: null,
+  title: policy.title,
+  category: policy.unifiedCategory || "기타",
+  dday: formatDday(policy.applyEndDate, policy.status),
+  summary: policy.description || "",
+  sourceType: policy.sourceType || "",
+  sourceTypeLabel: SOURCE_LABEL_BY_TYPE[policy.sourceType] || "",
+  source: policy.hostOrg || policy.sido || policy.operatingOrg || "",
+  aiReason: null,
+  aiStatus: "",
+  youthMajorLabel: policy.youthMajorLabel || "",
+  youthMidLabel: policy.youthMidLabel || "",
+  provisionMethodLabel: policy.provisionMethodLabel || "",
+  gov24ServiceFieldLabel: policy.gov24ServiceFieldLabel || "",
+  gov24UserTypeLabel: policy.gov24UserTypeLabel || "",
+  gov24BenefitTypeLabel: policy.gov24BenefitTypeLabel || "",
+  bookmarked: Boolean(policy.bookmarked),
+  ...extra,
+});
+
+const mapSimilarUsersViewedPolicy = (item) => mapPolicySummaryCard(item.policy, {
+  memoHeading: "탐색 힌트",
+  memoBody: item.reasonLabel,
+  memoAccentColor: A7,
+});
+
 const nonBlank = (value) => (value || "").trim();
 
 const resolveRecommendationMemo = (rec) => {
+  if (rec.memoBody) {
+    return {
+      heading: rec.memoHeading || "추천 메모",
+      body: rec.memoBody,
+      accentColor: rec.memoAccentColor || A,
+    };
+  }
   const aiReason = nonBlank(rec.aiReason);
   if (!aiReason) {
     // AI가 이유를 붙인 경우에만 메모를 노출한다.
@@ -515,6 +550,28 @@ function RecentViewedRail({ policies, navigate, onPolicyNavigate }) {
             <div style={{ fontSize: 14, fontWeight: 700, marginTop: 12, lineHeight: 1.4, letterSpacing: "-0.01em", color: INK }}>{policy.title}</div>
             {policy.source && <div style={{ fontSize: 12, color: INK3, marginTop: 4 }}>{policy.source}</div>}
           </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SimilarUsersViewedRail({ policies, onPolicyNavigate, onBookmarkToggle }) {
+  if (!policies.length) return null;
+  return (
+    <section style={{ marginTop: 32 }}>
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: 0, color: INK }}>비슷한 사용자들이 본 정책</div>
+        <div style={{ fontSize: 13, color: INK3, marginTop: 4 }}>내 프로필과 가까운 사용자들의 최근 조회 기반이에요</div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {policies.map((rec) => (
+          <RecCard
+            key={rec.id}
+            rec={rec}
+            onPolicyNavigate={onPolicyNavigate}
+            onBookmarkToggle={onBookmarkToggle}
+          />
         ))}
       </div>
     </section>
@@ -989,6 +1046,7 @@ export default function MainPage() {
   const [teaserPolicies, setTeaserPolicies] = useState({});
   const [deadlinePolicies, setDeadlinePolicies] = useState([]);
   const [recentViewedPolicies, setRecentViewedPolicies] = useState([]);
+  const [similarUsersViewedPolicies, setSimilarUsersViewedPolicies] = useState([]);
   const [guideNudge, setGuideNudge] = useState(null);
 
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
@@ -1131,6 +1189,28 @@ export default function MainPage() {
     return () => controller.abort();
   }, [isLoggedIn]);
 
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setSimilarUsersViewedPolicies([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    api.get("/api/recommendations/similar-users-viewed", {
+      params: { size: 4 },
+      signal: controller.signal,
+    })
+      .then(({ data }) => setSimilarUsersViewedPolicies((data.data ?? []).map(mapSimilarUsersViewedPolicy)))
+      .catch((err) => {
+        if (err.name === "CanceledError" || err.code === "ERR_CANCELED") {
+          return;
+        }
+        setSimilarUsersViewedPolicies([]);
+      });
+
+    return () => controller.abort();
+  }, [isLoggedIn]);
+
   // ── 공통 데이터 fetch (전체 수, 카테고리별, 마감임박) ─────────────────────
   useEffect(() => {
     const controller = new AbortController();
@@ -1248,15 +1328,19 @@ export default function MainPage() {
     try {
       await api.post(`/api/policies/${serviceId}/bookmark`);
       const current = recommendations.find((rec) => rec.id === serviceId);
-      const nextBookmarked = !current?.bookmarked;
-      setRecommendations((prev) =>
-        prev.map((rec) => (rec.id === serviceId ? { ...rec, bookmarked: nextBookmarked } : rec))
-      );
+      const fallbackCurrent = similarUsersViewedPolicies.find((rec) => rec.id === serviceId);
+      const nextBookmarked = !(current ?? fallbackCurrent)?.bookmarked;
+      setRecommendations((prev) => updateBookmarkedPolicy(prev, serviceId, nextBookmarked));
+      setSimilarUsersViewedPolicies((prev) => updateBookmarkedPolicy(prev, serviceId, nextBookmarked));
       showToast(nextBookmarked ? "북마크에 저장했어요" : "북마크를 해제했어요", "success");
     } catch {
       showToast("북마크 처리에 실패했습니다", "error");
     }
   };
+
+  const updateBookmarkedPolicy = (policies, serviceId, bookmarked) => (
+    policies.map((rec) => (rec.id === serviceId ? { ...rec, bookmarked } : rec))
+  );
 
   return (
     <div style={{ minHeight: "100vh", background: "#f7f8fc" }}>
@@ -1454,6 +1538,14 @@ export default function MainPage() {
             </div>
           )}
         </section>
+
+        {isLoggedIn && (
+          <SimilarUsersViewedRail
+            policies={similarUsersViewedPolicies}
+            onPolicyNavigate={navigateToPolicyDetail}
+            onBookmarkToggle={handleRecommendationBookmarkToggle}
+          />
+        )}
 
         {isLoggedIn && (
           <RecentViewedRail
