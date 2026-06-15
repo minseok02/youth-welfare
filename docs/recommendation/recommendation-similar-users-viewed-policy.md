@@ -65,6 +65,20 @@ deploy/smoke/run-local-similar-users-viewed-smoke.sh
 이 smoke는 `signup -> login -> /api/recommendations/similar-users-viewed` 를 확인합니다.
 로컬 표본이 얇으면 결과 수 `0` 도 정상입니다. 단, 응답은 `success=true`, `data=[]` 또는 `policy/reasonLabel` 계약을 지켜야 합니다.
 
+## Read-only Audit
+
+운영에서 `result_count=0` 이 반복될 때는 바로 threshold를 낮추지 말고 아래 aggregate audit을 먼저 봅니다.
+
+```bash
+ENV_FILE=.env.production \
+SMOKE_DB_MODE=postgres \
+KEEP_ARTIFACTS=true \
+bash deploy/smoke/run-local-similar-users-viewed-audit.sh
+```
+
+해석 기준은 [recommendation-similar-users-viewed-audit-runbook.md](./recommendation-similar-users-viewed-audit-runbook.md) 를 봅니다.
+이 audit은 user key, email, 개별 조회 row를 출력하지 않습니다.
+
 ## 운영 해석
 
 이 기능은 클릭/조회 기반 탐색 힌트입니다.
