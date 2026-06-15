@@ -30,6 +30,8 @@ import com.example.welfare.recommend.service.RecommendationGenerationService;
 import com.example.welfare.recommend.service.RecommendationLogReadService;
 import com.example.welfare.recommend.service.RecommendationLogService;
 import com.example.welfare.recommend.service.RecommendationProjectionReadService;
+import com.example.welfare.recommend.service.SimilarUsersViewedPolicyReadService;
+import com.example.welfare.recommend.dto.SimilarUsersViewedPolicyResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -98,6 +100,8 @@ class RecommendationPolicyFlowWebMvcTest {
     private RecommendationLogReadService recommendationLogReadService;
     @MockitoBean
     private RecommendationProjectionReadService recommendationProjectionReadService;
+    @MockitoBean
+    private SimilarUsersViewedPolicyReadService similarUsersViewedPolicyReadService;
     @MockitoBean
     private PolicyViewLogService policyViewLogService;
     @MockitoBean
@@ -282,6 +286,41 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("C001"));
+    }
+
+    @Test
+    @DisplayName("비슷한 사용자들이 본 정책 API는 집계형 추천 응답을 반환한다")
+    void similarUsersViewedRecommendationsReturnsPolicySummaries() throws Exception {
+        PolicySummaryResponse policy = PolicySummaryResponse.builder()
+                .id(11L)
+                .title("청년 월세 지원")
+                .description("월세 부담 경감")
+                .unifiedCategory("주거")
+                .status("ACTIVE")
+                .sourceType("YOUTH")
+                .hostOrg("서울시")
+                .bookmarked(false)
+                .build();
+        given(similarUsersViewedPolicyReadService.getSimilarUsersViewedPolicies(isNull(), eq(4)))
+                .willReturn(List.of(new SimilarUsersViewedPolicyResponse(
+                        policy,
+                        "비슷한 프로필의 사용자가 최근 확인"
+                )));
+
+        mockMvc.perform(get("/api/recommendations/similar-users-viewed")
+                        .param("size", "4")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(
+                                new AuthenticatedUser(1L, "user-key-1"),
+                                null,
+                                Collections.emptyList()
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data[0].policy.id").value(11))
+                .andExpect(jsonPath("$.data[0].policy.title").value("청년 월세 지원"))
+                .andExpect(jsonPath("$.data[0].reasonLabel").value("비슷한 프로필의 사용자가 최근 확인"));
+
+        verify(similarUsersViewedPolicyReadService).getSimilarUsersViewedPolicies(null, 4);
     }
 
     @Test

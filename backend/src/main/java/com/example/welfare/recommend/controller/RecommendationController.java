@@ -6,12 +6,14 @@ import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceRegionRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.dto.RecommendationResponse;
+import com.example.welfare.recommend.dto.SimilarUsersViewedPolicyResponse;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.service.RecommendationAccessService;
 import com.example.welfare.recommend.service.RecommendationBookmarkCommandService;
 import com.example.welfare.recommend.service.RecommendationGenerationService;
 import com.example.welfare.recommend.service.RecommendationLogReadService;
 import com.example.welfare.recommend.service.RecommendationProjectionReadService;
+import com.example.welfare.recommend.service.SimilarUsersViewedPolicyReadService;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +37,7 @@ public class RecommendationController {
     private final RecommendationBookmarkCommandService recommendationBookmarkCommandService;
     private final RecommendationProjectionReadService recommendationProjectionReadService;
     private final RecommendationLogReadService recommendationLogReadService;
+    private final SimilarUsersViewedPolicyReadService similarUsersViewedPolicyReadService;
     private final ServiceRegionRepository serviceRegionRepository;
 
     // 추천 목록 조회 (저장된 결과 반환 — 실시간 AI 추가 호출 없음)
@@ -49,6 +52,15 @@ public class RecommendationController {
         Map<Long, Long> serviceLogMap = recommendationLogReadService.findLatestLogIdMap(userId, serviceIds);
         List<RecommendationResponse> response = toResponses(recs, serviceLogMap);
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @GetMapping("/similar-users-viewed")
+    public ResponseEntity<ApiResponse<List<SimilarUsersViewedPolicyResponse>>> getSimilarUsersViewedPolicies(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @RequestParam(defaultValue = "6") @Min(1) @Max(20) int size) {
+        return ResponseEntity.ok(ApiResponse.success(
+                similarUsersViewedPolicyReadService.getSimilarUsersViewedPolicies(resolveUserId(authenticatedUser), size)
+        ));
     }
 
     // 추천 갱신 — 파이프라인 재실행

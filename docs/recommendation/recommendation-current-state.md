@@ -133,6 +133,11 @@ reopen gate 자체는 `2026-06-10` 기준 닫혀 있습니다. 지금 immediate 
 
 즉 현재 개인화의 기본 단위는 군집이 아니라 사용자입니다. 군집은 현재 `youth_all` 단일 경계로만 유지하고, 실제 추천 응답 가속도 먼저 `userKey` 기준 캐시로 해결합니다. 나이대×소득분위 2D 군집은 사용자 규모와 hit-rate가 충분히 커졌을 때만 다시 검토합니다.
 
+`GET /api/recommendations/similar-users-viewed` 는 별도 보조 탐색 API입니다.
+메인 추천 row나 AI/rerank 파이프라인을 바꾸지 않고, 현재 사용자와 가까운 `REAL_USER` 사용자들의 최근 정책 조회를 집계해 섹션이 충분할 때만 노출합니다.
+현재 사용자가 최근 본 정책과 최신 추천 batch에 이미 들어간 정책은 제외하며, 빈 결과는 정상적인 fallback 입니다.
+계약과 표본 gate는 [recommendation-similar-users-viewed-policy.md](./recommendation-similar-users-viewed-policy.md) 를 기준으로 봅니다.
+
 ## 현재 retrieval 기준
 
 기본 축:

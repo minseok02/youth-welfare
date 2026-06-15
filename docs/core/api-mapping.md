@@ -506,6 +506,18 @@ public void resetAiScoreForClosed() {
   - `gov24UserTypeLabel`
   - `gov24BenefitTypeLabel`
 
+### `GET /api/recommendations/similar-users-viewed`
+
+- 메인 추천 row를 바꾸지 않는 집계형 보조 추천 API
+- query
+  - `size` default `6`, max `20`
+- response 주요 필드
+  - `policy`: `PolicySummaryResponse`
+  - `reasonLabel`
+- 표본이나 유사도 신호가 부족하면 빈 배열을 반환한다
+- 현재 사용자가 최근 본 정책과 최신 추천 batch에 이미 포함된 정책은 제외한다
+- 상세 계약은 [recommendation-similar-users-viewed-policy.md](../recommendation/recommendation-similar-users-viewed-policy.md)
+
 ### `GET /api/policies/ranking`
 
 - 주요 필드
