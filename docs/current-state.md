@@ -17,6 +17,7 @@
 - 프론트: 기본 연동, lint, build, browser smoke까지 확인 완료
 - 2026-06-17 운영 재확인 기준: `main` 은 `origin/main` 과 동기화됐고, 운영 서버는 `app + redis` healthy 상태다. `run-prod-cutover-verification.sh` 는 public smoke `30 passed`, 관리자 Playwright `@admin-required` 는 `21 passed`, `npm audit` 은 `0 vulnerabilities`, `npm run lint`, `npm run build` 도 통과했다.
 - 2026-06-17 후속 운영 review 기준: 정책 오류 제보 `OPEN=5` 와 정책 중복 그룹 `OPEN=2` 를 review 처리했다. 최종 ops observation은 `BASELINE_HEALTHY`, attention warning `0`, policy duplicate/link/error/support queue `OPEN=0` 이고, 남은 attention 항목은 정보성 `standard-code-backlog`, `notification-backlog` 뿐이다.
+- 2026-06-17 웹푸시 점검 기준: 운영 VAPID env와 인증된 `push-public-key` API는 정상이고 `/sw.js` 는 HTTPS에서 200으로 제공된다. 다만 운영 DB의 `web_push_subscriptions` 는 `0`건이라 실제 수신자는 아직 없고, 서버 `push-test-send` 도 `attempted=0` 이다. `run-local-notification-channel-smoke.sh` 는 auth PII 분리 후 깨져 있던 admin user_key 조회를 `auth_users.email_lookup_hash` 기준으로 보정해 다시 통과했다.
 - 2026-06-10 server/RDS 안정화 sweep 기준: `ops observation=BASELINE_HEALTHY`, attention warning `0`, collect 실패/partial/circuit `0`, policy review `OPEN` queue `0`, recommendation `KEEP_OBSERVING`, frontend deployed-origin smoke `30 passed`
 - 2026-06-10 DB closeout 기준: RDS runtime privilege verification 통과, `db/migration` active version 중복 제거 및 계약 테스트 추가
 
