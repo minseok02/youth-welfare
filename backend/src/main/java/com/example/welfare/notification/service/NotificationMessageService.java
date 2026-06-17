@@ -38,7 +38,7 @@ public class NotificationMessageService {
         }
         if (userKey != null && userId != null) {
             String unsubscribeToken = notificationUnsubscribeTokenService.issueToken(userKey);
-            sb.append("수신 거부: ").append(appBaseUrl).append("/api/notifications/unsubscribe?token=")
+            sb.append("수신 거부: ").append(appBaseUrl).append("/notifications/unsubscribe#token=")
                     .append(unsubscribeToken)
                     .append("\n");
         }
@@ -64,7 +64,7 @@ public class NotificationMessageService {
         }
         if (userKey != null && userId != null) {
             String unsubscribeToken = notificationUnsubscribeTokenService.issueToken(userKey);
-            sb.append("수신 거부: ").append(appBaseUrl).append("/api/notifications/unsubscribe?token=")
+            sb.append("수신 거부: ").append(appBaseUrl).append("/notifications/unsubscribe#token=")
                     .append(unsubscribeToken)
                     .append("\n");
         }

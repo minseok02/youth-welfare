@@ -46,7 +46,7 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:b1addbe72465a718643cff9e60a58e6df1841e29d6d7d60c9a85d8d72f08d1a7
     container_name: youth-welfare-redis
     ports:
       - "127.0.0.1:6379:6379"
@@ -58,7 +58,7 @@ services:
     restart: unless-stopped
 
   db:
-    image: pgvector/pgvector:pg16
+    image: pgvector/pgvector:pg16@sha256:6d5c7b5aa3eb2098a2365f6d8cff723fded9e0e680757908b0b144b47f9c069c
     container_name: youth-welfare-db
     labels:
       com.youth-welfare.local-db-guard: ${ALLOW_LOCAL_DOCKER_DB:?Refusing to start local PostgreSQL. Use docker-compose.prod.yml on EC2/RDS; set ALLOW_LOCAL_DOCKER_DB=true only for the local Docker stack.}

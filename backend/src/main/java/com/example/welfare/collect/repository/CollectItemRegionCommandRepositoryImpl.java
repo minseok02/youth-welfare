@@ -20,6 +20,10 @@ public class CollectItemRegionCommandRepositoryImpl implements CollectItemRegion
 
     private static final String DELETE_SQL = "DELETE FROM service_regions WHERE service_id = ?";
     private static final String BULK_DELETE_SQL = "DELETE FROM service_regions WHERE service_id IN (:serviceIds)";
+    private static final String ACTIVE_CORRECTION_EXISTS_SQL =
+            "SELECT EXISTS (SELECT 1 FROM policy_region_corrections WHERE service_id = ? AND active = TRUE)";
+    private static final String ACTIVE_CORRECTION_SERVICE_IDS_SQL =
+            "SELECT service_id FROM policy_region_corrections WHERE active = TRUE AND service_id IN (:serviceIds)";
     private static final String INSERT_SQL =
             "INSERT INTO service_regions (service_id, region_code, sido_name, sgg_name) VALUES (?, ?, ?, ?)";
     private static final int DELETE_CHUNK_SIZE = 1_000;
@@ -31,6 +35,9 @@ public class CollectItemRegionCommandRepositoryImpl implements CollectItemRegion
     @Override
     @Transactional
     public void replaceAll(Long serviceId, List<ServiceRegion> regions) {
+        if (hasActiveCorrection(serviceId)) {
+            return;
+        }
         jdbcTemplate.update(DELETE_SQL, serviceId);
         if (regions.isEmpty()) {
             return;
@@ -48,6 +55,19 @@ public class CollectItemRegionCommandRepositoryImpl implements CollectItemRegion
     @Transactional
     public void replaceAllBatch(List<Long> serviceIds, List<ServiceRegion> regions) {
         List<Long> distinctServiceIds = new ArrayList<>(new LinkedHashSet<>(serviceIds));
+        if (distinctServiceIds.isEmpty()) {
+            return;
+        }
+        List<Long> correctedServiceIds = findCorrectedServiceIds(distinctServiceIds);
+        if (!correctedServiceIds.isEmpty()) {
+            distinctServiceIds.removeAll(correctedServiceIds);
+            regions = regions.stream()
+                    .filter(region -> region != null
+                            && region.getService() != null
+                            && region.getService().getId() != null
+                            && !correctedServiceIds.contains(region.getService().getId()))
+                    .toList();
+        }
         if (distinctServiceIds.isEmpty()) {
             return;
         }
@@ -76,5 +96,24 @@ public class CollectItemRegionCommandRepositoryImpl implements CollectItemRegion
         ps.setString(2, region.getRegionCode());
         ps.setString(3, region.getSidoName());
         ps.setString(4, region.getSggName());
+    }
+
+    private boolean hasActiveCorrection(Long serviceId) {
+        if (serviceId == null) {
+            return false;
+        }
+        Boolean exists = jdbcTemplate.queryForObject(ACTIVE_CORRECTION_EXISTS_SQL, Boolean.class, serviceId);
+        return Boolean.TRUE.equals(exists);
+    }
+
+    private List<Long> findCorrectedServiceIds(List<Long> serviceIds) {
+        if (serviceIds == null || serviceIds.isEmpty()) {
+            return List.of();
+        }
+        return namedParameterJdbcTemplate.queryForList(
+                ACTIVE_CORRECTION_SERVICE_IDS_SQL,
+                new MapSqlParameterSource("serviceIds", serviceIds),
+                Long.class
+        );
     }
 }

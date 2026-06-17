@@ -80,6 +80,7 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/refresh").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/logout").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/notifications/unsubscribe").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/notifications/unsubscribe").permitAll()
                         .requestMatchers(HttpMethod.POST,
                                 "/api/notifications/push-test-send",
@@ -112,6 +113,8 @@ public class SecurityConfig {
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
+                .addFilterBefore(new TrustedOriginFilter(corsAllowedOrigins, objectMapper),
+                        UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(new JwtAuthenticationFilter(jwtUtil, userSessionRevocationService, adminAccessAuthorityService),
                         UsernamePasswordAuthenticationFilter.class);
 

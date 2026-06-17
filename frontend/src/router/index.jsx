@@ -12,12 +12,14 @@ import {
   LoginPage,
   MainPage,
   MyPage,
+  NotificationUnsubscribePage,
   PoliciesPage,
   PolicyDetailPage,
   PrivacyPolicyPage,
   ResetPasswordPage,
   SignupPage,
   SupportPage,
+  TermsPage,
 } from "./lazy-pages.jsx";
 
 const router = createBrowserRouter([
@@ -26,8 +28,10 @@ const router = createBrowserRouter([
   { path: "/support", element: <AuthExpiryHandler><LazyRoute><NavLayout><SupportPage /></NavLayout></LazyRoute></AuthExpiryHandler> },
   { path: "/login", element: <AuthExpiryHandler><LazyRoute><NavLayout><LoginPage /></NavLayout></LazyRoute></AuthExpiryHandler> },
   { path: "/signup", element: <AuthExpiryHandler><LazyRoute><NavLayout><SignupPage /></NavLayout></LazyRoute></AuthExpiryHandler> },
+  { path: "/terms", element: <AuthExpiryHandler><LazyRoute><NavLayout><TermsPage /></NavLayout></LazyRoute></AuthExpiryHandler> },
   { path: "/privacy", element: <AuthExpiryHandler><LazyRoute><NavLayout><PrivacyPolicyPage /></NavLayout></LazyRoute></AuthExpiryHandler> },
   { path: "/reset-password", element: <AuthExpiryHandler><LazyRoute><NavLayout><ResetPasswordPage /></NavLayout></LazyRoute></AuthExpiryHandler> },
+  { path: "/notifications/unsubscribe", element: <LazyRoute><NotificationUnsubscribePage /></LazyRoute> },
   { path: "/policies", element: <AuthExpiryHandler><LazyRoute><NavLayout><PoliciesPage /></NavLayout></LazyRoute></AuthExpiryHandler> },
   { path: "/policies/:id", element: <AuthExpiryHandler><LazyRoute><NavLayout><PolicyDetailPage /></NavLayout></LazyRoute></AuthExpiryHandler> },
   {

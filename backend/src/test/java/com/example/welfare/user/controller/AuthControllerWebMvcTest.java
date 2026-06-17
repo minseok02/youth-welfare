@@ -101,6 +101,19 @@ class AuthControllerWebMvcTest {
     }
 
     @Test
+    @DisplayName("이메일 확인은 quoted local-part 같은 비표준 가입용 이메일을 거부한다")
+    void checkEmailAvailabilityRejectsQuotedEmail() throws Exception {
+        mockMvc.perform(get("/api/auth/check-email")
+                        .param("email", "\"user\"@example.com"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        then(authAvailabilityService).should(never()).checkEmailAvailability(org.mockito.ArgumentMatchers.any());
+        then(authRateLimitService).should(never()).checkEmailCheckLimit(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     @DisplayName("이메일 인증코드 발송은 fingerprint rate limit을 먼저 확인한다")
     void sendEmailVerificationChecksFingerprintRateLimit() throws Exception {
         given(clientFingerprintService.build(org.mockito.ArgumentMatchers.any())).willReturn("fp-email-send");
@@ -258,6 +271,63 @@ class AuthControllerWebMvcTest {
     }
 
     @Test
+    @DisplayName("비밀번호 재설정 확인은 영문과 숫자가 모두 없는 새 비밀번호를 거부한다")
+    void confirmPasswordResetRejectsWeakPasswordWithoutRequiredCharacterClasses() throws Exception {
+        mockMvc.perform(post("/api/auth/password-reset/confirm")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "token": "reset-token",
+                                  "newPassword": "passwordonly"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        then(passwordResetService).should(never())
+                .confirmPasswordReset(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 확인은 10자 미만 새 비밀번호를 거부한다")
+    void confirmPasswordResetRejectsTooShortPassword() throws Exception {
+        mockMvc.perform(post("/api/auth/password-reset/confirm")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "token": "reset-token",
+                                  "newPassword": "pass12345"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        then(passwordResetService).should(never())
+                .confirmPasswordReset(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 확인은 공백이 포함된 새 비밀번호를 거부한다")
+    void confirmPasswordResetRejectsPasswordWithWhitespace() throws Exception {
+        mockMvc.perform(post("/api/auth/password-reset/confirm")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "token": "reset-token",
+                                  "newPassword": "password 123"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        then(passwordResetService).should(never())
+                .confirmPasswordReset(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     @DisplayName("비밀번호 재설정 확인은 100자를 넘는 토큰을 서비스 호출 전에 거부한다")
     void confirmPasswordResetRejectsTooLongToken() throws Exception {
         String tooLongToken = "a".repeat(101);
@@ -375,9 +445,9 @@ class AuthControllerWebMvcTest {
     }
 
     @Test
-    @DisplayName("회원가입은 100자를 넘는 비밀번호를 거부한다")
+    @DisplayName("회원가입은 72자를 넘는 비밀번호를 거부한다")
     void signupRejectsTooLongPassword() throws Exception {
-        String longPassword = "a".repeat(101);
+        String longPassword = "A1" + "a".repeat(71);
 
         mockMvc.perform(post("/api/auth/signup")
                         .contentType("application/json")
@@ -394,6 +464,111 @@ class AuthControllerWebMvcTest {
                 .andExpect(jsonPath("$.success").value(false));
 
         then(authSignupService).should(never()).signup(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("회원가입은 10자 미만 비밀번호를 거부한다")
+    void signupRejectsTooShortPassword() throws Exception {
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "user@example.com",
+                                  "password": "Pass12345",
+                                  "name": "홍길동",
+                                  "birthDate": "2001-01-01",
+                                  "privacyNoticeConfirmed": true
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        then(authSignupService).should(never()).signup(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("회원가입은 영문과 숫자를 모두 포함하지 않는 비밀번호를 거부한다")
+    void signupRejectsPasswordWithoutRequiredCharacterClasses() throws Exception {
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "user@example.com",
+                                  "password": "passwordonly",
+                                  "name": "홍길동",
+                                  "birthDate": "2001-01-01",
+                                  "privacyNoticeConfirmed": true
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        then(authSignupService).should(never()).signup(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("회원가입은 공백이나 제어문자가 포함된 비밀번호를 거부한다")
+    void signupRejectsPasswordWithWhitespaceOrControlCharacter() throws Exception {
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "user@example.com",
+                                  "password": "password\\n123",
+                                  "name": "홍길동",
+                                  "birthDate": "2001-01-01",
+                                  "privacyNoticeConfirmed": true
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        then(authSignupService).should(never()).signup(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("회원가입은 72자 비밀번호를 허용한다")
+    void signupAllowsSeventyTwoCharacterPassword() throws Exception {
+        String password = "A1" + "b".repeat(70);
+
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "user@example.com",
+                                  "password": "%s",
+                                  "name": "홍길동",
+                                  "birthDate": "2001-01-01",
+                                  "privacyNoticeConfirmed": true
+                                }
+                                """.formatted(password)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        then(authSignupService).should().signup(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("회원가입은 따옴표와 세미콜론 같은 특수문자가 포함된 강한 비밀번호를 허용한다")
+    void signupAllowsPrintableSpecialCharactersInPassword() throws Exception {
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "user@example.com",
+                                  "password": "Pass123!'\\\";--",
+                                  "name": "홍길동",
+                                  "birthDate": "2001-01-01",
+                                  "privacyNoticeConfirmed": true
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        then(authSignupService).should().signup(org.mockito.ArgumentMatchers.any());
     }
 
     @Test

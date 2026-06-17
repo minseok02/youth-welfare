@@ -7,6 +7,7 @@ import com.example.welfare.notification.dto.UserAlertResponse;
 import com.example.welfare.notification.dto.UserAlertUnreadCountResponse;
 import com.example.welfare.notification.dto.NotificationDeadlineTestDispatchResponse;
 import com.example.welfare.notification.dto.NotificationDigestTestDispatchResponse;
+import com.example.welfare.notification.dto.NotificationUnsubscribeRequest;
 import com.example.welfare.notification.dto.WebPushPublicKeyResponse;
 import com.example.welfare.notification.dto.WebPushSubscriptionRequest;
 import com.example.welfare.notification.dto.WebPushSubscriptionResponse;
@@ -58,12 +59,14 @@ public class NotificationController {
 
     @GetMapping("/unsubscribe")
     public ResponseEntity<ApiResponse<Void>> unsubscribe(@RequestParam String token) {
-        String userKey = notificationUnsubscribeTokenService.consumeUserKey(token)
-                .orElseGet(() -> {
-                    jwtUtil.validate(token);
-                    return jwtUtil.getSubject(token);
-                });
-        userAccountCommandService.unsubscribeNotificationsByUserKey(userKey);
+        unsubscribeByToken(token);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @PostMapping("/unsubscribe")
+    public ResponseEntity<ApiResponse<Void>> unsubscribeByPost(
+            @Valid @RequestBody NotificationUnsubscribeRequest request) {
+        unsubscribeByToken(request.token());
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
@@ -205,5 +208,14 @@ public class NotificationController {
         }
         Long userId = authenticatedUser != null ? authenticatedUser.userId() : null;
         return activeUserReadService.getActiveUserContext(userId).userKey();
+    }
+
+    private void unsubscribeByToken(String token) {
+        String userKey = notificationUnsubscribeTokenService.consumeUserKey(token)
+                .orElseGet(() -> {
+                    jwtUtil.validate(token);
+                    return jwtUtil.getSubject(token);
+                });
+        userAccountCommandService.unsubscribeNotificationsByUserKey(userKey);
     }
 }

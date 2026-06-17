@@ -4,9 +4,7 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Snackbar, Alert, CircularProgress, useMediaQuery,
 } from "@mui/material";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import Header from "../components/Header";
-import PrioritySortableList from "../components/PrioritySortableList";
 import FloatingNav from "../components/FloatingNav";
 import IncomeCalculatorModal from "../components/IncomeCalculatorModal";
 import api from "../lib/axios";
@@ -43,22 +41,22 @@ const LINE = "#e5e7eb", LINE2 = "#f3f4f6";
 
 // Static data
 const INCOME_ROWS = [
-  { value: 1, left: "1~2분위 (하위 20%)", right: "기초생활수급자" },
-  { value: 3, left: "3~4분위 (하위 40%)", right: "차상위계층" },
+  { value: 1, left: "1~2분위 (하위 20%)", right: "기초생활 지원 대상" },
+  { value: 3, left: "3~4분위 (하위 40%)", right: "차상위 지원 대상" },
   { value: 5, left: "5~6분위 (중간)",     right: "소득 하위 50% 이하" },
   { value: 7, left: "7~8분위 (상위 40%)", right: "소득 중간 (50~100%)" },
   { value: 9, left: "9~10분위 (상위 20%)", right: "소득 상위 (100% 초과)" },
 ];
 
 const PRIORITY_OPTIONS = [
-  { value: "HOUSING",       label: "주거",          bg: "#fef3c7", fg: "#f59e0b" },
-  { value: "JOB",           label: "일자리",         bg: "#dbeafe", fg: "#2563eb" },
-  { value: "EDUCATION",     label: "교육·직업훈련",  bg: "#dcfce7", fg: "#16a34a" },
-  { value: "FINANCE",       label: "금융·생활",      bg: "#fce7f3", fg: "#db2777" },
-  { value: "CULTURE",       label: "문화·여가",      bg: "#ede9fe", fg: "#7c3aed" },
-  { value: "PARTICIPATION", label: "참여·기회",      bg: "#fed7aa", fg: "#ea580c" },
-  { value: "FAMILY",        label: "가족·돌봄",      bg: "#d1fae5", fg: "#0d9488" },
-  { value: "DEADLINE",      label: "마감임박",        bg: "#fee2e2", fg: "#dc2626" },
+  { value: "HOUSING",       label: "주거",          bg: "#fef3c7" },
+  { value: "JOB",           label: "일자리",         bg: "#dbeafe" },
+  { value: "EDUCATION",     label: "교육·직업훈련",  bg: "#dcfce7" },
+  { value: "FINANCE",       label: "금융·생활",      bg: "#fce7f3" },
+  { value: "CULTURE",       label: "문화·여가",      bg: "#ede9fe" },
+  { value: "PARTICIPATION", label: "참여·기회",      bg: "#fed7aa" },
+  { value: "FAMILY",        label: "가족·돌봄",      bg: "#d1fae5" },
+  { value: "DEADLINE",      label: "마감임박",        bg: "#fee2e2" },
 ];
 
 const HOUSEHOLD_TYPES = ["1인가구", "한부모", "다자녀", "조손", "기타"];
@@ -77,7 +75,7 @@ const EMPTY_PROFILE_CODE_OPTIONS = {
   disabilityGrade: [],
 };
 
-const TAB_IDS = ['info', 'pref', 'bookmark', 'noti', 'filter', 'account', 'support'];
+const TAB_IDS = ['info', 'pref', 'bookmark', 'noti', 'filter', 'account'];
 const TAB_META = {
   info:     { l: "내 정보",      sub: "기본 인적사항",  color: "#2563eb" },
   pref:     { l: "우선순위",     sub: "관심 카테고리",  color: "#7c3aed" },
@@ -85,7 +83,6 @@ const TAB_META = {
   noti:     { l: "알림 설정",    sub: "이메일·푸시",    color: "#ef4444" },
   filter:   { l: "필터 기본값",  sub: "메인 화면 필터", color: "#059669" },
   account:  { l: "계정",         sub: "비밀번호·탈퇴",  color: "#374151" },
-  support:  { l: "문의 내역",    sub: "내 문의·답변",   color: "#0d9488" },
 };
 const TAB_TITLES = {
   info:     { t: "내 정보",      d: "정확한 정보는 더 잘 맞는 정책 추천으로 이어져요" },
@@ -94,7 +91,6 @@ const TAB_TITLES = {
   noti:     { t: "알림 설정",    d: "놓치기 쉬운 마감 알림을 받을 수 있어요" },
   filter:   { t: "필터 기본값",  d: "메인 페이지의 기본 필터를 정해두세요" },
   account:  { t: "계정",         d: "비밀번호·탈퇴 관련 설정" },
-  support:  { t: "문의 내역",    d: "내가 보낸 서비스 문의와 운영 답변을 확인할 수 있어요" },
 };
 
 const resolveTabId = (rawTab) => {
@@ -103,15 +99,6 @@ const resolveTabId = (rawTab) => {
 };
 
 const resolveTabIndex = (tabId) => String(Math.max(TAB_IDS.indexOf(tabId), 0));
-
-const formatSupportDate = (value) => {
-  if (!value) return "";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "";
-  return new Intl.DateTimeFormat("ko-KR", {
-    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
-  }).format(d);
-};
 
 const formatDday = (dateText, status) => {
   if (status === "CLOSED") return "종료";
@@ -226,14 +213,13 @@ function Toggle({ on, onChange }) {
 function ProfileBanner({ pct, missing, onComplete }) {
   const r = 38, circumference = 2 * Math.PI * r;
   const complete = pct >= 100;
-  const isMobile = useMediaQuery("(max-width: 600px)");
   return (
     <div style={{
-      background: WHITE, border: `1px solid ${LINE}`, borderRadius: 18, padding: isMobile ? 18 : 24,
-      display: "flex", flexWrap: "wrap", gap: isMobile ? 14 : 20, alignItems: "center",
+      background: WHITE, border: `1px solid ${LINE}`, borderRadius: 18, padding: 24,
+      display: "grid", gridTemplateColumns: "88px 1fr auto", gap: 20, alignItems: "center",
       boxShadow: "0 1px 2px rgba(20,30,80,0.03)", marginBottom: 24,
     }}>
-      <div style={{ position: "relative", width: 88, height: 88, flexShrink: 0 }}>
+      <div style={{ position: "relative", width: 88, height: 88 }}>
         <svg width="88" height="88" viewBox="0 0 88 88">
           <circle cx="44" cy="44" r={r} fill="none" stroke={LINE2} strokeWidth="8" />
           <circle cx="44" cy="44" r={r} fill="none" stroke={A} strokeWidth="8"
@@ -245,7 +231,7 @@ function ProfileBanner({ pct, missing, onComplete }) {
           <div style={{ fontSize: 20, fontWeight: 800, color: A }}>{pct}%</div>
         </div>
       </div>
-      <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+      <div>
         <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6, color: INK }}>
           {complete ? "프로필 완성도 100%예요" : "프로필을 완성하면 더 정확한 추천을 받을 수 있어요"}
         </div>
@@ -262,7 +248,7 @@ function ProfileBanner({ pct, missing, onComplete }) {
           </div>
         )}
       </div>
-      <button onClick={onComplete} style={{ padding: "12px 20px", borderRadius: 10, background: A, color: WHITE, border: 0, fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", width: isMobile ? "100%" : "auto", flexBasis: isMobile ? "100%" : "auto" }}
+      <button onClick={onComplete} style={{ padding: "12px 20px", borderRadius: 10, background: A, color: WHITE, border: 0, fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}
         onMouseEnter={e => { e.currentTarget.style.background = A7; }}
         onMouseLeave={e => { e.currentTarget.style.background = A; }}
       >
@@ -272,8 +258,8 @@ function ProfileBanner({ pct, missing, onComplete }) {
   );
 }
 
-function StandardCodePromptCard({ missing, filledCount, onComplete, editing }) {
-  if (missing.length === 0) {
+function StandardCodePromptCard({ missingCount, filledCount, onComplete }) {
+  if (missingCount === 0) {
     return null;
   }
 
@@ -291,20 +277,17 @@ function StandardCodePromptCard({ missing, filledCount, onComplete, editing }) {
     }}>
       <div>
         <div style={{ fontSize: 15, fontWeight: 800, color: INK, marginBottom: 6 }}>
-          주거·생활 여건를 더 채우면 추천 정확도가 올라갑니다
+          주거·복지 맞춤 정보를 더 채우면 추천 정확도가 올라갑니다
         </div>
         <div style={{ fontSize: 13, color: INK2, marginBottom: 10 }}>
-          현재 {filledCount}/4개 입력됨. 주거형태, 주택유형, 기초생활수급권자, 장애등급은 자격조건 매칭과 점수 보정에 바로 쓰입니다.
+          현재 {filledCount}/4개 입력됨. 선택 프로필을 보완하면 자격조건 매칭과 점수 보정이 더 정확해집니다.
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          {missing.map((label) => (
-            <span
-              key={label}
-              style={{ fontSize: 12, color: AI, background: WHITE, padding: "4px 10px", borderRadius: 99, fontWeight: 700, border: `1px solid ${LINE}` }}
-            >
-              {label} 미입력
-            </span>
-          ))}
+          <span
+            style={{ fontSize: 12, color: AI, background: WHITE, padding: "4px 10px", borderRadius: 99, fontWeight: 700, border: `1px solid ${LINE}` }}
+          >
+            선택 프로필 {missingCount}개 보완 가능
+          </span>
         </div>
       </div>
       <button
@@ -323,7 +306,7 @@ function StandardCodePromptCard({ missing, filledCount, onComplete, editing }) {
         onMouseEnter={e => { e.currentTarget.style.background = A7; }}
         onMouseLeave={e => { e.currentTarget.style.background = A; }}
       >
-        {editing ? "입력 섹션으로 이동" : "지금 입력하기 →"}
+        선택 정보 보완하기 →
       </button>
     </div>
   );
@@ -331,7 +314,7 @@ function StandardCodePromptCard({ missing, filledCount, onComplete, editing }) {
 
 function StandardCodeSaveReminder({
   visible,
-  missing,
+  missingCount,
   filledCount,
   hasPriorities,
   onComplete,
@@ -343,7 +326,7 @@ function StandardCodeSaveReminder({
     return null;
   }
 
-  const complete = missing.length === 0;
+  const complete = missingCount === 0;
 
   return (
     <div style={{
@@ -365,15 +348,15 @@ function StandardCodeSaveReminder({
         </div>
         <div style={{ fontSize: 16, fontWeight: 800, color: INK, marginTop: 6 }}>
           {complete
-            ? "주거·생활 여건 4/4개가 추천에 반영됩니다"
-            : `주거·생활 여건 ${filledCount}/4개 입력됨`}
+            ? "선택 프로필 4/4개가 추천에 반영됩니다"
+            : `선택 프로필 ${filledCount}/4개 입력됨`}
         </div>
         <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.6 }}>
           {complete
             ? hasPriorities
               ? "메인에서 맞춤 재추천을 실행하면 최신 정보 기준으로 다시 받을 수 있습니다."
               : "다음으로 추천 우선순위를 설정하면 최신 정보가 더 안정적으로 반영됩니다."
-            : `남은 ${missing.join(", ")} 항목까지 채우면 주거·복지 자격조건 매칭이 더 정확해집니다.`}
+            : `선택 프로필 ${missingCount}개를 더 보완하면 주거·복지 자격조건 매칭이 더 정확해집니다.`}
         </div>
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
@@ -391,7 +374,7 @@ function StandardCodeSaveReminder({
             whiteSpace: "nowrap",
           }}
         >
-          {complete ? (hasPriorities ? "맞춤 추천 보기 →" : "우선순위 설정하기 →") : "남은 항목 계속 채우기 →"}
+          {complete ? (hasPriorities ? "맞춤 추천 보기 →" : "우선순위 설정하기 →") : "선택 정보 보완하기 →"}
         </button>
         {!complete && (
           <button
@@ -413,7 +396,7 @@ function StandardCodeSaveReminder({
         )}
         <button
           onClick={onDismiss}
-          aria-label="주거·생활 여건 저장 안내 닫기"
+          aria-label="선택 프로필 저장 안내 닫기"
           style={{
             width: 42,
             height: 42,
@@ -434,8 +417,8 @@ function StandardCodeSaveReminder({
   );
 }
 
-function NotificationStandardCodePrompt({ missing, filledCount, onComplete }) {
-  if (missing.length === 0) {
+function NotificationStandardCodePrompt({ missingCount, filledCount, onComplete }) {
+  if (missingCount === 0) {
     return null;
   }
 
@@ -457,10 +440,10 @@ function NotificationStandardCodePrompt({ missing, filledCount, onComplete }) {
           알림 추천 기준 보강
         </div>
         <div style={{ fontSize: 16, fontWeight: 800, color: INK, marginTop: 6 }}>
-          주거·생활 여건 {filledCount}/4개 입력됨
+          선택 프로필 {filledCount}/4개 입력됨
         </div>
         <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.6 }}>
-          {missing.join(", ")} 항목을 채우면 마감 알림과 추천 요약에서 주거·복지 조건 매칭이 더 안정됩니다.
+          선택 프로필 {missingCount}개를 보완하면 마감 알림과 추천 요약에서 주거·복지 조건 매칭이 더 안정됩니다.
         </div>
       </div>
       <button
@@ -484,26 +467,52 @@ function NotificationStandardCodePrompt({ missing, filledCount, onComplete }) {
 }
 
 function SidebarNav({ active, onChange, bookmarkCount, alertUnreadCount }) {
+  const isMobile = useMediaQuery("(max-width: 1199px)");
+
+  if (isMobile) {
+    return (
+      <div style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none", WebkitOverflowScrolling: "touch", paddingBottom: 4, marginBottom: 4 }}>
+        <style>{`.sidebar-scroll::-webkit-scrollbar{display:none}`}</style>
+        {TAB_IDS.map(id => {
+          const m = TAB_META[id];
+          const isActive = active === id;
+          return (
+            <button key={id} onClick={() => onChange(id)} style={{
+              flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 5,
+              padding: "8px 14px", borderRadius: 20, fontSize: 13, fontWeight: isActive ? 700 : 500,
+              background: isActive ? AS : WHITE,
+              border: `1.5px solid ${isActive ? A : LINE}`,
+              color: isActive ? AI : INK2, cursor: "pointer", whiteSpace: "nowrap",
+            }}>
+              {m.l}
+              {id === "bookmark" && bookmarkCount > 0 && (
+                <span style={{ background: A, color: WHITE, fontSize: 10, padding: "1px 6px", borderRadius: 99, fontWeight: 700 }}>{bookmarkCount}</span>
+              )}
+              {id === "noti" && alertUnreadCount > 0 && (
+                <span style={{ background: WARN, color: WHITE, fontSize: 10, padding: "1px 6px", borderRadius: 99, fontWeight: 700 }}>{alertUnreadCount}</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <div style={{ background: WHITE, border: `1px solid ${LINE}`, borderRadius: 18, padding: 12, position: "sticky", top: 80 }}>
       <div style={{ padding: "12px 16px 8px", fontSize: 11, color: INK3, fontWeight: 700, letterSpacing: "0.06em" }}>마이페이지</div>
-      {TAB_IDS.map((id, i) => {
+      {TAB_IDS.map(id => {
         const m = TAB_META[id];
         const isActive = active === id;
-        const isLast = i === TAB_IDS.length - 1;
         return (
           <button key={id} onClick={() => onChange(id)} style={{
-            display: "flex", alignItems: "center", gap: 12, padding: "14px 14px", width: "100%",
+            display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", width: "100%",
             background: isActive ? AS : "transparent",
-            border: "none",
-            borderBottom: isLast ? "none" : `1px solid ${LINE}`,
-            borderRadius: isActive ? 10 : 0, textAlign: "left", cursor: "pointer",
+            border: `1px solid ${isActive ? AS : "transparent"}`,
+            borderRadius: 12, textAlign: "left", cursor: "pointer",
             color: isActive ? AI : INK,
-            transition: "background .12s",
-          }}
-            onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = BG; }}
-            onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
-          >
+          }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: isActive ? m.color : m.color + "20", flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
                 {m.l}
@@ -539,7 +548,6 @@ export default function MyPage() {
   const isMobile = useMediaQuery("(max-width: 1199px)");
 
   const activeTab = resolveTabId(searchParams.get("tab"));
-  const [mobileDetailOpen, setMobileDetailOpen] = useState(() => searchParams.get("tab") !== null);
   const [toast, setToast] = useState({ open: false, msg: "", severity: "success" });
   const showToast = useCallback((msg, severity = "success") => setToast({ open: true, msg, severity }), []);
 
@@ -562,7 +570,6 @@ export default function MyPage() {
   }, [showToast]);
 
   const handleTabChange = useCallback((nextTabId) => {
-    setMobileDetailOpen(true);
     const nextTabIndex = resolveTabIndex(nextTabId);
     if (searchParams.get("tab") === nextTabIndex) {
       return;
@@ -617,6 +624,7 @@ export default function MyPage() {
 
   const [priorities, setPriorities] = useState([]);
   const [priorityLoading, setPriorityLoading] = useState(false);
+  const [dragIdx, setDragIdx] = useState(null);
   const [targetTypes, setTargetTypes] = useState([]);
 
   const [bookmarks, setBookmarks] = useState([]);
@@ -640,9 +648,6 @@ export default function MyPage() {
   const [alertsLoaded, setAlertsLoaded] = useState(false);
   const [alertUnreadCount, setAlertUnreadCount] = useState(0);
   const [alertActionLoadingId, setAlertActionLoadingId] = useState(null);
-  const [supportInquiries, setSupportInquiries] = useState([]);
-  const [supportLoading, setSupportLoading] = useState(false);
-  const [supportLoaded, setSupportLoaded] = useState(false);
   const [pushSupported, setPushSupported] = useState(false);
   const [pushPermission, setPushPermission] = useState("default");
   const [pushPublicKey, setPushPublicKey] = useState("");
@@ -672,12 +677,12 @@ export default function MyPage() {
   const standardCodeMissingLabels = [
     !myInfo.houseTenureCode && "주거형태",
     !myInfo.housingTypeCode && "주택유형",
-    !myInfo.basicLivingRecipientTypeCode && "기초생활수급권자",
-    !myInfo.disabilityGradeCode && "장애등급",
+    !myInfo.basicLivingRecipientTypeCode && "복지 수급 정보",
+    !myInfo.disabilityGradeCode && "장애 관련 지원 정보",
   ].filter(Boolean);
   const standardCodeFilledCount = 4 - standardCodeMissingLabels.length;
   const standardCodeBannerLabel = standardCodeMissingLabels.length > 0
-    ? `주거·생활 여건 ${standardCodeFilledCount}/4`
+    ? `선택 프로필 ${standardCodeFilledCount}/4`
     : null;
 
   // completion
@@ -863,20 +868,19 @@ export default function MyPage() {
       setUser({
         ...(myInfo.name ? { name: myInfo.name } : {}),
         hasPriorities: priorities.length > 0,
-        standardCodeFilledCount,
-        standardCodeMissingCount: standardCodeMissingLabels.length,
-        missingStandardCodeLabels: standardCodeMissingLabels,
-      });
+          standardCodeFilledCount,
+          standardCodeMissingCount: standardCodeMissingLabels.length,
+        });
       setEditing(false);
       setStandardCodeSaveReminderOpen(true);
       if (standardCodeMissingLabels.length === 0 && priorities.length > 0) {
-        showToast("저장되었습니다. 주거·생활 여건 4개와 우선순위가 추천에 반영됩니다");
+        showToast("저장되었습니다. 선택 프로필과 우선순위가 추천에 반영됩니다");
       } else if (standardCodeMissingLabels.length === 0) {
         showToast("저장되었습니다. 다음으로 우선순위를 설정하면 추천 결과가 더 안정적입니다");
       } else if (priorities.length > 0) {
-        showToast(`저장되었습니다. 주거·생활 여건 ${standardCodeFilledCount}/4개 입력됨 · 남은 ${standardCodeMissingLabels.join(", ")}를 채우면 더 정확해집니다`);
+        showToast(`저장되었습니다. 선택 프로필 ${standardCodeFilledCount}/4개 입력됨 · 필요한 정보를 더 보완하면 추천이 더 정확해집니다`);
       } else {
-        showToast(`저장되었습니다. 주거·생활 여건 ${standardCodeFilledCount}/4개 입력됨 · 다음으로 우선순위를 설정하면 추천이 더 안정적입니다`);
+        showToast(`저장되었습니다. 선택 프로필 ${standardCodeFilledCount}/4개 입력됨 · 다음으로 우선순위를 설정하면 추천이 더 안정적입니다`);
       }
     } catch {
       showToast("저장에 실패했습니다", "error");
@@ -893,6 +897,17 @@ export default function MyPage() {
   const toggleTargetType = (value) => {
     setTargetTypes((prev) => prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]);
   };
+  const handleDragStart = (idx) => setDragIdx(idx);
+  const handleDragOver = (e, idx) => {
+    e.preventDefault();
+    if (dragIdx === null || dragIdx === idx) return;
+    const arr = [...priorities];
+    const [moved] = arr.splice(dragIdx, 1);
+    arr.splice(idx, 0, moved);
+    setPriorities(arr);
+    setDragIdx(idx);
+  };
+  const handleDragEnd = () => setDragIdx(null);
 
   const handleSavePriorities = async () => {
     if (priorities.length === 0) {
@@ -907,9 +922,9 @@ export default function MyPage() {
       setProfileCompleteness(Math.max(profileCompleteness ?? 0, localCompletionPct));
       setStandardCodeSaveReminderOpen(true);
       if (standardCodeMissingLabels.length === 0) {
-        showToast("우선순위와 특화 대상이 저장되었습니다. 현재 주거·생활 여건 4개도 함께 추천에 반영됩니다");
+        showToast("우선순위와 특화 대상이 저장되었습니다. 현재 선택 프로필도 함께 추천에 반영됩니다");
       } else {
-        showToast(`우선순위와 특화 대상이 저장되었습니다. 다음으로 ${standardCodeMissingLabels.join(", ")} 입력을 채우면 추천 정확도가 더 올라갑니다`);
+        showToast("우선순위와 특화 대상이 저장되었습니다. 선택 프로필을 보완하면 추천 정확도가 더 올라갑니다");
       }
     } catch {
       showToast("우선순위 저장에 실패했습니다", "error");
@@ -1129,26 +1144,6 @@ export default function MyPage() {
   }, [activeTab, alertsLoaded, fetchAlerts, isLoggedIn, showToast]);
 
   useEffect(() => {
-    if (!isLoggedIn || activeTab !== "support" || supportLoaded) return;
-    const controller = new AbortController();
-    setSupportLoading(true);
-    api.get("/api/support/inquiries/me", { signal: controller.signal })
-      .then(({ data }) => {
-        setSupportInquiries(data.data ?? []);
-        setSupportLoaded(true);
-      })
-      .catch((err) => {
-        if (!controller.signal.aborted && err.code !== "ERR_CANCELED") {
-          showToast("문의 내역을 불러오지 못했습니다", "error");
-        }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setSupportLoading(false);
-      });
-    return () => controller.abort();
-  }, [activeTab, supportLoaded, isLoggedIn, showToast]);
-
-  useEffect(() => {
     if (!isLoggedIn || activeTab !== "noti") return;
     fetchPushStatus().catch(() => {
       showToast("브라우저 푸시 상태를 불러오지 못했습니다", "error");
@@ -1335,38 +1330,22 @@ export default function MyPage() {
 
         <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em", color: INK, marginBottom: 20 }}>마이페이지</div>
 
-        {(!isMobile || !mobileDetailOpen) && (
-          <ProfileBanner
-            pct={completionPct}
-            missing={missingLabels}
-            onComplete={() => handleTabChange(nextCompletionTab)}
-          />
-        )}
+        <ProfileBanner
+          pct={completionPct}
+          missing={missingLabels}
+          onComplete={() => handleTabChange(nextCompletionTab)}
+        />
 
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "260px 1fr", gap: isMobile ? 16 : 28, alignItems: "flex-start" }}>
-          {/* Sidebar (모바일에서는 메뉴 화면일 때만 표시) */}
-          {(!isMobile || !mobileDetailOpen) && (
-            <SidebarNav active={activeTab} onChange={handleTabChange} bookmarkCount={bookmarks.length} alertUnreadCount={alertUnreadCount} />
-          )}
+          {/* Sidebar */}
+          <SidebarNav active={activeTab} onChange={handleTabChange} bookmarkCount={bookmarks.length} alertUnreadCount={alertUnreadCount} />
 
-          {/* Content (모바일에서는 섹션을 선택했을 때만 표시) */}
-          <div style={{ display: (isMobile && !mobileDetailOpen) ? "none" : "block", minWidth: 0 }}>
-            <div style={{
-              display: "flex", alignItems: "center", gap: 6,
-              ...(isMobile ? { position: "sticky", top: 56, zIndex: 10, background: AS, padding: "8px 16px", margin: "0 -16px", borderBottom: `1px solid ${LINE}` } : {}),
-            }}>
-              {isMobile && (
-                <button
-                  onClick={() => setMobileDetailOpen(false)}
-                  aria-label="마이페이지 메뉴로 돌아가기"
-                  style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", background: "none", border: 0, color: AI, cursor: "pointer", padding: 4, marginLeft: -4, flexShrink: 0 }}
-                >
-                  <ArrowBackIcon sx={{ fontSize: 24 }} />
-                </button>
-              )}
-              <div style={{ fontSize: isMobile ? 17 : 22, fontWeight: 800, letterSpacing: "-0.02em", color: isMobile ? AI : INK }}>{TAB_TITLES[activeTab].t}</div>
+          {/* Content */}
+          <div>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", color: INK }}>{TAB_TITLES[activeTab].t}</div>
+              <div style={{ fontSize: 13, color: INK3, marginTop: 4 }}>{TAB_TITLES[activeTab].d}</div>
             </div>
-            <div style={{ fontSize: 13, color: INK3, marginTop: 4, marginBottom: 16 }}>{TAB_TITLES[activeTab].d}</div>
 
             {/* ── 내 정보 ── */}
             {activeTab === "info" && (
@@ -1441,7 +1420,7 @@ export default function MyPage() {
                   </div>
                 </SectionCard>
 
-                <SectionCard title="소득수준" desc="기초생활수급 등 자격조건 매칭에 사용돼요. 두 기준 중 하나만 선택하면 돼요.">
+                <SectionCard title="소득수준" desc="소득 기준이 있는 정책을 찾는 데 사용돼요. 두 기준 중 하나만 선택하면 돼요.">
                   <div style={{ border: `1px solid ${LINE}`, borderRadius: 14, overflow: "hidden", opacity: editing ? 1 : 0.65, pointerEvents: editing ? "auto" : "none" }}>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", background: BG, padding: "12px 18px", fontSize: 12, fontWeight: 700, color: INK2, borderBottom: `1px solid ${LINE}` }}>
                       <div>분위 기준</div>
@@ -1510,15 +1489,14 @@ export default function MyPage() {
                 </SectionCard>
 
                 <StandardCodePromptCard
-                  missing={standardCodeMissingLabels}
+                  missingCount={standardCodeMissingLabels.length}
                   filledCount={standardCodeFilledCount}
                   onComplete={focusStandardCodeSection}
-                  editing={editing}
                 />
 
                 <StandardCodeSaveReminder
                   visible={standardCodeSaveReminderOpen}
-                  missing={standardCodeMissingLabels}
+                  missingCount={standardCodeMissingLabels.length}
                   filledCount={standardCodeFilledCount}
                   hasPriorities={priorities.length > 0}
                   onComplete={focusStandardCodeSection}
@@ -1528,7 +1506,7 @@ export default function MyPage() {
                 />
 
                 <div id="profile-standard-code-section">
-                <SectionCard title="주거 및 생활 여건" desc="공식 코드북 기준으로 저장되어 주거·복지 자격조건 매칭 정확도를 높여요">
+                <SectionCard title="주거 및 생활 여건" desc="선택한 정보는 주거·복지 자격조건 매칭 정확도를 높이는 데 사용돼요">
                   <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
                     <Field label="주거형태">
                       <select
@@ -1556,29 +1534,27 @@ export default function MyPage() {
                         ))}
                       </select>
                     </Field>
-                    <Field label="기초생활수급권자">
+                    <Field label="복지 수급 정보">
                       <select
                         style={selCss(!editing)}
                         disabled={!editing}
                         value={myInfo.basicLivingRecipientTypeCode}
                         onChange={e => setMyInfo({ ...myInfo, basicLivingRecipientTypeCode: e.target.value })}
                       >
-                        {myInfo.basicLivingRecipientTypeCode === "" && <option value="">선택 안 함</option>}
-                        <option value="NONE">해당하지 않음</option>
+                        <option value="">선택 안 함</option>
                         {profileCodeOptions.basicLivingRecipientType.map((option) => (
                           <option key={option.value} value={option.value}>{option.label}</option>
                         ))}
                       </select>
                     </Field>
-                    <Field label="장애등급">
+                    <Field label="장애 관련 지원 정보">
                       <select
                         style={selCss(!editing)}
                         disabled={!editing}
                         value={myInfo.disabilityGradeCode}
                         onChange={e => setMyInfo({ ...myInfo, disabilityGradeCode: e.target.value })}
                       >
-                        {myInfo.disabilityGradeCode === "" && <option value="">선택 안 함</option>}
-                        <option value="NONE">해당하지 않음</option>
+                        <option value="">선택 안 함</option>
                         {profileCodeOptions.disabilityGrade.map((option) => (
                           <option key={option.value} value={option.value}>{option.label}</option>
                         ))}
@@ -1622,20 +1598,19 @@ export default function MyPage() {
                         <button key={c.value} onClick={() => togglePriority(c.value)}
                           disabled={!active && priorities.length >= 5}
                           style={{
-                            position: "relative", padding: "16px 14px", borderRadius: 14,
+                            position: "relative", padding: "24px 14px 18px", borderRadius: 16,
                             border: `2px solid ${active ? A : LINE}`,
                             background: active ? AS : WHITE,
-                            textAlign: "left", cursor: (!active && priorities.length >= 5) ? "not-allowed" : "pointer",
+                            textAlign: "center", cursor: (!active && priorities.length >= 5) ? "not-allowed" : "pointer",
                             opacity: (!active && priorities.length >= 5) ? 0.5 : 1,
-                            display: "flex", alignItems: "center", gap: 8,
                           }}>
-                          <span style={{ width: 12, height: 12, borderRadius: "50%", background: c.fg, flexShrink: 0 }} />
-                          <div style={{ fontSize: isMobile ? 13 : 14, fontWeight: 700, color: active ? AI : INK, letterSpacing: "-0.02em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{c.label}</div>
                           {active && (
-                            <span style={{ position: "absolute", top: 6, right: 6, width: 18, height: 18, borderRadius: "50%", background: A, color: WHITE, fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <span style={{ position: "absolute", top: 8, right: 8, width: 22, height: 22, borderRadius: "50%", background: A, color: WHITE, fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>
                               {idx + 1}
                             </span>
                           )}
+                          <div style={{ width: 40, height: 40, borderRadius: 12, background: c.bg, margin: "0 auto 10px" }} />
+                          <div style={{ fontSize: 13, fontWeight: 700, color: active ? AI : INK }}>{c.label}</div>
                         </button>
                       );
                     })}
@@ -1643,21 +1618,33 @@ export default function MyPage() {
                 </SectionCard>
 
                 {priorities.length > 0 && (
-                  <SectionCard title="내 우선순위" desc="끌어서 순서를 바꿀 수 있어요(모바일은 길게 눌러 끌기) · 위로 갈수록 더 우선해서 추천돼요">
-                    <PrioritySortableList
-                      priorities={priorities}
-                      onReorder={setPriorities}
-                      onRemove={removePriority}
-                      getMeta={(val) => {
+                  <SectionCard title="내 우선순위" desc="드래그하여 순서를 바꿀 수 있어요 · 위로 갈수록 더 우선해서 추천돼요">
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {priorities.map((val, i) => {
                         const c = PRIORITY_OPTIONS.find(o => o.value === val);
-                        return { label: c?.label, fg: c?.fg };
-                      }}
-                    />
+                        return (
+                          <div key={val} draggable
+                            onDragStart={() => handleDragStart(i)}
+                            onDragOver={e => handleDragOver(e, i)}
+                            onDragEnd={handleDragEnd}
+                            style={{
+                              display: "flex", alignItems: "center", gap: 14, padding: "14px 16px",
+                              background: dragIdx === i ? AS : BG, borderRadius: 12, border: `1px solid ${dragIdx === i ? A : LINE}`, cursor: "grab",
+                            }}>
+                            <span style={{ color: INK3, fontSize: 16 }}>⋮⋮</span>
+                            <span style={{ width: 28, height: 28, borderRadius: "50%", background: A, color: WHITE, fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{i + 1}</span>
+                            <div style={{ width: 28, height: 28, borderRadius: 8, background: c?.bg, flexShrink: 0 }} />
+                            <span style={{ fontSize: 14, fontWeight: 700, flex: 1, color: INK }}>{c?.label}</span>
+                            <button onClick={() => removePriority(val)} style={{ background: "transparent", border: 0, color: INK3, fontSize: 16, cursor: "pointer", padding: "4px 8px" }}>✕</button>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </SectionCard>
                 )}
 
                 <SectionCard title="특화 대상" desc="자립준비청년·한부모·농어촌처럼 특정 대상 정책을 더 정확히 맞추는 기준이에요">
-                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(5, 1fr)", gap: 10 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : "repeat(5, 1fr)", gap: 10 }}>
                     {TARGET_TYPE_OPTIONS.map((value) => {
                       const active = targetTypes.includes(value);
                       return (
@@ -1666,7 +1653,7 @@ export default function MyPage() {
                           border: `1.5px solid ${active ? A : LINE}`,
                           background: active ? AS : WHITE,
                           color: active ? AI : INK2,
-                          fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap",
+                          fontSize: 13, fontWeight: 700, cursor: "pointer",
                         }}>
                           {value}
                         </button>
@@ -1683,14 +1670,14 @@ export default function MyPage() {
             {activeTab === "bookmark" && (
               <>
                 <SectionCard>
-                  <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center", justifyContent: "space-between", gap: 12, marginBottom: 20 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
                     <div>
                       <div style={{ fontSize: 18, fontWeight: 800, color: INK }}>
                         북마크한 정책 <span style={{ color: A }}>({bookmarks.length})</span>
                       </div>
                       <div style={{ fontSize: 13, color: INK3, marginTop: 4 }}>마감일을 놓치지 않도록 알림을 설정해보세요</div>
                     </div>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                       <button
                         onClick={() => navigate("/policies")}
                         style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${LINE}`, background: WHITE, color: INK2, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
@@ -1711,24 +1698,22 @@ export default function MyPage() {
                         <option value="latest">최신순</option>
                         <option value="deadline">마감임박순</option>
                       </select>
-                      {!isMobile && (
-                        <div style={{ display: "flex", border: `1px solid ${LINE}`, borderRadius: 8, overflow: "hidden" }}>
-                          <button
-                            onClick={() => setBookmarkView("list")}
-                            style={{ padding: "8px 12px", background: bookmarkView === "list" ? A : WHITE, color: bookmarkView === "list" ? WHITE : INK3, border: 0, fontSize: 13, cursor: "pointer" }}
-                          >☰</button>
-                          <button
-                            onClick={() => setBookmarkView("grid")}
-                            style={{ padding: "8px 12px", background: bookmarkView === "grid" ? A : WHITE, color: bookmarkView === "grid" ? WHITE : INK3, border: 0, fontSize: 13, cursor: "pointer" }}
-                          >▦</button>
-                        </div>
-                      )}
+                      <div style={{ display: "flex", border: `1px solid ${LINE}`, borderRadius: 8, overflow: "hidden" }}>
+                        <button
+                          onClick={() => setBookmarkView("list")}
+                          style={{ padding: "8px 12px", background: bookmarkView === "list" ? A : WHITE, color: bookmarkView === "list" ? WHITE : INK3, border: 0, fontSize: 13, cursor: "pointer" }}
+                        >☰</button>
+                        <button
+                          onClick={() => setBookmarkView("grid")}
+                          style={{ padding: "8px 12px", background: bookmarkView === "grid" ? A : WHITE, color: bookmarkView === "grid" ? WHITE : INK3, border: 0, fontSize: 13, cursor: "pointer" }}
+                        >▦</button>
+                      </div>
                     </div>
                   </div>
                   {bookmarkLoading ? (
                     <div style={{ display: "flex", justifyContent: "center", padding: "40px 0" }}><CircularProgress /></div>
                   ) : displayedBookmarks.length > 0 ? (
-                    (!isMobile && bookmarkView === "grid") ? (
+                    bookmarkView === "grid" ? (
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                         {displayedBookmarks.map(p => {
                           const urgent = ddayUrgent(p.dday);
@@ -1967,7 +1952,7 @@ export default function MyPage() {
               return (
                 <>
                   <NotificationStandardCodePrompt
-                    missing={standardCodeMissingLabels}
+                    missingCount={standardCodeMissingLabels.length}
                     filledCount={standardCodeFilledCount}
                     onComplete={focusStandardCodeSection}
                   />
@@ -2374,59 +2359,6 @@ export default function MyPage() {
                   </button>
                 </SectionCard>
               </>
-            )}
-
-            {/* ── 문의 내역 ── */}
-            {activeTab === "support" && (
-              <SectionCard title="내 문의 내역" desc="로그인 상태로 보낸 문의만 표시돼요 · 운영 답변이 등록되면 여기서 확인할 수 있어요">
-                <div style={{ marginBottom: 16 }}>
-                  <button
-                    onClick={() => navigate("/support", { state: { from: location } })}
-                    style={{ padding: "10px 16px", borderRadius: 10, background: A, color: WHITE, border: 0, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
-                  >
-                    새 문의하기 →
-                  </button>
-                </div>
-                {supportLoading ? (
-                  <div style={{ display: "flex", justifyContent: "center", padding: "40px 0" }}><CircularProgress /></div>
-                ) : supportInquiries.length > 0 ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    {supportInquiries.map((q) => {
-                      const answered = q.status === "REVIEWED";
-                      return (
-                        <div key={q.id} style={{ border: `1px solid ${LINE}`, borderRadius: 14, padding: "16px 18px", background: WHITE }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-                            <span style={{ fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 99, background: AS, color: AI }}>{q.categoryLabel}</span>
-                            <span style={{ fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 99, background: answered ? "#ecfdf5" : "#f3f4f6", color: answered ? "#047857" : INK3 }}>
-                              {answered ? "답변 완료" : "접수됨"}
-                            </span>
-                            <span style={{ marginLeft: "auto", fontSize: 12, color: INK3 }}>{formatSupportDate(q.createdAt)}</span>
-                          </div>
-                          <div style={{ fontSize: 14, color: INK, lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{q.message}</div>
-                          <div style={{ fontSize: 12, color: INK3, marginTop: 8 }}>
-                            답변받을 이메일: {q.contactEmail}{q.routePath ? ` · 화면: ${q.routePath}` : ""}
-                          </div>
-                          {answered && q.reviewNote && (
-                            <div style={{ marginTop: 12, padding: "12px 14px", borderRadius: 10, background: "#f0fdf4", border: "1px solid #bbf7d0" }}>
-                              <div style={{ fontSize: 12, fontWeight: 800, color: "#047857", marginBottom: 4 }}>운영 답변</div>
-                              <div style={{ fontSize: 13, color: INK2, lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{q.reviewNote}</div>
-                              {q.reviewedAt && <div style={{ fontSize: 11, color: INK3, marginTop: 6 }}>{formatSupportDate(q.reviewedAt)}</div>}
-                            </div>
-                          )}
-                          {answered && !q.reviewNote && (
-                            <div style={{ marginTop: 10, fontSize: 12, color: INK3 }}>답변이 등록되었어요. 상세 내용은 입력하신 이메일로 안내될 수 있어요.</div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div style={{ textAlign: "center", padding: "48px 0", color: INK3 }}>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: INK, marginBottom: 6 }}>아직 보낸 문의가 없어요</div>
-                    <div style={{ fontSize: 13 }}>궁금하거나 불편한 점이 있으면 문의해 주세요</div>
-                  </div>
-                )}
-              </SectionCard>
             )}
           </div>
         </div>

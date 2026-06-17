@@ -377,6 +377,10 @@ public final class RegionCodeUtil {
         return REGION_NAME_BY_CODE.get(regionCode.trim());
     }
 
+    public static List<RegionName> allRegionNames() {
+        return List.copyOf(REGION_NAME_BY_CODE.values());
+    }
+
     public static List<RegionName> inferRegionNamesFromText(String... texts) {
         String haystack = joinTexts(texts);
         if (haystack.isBlank() || haystack.contains("전국")) {

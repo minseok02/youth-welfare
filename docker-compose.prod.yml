@@ -40,7 +40,7 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:b1addbe72465a718643cff9e60a58e6df1841e29d6d7d60c9a85d8d72f08d1a7
     container_name: youth-welfare-redis
     command: ["redis-server", "--save", "", "--appendonly", "no"]
     ports:

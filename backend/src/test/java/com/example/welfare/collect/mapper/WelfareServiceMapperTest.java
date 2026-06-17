@@ -407,6 +407,45 @@ class WelfareServiceMapperTest {
     }
 
     @Test
+    void regionsFromGov24_extractsParenthesizedFacilitySidoForPublicAgencyTypes() throws Exception {
+        Gov24ServiceListDto.Item item = new Gov24ServiceListDto.Item();
+        setField(item, "serviceId", "G008");
+        setField(item, "serviceName", "녹색에너지 체험관 견학(대구)");
+        setField(item, "managingOrganizationName", "한국에너지공단");
+        setField(item, "managingOrganizationType", "공공기관");
+
+        WelfareService service = mapper.fromGov24(item);
+
+        assertThat(mapper.regionsFromGov24(item, service))
+                .anySatisfy(region -> {
+                    assertThat(region.getRegionCode()).isEqualTo("27110");
+                    assertThat(region.getSidoName()).isEqualTo("대구광역시");
+                    assertThat(region.getSggName()).isEqualTo("중구");
+                })
+                .allSatisfy(region -> assertThat(region.getSidoName()).isEqualTo("대구광역시"));
+    }
+
+    @Test
+    void regionsFromGov24_extractsFacilityNameSidoForPublicAgencyTypes() throws Exception {
+        Gov24ServiceListDto.Item item = new Gov24ServiceListDto.Item();
+        setField(item, "serviceId", "G009");
+        setField(item, "serviceName", "의료 서비스(인천보훈병원)");
+        setField(item, "departmentName", "인천보훈병원");
+        setField(item, "managingOrganizationName", "한국보훈복지의료공단");
+        setField(item, "managingOrganizationType", "공공기관");
+
+        WelfareService service = mapper.fromGov24(item);
+
+        assertThat(mapper.regionsFromGov24(item, service))
+                .anySatisfy(region -> {
+                    assertThat(region.getRegionCode()).isEqualTo("28110");
+                    assertThat(region.getSidoName()).isEqualTo("인천광역시");
+                    assertThat(region.getSggName()).isEqualTo("중구");
+                })
+                .allSatisfy(region -> assertThat(region.getSidoName()).isEqualTo("인천광역시"));
+    }
+
+    @Test
     void regionsFromYouth_usesBoundedOverrideForKnownNationwideZipLocalProgram() throws Exception {
         YouthApiDto.Item item = new YouthApiDto.Item();
         setField(item, "plcyNo", "20250618005400211022");
