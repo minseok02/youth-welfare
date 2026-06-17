@@ -32,6 +32,7 @@ public enum ErrorCode {
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, "U001", "이미 사용 중인 이메일입니다."),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "U002", "존재하지 않는 회원입니다."),
     WITHDRAWN_USER(HttpStatus.GONE, "U003", "탈퇴한 회원입니다."),
+    CONSENT_REQUIRED(HttpStatus.BAD_REQUEST, "U004", "개인정보 수집·이용 동의가 필요합니다."),
 
     // 정책
     POLICY_NOT_FOUND(HttpStatus.NOT_FOUND, "P001", "존재하지 않는 정책입니다."),

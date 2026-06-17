@@ -24,6 +24,7 @@ public class UserAccountCommandService {
     private final UserCoreSyncService userCoreSyncService;
     private final RecommendationRefreshCacheService recommendationRefreshCacheService;
     private final UserWithdrawalDataCleanupService userWithdrawalDataCleanupService;
+    private final UserConsentService userConsentService;
 
     @Transactional
     public void changePassword(Long userId, String currentPassword, String newPassword) {
@@ -47,6 +48,7 @@ public class UserAccountCommandService {
         }
 
         userMetadataCommandRepository.deleteAllByUserKey(userKey);
+        userConsentService.withdrawAll(userKey);
         userWithdrawalDataCleanupService.cleanupByUserKey(userKey);
         redisTemplate.delete(UserRedisKeys.refreshTokenKeys(userKey));
         revokePresentedAccessToken(accessToken);

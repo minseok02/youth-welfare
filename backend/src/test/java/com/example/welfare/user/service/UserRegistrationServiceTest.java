@@ -30,6 +30,10 @@ class UserRegistrationServiceTest {
     private UserAccountOriginResolver userAccountOriginResolver;
     @Mock
     private UserProfileStandardCodeValidator userProfileStandardCodeValidator;
+    @Mock
+    private UserKeyLookupService userKeyLookupService;
+    @Mock
+    private UserConsentService userConsentService;
 
     @InjectMocks
     private UserRegistrationService userRegistrationService;
@@ -45,13 +49,17 @@ class UserRegistrationServiceTest {
         ReflectionTestUtils.setField(request, "housingTypeCode", "4");
         ReflectionTestUtils.setField(request, "basicLivingRecipientTypeCode", "1");
         ReflectionTestUtils.setField(request, "disabilityGradeCode", "011");
+        ReflectionTestUtils.setField(request, "optionalProfileConsentAgreed", true);
+        ReflectionTestUtils.setField(request, "sensitiveInfoConsentAgreed", true);
         when(userAccountOriginResolver.resolve("user@example.com")).thenReturn(User.AccountOrigin.REAL_USER);
+        when(userKeyLookupService.findRequired(null)).thenReturn("user-key-1");
 
         userRegistrationService.register(request, "encoded-password");
 
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
         verify(userProfileStandardCodeValidator).validateProfileCodes("3", "4", "1", "011");
         verify(userRegistrationCommandRepository).save(userCaptor.capture());
+        verify(userConsentService).recordSignupConsents("user-key-1", request);
         verify(userCoreSyncService).syncFromUser(
                 eq(userCaptor.getValue()),
                 argThat(pii -> pii != null
@@ -72,6 +80,7 @@ class UserRegistrationServiceTest {
         SignupRequest request = new SignupRequest();
         ReflectionTestUtils.setField(request, "email", "real.user@private-domain.com");
         when(userAccountOriginResolver.resolve("real.user@private-domain.com")).thenReturn(User.AccountOrigin.REAL_USER);
+        when(userKeyLookupService.findRequired(null)).thenReturn("user-key-1");
 
         userRegistrationService.register(request, "encoded-password");
 

@@ -11,6 +11,8 @@ import java.util.List;
 @Getter
 public class UpdatePrioritiesRequest {
 
+    private Boolean optionalProfileConsentAgreed;
+
     @NotNull
     @Size(min = 1, max = 5, message = "우선순위는 1개 이상 5개 이하로 설정 가능합니다.")
     private List<

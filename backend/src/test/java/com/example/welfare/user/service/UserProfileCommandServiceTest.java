@@ -6,6 +6,7 @@ import com.example.welfare.user.dto.request.UpdateProfileRequest;
 import com.example.welfare.user.entity.PriorityOption;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.entity.UserAttribute;
+import com.example.welfare.user.entity.UserConsent;
 import com.example.welfare.user.entity.UserPriority;
 import com.example.welfare.user.repository.UserMetadataCommandRepository;
 import org.assertj.core.groups.Tuple;
@@ -36,6 +37,7 @@ class UserProfileCommandServiceTest {
     @Mock private UserPlainPiiReadService userPlainPiiReadService;
     @Mock private RecommendationRefreshCacheService recommendationRefreshCacheService;
     @Mock private UserProfileStandardCodeValidator userProfileStandardCodeValidator;
+    @Mock private UserConsentService userConsentService;
 
     @Test
     @DisplayName("프로필 수정 시 관심분야와 특수대상을 각각 교체 저장한다")
@@ -90,10 +92,12 @@ class UserProfileCommandServiceTest {
 
         UpdatePrioritiesRequest request = new UpdatePrioritiesRequest();
         ReflectionTestUtils.setField(request, "priorityCodes", List.of("HOUSING", "JOB"));
+        ReflectionTestUtils.setField(request, "optionalProfileConsentAgreed", true);
 
         service.updatePriorities(1L, request);
 
         verify(recommendationRefreshCacheService).evict("user-key-1");
+        verify(userConsentService).ensureOptionalProfileConsent("user-key-1", true);
         ArgumentCaptor<List<UserPriority>> captor = ArgumentCaptor.forClass(List.class);
         verify(userMetadataCommandRepository).replacePriorities(org.mockito.Mockito.eq("user-key-1"), captor.capture());
         verify(userMetadataCommandRepository).replaceAttributes(1L, "user-key-1",
@@ -237,6 +241,85 @@ class UserProfileCommandServiceTest {
     }
 
     @Test
+    @DisplayName("선택정보 동의 철회 시 추천용 프로필과 우선순위를 함께 비운다")
+    void withdrawOptionalProfileConsentClearsOptionalProfileData() {
+        UserProfileCommandService service = newService();
+        User user = User.builder()
+                .id(1L)
+                .email("user@example.com")
+                .passwordHash("hash")
+                .sido("서울")
+                .sgg("강남구")
+                .incomeLevel((byte) 5)
+                .employmentStatus("EMPLOYED")
+                .householdType("ONE_PERSON")
+                .houseTenureCode("3")
+                .housingTypeCode("7")
+                .basicLivingRecipientTypeCode("2")
+                .build();
+        when(activeUserReadService.getActiveUserContext(1L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
+        when(userPlainPiiReadService.resolveCurrent(user, "user-key-1"))
+                .thenReturn(new UserPlainPii("user@example.com", "tester", LocalDate.of(1998, 1, 1)));
+
+        service.withdrawConsent(1L, "OPTIONAL_PROFILE");
+
+        verify(recommendationRefreshCacheService).evict("user-key-1");
+        verify(userMetadataCommandRepository).replaceAttributes(
+                1L,
+                "user-key-1",
+                UserAttribute.AttrType.INTEREST_FIELD.name(),
+                List.of()
+        );
+        verify(userMetadataCommandRepository).replaceAttributes(
+                1L,
+                "user-key-1",
+                UserAttribute.AttrType.TARGET_TYPE.name(),
+                List.of()
+        );
+        verify(userMetadataCommandRepository).replacePriorities("user-key-1", List.of());
+        verify(userConsentService).withdraw("user-key-1", UserConsent.ConsentType.OPTIONAL_PROFILE);
+        verify(userCoreSyncService).syncFromUser(org.mockito.Mockito.eq(user), org.mockito.ArgumentMatchers.any(UserPlainPii.class));
+        assertThat(user.getSido()).isNull();
+        assertThat(user.getIncomeLevel()).isNull();
+        assertThat(user.getProfileCompleteness()).isEqualTo(40);
+    }
+
+    @Test
+    @DisplayName("민감정보 동의 철회 시 장애 관련 정보만 비운다")
+    void withdrawSensitiveInfoConsentClearsSensitiveProfileData() {
+        UserProfileCommandService service = newService();
+        User user = User.builder()
+                .id(1L)
+                .email("user@example.com")
+                .passwordHash("hash")
+                .sido("서울")
+                .disabilityGradeCode("041")
+                .build();
+        when(activeUserReadService.getActiveUserContext(1L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
+        when(userPlainPiiReadService.resolveCurrent(user, "user-key-1"))
+                .thenReturn(new UserPlainPii("user@example.com", "tester", LocalDate.of(1998, 1, 1)));
+
+        service.withdrawConsent(1L, "SENSITIVE_INFO");
+
+        verify(recommendationRefreshCacheService).evict("user-key-1");
+        verify(userConsentService).withdraw("user-key-1", UserConsent.ConsentType.SENSITIVE_INFO);
+        verify(userCoreSyncService).syncFromUser(org.mockito.Mockito.eq(user), org.mockito.ArgumentMatchers.any(UserPlainPii.class));
+        assertThat(user.getSido()).isEqualTo("서울");
+        assertThat(user.getDisabilityGradeCode()).isNull();
+    }
+
+    @Test
+    @DisplayName("필수 가입 동의는 회원탈퇴 없이 개별 철회할 수 없다")
+    void withdrawConsentRejectsPrivacyNotice() {
+        UserProfileCommandService service = newService();
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.withdrawConsent(1L, "PRIVACY_NOTICE"))
+                .isInstanceOf(com.example.welfare.global.exception.CustomException.class);
+    }
+
+    @Test
     @DisplayName("알림을 켠 상태에서 채널을 모두 끄면 예외를 던진다")
     void updateProfileRejectsNoNotificationChannels() {
         UserProfileCommandService service = newService();
@@ -273,7 +356,8 @@ class UserProfileCommandServiceTest {
                 userCoreSyncService,
                 userPlainPiiReadService,
                 recommendationRefreshCacheService,
-                userProfileStandardCodeValidator
+                userProfileStandardCodeValidator,
+                userConsentService
         );
     }
 }

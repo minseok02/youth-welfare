@@ -49,6 +49,10 @@ public class UpdateProfileRequest {
     @Size(max = 20, message = "장애 등급 코드는 20자 이하여야 합니다.")
     private String disabilityGradeCode;
 
+    private Boolean optionalProfileConsentAgreed;
+
+    private Boolean sensitiveInfoConsentAgreed;
+
     private Boolean notificationYn;
     private Boolean notificationEmailYn;
     private Boolean notificationInAppYn;

@@ -167,6 +167,37 @@ function Field({ label, error, hint, action, children }) {
   );
 }
 
+function ConsentNotice({ checked, onChange, disabled, title, description, warning }) {
+  return (
+    <label style={{
+      display: "flex",
+      gap: 10,
+      alignItems: "flex-start",
+      padding: "13px 14px",
+      border: `1px solid ${checked ? A : LINE}`,
+      borderRadius: 10,
+      background: checked ? AS : "#f8fafc",
+      cursor: disabled ? "not-allowed" : "pointer",
+      opacity: disabled ? 0.7 : 1,
+    }}>
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={e => onChange(e.target.checked)}
+        style={{ marginTop: 2, accentColor: A }}
+      />
+      <span style={{ fontSize: 13, color: INK2, lineHeight: 1.55 }}>
+        <span style={{ fontWeight: 800, color: checked ? AI : INK2 }}>{title}</span>
+        <span style={{ display: "block", color: INK3, marginTop: 2 }}>{description}</span>
+        {warning && !checked && (
+          <span style={{ display: "block", color: WARN, fontWeight: 700, marginTop: 6 }}>{warning}</span>
+        )}
+      </span>
+    </label>
+  );
+}
+
 function SectionCard({ title, desc, children }) {
   return (
     <div style={{ background: WHITE, border: `1px solid ${LINE}`, borderRadius: 18, padding: 28, marginBottom: 16 }}>
@@ -614,6 +645,8 @@ export default function MyPage() {
   const [infoLoading, setInfoLoading] = useState(false);
   const [nameError, setNameError] = useState("");
   const [standardCodeSaveReminderOpen, setStandardCodeSaveReminderOpen] = useState(false);
+  const [optionalProfileConsentAgreed, setOptionalProfileConsentAgreed] = useState(false);
+  const [sensitiveInfoConsentAgreed, setSensitiveInfoConsentAgreed] = useState(false);
 
   const [priorities, setPriorities] = useState([]);
   const [priorityLoading, setPriorityLoading] = useState(false);
@@ -679,6 +712,20 @@ export default function MyPage() {
   const standardCodeBannerLabel = standardCodeMissingLabels.length > 0
     ? `주거·생활 여건 ${standardCodeFilledCount}/4`
     : null;
+  const hasOptionalProfileInput = Boolean(
+    myInfo.region
+    || myInfo.subRegion
+    || myInfo.ward
+    || myInfo.income
+    || myInfo.employ
+    || myInfo.householdType
+    || myInfo.houseTenureCode
+    || myInfo.housingTypeCode
+    || myInfo.basicLivingRecipientTypeCode
+    || priorities.length > 0
+    || targetTypes.length > 0
+  );
+  const hasSensitiveInfoInput = Boolean(myInfo.disabilityGradeCode);
 
   // completion
   const hasCompleteAddress = Boolean(
@@ -784,6 +831,19 @@ export default function MyPage() {
         setNotificationConsentAt(p.notificationConsentAt ?? null);
         setPriorities((p.priorities ?? []).map(item => item.code));
         setTargetTypes(Array.isArray(p.targetTypes) ? p.targetTypes : []);
+        setOptionalProfileConsentAgreed(Boolean(
+          p.sido
+          || p.sgg
+          || p.incomeLevel != null
+          || p.employmentStatus
+          || p.householdType
+          || p.houseTenureCode
+          || p.housingTypeCode
+          || p.basicLivingRecipientTypeCode
+          || (Array.isArray(p.priorities) && p.priorities.length > 0)
+          || (Array.isArray(p.targetTypes) && p.targetTypes.length > 0)
+        ));
+        setSensitiveInfoConsentAgreed(Boolean(p.disabilityGradeCode));
         setUser({
           ...(p.name ? { name: p.name } : {}),
           ...(p.email ? { email: p.email } : {}),
@@ -833,10 +893,19 @@ export default function MyPage() {
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const nameRegex = /^[가-힣]{2,10}$/;
+  const consentRequiredMessage = "추천용 선택정보 또는 민감정보를 저장하려면 먼저 동의가 필요합니다.";
 
   const handleSaveInfo = async () => {
     if (myInfo.name && !nameRegex.test(myInfo.name)) {
       setNameError("이름은 특수 기호 및 숫자를 제외한 한글 2~10자로 입력해주세요.");
+      return;
+    }
+    if (hasOptionalProfileInput && !optionalProfileConsentAgreed) {
+      showToast("추천용 선택정보를 저장하려면 선택 개인정보 수집·이용에 동의해주세요", "error");
+      return;
+    }
+    if (hasSensitiveInfoInput && !sensitiveInfoConsentAgreed) {
+      showToast("장애 관련 정보를 저장하려면 민감정보 수집·이용에 동의해주세요", "error");
       return;
     }
     setNameError("");
@@ -858,6 +927,8 @@ export default function MyPage() {
         housingTypeCode:  myInfo.housingTypeCode || undefined,
         basicLivingRecipientTypeCode: myInfo.basicLivingRecipientTypeCode || undefined,
         disabilityGradeCode: myInfo.disabilityGradeCode || undefined,
+        optionalProfileConsentAgreed: hasOptionalProfileInput ? optionalProfileConsentAgreed : undefined,
+        sensitiveInfoConsentAgreed: hasSensitiveInfoInput ? sensitiveInfoConsentAgreed : undefined,
       });
       setProfileCompleteness(localCompletionPct);
       setUser({
@@ -878,8 +949,9 @@ export default function MyPage() {
       } else {
         showToast(`저장되었습니다. 주거·생활 여건 ${standardCodeFilledCount}/4개 입력됨 · 다음으로 우선순위를 설정하면 추천이 더 안정적입니다`);
       }
-    } catch {
-      showToast("저장에 실패했습니다", "error");
+    } catch (err) {
+      const code = err?.response?.data?.errorCode;
+      showToast(code === "U004" ? consentRequiredMessage : "저장에 실패했습니다", "error");
     } finally {
       setInfoLoading(false);
     }
@@ -899,10 +971,20 @@ export default function MyPage() {
       showToast("우선순위는 최소 1개 이상 선택해주세요", "error");
       return;
     }
+    if ((priorities.length > 0 || targetTypes.length > 0) && !optionalProfileConsentAgreed) {
+      showToast("우선순위와 특화 대상을 저장하려면 선택 개인정보 수집·이용에 동의해주세요", "error");
+      return;
+    }
     setPriorityLoading(true);
     try {
-      await api.put("/api/users/me", { targetTypes });
-      await api.put("/api/users/me/priorities", { priorityCodes: priorities });
+      await api.put("/api/users/me", {
+        targetTypes,
+        optionalProfileConsentAgreed,
+      });
+      await api.put("/api/users/me/priorities", {
+        priorityCodes: priorities,
+        optionalProfileConsentAgreed,
+      });
       setUser({ hasPriorities: true });
       setProfileCompleteness(Math.max(profileCompleteness ?? 0, localCompletionPct));
       setStandardCodeSaveReminderOpen(true);
@@ -911,8 +993,9 @@ export default function MyPage() {
       } else {
         showToast(`우선순위와 특화 대상이 저장되었습니다. 다음으로 ${standardCodeMissingLabels.join(", ")} 입력을 채우면 추천 정확도가 더 올라갑니다`);
       }
-    } catch {
-      showToast("우선순위 저장에 실패했습니다", "error");
+    } catch (err) {
+      const code = err?.response?.data?.errorCode;
+      showToast(code === "U004" ? consentRequiredMessage : "우선순위 저장에 실패했습니다", "error");
     } finally {
       setPriorityLoading(false);
     }
@@ -1529,6 +1612,24 @@ export default function MyPage() {
 
                 <div id="profile-standard-code-section">
                 <SectionCard title="주거 및 생활 여건" desc="공식 코드북 기준으로 저장되어 주거·복지 자격조건 매칭 정확도를 높여요">
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
+                    <ConsentNotice
+                      checked={optionalProfileConsentAgreed}
+                      onChange={setOptionalProfileConsentAgreed}
+                      disabled={!editing}
+                      title="추천용 선택 개인정보 수집·이용 동의"
+                      description="지역, 소득수준, 취업상태, 가구형태, 주거 및 수급 관련 정보가 맞춤 추천에 사용됩니다."
+                      warning={hasOptionalProfileInput ? "이 정보를 저장하려면 동의가 필요합니다." : ""}
+                    />
+                    <ConsentNotice
+                      checked={sensitiveInfoConsentAgreed}
+                      onChange={setSensitiveInfoConsentAgreed}
+                      disabled={!editing}
+                      title="민감정보 수집·이용 별도 동의"
+                      description="장애 관련 정보는 동의한 경우에만 저장하고 맞춤 추천에 사용합니다."
+                      warning={hasSensitiveInfoInput ? "장애 관련 정보를 저장하려면 별도 동의가 필요합니다." : ""}
+                    />
+                  </div>
                   <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
                     <Field label="주거형태">
                       <select
@@ -1572,8 +1673,8 @@ export default function MyPage() {
                     </Field>
                     <Field label="장애등급">
                       <select
-                        style={selCss(!editing)}
-                        disabled={!editing}
+                        style={selCss(!editing || !sensitiveInfoConsentAgreed)}
+                        disabled={!editing || !sensitiveInfoConsentAgreed}
                         value={myInfo.disabilityGradeCode}
                         onChange={e => setMyInfo({ ...myInfo, disabilityGradeCode: e.target.value })}
                       >
@@ -1674,6 +1775,15 @@ export default function MyPage() {
                     })}
                   </div>
                 </SectionCard>
+
+                <ConsentNotice
+                  checked={optionalProfileConsentAgreed}
+                  onChange={setOptionalProfileConsentAgreed}
+                  disabled={priorityLoading}
+                  title="추천용 선택 개인정보 수집·이용 동의"
+                  description="우선순위와 특화 대상은 맞춤 추천 품질을 높이는 선택정보로 사용됩니다."
+                  warning={(priorities.length > 0 || targetTypes.length > 0) ? "우선순위와 특화 대상을 저장하려면 동의가 필요합니다." : ""}
+                />
 
                 <SaveBar onSave={handleSavePriorities} loading={priorityLoading} />
               </>

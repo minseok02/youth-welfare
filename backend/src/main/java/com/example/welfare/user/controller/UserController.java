@@ -71,6 +71,14 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
+    @DeleteMapping("/consents/{consentType}")
+    public ResponseEntity<ApiResponse<Void>> withdrawConsent(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @PathVariable String consentType) {
+        userProfileCommandService.withdrawConsent(resolveUserId(authenticatedUser), consentType);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
     @PatchMapping("/password")
     public ResponseEntity<ApiResponse<Void>> changePassword(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,

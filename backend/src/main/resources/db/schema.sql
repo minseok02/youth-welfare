@@ -106,6 +106,22 @@ CREATE INDEX IF NOT EXISTS idx_upf_notification ON user_profiles (notification_y
 CREATE INDEX IF NOT EXISTS idx_upf_region ON user_profiles (sido, sgg);
 CREATE INDEX IF NOT EXISTS idx_upf_income_employment ON user_profiles (income_level, employment_status);
 
+CREATE TABLE IF NOT EXISTS user_consents (
+    id           BIGSERIAL PRIMARY KEY,
+    user_key     VARCHAR(32) NOT NULL,
+    consent_type VARCHAR(40) NOT NULL,
+    agreed_at    TIMESTAMP NOT NULL,
+    withdrawn_at TIMESTAMP,
+    created_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_user_consents_user_type UNIQUE (user_key, consent_type),
+    CONSTRAINT fk_user_consents_user_key FOREIGN KEY (user_key) REFERENCES users(user_key) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_consents_user_key_active
+    ON user_consents (user_key, consent_type)
+    WHERE withdrawn_at IS NULL;
+
 CREATE TABLE IF NOT EXISTS youth_welfare_pii.user_pii (
     id             BIGSERIAL PRIMARY KEY,
     user_key       VARCHAR(32) NOT NULL,

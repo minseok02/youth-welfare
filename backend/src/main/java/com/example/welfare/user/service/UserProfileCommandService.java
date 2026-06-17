@@ -9,6 +9,7 @@ import com.example.welfare.user.dto.request.UpdateProfileRequest;
 import com.example.welfare.user.entity.PriorityOption;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.entity.UserAttribute;
+import com.example.welfare.user.entity.UserConsent;
 import com.example.welfare.user.entity.UserPriority;
 import com.example.welfare.user.repository.UserMetadataCommandRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 @Service
@@ -35,6 +37,7 @@ public class UserProfileCommandService {
     private final UserPlainPiiReadService userPlainPiiReadService;
     private final RecommendationRefreshCacheService recommendationRefreshCacheService;
     private final UserProfileStandardCodeValidator userProfileStandardCodeValidator;
+    private final UserConsentService userConsentService;
 
     @Transactional
     public void updateProfile(Long userId, UpdateProfileRequest request) {
@@ -42,6 +45,7 @@ public class UserProfileCommandService {
         User user = activeUserContext.user();
         String userKey = activeUserContext.userKey();
         recommendationRefreshCacheService.evict(userKey);
+        userConsentService.ensureProfileUpdateConsents(userKey, request);
 
         String effectiveSido = request.getSido() != null ? request.getSido() : user.getSido();
         String effectiveSgg = request.getSgg() != null ? request.getSgg() : user.getSgg();
@@ -149,6 +153,7 @@ public class UserProfileCommandService {
         ActiveUserReadService.ActiveUserContext activeUserContext = activeUserReadService.getActiveUserContext(userId);
         String userKey = activeUserContext.userKey();
         recommendationRefreshCacheService.evict(userKey);
+        userConsentService.ensureOptionalProfileConsent(userKey, request.getOptionalProfileConsentAgreed());
         List<String> codes = request.getPriorityCodes();
 
         if (codes.size() > priorityWeightPolicy.maxRank()) {
@@ -179,6 +184,24 @@ public class UserProfileCommandService {
                 UserAttribute.AttrType.INTEREST_FIELD.name(),
                 deriveInterestFieldsFromPriorityCodes(codes)
         );
+    }
+
+    @Transactional
+    public void withdrawConsent(Long userId, String consentTypeValue) {
+        UserConsent.ConsentType consentType = parseWithdrawableConsentType(consentTypeValue);
+        if (consentType == UserConsent.ConsentType.PRIVACY_NOTICE) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+        ActiveUserReadService.ActiveUserContext activeUserContext = activeUserReadService.getActiveUserContext(userId);
+        User user = activeUserContext.user();
+        String userKey = activeUserContext.userKey();
+
+        recommendationRefreshCacheService.evict(userKey);
+        switch (consentType) {
+            case OPTIONAL_PROFILE -> withdrawOptionalProfileConsent(userId, userKey, user);
+            case SENSITIVE_INFO -> withdrawSensitiveInfoConsent(userKey, user);
+            case PRIVACY_NOTICE -> throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
     }
 
     private int calculateCompleteness(String userKey,
@@ -218,6 +241,54 @@ public class UserProfileCommandService {
             }
         }
         return new ArrayList<>(fields);
+    }
+
+    private UserConsent.ConsentType parseWithdrawableConsentType(String consentTypeValue) {
+        if (consentTypeValue == null || consentTypeValue.isBlank()) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+        try {
+            return UserConsent.ConsentType.valueOf(consentTypeValue.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+    }
+
+    private void withdrawOptionalProfileConsent(Long userId, String userKey, User user) {
+        user.clearOptionalProfileData();
+        userMetadataCommandRepository.replaceAttributes(
+                userId,
+                userKey,
+                UserAttribute.AttrType.INTEREST_FIELD.name(),
+                List.of()
+        );
+        userMetadataCommandRepository.replaceAttributes(
+                userId,
+                userKey,
+                UserAttribute.AttrType.TARGET_TYPE.name(),
+                List.of()
+        );
+        userMetadataCommandRepository.replacePriorities(userKey, List.of());
+        userConsentService.withdraw(userKey, UserConsent.ConsentType.OPTIONAL_PROFILE);
+        syncProfileAfterConsentWithdrawal(userKey, user);
+    }
+
+    private void withdrawSensitiveInfoConsent(String userKey, User user) {
+        user.clearSensitiveProfileData();
+        userConsentService.withdraw(userKey, UserConsent.ConsentType.SENSITIVE_INFO);
+        syncProfileAfterConsentWithdrawal(userKey, user);
+    }
+
+    private void syncProfileAfterConsentWithdrawal(String userKey, User user) {
+        UserPlainPii currentPii = userPlainPiiReadService.resolveCurrent(user, userKey);
+        user.updateProfileCompleteness(calculateCompleteness(
+                userKey,
+                user,
+                new UpdateProfileRequest(),
+                currentPii.name(),
+                currentPii.birthDate()
+        ));
+        userCoreSyncService.syncFromUser(user, currentPii);
     }
 
     private User.NotificationPeriod parseNotificationPeriod(String raw) {

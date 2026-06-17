@@ -16,6 +16,8 @@ public class UserRegistrationService {
     private final UserCoreSyncService userCoreSyncService;
     private final UserAccountOriginResolver userAccountOriginResolver;
     private final UserProfileStandardCodeValidator userProfileStandardCodeValidator;
+    private final UserKeyLookupService userKeyLookupService;
+    private final UserConsentService userConsentService;
 
     @Transactional
     public void register(SignupRequest request, String encodedPassword) {
@@ -42,6 +44,8 @@ public class UserRegistrationService {
                 .build();
 
         userRegistrationCommandRepository.save(user);
+        String userKey = userKeyLookupService.findRequired(user.getId());
+        userConsentService.recordSignupConsents(userKey, request);
         userCoreSyncService.syncFromUser(
                 user,
                 new UserPlainPii(
