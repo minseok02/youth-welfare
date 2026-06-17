@@ -601,6 +601,28 @@ export const adminDashboardFixtures = {
       },
     ],
   },
+  regionOptions: {
+    regions: [
+      {
+        regionCode: "11000",
+        sidoName: "서울특별시",
+        sggName: "",
+        label: "서울특별시",
+      },
+      {
+        regionCode: "11110",
+        sidoName: "서울특별시",
+        sggName: "종로구",
+        label: "서울특별시 종로구",
+      },
+    ],
+  },
+  policyRegionCorrections: {
+    corrections: [],
+  },
+  policyFieldCorrections: {
+    corrections: [],
+  },
   officialCodebooks: [
     {
       codeSetKey: "LOCAL_HOUSING_TYPE",

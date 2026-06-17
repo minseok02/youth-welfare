@@ -15,6 +15,7 @@
 - collect/runtime: 로컬 full collect, ops baseline, broad quality 재검사까지 다시 green
 - recommendation/policy: 각 current-state 문서와 runbook을 기준으로 baseline 유지 단계
 - 프론트: 기본 연동, lint, build, browser smoke까지 확인 완료
+- 2026-06-17 운영 재확인 기준: `main` 은 `origin/main` 과 동기화됐고, 운영 서버는 `app + redis` healthy 상태다. `run-prod-cutover-verification.sh` 는 public smoke `30 passed`, 관리자 Playwright `@admin-required` 는 `21 passed`, `npm audit` 은 `0 vulnerabilities`, `npm run lint`, `npm run build` 도 통과했다.
 - 2026-06-10 server/RDS 안정화 sweep 기준: `ops observation=BASELINE_HEALTHY`, attention warning `0`, collect 실패/partial/circuit `0`, policy review `OPEN` queue `0`, recommendation `KEEP_OBSERVING`, frontend deployed-origin smoke `30 passed`
 - 2026-06-10 DB closeout 기준: RDS runtime privilege verification 통과, `db/migration` active version 중복 제거 및 계약 테스트 추가
 

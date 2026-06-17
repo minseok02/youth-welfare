@@ -390,6 +390,9 @@ async function mockAdminDashboardApis(page) {
     ["**/api/admin/dashboard/standard-code-effect-observation*", adminDashboardFixtures.standardCodeEffectObservation],
     ["**/api/admin/dashboard/wrapper-observation*", adminDashboardFixtures.wrapperObservation],
     ["**/api/admin/dashboard/policy-error-reports*", adminDashboardFixtures.policyErrorReports],
+    ["**/api/admin/dashboard/region-options*", adminDashboardFixtures.regionOptions],
+    ["**/api/admin/dashboard/policy-region-corrections*", adminDashboardFixtures.policyRegionCorrections],
+    ["**/api/admin/dashboard/policy-field-corrections*", adminDashboardFixtures.policyFieldCorrections],
     ["**/api/admin/dashboard/support-inquiries*", adminDashboardFixtures.supportInquiries],
     ["**/api/admin/dashboard/policy-duplicate-groups*", adminDashboardFixtures.policyDuplicateGroups],
     ["**/api/admin/dashboard/policy-link-reviews*", adminDashboardFixtures.policyLinkReviews],
@@ -1267,7 +1270,8 @@ test("admin dashboard 공식 코드북 탐색은 검색과 메타데이터를 �
   await expect(page.getByText("다가구주택", { exact: true })).toHaveCount(0);
   await expect(page.getByText("아파트", { exact: true })).toBeVisible();
 
-  await page.getByRole("combobox").nth(1).click();
+  const referenceCodebooksSection = page.locator(section("admin-reference-codebooks"));
+  await referenceCodebooksSection.getByRole("combobox").click();
   await page.getByRole("option", { name: "LOCAL_AGENCY_CODES", exact: true }).click();
 
   await expect(page.getByText("메타데이터 전용", { exact: true })).toBeVisible();
@@ -1325,9 +1329,9 @@ test("admin dashboard 서비스 문의 섹션은 열린 문의 recent queue를 �
   await expect(supportInquiriesSection.getByText("처리완료", { exact: true }).first()).toBeVisible();
   await expect(supportInquiriesSection.getByText("전체", { exact: true }).first()).toBeVisible();
   await expect(supportInquiriesSection.getByText("1", { exact: true }).first()).toBeVisible();
-  await expect(supportInquiriesSection.getByText("추천/챗봇", { exact: true }).first()).toBeVisible();
+  await expect(supportInquiriesSection.getByText("사용법 질문", { exact: true }).first()).toBeVisible();
   await expect(supportInquiriesSection.getByText("챗봇이 이전 질문 맥락을 잘 못 이어갑니다.", { exact: true })).toBeVisible();
-  await expect(supportInquiriesSection.getByText("정책 검색/필터", { exact: true }).first()).toBeVisible();
+  await expect(supportInquiriesSection.getByText("오류/버그", { exact: true }).first()).toBeVisible();
   await expect(supportInquiriesSection.getByText("필터가 바로 적용되는지 헷갈립니다.", { exact: true })).toBeVisible();
 });
 
