@@ -22,7 +22,7 @@
 - API: `RecommendationController#getSimilarUsersViewedPolicies`
 - service: `SimilarUsersViewedPolicyReadService`
 - SQL read model: `SimilarUsersViewedPolicyReadRepositoryImpl`
-- frontend: `MainPage` 의 `SimilarUsersViewedRail`
+- frontend: 현재 `MainPage` 에는 이 API를 호출하는 레일이 연결되어 있지 않습니다. 결과 표본이 충분해진 뒤 별도 UI로 노출할 때 연결합니다.
 
 ## 관측 지표
 
@@ -99,6 +99,19 @@ bash deploy/smoke/run-local-similar-users-viewed-audit.sh
 - actuator metrics 노출은 별도 운영 정책 작업으로 유지합니다.
 
 다음 audit은 `REAL_USER` 가 최소 3명 이상, 가능하면 최근 조회가 있는 `REAL_USER` 가 5~10명 이상 쌓인 뒤 다시 실행합니다.
+
+### 2026-06-17 운영 재확인 기록
+
+서버/RDS 기준 재확인 결과도 `REAL_USER_SAMPLE_THIN` 입니다.
+
+- endpoint smoke는 `200`, `success=true`, `data=[]` 계약으로 통과했습니다.
+- 관리자 계정 직접 호출도 `200`, `success=true`, `result_count=0` 입니다.
+- `active_real_users=2`, `recent_view_users_window=2`, `recent_policy_view_rows_30d=26` 입니다.
+- 후보 생성 전 단계는 `candidate_policy_groups_before_exclusions=22` 로 살아 있습니다.
+- 정책별 최소 유사 사용자 `2명` gate 뒤 `candidate_policy_groups_min_sample=0`, `result_policy_groups=0` 입니다.
+- 선호 신호 후보는 아직 얇습니다. REAL_USER 기준 북마크 추천 row는 `1`, 최근 30일 클릭 로그 사용자는 `1`명입니다.
+- 현재 구현은 "선호한 정책"이 아니라 "비슷한 프로필의 REAL_USER가 최근 확인한 정책" 기반입니다. 북마크/클릭 가중 추천은 별도 확장으로 봅니다.
+- 프론트 `MainPage` 에는 아직 이 API를 노출하는 레일이 연결되어 있지 않습니다.
 
 ## 확장 포인트
 

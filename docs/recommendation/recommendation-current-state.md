@@ -60,6 +60,8 @@
 
 `2026-06-15` 서버/RDS 기준 similar-users-viewed 보조 추천 audit도 같은 결론입니다. read path 인덱스는 `expected_index_count=5` 로 적용됐고 audit은 통과했지만, `active_real_users=2`, `candidate_policy_groups_before_exclusions=22`, `candidate_policy_groups_min_sample=0`, `result_policy_groups=0`, `decision_class=REAL_USER_SAMPLE_THIN` 입니다. 후보 생성 경로는 살아 있으나 현재 `minSimilarUsers=2` 계약을 구조적으로 만족할 real-user 표본이 부족하므로, 기능 로직이나 threshold/window를 바꾸지 않고 관찰 상태를 유지합니다. 다음 재실행 기준은 `REAL_USER` 최소 3명 이상, 가능하면 최근 조회가 있는 `REAL_USER` 5~10명 이상입니다. actuator metrics 노출은 별도 운영 정책 작업으로 분리합니다.
 
+`2026-06-17` 재확인 기준도 동일합니다. endpoint smoke와 관리자 계정 직접 호출은 모두 `200/success=true` 이고 결과는 `0`건입니다. 운영 표본은 `active_real_users=2`, `recent_view_users_window=2`, `recent_policy_view_rows_30d=26`, `candidate_policy_groups_before_exclusions=22`, `result_policy_groups=0`, `decision_class=REAL_USER_SAMPLE_THIN` 입니다. 현재 구현은 북마크/클릭 "선호"가 아니라 비슷한 `REAL_USER` 의 최근 조회 기반이며, 프론트 `MainPage` 에는 아직 이 API를 노출하는 레일이 연결되어 있지 않습니다.
+
 주의할 점은 아래쪽에 남아 있는 `2026-06-01` 및 이전 local closeout 기록입니다.
 그 기록은 당시 snapshot/historical context 로 읽고, active 운영 판단은 위 `2026-06-10` server/RDS 기준을 우선합니다.
 
