@@ -1220,6 +1220,13 @@ export default function MyPage() {
 
   const browserPushConnected = currentPushEndpoint
     && pushSubscriptions.some((subscription) => subscription.endpoint === currentPushEndpoint);
+  const getPushSubscriptionLabel = (subscription, isCurrentBrowser) => {
+    if (isCurrentBrowser) return "현재 브라우저";
+    if (!subscription.deviceLabel || subscription.deviceLabel === "현재 브라우저") {
+      return "다른 브라우저 구독";
+    }
+    return subscription.deviceLabel;
+  };
   const pushConnectDisabled = pushLoading
     || !pushStatusLoaded
     || pushActionLoading
@@ -1253,7 +1260,7 @@ export default function MyPage() {
     setPushActionError("");
     setPushActionPhase("");
     try {
-      const deviceLabel = "현재 브라우저";
+      const deviceLabel = "브라우저 구독";
       const { permission } = await registerCurrentBrowserPush({
         publicKey: pushPublicKey,
         deviceLabel,
@@ -2200,7 +2207,7 @@ export default function MyPage() {
                               <div style={{ minWidth: 0 }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
                                   <span style={{ fontSize: 13, fontWeight: 700, color: INK }}>
-                                    {subscription.deviceLabel || "브라우저 구독"}
+                                    {getPushSubscriptionLabel(subscription, isCurrentBrowser)}
                                   </span>
                                   {isCurrentBrowser && (
                                     <span style={{ padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 800, background: "#dbeafe", color: AI }}>
