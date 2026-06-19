@@ -154,7 +154,7 @@ function Field({ label, error, hint, action, children }) {
   );
 }
 
-function ConsentNotice({ checked, onChange, disabled, title, description, warning }) {
+function ConsentNotice({ checked, onChange, disabled, title, description, warning, withdrawLabel, onWithdraw, withdrawDisabled }) {
   return (
     <label style={{
       display: "flex",
@@ -181,6 +181,32 @@ function ConsentNotice({ checked, onChange, disabled, title, description, warnin
           <span style={{ display: "block", color: WARN, fontWeight: 700, marginTop: 6 }}>{warning}</span>
         )}
       </span>
+      {checked && onWithdraw && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onWithdraw();
+          }}
+          disabled={withdrawDisabled}
+          style={{
+            marginLeft: "auto",
+            flexShrink: 0,
+            padding: "7px 10px",
+            borderRadius: 8,
+            border: `1px solid ${LINE}`,
+            background: WHITE,
+            color: INK3,
+            fontSize: 12,
+            fontWeight: 700,
+            cursor: withdrawDisabled ? "wait" : "pointer",
+            opacity: withdrawDisabled ? 0.65 : 1,
+          }}
+        >
+          {withdrawLabel}
+        </button>
+      )}
     </label>
   );
 }
@@ -654,6 +680,7 @@ export default function MyPage() {
   const [standardCodeSaveReminderOpen, setStandardCodeSaveReminderOpen] = useState(false);
   const [optionalProfileConsentAgreed, setOptionalProfileConsentAgreed] = useState(false);
   const [sensitiveInfoConsentAgreed, setSensitiveInfoConsentAgreed] = useState(false);
+  const [consentActionLoading, setConsentActionLoading] = useState("");
 
   const [priorities, setPriorities] = useState([]);
   const [priorityLoading, setPriorityLoading] = useState(false);
@@ -1046,6 +1073,43 @@ export default function MyPage() {
       showToast("알림 설정 저장에 실패했습니다", "error");
     } finally {
       setNotifLoading(false);
+    }
+  };
+
+  const handleWithdrawConsent = async (consentType) => {
+    setConsentActionLoading(consentType);
+    try {
+      await api.delete(`/api/users/me/consents/${consentType}`);
+      if (consentType === "OPTIONAL_PROFILE") {
+        setOptionalProfileConsentAgreed(false);
+        setMyInfo((prev) => ({
+          ...prev,
+          region: "",
+          subRegion: "",
+          ward: "",
+          income: "",
+          employ: "",
+          householdType: "",
+          houseTenureCode: "",
+          housingTypeCode: "",
+          basicLivingRecipientTypeCode: "",
+        }));
+        setPriorities([]);
+        setTargetTypes([]);
+        setProfileCompleteness(null);
+        showToast("추천용 선택정보 동의를 철회했습니다");
+      } else if (consentType === "SENSITIVE_INFO") {
+        setSensitiveInfoConsentAgreed(false);
+        setMyInfo((prev) => ({
+          ...prev,
+          disabilityGradeCode: "",
+        }));
+        showToast("민감정보 동의를 철회했습니다");
+      }
+    } catch {
+      showToast("동의 철회에 실패했습니다", "error");
+    } finally {
+      setConsentActionLoading("");
     }
   };
 
@@ -1614,6 +1678,9 @@ export default function MyPage() {
                       title="추천용 선택 개인정보 수집·이용 동의"
                       description="지역, 소득수준, 취업상태, 가구형태, 주거 및 수급 관련 정보가 맞춤 추천에 사용됩니다."
                       warning={hasOptionalProfileInput ? "이 정보를 저장하려면 동의가 필요합니다." : ""}
+                      withdrawLabel="선택정보 동의 철회"
+                      onWithdraw={() => handleWithdrawConsent("OPTIONAL_PROFILE")}
+                      withdrawDisabled={consentActionLoading !== ""}
                     />
                     <ConsentNotice
                       checked={sensitiveInfoConsentAgreed}
@@ -1622,6 +1689,9 @@ export default function MyPage() {
                       title="민감정보 수집·이용 별도 동의"
                       description="장애 관련 정보는 동의한 경우에만 저장하고 맞춤 추천에 사용합니다."
                       warning={hasSensitiveInfoInput ? "장애 관련 정보를 저장하려면 별도 동의가 필요합니다." : ""}
+                      withdrawLabel="민감정보 동의 철회"
+                      onWithdraw={() => handleWithdrawConsent("SENSITIVE_INFO")}
+                      withdrawDisabled={consentActionLoading !== ""}
                     />
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>

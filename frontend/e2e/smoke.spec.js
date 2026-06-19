@@ -101,6 +101,24 @@ async function mockLoginApis(page, {
   });
 }
 
+async function mockAuthRefreshApi(page, {
+  roles = ["ROLE_USER"],
+} = {}) {
+  await page.route("**/api/auth/refresh", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify({
+        success: true,
+        data: {
+          accessToken: buildTestAccessToken(roles),
+          refreshToken: "mock-refresh-token",
+        },
+      }),
+    });
+  });
+}
+
 async function waitForProgressToSettle(page) {
   await expect(page.getByRole("progressbar")).toHaveCount(0, { timeout: 15_000 });
 }
@@ -1005,6 +1023,87 @@ test("마이페이지 내 정보 저장 후 선택 프로필 리마인드는 보
   await expect(page.locator("#profile-standard-code-section")).toBeVisible();
 });
 
+test("마이페이지 동의 철회는 선택정보와 민감정보 철회 API를 호출하고 체크 상태를 해제한다", async ({ page }) => {
+  const withdrawnTypes = [];
+
+  await mockLoginApis(page);
+  await mockAlertsApis(page);
+  await page.route("**/api/users/me", async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify({
+        success: true,
+        data: {
+          name: "테스터",
+          email: userCredentials.email,
+          birthDate: "2000-01-01",
+          sido: "서울",
+          sgg: "관악구",
+          incomeLevel: 5,
+          employmentStatus: "학생",
+          householdType: "1인가구",
+          houseTenureCode: "3",
+          housingTypeCode: "4",
+          basicLivingRecipientTypeCode: "1",
+          disabilityGradeCode: "041",
+          optionalProfileConsentAgreed: true,
+          sensitiveInfoConsentAgreed: true,
+          notificationYn: false,
+          notificationEmailYn: true,
+          notificationInAppYn: true,
+          notificationWebPushYn: false,
+          notificationPeriod: "NONE",
+          displayCount: 10,
+          priorities: [{ rank: 1, code: "HOUSING", weight: 2.0 }],
+          targetTypes: ["자립준비청년"],
+        },
+      }),
+    });
+  });
+  await page.route("**/api/users/me/bookmarks", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify({ success: true, data: [] }),
+    });
+  });
+  await page.route("**/api/users/me/recent-viewed-policies?*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify({ success: true, data: [] }),
+    });
+  });
+  await page.route("**/api/users/me/consents/*", async (route) => {
+    expect(route.request().method()).toBe("DELETE");
+    withdrawnTypes.push(route.request().url().split("/").at(-1));
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify({ success: true, data: null }),
+    });
+  });
+
+  await loginFromProtectedRoute(page, "/mypage?tab=0", userCredentials);
+  await expect(page).toHaveURL(/\/mypage\?tab=0$/);
+  const optionalConsent = page.getByLabel(/추천용 선택 개인정보/);
+  const sensitiveConsent = page.getByLabel(/민감정보 수집/);
+  await expect(optionalConsent).toBeChecked();
+  await expect(sensitiveConsent).toBeChecked();
+
+  await page.getByRole("button", { name: "선택정보 동의 철회", exact: true }).click();
+  await expect(optionalConsent).not.toBeChecked();
+  await page.getByRole("button", { name: "민감정보 동의 철회", exact: true }).click();
+  await expect(sensitiveConsent).not.toBeChecked();
+
+  expect(withdrawnTypes).toEqual(["OPTIONAL_PROFILE", "SENSITIVE_INFO"]);
+});
+
 test("로그인 직후 메인에서는 우선순위와 선택 프로필 공백에 대한 추천 nudge를 한 번 보여준다", async ({ page }) => {
   await page.route("**/api/users/me", async (route) => {
     if (route.request().method() !== "GET") {
@@ -1107,7 +1206,32 @@ test("보호 사용자 핵심 흐름은 로그인 요구 경로와 마이페이�
   const policy = await fetchFirstSearchResult(request, "청년");
   await ensurePolicyBookmarked(request, userCredentials, policy.id);
 
+  await mockLoginApis(page);
+  await mockAlertsApis(page);
+  await page.route("**/api/chat/sessions", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify({ success: true, data: [] }),
+    });
+  });
+  await page.route("**/api/users/me/bookmarks", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify({ success: true, data: [policy] }),
+    });
+  });
+  await page.route("**/api/users/me/recent-viewed-policies?*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify({ success: true, data: [] }),
+    });
+  });
+
   await loginFromProtectedRoute(page, "/chat", userCredentials);
+  await mockAuthRefreshApi(page);
   await expectLoggedInChat(page);
 
   await page.goto("/mypage?tab=2");
@@ -1154,9 +1278,11 @@ test("마이페이지 비밀번호 변경 후 로그인으로 이동하고 재�
 });
 
 test("알림함 빈 상태 CTA는 정책 목록과 알림 설정으로 이어진다", async ({ page }) => {
+  await mockLoginApis(page);
   await mockAlertsApis(page, { alerts: [], unreadCount: 0 });
 
   await loginFromProtectedRoute(page, "/alerts", userCredentials);
+  await mockAuthRefreshApi(page);
   await expect(page).toHaveURL(/\/alerts$/);
   const emptyStateSection = page.getByText("도착한 알림이 아직 없어요", { exact: true }).locator("..").locator("..");
   await expect(page.getByText("도착한 알림이 아직 없어요", { exact: true })).toBeVisible();

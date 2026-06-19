@@ -58,6 +58,18 @@ API / 응답 contract 문서군 진입점은 [system-docs-index.md](./system-doc
 }
 ```
 
+### `GET /api/users/me`
+
+- response 주요 필드
+  - `email`, `name`, `birthDate`
+  - `sido`, `sgg`, `regionCode`, `incomeLevel`, `employmentStatus`, `householdType`
+  - `houseTenureCode`, `housingTypeCode`, `basicLivingRecipientTypeCode`, `disabilityGradeCode`
+  - `interestFields`, `targetTypes`, `priorities`
+  - `optionalProfileConsentAgreed`: 활성 `OPTIONAL_PROFILE` 동의가 있으면 `true`
+  - `sensitiveInfoConsentAgreed`: 활성 `SENSITIVE_INFO` 동의가 있으면 `true`
+  - 알림 설정 필드와 `notificationConsentAt`
+- 프론트는 동의 체크 상태를 저장된 프로필 값으로 추정하지 않고 위 동의 상태 필드를 우선 사용한다.
+
 ### `PUT /api/users/me`
 
 - request 주요 필드

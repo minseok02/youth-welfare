@@ -321,7 +321,13 @@ class ChatMessageApiIntegrationTest {
                 .targetDetail("청년")
                 .applyMethodDetail("온라인에서 신청 후 서류 제출")
                 .formFiles("신청서, 주민등록등본")
-                .referenceUrlsJson("[{\"url\":\"https://apply.example.com\",\"type\":\"APPLY\",\"label\":\"신청 URL\"}]")
+                .homepageUrl("https://home.example.com")
+                .referenceUrlsJson("""
+                        [
+                          {"url":"https://apply.example.com","type":"APPLY","label":"신청 URL"},
+                          {"url":"https://notice.example.com","type":"REFERENCE","label":"공고문","sourceField":"formFiles"}
+                        ]
+                        """)
                 .build());
 
         mockMvc.perform(post("/api/chat/sessions/{sessionId}/messages", session.getId())
@@ -336,11 +342,18 @@ class ChatMessageApiIntegrationTest {
                 .andExpect(jsonPath("$.data.answerMode").value("APPLICATION_COACHING"))
                 .andExpect(jsonPath("$.data.references[0].serviceId").value(policy.getId()))
                 .andExpect(jsonPath("$.data.references[0].actionLinks[0].type").value("OFFICIAL_APPLY"))
-                .andExpect(jsonPath("$.data.references[0].actionLinks[0].url").value("https://apply.example.com"));
+                .andExpect(jsonPath("$.data.references[0].actionLinks[0].url").value("https://apply.example.com"))
+                .andExpect(jsonPath("$.data.references[0].actionLinks[1].type").value("DOCUMENTS"))
+                .andExpect(jsonPath("$.data.references[0].actionLinks[1].url").value("https://notice.example.com"))
+                .andExpect(jsonPath("$.data.references[0].actionLinks[2].type").value("RELATED_SITE"))
+                .andExpect(jsonPath("$.data.references[0].actionLinks[2].url").value("https://detail.example.com"))
+                .andExpect(jsonPath("$.data.references[0].actionLinks[3].type").value("RELATED_SITE"))
+                .andExpect(jsonPath("$.data.references[0].actionLinks[3].url").value("https://home.example.com"));
 
         var messages = chatMessageRepository.findBySessionIdOrderByCreatedAtAsc(session.getId());
         assertThat(messages).hasSize(2);
         assertThat(messages.get(1).getReferencesJson()).contains("OFFICIAL_APPLY");
+        assertThat(messages.get(1).getReferencesJson()).contains("DOCUMENTS");
     }
 
     @Test
