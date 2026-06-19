@@ -214,6 +214,7 @@
 - `recommendation_logs`
 - `notifications`
 - `notification_services`
+- `user_consents`
 - `raw_api_payloads`
 - `api_sync_logs`
 
@@ -222,6 +223,7 @@
 - 추천은 `birth_date` 원문이 아니라 `age` 또는 `age_band`만 사용한다.
 - `profile_completeness` 계산에 이름/전화번호/생년월일 원문이 꼭 필요하지 않다. `has_*` 플래그만 있으면 된다.
 - 인증 테이블과 프로필 테이블은 같은 schema에 두되, 테이블 책임은 분리한다.
+- 동의 상태는 직접 식별 원문이 아니라 처리 권한 상태이므로 `user_consents(user_key, consent_type, agreed_at, withdrawn_at)` 로 core schema에 둔다.
 
 ## Schema 2. `youth_welfare_pii`
 
@@ -653,7 +655,8 @@ secondary datasource URL도 권한 모델과 같이 맞춰야 한다. `APP_PII_D
 2. `youth_welfare.auth_users` 에 `email_lookup_hash`, `password_hash`, `user_key` 저장
 3. `youth_welfare_pii.user_pii` 에 `email_enc`, `name_enc`, `birth_date_enc` 저장
 4. `youth_welfare.user_profiles` 에 `age`, `sido`, `sgg`, `income_level`, `employment_status`, `household_type`, 초기 설정 저장
-5. 실패 복구를 위해 outbox 이벤트 또는 가입 보상 트랜잭션 사용
+5. `youth_welfare.user_consents` 에 `PRIVACY_NOTICE` 를 필수 기록하고, 요청 플래그에 따라 `OPTIONAL_PROFILE`, `SENSITIVE_INFO` 를 기록
+6. 실패 복구를 위해 outbox 이벤트 또는 가입 보상 트랜잭션 사용
 
 ### 로그인
 
@@ -667,6 +670,21 @@ secondary datasource URL도 권한 모델과 같이 맞춰야 한다. `APP_PII_D
 1. `youth_welfare` 에서 설정/추천 프로필 조회
 2. `youth_welfare_pii` 에서 `name`, `birth_date`, `phone`, `email` 조회
 3. 응답 DTO 조합
+
+### 프로필 수정
+
+1. 선택 프로필/추천 선호 정보가 요청에 있으면 `OPTIONAL_PROFILE` 활성 동의를 확인한다.
+2. 장애등급 코드가 요청에 있으면 `SENSITIVE_INFO` 활성 동의를 확인한다.
+3. 활성 동의가 없고 이번 요청의 동의 플래그가 `true` 이면 `user_consents` 에 기록한 뒤 저장한다.
+4. 활성 동의도 요청 동의도 없으면 `U004 CONSENT_REQUIRED` 로 거부한다.
+5. 이름/생년월일은 `user_pii` 암호문과 `user_profiles` 파생값으로 동기화하고, 추천은 원문이 아닌 범주/파생값만 사용한다.
+
+### 동의 철회
+
+1. `PRIVACY_NOTICE` 는 필수 가입 처리 안내 확인이므로 개별 철회하지 않고 계정 삭제 흐름에서만 비활성화한다.
+2. `OPTIONAL_PROFILE` 철회 시 추천용 선택 프로필, 관심분야, 특화 대상, 우선순위를 함께 비운다.
+3. `SENSITIVE_INFO` 철회 시 장애 관련 민감정보를 함께 비운다.
+4. 철회 후 추천 캐시를 무효화하고 `user_profiles` projection을 다시 동기화한다.
 
 ### 추천 생성
 

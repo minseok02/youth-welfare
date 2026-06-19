@@ -4,10 +4,12 @@ import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.entity.User;
+import com.example.welfare.user.entity.UserConsent;
 import com.example.welfare.user.entity.UserPiiSyncQueue;
 import com.example.welfare.user.entity.UserPiiSyncQueueStatus;
 import com.example.welfare.user.entity.UserProfile;
 import com.example.welfare.user.repository.AuthUserRepository;
+import com.example.welfare.user.repository.UserConsentRepository;
 import com.example.welfare.user.repository.UserPiiReadWriteRepository;
 import com.example.welfare.user.repository.UserPiiSyncQueueRepository;
 import com.example.welfare.user.repository.UserProfileRepository;
@@ -57,6 +59,9 @@ class UserCoreDualWriteIntegrationTest {
 
     @Autowired
     private UserProfileRepository userProfileRepository;
+
+    @Autowired
+    private UserConsentRepository userConsentRepository;
 
     @Autowired
     private UserPiiReadWriteRepository userPiiReadWriteRepository;
@@ -196,6 +201,8 @@ class UserCoreDualWriteIntegrationTest {
                                   "housingTypeCode": "7",
                                   "basicLivingRecipientTypeCode": "2",
                                   "disabilityGradeCode": "041",
+                                  "optionalProfileConsentAgreed": true,
+                                  "sensitiveInfoConsentAgreed": true,
                                   "notificationYn": true,
                                   "notificationEmailYn": true,
                                   "notificationInAppYn": true,
@@ -212,6 +219,14 @@ class UserCoreDualWriteIntegrationTest {
         var userPii = userPiiReadWriteRepository.findByUserKey(userKey).orElseThrow();
         UserPiiSyncQueue syncQueue = userPiiSyncQueueRepository.findByUserKey(userKey).orElseThrow();
 
+        assertThat(userConsentRepository.existsByUserKeyAndConsentTypeAndWithdrawnAtIsNull(
+                userKey,
+                UserConsent.ConsentType.OPTIONAL_PROFILE
+        )).isTrue();
+        assertThat(userConsentRepository.existsByUserKeyAndConsentTypeAndWithdrawnAtIsNull(
+                userKey,
+                UserConsent.ConsentType.SENSITIVE_INFO
+        )).isTrue();
         assertThat(userProfile.getSido()).isEqualTo("부산광역시");
         assertThat(userProfile.getSgg()).isEqualTo("해운대구");
         assertThat(userProfile.getRegionCode()).isEqualTo("26000");
@@ -237,6 +252,43 @@ class UserCoreDualWriteIntegrationTest {
         assertThat(syncQueue.getStatus()).isEqualTo(UserPiiSyncQueueStatus.SYNCED);
         assertThat(syncQueue.getAttemptCount()).isGreaterThanOrEqualTo(2);
         assertThat(syncQueue.getPhoneEnc()).isNull();
+    }
+
+    @Test
+    @DisplayName("프로필 수정에서 선택/민감정보를 새로 저장하려면 해당 동의가 필요하다")
+    void updateProfileRequiresConsentForOptionalAndSensitiveData() throws Exception {
+        String email = TEST_EMAIL_PREFIX + UUID.randomUUID() + "@example.com";
+        markEmailVerified(email);
+
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "%s",
+                                  "password": "password123",
+                                  "name": "홍길동",
+                                  "birthDate": "1998-01-10",
+                                  "privacyNoticeConfirmed": true
+                                }
+                                """.formatted(email)))
+                .andExpect(status().isOk());
+
+        User user = userRepository.findByEmail(email).orElseThrow();
+        String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
+        String accessToken = jwtUtil.generateAccessToken(userKey, user.getId());
+
+        mockMvc.perform(put("/api/users/me")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "incomeLevel": 5,
+                                  "disabilityGradeCode": "041"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("U004"));
     }
 
     @Test

@@ -140,6 +140,22 @@ public class User extends BaseTimeEntity {
         this.displayCount = displayCount;
     }
 
+    public void clearOptionalProfileData() {
+        this.sido = null;
+        this.sgg = null;
+        this.regionCode = null;
+        this.incomeLevel = null;
+        this.householdType = null;
+        this.employmentStatus = null;
+        this.houseTenureCode = null;
+        this.housingTypeCode = null;
+        this.basicLivingRecipientTypeCode = null;
+    }
+
+    public void clearSensitiveProfileData() {
+        this.disabilityGradeCode = null;
+    }
+
     public void updatePassword(String passwordHash) {
         this.passwordHash = passwordHash;
     }

@@ -56,6 +56,7 @@ public class ChatConversationService {
     private final ChatRetrievalSnapshotService chatRetrievalSnapshotService;
     private final ChatSessionContextStateService chatSessionContextStateService;
     private final ChatConversationContextSupport chatConversationContextSupport;
+    private final ChatApplicationCoachingService chatApplicationCoachingService;
     private final ActiveUserReadService activeUserReadService;
     private final UserProfileRepository userProfileRepository;
     private final ObjectMapper objectMapper;
@@ -83,6 +84,17 @@ public class ChatConversationService {
         chatMessageCommandService.appendUserMessage(session.getId(), content, sessionTitle);
 
         List<ChatMessage> recentMessages = getRecentMessages(session.getId());
+        if (request.getCoachPolicyId() != null) {
+            return sendApplicationCoachingMessage(
+                    session,
+                    user,
+                    activeUserContext.userKey(),
+                    content,
+                    recentMessages,
+                    request.getCoachPolicyId()
+            );
+        }
+
         List<ChatRetrievalSnapshot> recentSnapshots = chatRetrievalSnapshotService.findSessionSnapshots(session.getId());
         ChatConversationContextSupport.ConversationContext conversationContext =
                 chatConversationContextSupport.resolve(
@@ -175,6 +187,51 @@ public class ChatConversationService {
                 .build();
     }
 
+    private ChatAnswerResponse sendApplicationCoachingMessage(ChatSession session,
+                                                              User user,
+                                                              String userKey,
+                                                              String content,
+                                                              List<ChatMessage> recentMessages,
+                                                              Long coachPolicyId) {
+        ChatApplicationCoachingService.CoachingContext coachingContext =
+                chatApplicationCoachingService.buildContext(coachPolicyId);
+        List<ChatPolicyCandidate> candidates = List.of(coachingContext.candidate());
+        List<ChatReferenceResponse> fallbackReferences = candidates.stream()
+                .map(candidate -> toReference(candidate, coachingContext.evidenceByServiceId()))
+                .toList();
+
+        ChatAiResult aiResult = chatAiGateway.generateApplicationCoachingAnswer(
+                user,
+                resolveAgeBand(userKey),
+                content,
+                recentMessages,
+                candidates,
+                coachingContext.evidenceByServiceId()
+        );
+
+        List<ChatReferenceResponse> references = resolveReferences(aiResult, fallbackReferences);
+        String answer = aiResult != null && StringUtils.hasText(aiResult.getAnswer())
+                ? aiResult.getAnswer().trim()
+                : coachingContext.fallbackAnswer();
+
+        chatMessageCommandService.appendAssistantMessage(
+                session.getId(),
+                answer,
+                writeReferencedServiceIds(references),
+                writeReferences(references),
+                LocalDateTime.now()
+        );
+
+        return ChatAnswerResponse.builder()
+                .sessionId(session.getId())
+                .answer(answer)
+                .needsClarification(false)
+                .answerMode(ChatAnswerMode.APPLICATION_COACHING)
+                .branchSuggestions(List.of())
+                .references(references)
+                .build();
+    }
+
     private List<ChatMessageResponse> toResponses(List<ChatMessage> messages,
                                                   List<ChatRetrievalSnapshot> snapshots) {
         List<ChatMessageResponse> responses = new ArrayList<>();
@@ -262,7 +319,9 @@ public class ChatConversationService {
             return new AssistantMessageMetadata(
                     referencedServiceIds,
                     references,
-                    ChatAnswerMode.POLICY_GROUNDED,
+                    hasApplicationActionLinks(references)
+                            ? ChatAnswerMode.APPLICATION_COACHING
+                            : ChatAnswerMode.POLICY_GROUNDED,
                     false,
                     List.of()
             );
@@ -319,7 +378,14 @@ public class ChatConversationService {
                 .title(candidate.getTitle())
                 .reason(buildReason(candidate))
                 .evidence(evidenceByServiceId.get(candidate.getServiceId()))
+                .actionLinks(candidate.getActionLinks() != null ? candidate.getActionLinks() : List.of())
                 .build();
+    }
+
+    private boolean hasApplicationActionLinks(List<ChatReferenceResponse> references) {
+        return references != null && references.stream()
+                .filter(Objects::nonNull)
+                .anyMatch(reference -> reference.getActionLinks() != null && !reference.getActionLinks().isEmpty());
     }
 
     private List<ChatBranchOptionResponse> resolveBranchSuggestions(String content, String branchKey) {

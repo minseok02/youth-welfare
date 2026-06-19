@@ -4,6 +4,8 @@ import com.example.welfare.chat.dto.ChatAiResult;
 import com.example.welfare.chat.dto.response.ChatReferenceResponse;
 import com.example.welfare.chat.gateway.ChatAiGateway;
 import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.policy.entity.WelfareServiceDetail;
+import com.example.welfare.policy.repository.WelfareServiceDetailRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.chat.entity.ChatMessage;
 import com.example.welfare.chat.entity.ChatMessageRole;
@@ -78,6 +80,9 @@ class ChatMessageApiIntegrationTest {
     private WelfareServiceRepository welfareServiceRepository;
 
     @Autowired
+    private WelfareServiceDetailRepository welfareServiceDetailRepository;
+
+    @Autowired
     private ObjectMapper objectMapper;
 
     @Autowired
@@ -104,7 +109,11 @@ class ChatMessageApiIntegrationTest {
                 });
         welfareServiceRepository.findAll().stream()
                 .filter(service -> service.getSourceId() != null && service.getSourceId().startsWith(TEST_POLICY_SOURCE_PREFIX))
-                .forEach(welfareServiceRepository::delete);
+                .forEach(service -> {
+                    welfareServiceDetailRepository.findByServiceId(service.getId())
+                            .ifPresent(welfareServiceDetailRepository::delete);
+                    welfareServiceRepository.delete(service);
+                });
         var keys = redisTemplate.keys("chat:rate-limit:message:*");
         if (keys != null && !keys.isEmpty()) {
             redisTemplate.delete(keys);
@@ -285,6 +294,56 @@ class ChatMessageApiIntegrationTest {
     }
 
     @Test
+    @DisplayName("신청 코칭 메시지는 지정 정책을 고정하고 신청 링크를 참조 정책에 포함한다")
+    void sendApplicationCoachingMessageUsesPinnedPolicyAndLinks() throws Exception {
+        User user = createUser();
+        String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
+        String accessToken = jwtUtil.generateAccessToken(userKey, user.getId());
+
+        ChatSession session = chatSessionRepository.save(ChatSession.builder()
+                .userKey(userKey)
+                .build());
+
+        WelfareService policy = welfareServiceRepository.save(WelfareService.builder()
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId(TEST_POLICY_SOURCE_PREFIX + UUID.randomUUID().toString().replace("-", "").substring(0, 12))
+                .title("청년 신청 코칭 정책")
+                .description("신청 절차 확인이 필요한 정책입니다.")
+                .supportContent("신청 준비를 돕는 지원입니다.")
+                .applyMethodName("온라인 신청")
+                .detailUrl("https://detail.example.com")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .apiViewCount(0L)
+                .viewCount(0)
+                .build());
+        welfareServiceDetailRepository.save(WelfareServiceDetail.builder()
+                .service(policy)
+                .targetDetail("청년")
+                .applyMethodDetail("온라인에서 신청 후 서류 제출")
+                .formFiles("신청서, 주민등록등본")
+                .referenceUrlsJson("[{\"url\":\"https://apply.example.com\",\"type\":\"APPLY\",\"label\":\"신청 URL\"}]")
+                .build());
+
+        mockMvc.perform(post("/api/chat/sessions/{sessionId}/messages", session.getId())
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(new CoachMessageRequest(
+                                "이 정책 신청 준비를 단계별로 도와줘.",
+                                policy.getId()
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.answerMode").value("APPLICATION_COACHING"))
+                .andExpect(jsonPath("$.data.references[0].serviceId").value(policy.getId()))
+                .andExpect(jsonPath("$.data.references[0].actionLinks[0].type").value("OFFICIAL_APPLY"))
+                .andExpect(jsonPath("$.data.references[0].actionLinks[0].url").value("https://apply.example.com"));
+
+        var messages = chatMessageRepository.findBySessionIdOrderByCreatedAtAsc(session.getId());
+        assertThat(messages).hasSize(2);
+        assertThat(messages.get(1).getReferencesJson()).contains("OFFICIAL_APPLY");
+    }
+
+    @Test
     @DisplayName("다른 사용자의 세션으로 메시지 전송하면 404를 반환한다")
     void sendMessageReturnsNotFoundForOtherUsersSession() throws Exception {
         User owner = createUser();
@@ -378,5 +437,8 @@ class ChatMessageApiIntegrationTest {
     }
 
     private record MessageRequest(String content) {
+    }
+
+    private record CoachMessageRequest(String content, Long coachPolicyId) {
     }
 }

@@ -107,6 +107,12 @@ const mapReference = (reference) => ({
   title: reference.title,
   reason: reference.reason,
   evidence: reference.evidence,
+  actionLinks: (reference.actionLinks ?? []).map((link) => ({
+    type: link.type,
+    label: link.label,
+    url: link.url,
+    description: link.description,
+  })),
 });
 
 const mapMessage = (message) => {
@@ -155,6 +161,7 @@ export default function ChatPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const querySessionId = searchParams.get("session");
+  const queryCoachPolicyId = searchParams.get("coachPolicyId");
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -171,6 +178,7 @@ export default function ChatPage() {
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
   const policyMetaRef = useRef({});
   const querySessionIdRef = useRef(querySessionId);
+  const coachingStartedRef = useRef(null);
   const invalidSessionQueryRef = useRef(null);
 
   const showToast = useCallback((msg, severity = "info") => {
@@ -184,6 +192,7 @@ export default function ChatPage() {
 
   const replaceSessionQuery = useCallback((sessionId) => {
     const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("coachPolicyId");
     if (sessionId) {
       nextParams.set("session", String(sessionId));
     } else {
@@ -434,7 +443,7 @@ export default function ChatPage() {
     }
   };
 
-  const sendMessage = useCallback(async (rawContent, branchKey = null) => {
+  const sendMessage = useCallback(async (rawContent, branchKey = null, options = {}) => {
     const content = rawContent.trim();
     if (!content || sending) {
       return;
@@ -450,7 +459,9 @@ export default function ChatPage() {
     setSending(true);
 
     let sessionId = activeSessionId;
-    if (!sessionId) {
+    if (options.forceNewSession) {
+      sessionId = await createSession();
+    } else if (!sessionId) {
       sessionId = await createSession();
     }
 
@@ -483,7 +494,11 @@ export default function ChatPage() {
     try {
       const { data } = await api.post(
         `/api/chat/sessions/${sessionId}/messages`,
-        { content, branchKey },
+        {
+          content,
+          branchKey,
+          coachPolicyId: options.coachPolicyId ?? undefined,
+        },
         { timeout: CHAT_SEND_TIMEOUT_MS }
       );
       const payload = data?.data;
@@ -533,6 +548,35 @@ export default function ChatPage() {
       setSending(false);
     }
   }, [activeSessionId, createSession, loadMessages, loadSessions, sending, showToast]);
+
+  useEffect(() => {
+    if (!queryCoachPolicyId || loadingSessions || sending) {
+      return;
+    }
+
+    const coachPolicyId = Number.parseInt(queryCoachPolicyId, 10);
+    if (!Number.isInteger(coachPolicyId) || coachPolicyId <= 0) {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete("coachPolicyId");
+      setSearchParams(nextParams, { replace: true, state: location.state });
+      return;
+    }
+
+    if (coachingStartedRef.current === queryCoachPolicyId) {
+      return;
+    }
+    coachingStartedRef.current = queryCoachPolicyId;
+
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("coachPolicyId");
+    setSearchParams(nextParams, { replace: true, state: location.state });
+
+    void sendMessage(
+      "이 정책 신청 준비를 단계별로 도와줘.",
+      null,
+      { coachPolicyId, forceNewSession: true }
+    );
+  }, [loadingSessions, location.state, queryCoachPolicyId, searchParams, sendMessage, sending, setSearchParams]);
 
   const handleSend = async (event) => {
     event.preventDefault();
@@ -840,6 +884,24 @@ export default function ChatPage() {
                                         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                                           {reference?.reason ?? reference?.evidence ?? meta?.description ?? "상세 페이지에서 조건과 신청 방법을 확인해보세요."}
                                         </Typography>
+                                        {reference?.actionLinks?.length > 0 ? (
+                                          <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ mt: 1 }}>
+                                            {reference.actionLinks.map((link) => (
+                                              <Button
+                                                key={`${serviceId}-${link.type}-${link.url}`}
+                                                size="small"
+                                                variant={link.type === "OFFICIAL_APPLY" ? "contained" : "outlined"}
+                                                href={link.url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                onClick={(event) => event.stopPropagation()}
+                                                sx={{ borderRadius: 2, textTransform: "none" }}
+                                              >
+                                                {link.label || "링크 열기"}
+                                              </Button>
+                                            ))}
+                                          </Stack>
+                                        ) : null}
                                       </Paper>
                                     );
                                   })}

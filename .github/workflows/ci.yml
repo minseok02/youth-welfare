@@ -19,11 +19,13 @@ jobs:
     timeout-minutes: 25
     permissions:
       contents: read
+      pull-requests: read
 
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Run Gitleaks secret scan
         uses: gitleaks/gitleaks-action@v2
@@ -31,14 +33,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run OSV dependency scan
-        uses: google/osv-scanner-action/osv-scanner-action@v2
+        uses: google/osv-scanner-action/osv-scanner-action@v2.3.8
         with:
           scan-args: |-
             --recursive
-            --skip-git
             .
 
   codeql-analysis:
+    if: vars.ENABLE_CODEQL == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:

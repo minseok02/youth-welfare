@@ -618,6 +618,196 @@ test("정책 상세는 요약 정보와 오류 제보 CTA를 보여준다", asyn
   await expect(page.getByText("신청기간", { exact: true })).toBeVisible();
 });
 
+test("정책 상세에서 AI 신청 준비 코칭으로 진입하면 연결 정책과 신청 링크를 보여준다", async ({ page }) => {
+  const policyId = 77701;
+  const sessionId = 88001;
+  const policy = {
+    id: policyId,
+    title: "청년 신청 코칭 지원",
+    description: "신청 절차를 단계별로 확인해야 하는 정책입니다.",
+    unifiedCategory: "주거",
+    status: "ACTIVE",
+    statusLabel: "진행중",
+    sourceType: "YOUTH",
+    hostOrg: "서울시",
+    operatingOrg: "청년지원센터",
+    providerName: "서울시",
+    supportContent: "월세 부담을 낮추는 지원입니다.",
+    applyMethodName: "온라인 신청",
+    applyMethodDetail: "온라인 신청 후 제출서류를 업로드합니다.",
+    targetDetail: "서울 거주 청년",
+    supportDetail: "월세 일부 지원",
+    selectionCriteria: "소득 및 거주 요건 확인",
+    formFiles: "신청서, 주민등록등본",
+    contactList: JSON.stringify([{ name: "청년지원센터", phone: "02-1234-5678" }]),
+    detailUrl: "https://detail.example.com/policy",
+    homepageUrl: "https://home.example.com",
+    referenceUrlsJson: JSON.stringify([
+      { url: "https://apply.example.com/policy", type: "APPLY", label: "신청 URL" },
+      { url: "https://notice.example.com/policy", type: "REFERENCE", label: "공고문" },
+    ]),
+    applicationPeriod: "2026-06-01 ~ 2026-06-30",
+    applyStartDate: "2026-06-01",
+    applyEndDate: "2026-06-30",
+    regionLabel: "서울특별시",
+    regions: ["서울특별시"],
+    tags: [{ tagType: "KEYWORD", tagValue: "주거" }],
+    bookmarked: false,
+    isOnlineApply: true,
+    viewCount: 1,
+  };
+  const coachingReference = {
+    serviceId: policyId,
+    title: policy.title,
+    reason: "신청 대상, 기간, 제출서류를 단계별로 확인하세요.",
+    evidence: "신청방법: 온라인 신청 후 제출서류를 업로드합니다.",
+    actionLinks: [
+      {
+        type: "OFFICIAL_APPLY",
+        label: "공식 신청",
+        url: "https://apply.example.com/policy",
+        description: "신청은 공식 기관 페이지에서 진행하세요.",
+      },
+      {
+        type: "DOCUMENTS",
+        label: "공고/서류 확인",
+        url: "https://notice.example.com/policy",
+        description: "제출서류, 서식, 공고문을 확인할 때 사용하세요.",
+      },
+    ],
+  };
+  const messages = [
+    {
+      messageId: 1,
+      role: "USER",
+      content: "이 정책 신청 준비를 단계별로 도와줘.",
+      referencedServiceIds: [],
+      references: [],
+      createdAt: "2026-06-19T09:00:00",
+    },
+    {
+      messageId: 2,
+      role: "ASSISTANT",
+      content: "1. 자격 조건 확인\n2. 신청기간 확인\n3. 제출서류 확인\n공식 기관에서 최종 확인하세요.",
+      referencedServiceIds: [policyId],
+      references: [coachingReference],
+      answerMode: "APPLICATION_COACHING",
+      needsClarification: false,
+      branchSuggestions: [],
+      createdAt: "2026-06-19T09:00:01",
+    },
+  ];
+  let sessionCreated = false;
+
+  await mockLoginApis(page);
+  await page.route("**/api/notifications/me/unread-count", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify({ success: true, data: { unreadCount: 0 } }),
+    });
+  });
+  await page.route("**/api/notifications/me", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify({ success: true, data: [] }),
+    });
+  });
+  await page.route("**/api/auth/refresh", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify({
+        success: true,
+        data: {
+          accessToken: buildTestAccessToken(["ROLE_USER"]),
+          refreshToken: "mock-refresh-token",
+        },
+      }),
+    });
+  });
+  await page.route(`**/api/policies/${policyId}*`, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify({ success: true, data: policy }),
+    });
+  });
+  await page.route("**/api/policies?*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify({ success: true, data: { content: [], totalElements: 0 } }),
+    });
+  });
+  await page.route("**/api/chat/sessions", async (route) => {
+    if (route.request().method() === "POST") {
+      sessionCreated = true;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json; charset=utf-8",
+        body: JSON.stringify({
+          success: true,
+          data: { sessionId, title: "신청 준비", lastMessageAt: "2026-06-19T09:00:01", createdAt: "2026-06-19T09:00:00" },
+        }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify({
+        success: true,
+        data: sessionCreated
+          ? [{ sessionId, title: "신청 준비", lastMessageAt: "2026-06-19T09:00:01", createdAt: "2026-06-19T09:00:00" }]
+          : [],
+      }),
+    });
+  });
+  await page.route(`**/api/chat/sessions/${sessionId}/messages`, async (route) => {
+    if (route.request().method() === "POST") {
+      const body = route.request().postDataJSON();
+      expect(body.coachPolicyId).toBe(policyId);
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json; charset=utf-8",
+        body: JSON.stringify({
+          success: true,
+          data: {
+            sessionId,
+            answer: messages[1].content,
+            needsClarification: false,
+            answerMode: "APPLICATION_COACHING",
+            branchSuggestions: [],
+            references: [coachingReference],
+          },
+        }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify({ success: true, data: sessionCreated ? messages : [] }),
+    });
+  });
+
+  await page.goto(`/policies/${policyId}`);
+  await expectPolicyDetailReady(page, policy);
+
+  await page.getByRole("button", { name: "AI와 신청 준비하기", exact: true }).click();
+  await page.waitForURL(/\/(?:login|chat)(?:\?.*)?$/, { timeout: 15_000 });
+  if (new URL(page.url()).pathname === "/login") {
+    await loginThroughForm(page, userCredentials);
+  }
+  await expect(page).toHaveURL(/\/chat(?:\?.*)?$/);
+  await expect(page.getByText("1. 자격 조건 확인", { exact: false })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(policy.title, { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "공식 신청", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "공고/서류 확인", exact: true })).toBeVisible();
+});
+
 test("이용가이드와 서비스 문의는 공개 진입면에서 서로 연결된다", async ({ page }) => {
   await page.goto("/");
 

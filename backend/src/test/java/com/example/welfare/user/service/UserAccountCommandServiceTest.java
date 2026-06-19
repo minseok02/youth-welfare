@@ -29,6 +29,7 @@ class UserAccountCommandServiceTest {
     @Mock private UserCoreSyncService userCoreSyncService;
     @Mock private RecommendationRefreshCacheService recommendationRefreshCacheService;
     @Mock private UserWithdrawalDataCleanupService userWithdrawalDataCleanupService;
+    @Mock private UserConsentService userConsentService;
 
     @Test
     @DisplayName("회원탈퇴는 refresh token 삭제와 현재 access token revoke까지 함께 수행한다")
@@ -41,7 +42,8 @@ class UserAccountCommandServiceTest {
                 accessTokenRevocationService,
                 userCoreSyncService,
                 recommendationRefreshCacheService,
-                userWithdrawalDataCleanupService
+                userWithdrawalDataCleanupService,
+                userConsentService
         );
         User user = User.builder()
                 .id(1L)
@@ -58,6 +60,7 @@ class UserAccountCommandServiceTest {
 
         verify(recommendationRefreshCacheService).evict("user-key-1");
         verify(userMetadataCommandRepository).deleteAllByUserKey("user-key-1");
+        verify(userConsentService).withdrawAll("user-key-1");
         verify(userWithdrawalDataCleanupService).cleanupByUserKey("user-key-1");
         verify(redisTemplate).delete(java.util.List.of(
                 "refresh:v2:" + RedisKeyHash.sha256Hex("user-key-1"),

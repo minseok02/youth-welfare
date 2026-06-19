@@ -48,6 +48,7 @@ API / 응답 contract 문서군 진입점은 [system-docs-index.md](./system-doc
   - `disabilityGradeCode`
     - 민감정보로 취급하며 `sensitiveInfoConsentAgreed=true` 일 때만 저장 가능
 - 만 14세 미만 생년월일은 현재 가입을 거부한다.
+- 성공 시 `user_consents` 에 개인정보 처리 안내 확인 동의를 기록하고, 선택/민감정보 동의 플래그가 `true` 인 경우 해당 동의도 함께 기록한다.
 - response
 
 ```json
@@ -56,6 +57,41 @@ API / 응답 contract 문서군 진입점은 [system-docs-index.md](./system-doc
   "data": null
 }
 ```
+
+### `PUT /api/users/me`
+
+- request 주요 필드
+  - `name`
+  - `birthDate`
+  - `sido`, `sgg`, `regionCode`, `incomeLevel`, `employmentStatus`, `householdType`
+  - `houseTenureCode`, `housingTypeCode`, `basicLivingRecipientTypeCode`
+  - `disabilityGradeCode`
+  - `optionalProfileConsentAgreed`
+  - `sensitiveInfoConsentAgreed`
+  - `interestFields`, `targetTypes`
+  - 알림 설정 필드
+- 선택 프로필 정보나 추천 선호 정보(`sido`, `incomeLevel`, `householdType`, 주거 코드, `basicLivingRecipientTypeCode`, `interestFields`, `targetTypes` 등)를 새로 저장하려면 기존 `OPTIONAL_PROFILE` 동의가 있거나 이번 요청의 `optionalProfileConsentAgreed=true` 가 필요하다.
+- 민감정보인 `disabilityGradeCode` 를 새로 저장하려면 기존 `SENSITIVE_INFO` 동의가 있거나 이번 요청의 `sensitiveInfoConsentAgreed=true` 가 필요하다.
+- 이번 요청에서 동의 플래그를 받은 경우 서버는 `user_consents` 에 동의 상태를 기록한 뒤 프로필 저장을 진행한다.
+- 필수 가입 개인정보 동의(`PRIVACY_NOTICE`)는 회원가입 시 기록하며, 프로필 수정에서 반복 요구하지 않는다.
+
+### `PUT /api/users/me/priorities`
+
+- request 주요 필드
+  - `priorityCodes` (1~5개)
+  - `optionalProfileConsentAgreed`
+- 우선순위는 추천용 선택정보다. 기존 `OPTIONAL_PROFILE` 동의가 없으면 이번 요청의 `optionalProfileConsentAgreed=true` 가 필요하다.
+- 우선순위 저장 시 서버는 우선순위 코드에서 관심분야를 파생해 함께 저장하므로, 프로필의 선택정보 동의 규칙과 동일하게 관리한다.
+- 동의가 없으면 `U004(CONSENT_REQUIRED)` 를 반환한다.
+
+### `DELETE /api/users/me/consents/{consentType}`
+
+- path
+  - `consentType`: `OPTIONAL_PROFILE` 또는 `SENSITIVE_INFO`
+- `OPTIONAL_PROFILE` 철회 시 추천용 선택 프로필(`sido`, `sgg`, `incomeLevel`, `employmentStatus`, `householdType`, 주거/수급 코드), 관심분야, 특화 대상, 우선순위를 함께 비운다.
+- `SENSITIVE_INFO` 철회 시 민감정보인 `disabilityGradeCode` 를 비운다.
+- 철회 후 서버는 추천 캐시를 무효화하고 `user_profiles` projection을 다시 동기화한다.
+- `PRIVACY_NOTICE` 는 필수 가입 처리 안내 확인이므로 개별 철회 대상이 아니며, 계정 삭제 흐름에서만 함께 철회 처리한다.
 
 ### `POST /api/auth/login`
 
