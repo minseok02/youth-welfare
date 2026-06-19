@@ -19,6 +19,7 @@ jobs:
     timeout-minutes: 25
     permissions:
       contents: read
+      pull-requests: read
 
     steps:
       - uses: actions/checkout@v4
@@ -39,6 +40,7 @@ jobs:
             .
 
   codeql-analysis:
+    if: vars.ENABLE_CODEQL == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
