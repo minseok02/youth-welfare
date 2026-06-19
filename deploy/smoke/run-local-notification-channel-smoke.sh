@@ -151,7 +151,19 @@ login_admin() {
   smoke_assert_status 200 "${login_status}" "admin login" "${ADMIN_LOGIN_RESPONSE}"
 
   ADMIN_ACCESS_TOKEN="$(extract_access_token "${ADMIN_LOGIN_RESPONSE}")"
-  ADMIN_USER_KEY="$(smoke_db_query "SELECT user_key FROM users WHERE email = '${ADMIN_EMAIL}' LIMIT 1;")"
+  local admin_email_hash
+  admin_email_hash="$(smoke_sha256_hex "${ADMIN_EMAIL}")"
+  ADMIN_USER_KEY="$(
+    smoke_db_query "
+      SELECT u.user_key
+      FROM auth_users au
+      JOIN users u ON u.user_key = au.user_key
+      WHERE au.email_lookup_hash = $(smoke_sql_quote "${admin_email_hash}")
+        AND COALESCE(au.is_active, true) = true
+        AND COALESCE(u.is_active, true) = true
+      LIMIT 1;
+    "
+  )"
   if [[ -z "${ADMIN_USER_KEY}" ]]; then
     echo "failed to resolve admin user_key for ${ADMIN_EMAIL}" >&2
     exit 1

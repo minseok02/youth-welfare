@@ -121,6 +121,41 @@ class ReRankingServiceTest {
     }
 
     @Test
+    @DisplayName("사용자가 1순위와 2순위만 바꿔도 최종 추천 순서가 바뀐다")
+    void rerankReflectsSmallPriorityOrderChange() {
+        ReRankingService reRankingService = new ReRankingService(
+                new ScoreNormalizer(),
+                scoreWeightService,
+                new RecommendationDiversityService()
+        );
+
+        when(scoreWeightService.getActiveWeight()).thenReturn(ScoreWeight.builder()
+                .weightKey("COLD_START")
+                .ruleWeight(BigDecimal.valueOf(0.8))
+                .aiWeight(BigDecimal.valueOf(0.2))
+                .minLogCount(0)
+                .isActive(true)
+                .build());
+
+        WelfareService housing = service(22L, "주거", LocalDate.now().plusDays(20), 100, 1000L, LocalDateTime.of(2026, 1, 1, 0, 0));
+        WelfareService job = service(23L, "일자리", LocalDate.now().plusDays(20), 100, 1000L, LocalDateTime.of(2026, 1, 1, 0, 0));
+
+        List<ScoredCandidate> housingFirst = reRankingService.rerank(List.of(
+                candidate(housing, 100.0, null, false, false, 1),
+                candidate(job, 100.0, null, false, false, 2)
+        ));
+        List<ScoredCandidate> jobFirst = reRankingService.rerank(List.of(
+                candidate(housing, 100.0, null, false, false, 2),
+                candidate(job, 100.0, null, false, false, 1)
+        ));
+
+        assertThat(housingFirst).extracting(candidate -> candidate.getService().getId())
+                .containsExactly(22L, 23L);
+        assertThat(jobFirst).extracting(candidate -> candidate.getService().getId())
+                .containsExactly(23L, 22L);
+    }
+
+    @Test
     @DisplayName("상위 노출 구간에서 같은 카테고리가 연속되면 다른 버킷 후보를 앞으로 당긴다")
     void rerankDiversifiesTopWindowAcrossBuckets() {
         ReRankingService reRankingService = new ReRankingService(

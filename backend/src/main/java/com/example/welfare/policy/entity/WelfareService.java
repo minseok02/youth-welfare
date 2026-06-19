@@ -122,6 +122,19 @@ public class WelfareService extends BaseTimeEntity {
         this.searchYouthRelevant = searchYouthRelevant;
     }
 
+    public void applyAdminApplicationPeriod(LocalDate applyStartDate, LocalDate applyEndDate) {
+        this.applyStartDate = applyStartDate;
+        this.applyEndDate = applyEndDate;
+    }
+
+    public void applyAdminDetailUrl(String detailUrl) {
+        this.detailUrl = detailUrl;
+    }
+
+    public void applyAdminEligibilityText(String eligibilityText) {
+        this.description = eligibilityText;
+    }
+
     public void applyDetailFallbacks(String supportContent,
                                      String applyMethodName,
                                      Integer minAge,

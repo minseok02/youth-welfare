@@ -34,6 +34,7 @@ const INK3 = "#6b7280";
 const LINE = "#e5e7eb";
 const LINE2 = "#f3f4f6";
 const NO_DATA = "원문에서 확인해주세요.";
+const SOURCE_NOTICE_TEXT = "정책 정보는 수집 시점 기준으로 재구성되었으며, 신청 전 반드시 원문 공고와 운영기관 안내를 확인하세요.";
 
 const HTML_ENTITIES = {
   "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'",
@@ -191,7 +192,7 @@ const formatSource = (sourceType) => {
   if (sourceType === "YOUTH") return "온통청년";
   if (sourceType === "BOKJIRO_CENTRAL") return "복지로 중앙";
   if (sourceType === "BOKJIRO_LOCAL") return "복지로 지자체";
-  if (sourceType === "GOV24") return "Gov24";
+  if (sourceType === "GOV24") return "정부24";
   return sourceType || "출처 정보 없음";
 };
 
@@ -561,6 +562,7 @@ export default function PolicyDetailPage() {
     policy?.youthSpecialRequirementLabels,
   ]);
   const statusLabel = policy ? formatStatusLabel(policy.status, policy.applyEndDate) : "";
+  const policySourceLabel = policy ? formatSource(policy.sourceType) : "출처 정보 없음";
   const regionText = policy?.sido
     || policy?.regions?.filter(r => !/^\d+$/.test(r))?.join(", ")
     || "";
@@ -972,7 +974,7 @@ export default function PolicyDetailPage() {
               <header style={{ padding: "12px 0 28px", borderBottom: `1px solid ${LINE}` }}>
                 <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
                   {policy.unifiedCategory && <Tag bg={AS} color={AI} border={`${A}44`}>{policy.unifiedCategory}</Tag>}
-                  <Tag>{formatSource(policy.sourceType)}</Tag>
+                  <Tag>{policySourceLabel}</Tag>
                   <Tag
                     bg={statusLabel === "진행중" ? "#dcfce7" : statusLabel === "종료" ? LINE2 : "#fef9c3"}
                     color={statusLabel === "진행중" ? "#166534" : statusLabel === "종료" ? INK3 : "#854d0e"}
@@ -997,7 +999,7 @@ export default function PolicyDetailPage() {
                         color="#166534"
                         border="#bbf7d0"
                         onClick={() => navigateToGov24Discovery(gov24DiscoveryTargets.serviceField)}
-                        title="같은 Gov24 서비스분야 정책 보기"
+                        title="같은 정부24 서비스분야 정책 보기"
                       >
                         분야 {policy.gov24ServiceFieldLabel}
                       </Tag>
@@ -1009,7 +1011,7 @@ export default function PolicyDetailPage() {
                         color="#166534"
                         border="#bbf7d0"
                         onClick={() => navigateToGov24Discovery(gov24DiscoveryTargets.userType[label])}
-                        title="같은 Gov24 사용자구분 정책 보기"
+                        title="같은 정부24 사용자구분 정책 보기"
                       >
                         대상 {label}
                       </Tag>
@@ -1021,7 +1023,7 @@ export default function PolicyDetailPage() {
                         color="#166534"
                         border="#bbf7d0"
                         onClick={() => navigateToGov24Discovery(gov24DiscoveryTargets.benefitType[label])}
-                        title="같은 Gov24 지원유형 정책 보기"
+                        title="같은 정부24 지원유형 정책 보기"
                       >
                         유형 {label}
                       </Tag>
@@ -1102,7 +1104,7 @@ export default function PolicyDetailPage() {
                       bg={WHITE}
                       border={LINE}
                       onClick={() => navigateToGov24Discovery(gov24DiscoveryTargets.userType[label])}
-                      title="같은 Gov24 사용자구분 정책 보기"
+                      title="같은 정부24 사용자구분 정책 보기"
                     >
                       {label}
                     </Tag>
@@ -1405,6 +1407,14 @@ export default function PolicyDetailPage() {
                       추가 링크 보기 ↗
                     </button>
                   )}
+                  <div style={{ padding: 14, borderRadius: 12, background: "#f8fbff", border: `1px solid ${LINE}`, color: INK2, fontSize: 12, lineHeight: 1.65 }}>
+                    <div style={{ fontWeight: 800, color: INK, marginBottom: 4 }}>
+                      자료 출처: {policySourceLabel} 및 각 운영기관 공고
+                    </div>
+                    <div>
+                      {SOURCE_NOTICE_TEXT}
+                    </div>
+                  </div>
                   <button
                     onClick={handleBookmark}
                     style={{

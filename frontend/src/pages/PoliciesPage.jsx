@@ -8,8 +8,6 @@ import BookmarkIcon from "@mui/icons-material/Bookmark";
 import SearchIcon from "@mui/icons-material/Search";
 import ViewListIcon from "@mui/icons-material/ViewList";
 import GridViewIcon from "@mui/icons-material/GridView";
-import BusinessOutlinedIcon from "@mui/icons-material/BusinessOutlined";
-import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
 import Header from "../components/Header";
 import FloatingNav from "../components/FloatingNav";
 import IncomeCalculatorModal from "../components/IncomeCalculatorModal";
@@ -56,12 +54,13 @@ const TARGET_GROUPS = [
   { label: "다자녀", value: "다자녀" },
 ];
 
-const SOURCE_OPTIONS = ["전체", "온통청년", "복지로 중앙", "복지로 지자체", "Gov24"];
+const GOV24_SOURCE_LABEL = "정부24";
+const SOURCE_OPTIONS = ["전체", "온통청년", "복지로 중앙", "복지로 지자체", GOV24_SOURCE_LABEL];
 const SOURCE_TYPE_MAP = {
   "온통청년": "YOUTH",
   "복지로 중앙": "BOKJIRO_CENTRAL",
   "복지로 지자체": "BOKJIRO_LOCAL",
-  "Gov24": "GOV24",
+  [GOV24_SOURCE_LABEL]: "GOV24",
 };
 const SOURCE_LABEL_BY_TYPE = Object.fromEntries(
   Object.entries(SOURCE_TYPE_MAP).map(([label, type]) => [type, label])
@@ -112,11 +111,12 @@ const GOV24_BENEFIT_TYPES = [
   "봉사/기부",
 ];
 const GOV24_BADGE_LIMIT = 4;
+const POLICY_SOURCE_NOTICE = "정책 정보는 온통청년·복지로·정부24와 각 운영기관 공고를 기준으로 수집한 내용입니다. 신청 전 상세 페이지의 원문 안내를 확인하세요.";
 const STANDARD_CODE_ENTRIES = [
   { key: "houseTenureCode", label: "주거형태" },
   { key: "housingTypeCode", label: "주택유형" },
-  { key: "basicLivingRecipientTypeCode", label: "기초생활수급권자" },
-  { key: "disabilityGradeCode", label: "장애등급" },
+  { key: "basicLivingRecipientTypeCode", label: "복지 수급 정보" },
+  { key: "disabilityGradeCode", label: "장애 관련 지원 정보" },
 ];
 
 const SORT_MAP = { relevance: "RELEVANCE", views: "VIEWS", latest: "LATEST", deadline: "DEADLINE" };
@@ -354,7 +354,6 @@ function RadioItem({ label, checked, onChange }) {
 function StandardCodePolicyPrompt({
   missingCount,
   filledCount,
-  missingLabels,
   onNavigate,
 }) {
   if (!missingCount) return null;
@@ -376,11 +375,10 @@ function StandardCodePolicyPrompt({
           추천 정확도 보강
         </div>
         <div style={{ fontSize: 17, fontWeight: 800, color: INK, marginTop: 6, letterSpacing: "-0.02em" }}>
-          주거·생활 여건 {filledCount}/4개 입력됨
+          선택 프로필 {filledCount}/4개 입력됨
         </div>
         <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.6 }}>
-          정책 목록 필터링은 되고 있지만, 아직 비어 있는 항목 {missingLabels.join(", ")} 때문에
-          {" "}주거·복지 자격조건 매칭이 덜 정확할 수 있습니다.
+          선택 프로필 {missingCount}개를 보완하면 주거·복지 자격조건 매칭이 더 정확해집니다.
         </div>
       </div>
       <button
@@ -398,7 +396,7 @@ function StandardCodePolicyPrompt({
           boxShadow: "0 8px 24px rgba(37,99,235,0.14)",
         }}
       >
-        주거·생활 여건 채우기 →
+        선택 정보 보완하기 →
       </button>
     </section>
   );
@@ -480,9 +478,9 @@ function PolicyRow({ p, onNavigate, onBookmark }) {
         <PolicyMetaBadges badges={p.youthOfficialBadges?.length ? p.youthOfficialBadges : p.gov24Badges} />
         <div style={{ display: "flex", gap: 14, marginTop: 10, fontSize: 12, color: INK3, flexWrap: "wrap" }}>
           {p.sourceTypeLabel && <span>출처 {p.sourceTypeLabel}</span>}
-          {p.orgName && <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><BusinessOutlinedIcon sx={{ fontSize: 14 }} /> {p.orgName}</span>}
-          {p.regionText && <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><PlaceOutlinedIcon sx={{ fontSize: 14 }} /> {p.regionText}</span>}
-          {!p.orgName && p.source && <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><BusinessOutlinedIcon sx={{ fontSize: 14 }} /> {p.source}</span>}
+          {p.orgName && <span>🏢 {p.orgName}</span>}
+          {p.regionText && <span>📍 {p.regionText}</span>}
+          {!p.orgName && p.source && <span>🏢 {p.source}</span>}
         </div>
       </div>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0, gap: 4 }}>
@@ -522,7 +520,7 @@ function PolicyCard({ p, onNavigate, onBookmark }) {
       <PolicyMetaBadges badges={p.youthOfficialBadges?.length ? p.youthOfficialBadges : p.gov24Badges} />
       <div style={{ display: "flex", gap: 10, marginTop: 8, fontSize: 12, color: INK3, flexWrap: "wrap" }}>
         {p.sourceTypeLabel && <span>출처 {p.sourceTypeLabel}</span>}
-        {p.source && <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><BusinessOutlinedIcon sx={{ fontSize: 14 }} /> {p.source}</span>}
+        {p.source && <span>🏢 {p.source}</span>}
       </div>
     </div>
   );
@@ -604,8 +602,7 @@ export default function PoliciesPage() {
   const [filterOpen, setFilterOpen] = useState(false);
   const districtOptions = getDistrictOptions(region, { includeAll: true });
   const wardOptions = getWardOptions(region, subRegion, { includeAll: true });
-  const standardCodeMissingLabels = user?.missingStandardCodeLabels ?? [];
-  const standardCodeMissingCount = user?.standardCodeMissingCount ?? standardCodeMissingLabels.length;
+  const standardCodeMissingCount = user?.standardCodeMissingCount ?? 0;
   const standardCodeFilledCount = user?.standardCodeFilledCount ?? Math.max(0, STANDARD_CODE_ENTRIES.length - standardCodeMissingCount);
 
   // ── URL 파라미터 동기화 ──────────────────────────────────────────────────────
@@ -671,13 +668,13 @@ export default function PoliciesPage() {
   }, [defaultStatusFilter, searchParams]);
 
   useEffect(() => {
-    if (sourceType !== "Gov24" && gov24ServiceField !== "전체") {
+    if (sourceType !== GOV24_SOURCE_LABEL && gov24ServiceField !== "전체") {
       setGov24ServiceField("전체");
     }
-    if (sourceType !== "Gov24" && gov24UserType !== "전체") {
+    if (sourceType !== GOV24_SOURCE_LABEL && gov24UserType !== "전체") {
       setGov24UserType("전체");
     }
-    if (sourceType !== "Gov24" && gov24BenefitType !== "전체") {
+    if (sourceType !== GOV24_SOURCE_LABEL && gov24BenefitType !== "전체") {
       setGov24BenefitType("전체");
     }
   }, [gov24BenefitType, gov24ServiceField, gov24UserType, sourceType]);
@@ -699,16 +696,15 @@ export default function PoliciesPage() {
         if (!profile) {
           return;
         }
-        const missingLabels = STANDARD_CODE_ENTRIES
+        const missingCount = STANDARD_CODE_ENTRIES
           .filter((entry) => !profile[entry.key])
-          .map((entry) => entry.label);
+          .length;
         setUser({
           ...(profile.name ? { name: profile.name } : {}),
           ...(profile.email ? { email: profile.email } : {}),
           hasPriorities: Array.isArray(profile.priorities) && profile.priorities.length > 0,
-          standardCodeFilledCount: STANDARD_CODE_ENTRIES.length - missingLabels.length,
-          standardCodeMissingCount: missingLabels.length,
-          missingStandardCodeLabels: missingLabels,
+          standardCodeFilledCount: STANDARD_CODE_ENTRIES.length - missingCount,
+          standardCodeMissingCount: missingCount,
         });
       })
       .catch((error) => {
@@ -804,9 +800,9 @@ export default function PoliciesPage() {
           sido: region === "전체" ? undefined : region,
           sgg: selectedSgg,
           sourceType: sourceType === "전체" ? undefined : SOURCE_TYPE_MAP[sourceType],
-          gov24ServiceField: sourceType === "Gov24" && gov24ServiceField !== "전체" ? gov24ServiceField : undefined,
-          gov24UserType: sourceType === "Gov24" && gov24UserType !== "전체" ? gov24UserType : undefined,
-          gov24BenefitType: sourceType === "Gov24" && gov24BenefitType !== "전체" ? gov24BenefitType : undefined,
+          gov24ServiceField: sourceType === GOV24_SOURCE_LABEL && gov24ServiceField !== "전체" ? gov24ServiceField : undefined,
+          gov24UserType: sourceType === GOV24_SOURCE_LABEL && gov24UserType !== "전체" ? gov24UserType : undefined,
+          gov24BenefitType: sourceType === GOV24_SOURCE_LABEL && gov24BenefitType !== "전체" ? gov24BenefitType : undefined,
           sort: appliedSearch.trim() ? (SORT_MAP[sort] ?? "RELEVANCE") : (sort === "relevance" ? "LATEST" : (SORT_MAP[sort] ?? "LATEST")),
           incomeLevel: income === "전체" ? undefined : Number(income),
           targetGroup: targetGroup || undefined,
@@ -943,9 +939,9 @@ export default function PoliciesPage() {
     income !== "전체" && { key: "income", label: INCOME_ROWS.find(r => r.value === income)?.label, clear: () => setIncome("전체") },
     targetGroup && { key: "tg", label: targetGroup, clear: () => setTargetGroup("") },
     sourceType !== "전체" && { key: "src", label: sourceType, clear: () => setSourceType("전체") },
-    sourceType === "Gov24" && gov24ServiceField !== "전체" && { key: "gov24sf", label: `Gov24 서비스분야 ${gov24ServiceField}`, clear: () => setGov24ServiceField("전체") },
-    sourceType === "Gov24" && gov24UserType !== "전체" && { key: "gov24ut", label: `Gov24 사용자구분 ${gov24UserType}`, clear: () => setGov24UserType("전체") },
-    sourceType === "Gov24" && gov24BenefitType !== "전체" && { key: "gov24bt", label: `Gov24 지원유형 ${gov24BenefitType}`, clear: () => setGov24BenefitType("전체") },
+    sourceType === GOV24_SOURCE_LABEL && gov24ServiceField !== "전체" && { key: "gov24sf", label: `정부24 서비스분야 ${gov24ServiceField}`, clear: () => setGov24ServiceField("전체") },
+    sourceType === GOV24_SOURCE_LABEL && gov24UserType !== "전체" && { key: "gov24ut", label: `정부24 사용자구분 ${gov24UserType}`, clear: () => setGov24UserType("전체") },
+    sourceType === GOV24_SOURCE_LABEL && gov24BenefitType !== "전체" && { key: "gov24bt", label: `정부24 지원유형 ${gov24BenefitType}`, clear: () => setGov24BenefitType("전체") },
     statusFilter !== defaultStatusFilter && { key: "status", label: statusFilter, clear: () => setStatusFilter(defaultStatusFilter) },
     hasCustomSort && {
       key: "sort",
@@ -1215,7 +1211,7 @@ export default function PoliciesPage() {
               onClick={() => setIncomeCalcOpen(true)}
               style={{ marginTop: 8, background: "none", border: "none", fontSize: 12, color: A, cursor: "pointer", fontWeight: 600, padding: 0 }}
             >
-              소득분위 확인하기
+              🔗 소득분위 확인하기
             </button>
           </FilterSection>
 
@@ -1244,14 +1240,14 @@ export default function PoliciesPage() {
                   key={source}
                   label={source}
                   checked={sourceType === source}
-                  onChange={() => { setSourceType(source); if (source !== "Gov24") { setGov24ServiceField("전체"); setGov24UserType("전체"); setGov24BenefitType("전체"); } setPage(1); }}
+                  onChange={() => { setSourceType(source); if (source !== GOV24_SOURCE_LABEL) { setGov24ServiceField("전체"); setGov24UserType("전체"); setGov24BenefitType("전체"); } setPage(1); }}
                 />
               ))}
             </div>
           </FilterSection>
 
-          {sourceType === "Gov24" && (
-            <FilterSection title="Gov24 서비스분야" defaultOpen={false}>
+          {sourceType === GOV24_SOURCE_LABEL && (
+            <FilterSection title="정부24 서비스분야" defaultOpen={false}>
               <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                 {GOV24_SERVICE_FIELDS.map((field) => (
                   <RadioItem
@@ -1265,8 +1261,8 @@ export default function PoliciesPage() {
             </FilterSection>
           )}
 
-          {sourceType === "Gov24" && (
-            <FilterSection title="Gov24 사용자구분" defaultOpen={false}>
+          {sourceType === GOV24_SOURCE_LABEL && (
+            <FilterSection title="정부24 사용자구분" defaultOpen={false}>
               <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                 {GOV24_USER_TYPES.map((token) => (
                   <RadioItem
@@ -1280,8 +1276,8 @@ export default function PoliciesPage() {
             </FilterSection>
           )}
 
-          {sourceType === "Gov24" && (
-            <FilterSection title="Gov24 지원유형" defaultOpen={false}>
+          {sourceType === GOV24_SOURCE_LABEL && (
+            <FilterSection title="정부24 지원유형" defaultOpen={false}>
               <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                 {GOV24_BENEFIT_TYPES.map((token) => (
                   <RadioItem
@@ -1317,14 +1313,14 @@ export default function PoliciesPage() {
                 필터는 선택 즉시 반영됩니다
               </div>
               <div style={{ marginTop: 4, fontSize: 12, color: INK3, lineHeight: 1.5 }}>
-                지역, 카테고리, Gov24 조건을 바꾸면 목록과 URL이 바로 업데이트됩니다.
+                지역, 카테고리, 정부24 조건을 바꾸면 목록과 URL이 바로 업데이트됩니다.
               </div>
             </div>
           )}
         </aside>
 
         {/* ── 결과 영역 ── */}
-        <div style={{ minWidth: 0 }}>
+        <div>
           {isLoggedIn && !user?.hasPriorities && (
             <PriorityPolicyPrompt onNavigate={() => navigate("/mypage?tab=1")} />
           )}
@@ -1332,7 +1328,6 @@ export default function PoliciesPage() {
             <StandardCodePolicyPrompt
               missingCount={standardCodeMissingCount}
               filledCount={standardCodeFilledCount}
-              missingLabels={standardCodeMissingLabels}
               onNavigate={() => navigate("/mypage?tab=0")}
             />
           )}
@@ -1350,7 +1345,7 @@ export default function PoliciesPage() {
                   cursor: "pointer",
                 }}
               >
-                필터{activeFilters.length > 0 ? ` (${activeFilters.length}개 적용됨)` : ""}
+                🔧 필터{activeFilters.length > 0 ? ` (${activeFilters.length}개 적용됨)` : ""}
               </button>
             </div>
           )}
@@ -1415,6 +1410,9 @@ export default function PoliciesPage() {
               </div>
             </div>
           </div>
+          <div style={{ marginBottom: 14, padding: "12px 14px", borderRadius: 12, background: "#f8fbff", border: `1px solid ${LINE}`, color: INK2, fontSize: 12, lineHeight: 1.6 }}>
+            {POLICY_SOURCE_NOTICE}
+          </div>
 
           {/* 목록 */}
           {loading ? (
@@ -1437,7 +1435,8 @@ export default function PoliciesPage() {
             )
           ) : (
             <div style={{ textAlign: "center", padding: "64px 24px", background: "white", borderRadius: 16, border: `1px solid ${LINE}` }}>
-              <div style={{ fontSize: 15, color: INK2 }}>
+              <div style={{ fontSize: 40 }}>🔍</div>
+              <div style={{ marginTop: 12, fontSize: 15, color: INK2 }}>
                 {hasSearch || hasActiveFilters ? "조건에 맞는 정책을 찾지 못했어요" : "검색 결과가 없습니다"}
               </div>
               <div style={{ marginTop: 6, fontSize: 13, color: INK3 }}>

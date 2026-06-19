@@ -33,8 +33,8 @@ const QUICK_STEPS = [
   },
   {
     step: "3",
-    title: "주거·생활 여건을 채우세요",
-    body: "주거형태, 주택유형, 기초생활수급권자, 장애등급은 추천 정확도를 직접 끌어올리는 입력값입니다.",
+    title: "주거·복지 맞춤 정보를 채우세요",
+    body: "생활 여건에 맞는 선택 프로필을 보완하면 추천 정확도가 올라갑니다.",
   },
   {
     step: "4",
@@ -52,7 +52,7 @@ const FEATURE_CARDS = [
   },
   {
     title: "정책 검색",
-    desc: "카테고리, 지역, 소득, 출처까지 직접 걸러서 비교할 수 있습니다.",
+    desc: "카테고리, 지역, 소득, 정부24 조건까지 직접 걸러서 비교할 수 있습니다.",
     cta: "정책 검색하기",
     target: "policies",
   },
@@ -78,8 +78,8 @@ const FEATURE_CARDS = [
 
 const ACCURACY_ITEMS = [
   "지역 정보는 시·군·구까지 정확히 맞추세요. 지역 기준이 어긋나면 추천 후보가 불필요하게 넓어질 수 있습니다.",
-  "우선순위를 비워두면 비슷한 정책이 상단에 몰릴 수 있습니다. 최소 1개는 고르는 편이 좋습니다.",
-  "주거형태·주택유형·기초생활수급권자·장애등급 입력은 추천 메모와 후보 매칭 품질에 직접 반영됩니다.",
+  "우선순위를 비워두면 추천이 내 상황과 덜 맞는 일반 정책 위주로 보일 수 있습니다. 최소 1개는 고르는 편이 좋습니다.",
+  "주거·복지 맞춤 정보는 추천 메모와 후보 매칭 품질에 직접 반영됩니다.",
   "챗봇 답변은 탐색 보조입니다. 최종 자격조건은 상세 페이지와 원문 공고에서 다시 확인해야 합니다.",
 ];
 
@@ -93,7 +93,7 @@ const FAQ_ITEMS = [
     a: "챗봇은 후속 질문을 이어가며 후보를 찾는 용도입니다. 최종 기준은 정책 상세 정보와 공고문입니다.",
   },
   {
-    q: "왜 우선순위와 주거·생활 여건을 계속 입력하라고 하나요?",
+    q: "왜 우선순위와 선택 프로필을 계속 입력하라고 하나요?",
     a: "이 값들이 있어야 추천 상단이 덜 퍼지고, 주거·복지 조건에 맞는 정책이 더 앞으로 올라옵니다.",
   },
 ];
@@ -215,7 +215,7 @@ export default function GuidePage() {
               </h1>
               <p style={{ margin: 0, maxWidth: 680, fontSize: 15, lineHeight: 1.75, color: "rgba(255,255,255,0.88)" }}>
                 추천, 정책 검색, 챗봇, 북마크, 알림은 서로 따로가 아니라 같이 쓸 때 가장 효율이 좋습니다.
-                처음이라면 이 순서대로 사용하시길 추천드립니다.
+                처음이라면 이 순서대로 시작하면 됩니다.
               </p>
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 24 }}>
                 <button
@@ -245,7 +245,7 @@ export default function GuidePage() {
                   먼저 해두면 좋은 것
                 </div>
                 <div style={{ marginTop: 10, fontSize: 17, fontWeight: 800 }}>
-                  우선순위 설정 + 주거·생활 여건 입력
+                  우선순위 설정 + 선택 프로필 입력
                 </div>
                 <div style={{ marginTop: 6, fontSize: 13, lineHeight: 1.65, color: "rgba(255,255,255,0.84)" }}>
                   추천 상단 쏠림을 줄이고, 주거·복지 조건에 맞는 정책을 더 빨리 위로 끌어올립니다.
@@ -274,7 +274,7 @@ export default function GuidePage() {
 
         <SectionShell
           eyebrow="QUICK START"
-          title="처음이라면 이 순서로 사용해 보세요"
+          title="처음이면 이 순서로 쓰세요"
           desc="처음부터 모든 기능을 다 보지 않아도 됩니다. 아래 네 단계만 따라가면 추천과 검색 품질이 눈에 띄게 안정됩니다."
         >
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)", gap: 14 }}>
@@ -297,7 +297,7 @@ export default function GuidePage() {
         <SectionShell
           eyebrow="FEATURES"
           title="기능별로 이렇게 쓰면 됩니다"
-          desc="하나만 쓰는 것보다 연결해서 쓸 때 훨씬 편합니다. 각 기능마다 바로 이동할 수 있는 버튼을 붙여뒀습니다."
+          desc="하나만 쓰는 것보다 연결해서 쓸 때 훨씬 편합니다. 각 기능마다 바로 이동할 수 있게 CTA를 붙여뒀습니다."
         >
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)", gap: 14 }}>
             {FEATURE_CARDS.map((card) => (
@@ -335,22 +335,22 @@ export default function GuidePage() {
               <div style={{ background: OK_BG, border: "1px solid #d1fae5", borderRadius: 20, padding: 22 }}>
                 <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: "0.04em", color: OK }}>추천 정확도 보강</div>
                 <div style={{ marginTop: 10, fontSize: 18, fontWeight: 800, lineHeight: 1.35, color: INK }}>
-                  주거·생활 여건 4개와 우선순위가 가장 직접적입니다
+                  선택 프로필과 우선순위가 가장 직접적입니다
                 </div>
                 <div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.65, color: INK2 }}>
-                  주거형태, 주택유형, 기초생활수급권자, 장애등급은 추천 메모와 주거·복지 정책 매칭에 바로 반영됩니다.
+                  주거·복지 맞춤 정보를 보완하면 추천 메모와 정책 매칭에 바로 반영됩니다.
                 </div>
                 <button
                   onClick={() => moveToTarget("profile")}
                   style={{ marginTop: 16, padding: "10px 14px", borderRadius: 12, border: "1px solid #a7f3d0", background: WHITE, color: OK, fontSize: 13, fontWeight: 800, cursor: "pointer" }}
                 >
-                  주거·생활 여건 채우러 가기
+                  선택 정보 보완하러 가기
                 </button>
               </div>
               <div style={{ background: WARN_BG, border: "1px solid #fed7aa", borderRadius: 20, padding: 22 }}>
                 <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: "0.04em", color: WARN }}>상단 쏠림 방지</div>
                 <div style={{ marginTop: 10, fontSize: 18, fontWeight: 800, lineHeight: 1.35, color: INK }}>
-                  우선순위가 비어 있으면 비슷한 추천이 늘어납니다
+                  우선순위가 비어 있으면 일반 추천이 늘어납니다
                 </div>
                 <div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.65, color: INK2 }}>
                   주거, 일자리, 교육처럼 지금 중요한 축을 최소 하나 고르면 상단 추천 메모와 후보 분산이 더 자연스러워집니다.

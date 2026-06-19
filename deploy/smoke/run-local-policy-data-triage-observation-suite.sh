@@ -138,9 +138,12 @@ from pathlib import Path
 def parse_kv(path: Path) -> dict[str, str]:
     values: dict[str, str] = {}
     for raw_line in path.read_text(encoding="utf-8").splitlines():
-        if "=" not in raw_line:
+        if "=" in raw_line:
+            key, value = raw_line.split("=", 1)
+        elif "\t" in raw_line:
+            key, value = raw_line.split("\t", 1)
+        else:
             continue
-        key, value = raw_line.split("=", 1)
         values[key.strip()] = value.strip()
     return values
 

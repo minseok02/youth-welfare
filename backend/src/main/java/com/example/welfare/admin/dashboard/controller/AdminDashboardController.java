@@ -7,8 +7,17 @@ import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownRespo
 import com.example.welfare.admin.dashboard.dto.AdminPolicyErrorReportResponse;
 import com.example.welfare.admin.dashboard.dto.AdminPolicyDuplicateGroupResponse;
 import com.example.welfare.admin.dashboard.dto.AdminPolicyDuplicateGroupReviewRequest;
+import com.example.welfare.admin.dashboard.dto.AdminPolicyFieldCorrectionListResponse;
+import com.example.welfare.admin.dashboard.dto.AdminPolicyFieldCorrectionRequest;
+import com.example.welfare.admin.dashboard.dto.AdminPolicyFieldCorrectionResponse;
 import com.example.welfare.admin.dashboard.dto.AdminPolicyLinkReviewResponse;
+import com.example.welfare.admin.dashboard.dto.AdminPolicyRegionAuditResponse;
+import com.example.welfare.admin.dashboard.dto.AdminPolicyRegionCorrectionListResponse;
+import com.example.welfare.admin.dashboard.dto.AdminPolicyRegionCorrectionRequest;
+import com.example.welfare.admin.dashboard.dto.AdminPolicyRegionCorrectionRevertRequest;
+import com.example.welfare.admin.dashboard.dto.AdminPolicyRegionCorrectionResponse;
 import com.example.welfare.admin.dashboard.dto.AdminQueueStatusFilter;
+import com.example.welfare.admin.dashboard.dto.AdminRegionOptionResponse;
 import com.example.welfare.admin.dashboard.dto.AdminReviewActionRequest;
 import com.example.welfare.admin.dashboard.dto.AdminReviewActionResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordClearResponse;
@@ -36,8 +45,11 @@ import com.example.welfare.admin.dashboard.service.AdminDashboardWrapperObservat
 import com.example.welfare.admin.dashboard.service.AdminNotificationBacklogService;
 import com.example.welfare.admin.dashboard.service.AdminNotificationStaleTargetService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyErrorReportService;
+import com.example.welfare.admin.dashboard.service.AdminPolicyFieldCorrectionService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyDuplicateGroupService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyLinkReviewService;
+import com.example.welfare.admin.dashboard.service.AdminPolicyRegionAuditService;
+import com.example.welfare.admin.dashboard.service.AdminPolicyRegionCorrectionService;
 import com.example.welfare.admin.dashboard.service.AdminSupportInquiryService;
 import com.example.welfare.admin.service.AdminOperationRateLimitService;
 import com.example.welfare.global.auth.AuthenticatedUser;
@@ -84,8 +96,11 @@ public class AdminDashboardController {
     private final AdminNotificationBacklogService adminNotificationBacklogService;
     private final AdminNotificationStaleTargetService adminNotificationStaleTargetService;
     private final AdminPolicyErrorReportService adminPolicyErrorReportService;
+    private final AdminPolicyFieldCorrectionService adminPolicyFieldCorrectionService;
     private final AdminPolicyDuplicateGroupService adminPolicyDuplicateGroupService;
     private final AdminPolicyLinkReviewService adminPolicyLinkReviewService;
+    private final AdminPolicyRegionAuditService adminPolicyRegionAuditService;
+    private final AdminPolicyRegionCorrectionService adminPolicyRegionCorrectionService;
     private final AdminSupportInquiryService adminSupportInquiryService;
     private final AdminRecommendationReviewGatePromotionApprovalRecordService
             adminRecommendationReviewGatePromotionApprovalRecordService;
@@ -270,6 +285,41 @@ public class AdminDashboardController {
         ));
     }
 
+    @GetMapping("/region-options")
+    public ResponseEntity<ApiResponse<AdminRegionOptionResponse>> getRegionOptions() {
+        log.info("[Admin] dashboard region options 조회");
+        return ResponseEntity.ok(ApiResponse.success(
+                adminPolicyRegionCorrectionService.getRegionOptions()
+        ));
+    }
+
+    @GetMapping("/policy-region-corrections")
+    public ResponseEntity<ApiResponse<AdminPolicyRegionCorrectionListResponse>> getPolicyRegionCorrections(
+            @RequestParam(name = "limit", required = false)
+            @Min(value = 1, message = "limit는 1 이상이어야 합니다.")
+            @Max(value = 100, message = "limit는 100 이하여야 합니다.")
+            Integer limit,
+            @RequestParam(name = "activeOnly", required = false, defaultValue = "true") boolean activeOnly
+    ) {
+        log.info("[Admin] dashboard policy region corrections 조회 limit={} activeOnly={}", limit, activeOnly);
+        return ResponseEntity.ok(ApiResponse.success(
+                adminPolicyRegionCorrectionService.getCorrections(limit, activeOnly)
+        ));
+    }
+
+    @GetMapping("/policy-field-corrections")
+    public ResponseEntity<ApiResponse<AdminPolicyFieldCorrectionListResponse>> getPolicyFieldCorrections(
+            @RequestParam(name = "limit", required = false)
+            @Min(value = 1, message = "limit는 1 이상이어야 합니다.")
+            @Max(value = 100, message = "limit는 100 이하여야 합니다.")
+            Integer limit
+    ) {
+        log.info("[Admin] dashboard policy field corrections 조회 limit={}", limit);
+        return ResponseEntity.ok(ApiResponse.success(
+                adminPolicyFieldCorrectionService.getCorrections(limit)
+        ));
+    }
+
     @PostMapping("/policy-error-reports/{reportId}/review")
     public ResponseEntity<ApiResponse<AdminReviewActionResponse>> reviewPolicyErrorReport(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
@@ -318,6 +368,77 @@ public class AdminDashboardController {
                         serviceId,
                         authenticatedUser != null ? authenticatedUser.userKey() : null,
                         request != null ? request.reviewNote() : null
+                )
+        ));
+    }
+
+    @PostMapping("/policy-region-corrections")
+    public ResponseEntity<ApiResponse<AdminPolicyRegionCorrectionResponse>> applyPolicyRegionCorrection(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @Valid @RequestBody AdminPolicyRegionCorrectionRequest request
+    ) {
+        adminOperationRateLimitService.checkMutationLimit(actorKey(authenticatedUser), "dashboard:policy-region-correction");
+        log.info("[Admin] dashboard policy region correction policyId={} reportId={} actorUserKey={}",
+                request != null ? request.policyId() : null,
+                request != null ? request.reportId() : null,
+                authenticatedUser != null ? authenticatedUser.userKey() : null);
+        return ResponseEntity.ok(ApiResponse.success(
+                adminPolicyRegionCorrectionService.applyCorrection(
+                        request,
+                        authenticatedUser != null ? authenticatedUser.userKey() : null
+                )
+        ));
+    }
+
+    @PostMapping("/policy-region-corrections/{correctionId}/revert")
+    public ResponseEntity<ApiResponse<AdminPolicyRegionCorrectionResponse>> revertPolicyRegionCorrection(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @org.springframework.web.bind.annotation.PathVariable Long correctionId,
+            @Valid @RequestBody(required = false) AdminPolicyRegionCorrectionRevertRequest request
+    ) {
+        adminOperationRateLimitService.checkMutationLimit(actorKey(authenticatedUser), "dashboard:policy-region-correction-revert");
+        log.info("[Admin] dashboard policy region correction revert correctionId={} actorUserKey={}",
+                correctionId, authenticatedUser != null ? authenticatedUser.userKey() : null);
+        return ResponseEntity.ok(ApiResponse.success(
+                adminPolicyRegionCorrectionService.revertCorrection(
+                        correctionId,
+                        request,
+                        authenticatedUser != null ? authenticatedUser.userKey() : null
+                )
+        ));
+    }
+
+    @PostMapping("/policy-region-audit/run")
+    public ResponseEntity<ApiResponse<AdminPolicyRegionAuditResponse>> runPolicyRegionAudit(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @RequestParam(name = "limit", required = false)
+            @Min(value = 1, message = "limit는 1 이상이어야 합니다.")
+            @Max(value = 50000, message = "limit는 50000 이하여야 합니다.")
+            Integer limit
+    ) {
+        adminOperationRateLimitService.checkMutationLimit(actorKey(authenticatedUser), "dashboard:policy-region-audit");
+        log.info("[Admin] dashboard policy region audit 실행 limit={} actorUserKey={}",
+                limit, authenticatedUser != null ? authenticatedUser.userKey() : null);
+        return ResponseEntity.ok(ApiResponse.success(
+                adminPolicyRegionAuditService.runRegionAudit(limit)
+        ));
+    }
+
+    @PostMapping("/policy-field-corrections")
+    public ResponseEntity<ApiResponse<AdminPolicyFieldCorrectionResponse>> applyPolicyFieldCorrection(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @Valid @RequestBody AdminPolicyFieldCorrectionRequest request
+    ) {
+        adminOperationRateLimitService.checkMutationLimit(actorKey(authenticatedUser), "dashboard:policy-field-correction");
+        log.info("[Admin] dashboard policy field correction policyId={} reportId={} type={} actorUserKey={}",
+                request != null ? request.policyId() : null,
+                request != null ? request.reportId() : null,
+                request != null ? request.correctionType() : null,
+                authenticatedUser != null ? authenticatedUser.userKey() : null);
+        return ResponseEntity.ok(ApiResponse.success(
+                adminPolicyFieldCorrectionService.applyCorrection(
+                        request,
+                        authenticatedUser != null ? authenticatedUser.userKey() : null
                 )
         ));
     }

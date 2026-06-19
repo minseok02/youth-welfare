@@ -497,6 +497,21 @@ const formatPolicyDuplicateReviewClass = (value) =>
   POLICY_DUPLICATE_REVIEW_CLASS_LABELS[value] ?? (value ? formatStatusLabel(value) : "분류 없음");
 const formatBooleanLabel = (value, trueLabel, falseLabel) => (value ? trueLabel : falseLabel);
 const formatCodeOrStatus = (value) => value ? formatStatusLabel(value) : "미분류";
+const parseRegionCorrectionCodes = (value) => (
+  (value || "")
+    .split(/[\s,]+/)
+    .map((code) => code.trim())
+    .filter(Boolean)
+);
+const parseSuggestedRegionCodes = (value) => (
+  Array.from(new Set(Array.from(String(value || "").matchAll(/\((\d{5})\)/g)).map((match) => match[1])))
+);
+const resolveFieldCorrectionType = (reasonCode) => ({
+  PERIOD_MISMATCH: "APPLICATION_PERIOD",
+  BROKEN_LINK: "DETAIL_URL",
+  ELIGIBILITY_MISMATCH: "ELIGIBILITY",
+  DUPLICATE_POLICY: "DUPLICATE_POLICY",
+}[reasonCode] ?? null);
 const formatCollectJobName = (value) => COLLECT_JOB_LABELS[value] ?? formatStatusLabel(value);
 const formatConfigLabel = (value) => CONFIG_LABELS[value] ?? value ?? "설정";
 const formatConfigValue = (value) => String(value ?? "—")
@@ -640,6 +655,25 @@ const fetchWrapperObservation = async () => {
 const fetchPolicyErrorReports = async (status = "OPEN") => {
   const { data } = await api.get("/api/admin/dashboard/policy-error-reports", {
     params: { limit: 5, status },
+  });
+  return data?.data;
+};
+
+const fetchRegionOptions = async () => {
+  const { data } = await api.get("/api/admin/dashboard/region-options");
+  return data?.data;
+};
+
+const fetchPolicyRegionCorrections = async () => {
+  const { data } = await api.get("/api/admin/dashboard/policy-region-corrections", {
+    params: { limit: 20, activeOnly: false },
+  });
+  return data?.data;
+};
+
+const fetchPolicyFieldCorrections = async () => {
+  const { data } = await api.get("/api/admin/dashboard/policy-field-corrections", {
+    params: { limit: 20 },
   });
   return data?.data;
 };
@@ -979,6 +1013,9 @@ export default function AdminDashboardPage() {
   const [selectedCodeSetKey, setSelectedCodeSetKey] = useState("");
   const [codebookQueryText, setCodebookQueryText] = useState("");
   const [policyErrorReviewNotes, setPolicyErrorReviewNotes] = useState({});
+  const [policyRegionCorrectionInputs, setPolicyRegionCorrectionInputs] = useState({});
+  const [policyFieldCorrectionInputs, setPolicyFieldCorrectionInputs] = useState({});
+  const [latestRegionAuditResult, setLatestRegionAuditResult] = useState(null);
   const [supportInquiryReviewNotes, setSupportInquiryReviewNotes] = useState({});
   const [policyDuplicateReviewNotes, setPolicyDuplicateReviewNotes] = useState({});
   const [policyLinkReviewNotes, setPolicyLinkReviewNotes] = useState({});
@@ -1047,6 +1084,24 @@ export default function AdminDashboardPage() {
     ...queryBaseOptions,
   });
 
+  const regionOptionsQuery = useQuery({
+    queryKey: ["admin-dashboard-region-options"],
+    queryFn: fetchRegionOptions,
+    ...queryBaseOptions,
+  });
+
+  const policyRegionCorrectionsQuery = useQuery({
+    queryKey: ["admin-dashboard-policy-region-corrections"],
+    queryFn: fetchPolicyRegionCorrections,
+    ...queryBaseOptions,
+  });
+
+  const policyFieldCorrectionsQuery = useQuery({
+    queryKey: ["admin-dashboard-policy-field-corrections"],
+    queryFn: fetchPolicyFieldCorrections,
+    ...queryBaseOptions,
+  });
+
   const supportInquiriesQuery = useQuery({
     queryKey: ["admin-dashboard-support-inquiries", supportInquiryStatusFilter],
     queryFn: () => fetchSupportInquiries(supportInquiryStatusFilter),
@@ -1098,6 +1153,9 @@ export default function AdminDashboardPage() {
   const standardCodeEffectObservation = standardCodeEffectObservationQuery.data;
   const wrapperObservation = wrapperObservationQuery.data;
   const policyErrorReports = policyErrorReportsQuery.data;
+  const regionOptions = regionOptionsQuery.data?.regions ?? [];
+  const policyRegionCorrections = policyRegionCorrectionsQuery.data;
+  const policyFieldCorrections = policyFieldCorrectionsQuery.data;
   const supportInquiries = supportInquiriesQuery.data;
   const policyDuplicateGroups = policyDuplicateGroupsQuery.data;
   const policyLinkReviews = policyLinkReviewsQuery.data;
@@ -1119,6 +1177,12 @@ export default function AdminDashboardPage() {
     wrapperObservationQuery.error?.response?.data?.message ?? "상위 wrapper 관측값을 불러오지 못했습니다.";
   const policyErrorReportsErrorMessage =
     policyErrorReportsQuery.error?.response?.data?.message ?? "정책 오류 제보 목록을 불러오지 못했습니다.";
+  const regionOptionsErrorMessage =
+    regionOptionsQuery.error?.response?.data?.message ?? "지역 옵션을 불러오지 못했습니다.";
+  const policyRegionCorrectionsErrorMessage =
+    policyRegionCorrectionsQuery.error?.response?.data?.message ?? "지역 보정 목록을 불러오지 못했습니다.";
+  const policyFieldCorrectionsErrorMessage =
+    policyFieldCorrectionsQuery.error?.response?.data?.message ?? "필드 보정 목록을 불러오지 못했습니다.";
   const supportInquiriesErrorMessage =
     supportInquiriesQuery.error?.response?.data?.message ?? "서비스 문의 목록을 불러오지 못했습니다.";
   const policyDuplicateGroupsErrorMessage =
@@ -1196,6 +1260,9 @@ export default function AdminDashboardPage() {
     standardCodeEffectObservationQuery.isError,
     wrapperObservationQuery.isError,
     policyErrorReportsQuery.isError,
+    regionOptionsQuery.isError,
+    policyRegionCorrectionsQuery.isError,
+    policyFieldCorrectionsQuery.isError,
     supportInquiriesQuery.isError,
     policyDuplicateGroupsQuery.isError,
     policyLinkReviewsQuery.isError,
@@ -1213,6 +1280,9 @@ export default function AdminDashboardPage() {
     standardCodeEffectObservationQuery.isFetching,
     wrapperObservationQuery.isFetching,
     policyErrorReportsQuery.isFetching,
+    regionOptionsQuery.isFetching,
+    policyRegionCorrectionsQuery.isFetching,
+    policyFieldCorrectionsQuery.isFetching,
     supportInquiriesQuery.isFetching,
     policyDuplicateGroupsQuery.isFetching,
     policyLinkReviewsQuery.isFetching,
@@ -1358,6 +1428,9 @@ export default function AdminDashboardPage() {
     standardCodeEffectObservationQuery.refetch();
     wrapperObservationQuery.refetch();
     policyErrorReportsQuery.refetch();
+    regionOptionsQuery.refetch();
+    policyRegionCorrectionsQuery.refetch();
+    policyFieldCorrectionsQuery.refetch();
     supportInquiriesQuery.refetch();
     policyDuplicateGroupsQuery.refetch();
     policyLinkReviewsQuery.refetch();
@@ -1379,6 +1452,158 @@ export default function AdminDashboardPage() {
         delete next[reportId];
         return next;
       });
+      policyErrorReportsQuery.refetch();
+      policyRegionCorrectionsQuery.refetch();
+      attentionFeedQuery.refetch();
+    } finally {
+      setReviewSubmittingKey(null);
+    }
+  };
+
+  const updatePolicyRegionCorrectionInput = (reportId, patch) => {
+    setPolicyRegionCorrectionInputs((prev) => ({
+      ...prev,
+      [reportId]: {
+        ...(prev[reportId] ?? {}),
+        ...patch,
+      },
+    }));
+  };
+
+  const updatePolicyFieldCorrectionInput = (reportId, patch) => {
+    setPolicyFieldCorrectionInputs((prev) => ({
+      ...prev,
+      [reportId]: {
+        ...(prev[reportId] ?? {}),
+        ...patch,
+      },
+    }));
+  };
+
+  const clearPolicyErrorInputs = (reportId) => {
+    setPolicyErrorReviewNotes((prev) => {
+      const next = { ...prev };
+      delete next[reportId];
+      return next;
+    });
+    setPolicyRegionCorrectionInputs((prev) => {
+      const next = { ...prev };
+      delete next[reportId];
+      return next;
+    });
+    setPolicyFieldCorrectionInputs((prev) => {
+      const next = { ...prev };
+      delete next[reportId];
+      return next;
+    });
+  };
+
+  const handleApplyPolicyRegionCorrection = async (item, nationwide = false) => {
+    const input = policyRegionCorrectionInputs[item.reportId] ?? {};
+    const selectedRegionCodes = Array.isArray(input.selectedRegionCodes) ? input.selectedRegionCodes : [];
+    const regionCodes = nationwide ? [] : (
+      selectedRegionCodes.length > 0 ? selectedRegionCodes : parseRegionCorrectionCodes(input.regionCodes)
+    );
+    if (!nationwide && regionCodes.length === 0) {
+      window.alert("지역코드를 입력하세요.");
+      return;
+    }
+    const requestKey = `policy-region-${item.reportId}-${nationwide ? "nationwide" : "regions"}`;
+    setReviewSubmittingKey(requestKey);
+    try {
+      await api.post("/api/admin/dashboard/policy-region-corrections", {
+        policyId: item.policyId,
+        nationwide,
+        regionCodes,
+        reportId: item.reportId,
+        correctionNote: input.correctionNote?.trim()
+          || policyErrorReviewNotes[item.reportId]?.trim()
+          || null,
+      });
+      clearPolicyErrorInputs(item.reportId);
+      policyErrorReportsQuery.refetch();
+      policyRegionCorrectionsQuery.refetch();
+      attentionFeedQuery.refetch();
+    } finally {
+      setReviewSubmittingKey(null);
+    }
+  };
+
+  const handleRunPolicyRegionAudit = async () => {
+    setReviewSubmittingKey("policy-region-audit");
+    try {
+      const { data } = await api.post("/api/admin/dashboard/policy-region-audit/run", null, {
+        params: { limit: 50000 },
+      });
+      setLatestRegionAuditResult(data?.data ?? null);
+      policyErrorReportsQuery.refetch();
+      attentionFeedQuery.refetch();
+    } finally {
+      setReviewSubmittingKey(null);
+    }
+  };
+
+  const handleApplySuggestedRegionCorrection = async (item, regionCodes) => {
+    if (!regionCodes || regionCodes.length === 0) {
+      return;
+    }
+    const requestKey = `policy-region-${item.reportId}-suggested`;
+    setReviewSubmittingKey(requestKey);
+    try {
+      await api.post("/api/admin/dashboard/policy-region-corrections", {
+        policyId: item.policyId,
+        nationwide: false,
+        regionCodes,
+        reportId: item.reportId,
+        correctionNote: policyErrorReviewNotes[item.reportId]?.trim() || "자동 지역감사 후보 적용",
+      });
+      clearPolicyErrorInputs(item.reportId);
+      policyErrorReportsQuery.refetch();
+      policyRegionCorrectionsQuery.refetch();
+      attentionFeedQuery.refetch();
+    } finally {
+      setReviewSubmittingKey(null);
+    }
+  };
+
+  const handleApplyPolicyFieldCorrection = async (item) => {
+    const correctionType = resolveFieldCorrectionType(item.reasonCode);
+    if (!correctionType) {
+      return;
+    }
+    const input = policyFieldCorrectionInputs[item.reportId] ?? {};
+    const requestKey = `policy-field-${item.reportId}`;
+    setReviewSubmittingKey(requestKey);
+    try {
+      await api.post("/api/admin/dashboard/policy-field-corrections", {
+        policyId: item.policyId,
+        reportId: item.reportId,
+        correctionType,
+        applyStartDate: input.applyStartDate || null,
+        applyEndDate: input.applyEndDate || null,
+        detailUrl: input.detailUrl?.trim() || null,
+        eligibilityText: input.eligibilityText?.trim() || null,
+        duplicateOfPolicyId: input.duplicateOfPolicyId ? Number(input.duplicateOfPolicyId) : null,
+        correctionNote: input.correctionNote?.trim()
+          || policyErrorReviewNotes[item.reportId]?.trim()
+          || null,
+      });
+      clearPolicyErrorInputs(item.reportId);
+      policyErrorReportsQuery.refetch();
+      policyFieldCorrectionsQuery.refetch();
+      attentionFeedQuery.refetch();
+    } finally {
+      setReviewSubmittingKey(null);
+    }
+  };
+
+  const handleRevertPolicyRegionCorrection = async (correctionId) => {
+    setReviewSubmittingKey(`policy-region-revert-${correctionId}`);
+    try {
+      await api.post(`/api/admin/dashboard/policy-region-corrections/${correctionId}/revert`, {
+        reviewNote: "관리자 대시보드에서 수동 보정 되돌림",
+      });
+      policyRegionCorrectionsQuery.refetch();
       policyErrorReportsQuery.refetch();
       attentionFeedQuery.refetch();
     } finally {
@@ -1952,7 +2177,34 @@ export default function AdminDashboardPage() {
                         onClick={() => setPolicyErrorStatusFilter(option.value)}
                       />
                     ))}
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      disabled={reviewSubmittingKey === "policy-region-audit"}
+                      onClick={handleRunPolicyRegionAudit}
+                      sx={{ textTransform: "none", borderRadius: 999, whiteSpace: "nowrap" }}
+                    >
+                      {reviewSubmittingKey === "policy-region-audit" ? "감사 중..." : "지역 감사 실행"}
+                    </Button>
                   </Stack>
+
+                  {latestRegionAuditResult && (
+                    <Alert severity={latestRegionAuditResult.createdReportCount > 0 ? "warning" : "info"}>
+                      {`지역 감사 완료 · 스캔 ${formatNumber(latestRegionAuditResult.scannedCount)}건 · 후보 ${formatNumber(latestRegionAuditResult.candidateCount)}건 · 신규 제보 ${formatNumber(latestRegionAuditResult.createdReportCount)}건`}
+                    </Alert>
+                  )}
+
+                  {regionOptionsQuery.isError && (
+                    <Alert severity="warning">{regionOptionsErrorMessage}</Alert>
+                  )}
+
+                  {policyRegionCorrectionsQuery.isError && (
+                    <Alert severity="warning">{policyRegionCorrectionsErrorMessage}</Alert>
+                  )}
+
+                  {policyFieldCorrectionsQuery.isError && (
+                    <Alert severity="warning">{policyFieldCorrectionsErrorMessage}</Alert>
+                  )}
 
                   {policyErrorReportsQuery.isLoading && (
                     <SectionLoadingCard
@@ -2039,6 +2291,185 @@ export default function AdminDashboardPage() {
                                     {item.reviewNote ? ` · ${item.reviewNote}` : ""}
                                   </Alert>
                                 )}
+                                {item.reasonCode === "REGION_MISMATCH" && item.status !== "REVIEWED" && (
+                                  <Box sx={{ p: 1.5, borderRadius: 1.5, border: `1px solid ${INFO_BORDER}`, bgcolor: INFO_BG }}>
+                                    <Stack spacing={1}>
+                                      <Typography sx={{ fontSize: 12, fontWeight: 800, color: INFO_TEXT }}>
+                                        지역 보정
+                                      </Typography>
+                                      {parseSuggestedRegionCodes(item.note).length > 0 && (
+                                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                                          <Button
+                                            size="small"
+                                            variant="outlined"
+                                            disabled={reviewSubmittingKey === `policy-region-${item.reportId}-suggested`}
+                                            onClick={() => handleApplySuggestedRegionCorrection(item, parseSuggestedRegionCodes(item.note))}
+                                            sx={{ textTransform: "none", borderRadius: 999, whiteSpace: "nowrap" }}
+                                          >
+                                            {reviewSubmittingKey === `policy-region-${item.reportId}-suggested` ? "적용 중..." : "감사 후보 적용"}
+                                          </Button>
+                                          {parseSuggestedRegionCodes(item.note).map((code) => (
+                                            <Chip
+                                              key={`${item.reportId}-${code}`}
+                                              label={regionOptions.find((region) => region.regionCode === code)?.label ?? code}
+                                              size="small"
+                                              variant="outlined"
+                                            />
+                                          ))}
+                                        </Stack>
+                                      )}
+                                      <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ xs: "stretch", md: "center" }}>
+                                        <TextField
+                                          size="small"
+                                          placeholder="행정구역코드"
+                                          value={policyRegionCorrectionInputs[item.reportId]?.regionCodes ?? ""}
+                                          onChange={(event) => updatePolicyRegionCorrectionInput(item.reportId, {
+                                            regionCodes: event.target.value,
+                                            selectedRegionCodes: [],
+                                          })}
+                                          helperText="예: 28110 또는 28110, 28200"
+                                          sx={{ flex: 1.1 }}
+                                          disabled={reviewSubmittingKey?.startsWith(`policy-region-${item.reportId}-`)}
+                                        />
+                                        <Select
+                                          multiple
+                                          size="small"
+                                          displayEmpty
+                                          value={policyRegionCorrectionInputs[item.reportId]?.selectedRegionCodes ?? []}
+                                          onChange={(event) => updatePolicyRegionCorrectionInput(item.reportId, {
+                                            selectedRegionCodes: Array.isArray(event.target.value)
+                                              ? event.target.value
+                                              : parseRegionCorrectionCodes(event.target.value),
+                                            regionCodes: "",
+                                          })}
+                                          renderValue={(selected) => {
+                                            if (!selected || selected.length === 0) {
+                                              return "지역 선택";
+                                            }
+                                            return selected
+                                              .map((code) => regionOptions.find((region) => region.regionCode === code)?.label ?? code)
+                                              .join(", ");
+                                          }}
+                                          disabled={
+                                            regionOptionsQuery.isLoading
+                                            || reviewSubmittingKey?.startsWith(`policy-region-${item.reportId}-`)
+                                          }
+                                          sx={{ flex: 1.4, minWidth: 220 }}
+                                        >
+                                          {regionOptions.map((region) => (
+                                            <MenuItem key={region.regionCode} value={region.regionCode}>
+                                              {region.label}
+                                            </MenuItem>
+                                          ))}
+                                        </Select>
+                                        <TextField
+                                          size="small"
+                                          placeholder="보정 메모"
+                                          value={policyRegionCorrectionInputs[item.reportId]?.correctionNote ?? ""}
+                                          onChange={(event) => updatePolicyRegionCorrectionInput(item.reportId, {
+                                            correctionNote: event.target.value,
+                                          })}
+                                          sx={{ flex: 1.2 }}
+                                          disabled={reviewSubmittingKey?.startsWith(`policy-region-${item.reportId}-`)}
+                                        />
+                                        <Button
+                                          size="small"
+                                          variant="contained"
+                                          disabled={reviewSubmittingKey?.startsWith(`policy-region-${item.reportId}-`)}
+                                          onClick={() => handleApplyPolicyRegionCorrection(item, false)}
+                                          sx={{ textTransform: "none", borderRadius: 999, whiteSpace: "nowrap" }}
+                                        >
+                                          {reviewSubmittingKey === `policy-region-${item.reportId}-regions` ? "보정 중..." : "지역 보정"}
+                                        </Button>
+                                        <Button
+                                          size="small"
+                                          variant="outlined"
+                                          disabled={reviewSubmittingKey?.startsWith(`policy-region-${item.reportId}-`)}
+                                          onClick={() => handleApplyPolicyRegionCorrection(item, true)}
+                                          sx={{ textTransform: "none", borderRadius: 999, whiteSpace: "nowrap" }}
+                                        >
+                                          {reviewSubmittingKey === `policy-region-${item.reportId}-nationwide` ? "처리 중..." : "전국 처리"}
+                                        </Button>
+                                      </Stack>
+                                    </Stack>
+                                  </Box>
+                                )}
+                                {resolveFieldCorrectionType(item.reasonCode) && item.status !== "REVIEWED" && (
+                                  <Box sx={{ p: 1.5, borderRadius: 1.5, border: `1px solid ${PANEL_LINE}`, bgcolor: "#f8fafc" }}>
+                                    <Stack spacing={1}>
+                                      <Typography sx={{ fontSize: 12, fontWeight: 800, color: INK2 }}>
+                                        필드 보정
+                                      </Typography>
+                                      {item.reasonCode === "PERIOD_MISMATCH" && (
+                                        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                                          <TextField
+                                            size="small"
+                                            type="date"
+                                            label="신청 시작일"
+                                            InputLabelProps={{ shrink: true }}
+                                            value={policyFieldCorrectionInputs[item.reportId]?.applyStartDate ?? ""}
+                                            onChange={(event) => updatePolicyFieldCorrectionInput(item.reportId, { applyStartDate: event.target.value })}
+                                            sx={{ flex: 1 }}
+                                          />
+                                          <TextField
+                                            size="small"
+                                            type="date"
+                                            label="신청 종료일"
+                                            InputLabelProps={{ shrink: true }}
+                                            value={policyFieldCorrectionInputs[item.reportId]?.applyEndDate ?? ""}
+                                            onChange={(event) => updatePolicyFieldCorrectionInput(item.reportId, { applyEndDate: event.target.value })}
+                                            sx={{ flex: 1 }}
+                                          />
+                                        </Stack>
+                                      )}
+                                      {item.reasonCode === "BROKEN_LINK" && (
+                                        <TextField
+                                          size="small"
+                                          placeholder="새 원문 URL"
+                                          value={policyFieldCorrectionInputs[item.reportId]?.detailUrl ?? ""}
+                                          onChange={(event) => updatePolicyFieldCorrectionInput(item.reportId, { detailUrl: event.target.value })}
+                                        />
+                                      )}
+                                      {item.reasonCode === "ELIGIBILITY_MISMATCH" && (
+                                        <TextField
+                                          size="small"
+                                          multiline
+                                          minRows={2}
+                                          placeholder="보정할 자격조건/설명"
+                                          value={policyFieldCorrectionInputs[item.reportId]?.eligibilityText ?? ""}
+                                          onChange={(event) => updatePolicyFieldCorrectionInput(item.reportId, { eligibilityText: event.target.value })}
+                                        />
+                                      )}
+                                      {item.reasonCode === "DUPLICATE_POLICY" && (
+                                        <TextField
+                                          size="small"
+                                          type="number"
+                                          placeholder="중복 기준 정책 ID"
+                                          value={policyFieldCorrectionInputs[item.reportId]?.duplicateOfPolicyId ?? ""}
+                                          onChange={(event) => updatePolicyFieldCorrectionInput(item.reportId, { duplicateOfPolicyId: event.target.value })}
+                                        />
+                                      )}
+                                      <Stack direction={{ xs: "column", md: "row" }} spacing={1}>
+                                        <TextField
+                                          size="small"
+                                          placeholder="보정 메모"
+                                          value={policyFieldCorrectionInputs[item.reportId]?.correctionNote ?? ""}
+                                          onChange={(event) => updatePolicyFieldCorrectionInput(item.reportId, { correctionNote: event.target.value })}
+                                          sx={{ flex: 1 }}
+                                        />
+                                        <Button
+                                          size="small"
+                                          variant="contained"
+                                          disabled={reviewSubmittingKey === `policy-field-${item.reportId}`}
+                                          onClick={() => handleApplyPolicyFieldCorrection(item)}
+                                          sx={{ textTransform: "none", borderRadius: 999, whiteSpace: "nowrap" }}
+                                        >
+                                          {reviewSubmittingKey === `policy-field-${item.reportId}` ? "보정 중..." : "필드 보정"}
+                                        </Button>
+                                      </Stack>
+                                    </Stack>
+                                  </Box>
+                                )}
                                 <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ xs: "stretch", md: "center" }}>
                                   <TextField
                                     size="small"
@@ -2064,6 +2495,69 @@ export default function AdminDashboardPage() {
                                   </Button>
                                 </Stack>
                               </Stack>
+                            </Box>
+                          )}
+                        />
+                      )}
+
+                      {policyRegionCorrections?.corrections?.length > 0 && (
+                        <CompactListCard
+                          title="지역 보정 이력"
+                          description="활성 보정은 수집/백필에서 보호되고, 비활성 이력은 감사 추적용으로 남습니다."
+                          items={policyRegionCorrections.corrections}
+                          renderItem={(item) => (
+                            <Box
+                              key={item.correctionId}
+                              sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#f8fafc" }}
+                            >
+                              <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" spacing={1.5}>
+                                <Box sx={{ minWidth: 0 }}>
+                                  <Typography sx={{ fontSize: 13, fontWeight: 800, color: INK, overflowWrap: "anywhere" }}>
+                                    {item.policyTitle}
+                                  </Typography>
+                                  <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25 }}>
+                                    {formatSourceType(item.sourceType)} · {item.sourceId || "sourceId 없음"} · {item.correctionScope} · {item.active ? "활성" : "비활성"}
+                                  </Typography>
+                                  <Typography sx={{ fontSize: 12, color: INK2, mt: 0.5, overflowWrap: "anywhere" }}>
+                                    {(item.regions ?? []).length > 0
+                                      ? item.regions.map((region) => `${region.sidoName} ${region.sggName} (${region.regionCode})`).join(", ")
+                                      : "전국 처리"}
+                                  </Typography>
+                                </Box>
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  color="warning"
+                                  disabled={!item.active || reviewSubmittingKey === `policy-region-revert-${item.correctionId}`}
+                                  onClick={() => handleRevertPolicyRegionCorrection(item.correctionId)}
+                                  sx={{ textTransform: "none", borderRadius: 999, whiteSpace: "nowrap", alignSelf: { xs: "stretch", md: "center" } }}
+                                >
+                                  {!item.active ? "되돌림 완료" : reviewSubmittingKey === `policy-region-revert-${item.correctionId}` ? "되돌리는 중..." : "되돌리기"}
+                                </Button>
+                              </Stack>
+                            </Box>
+                          )}
+                        />
+                      )}
+                      {policyFieldCorrections?.corrections?.length > 0 && (
+                        <CompactListCard
+                          title="필드 보정 이력"
+                          description="기간, 링크, 자격조건, 중복 정책 보정 기록입니다."
+                          items={policyFieldCorrections.corrections}
+                          renderItem={(item) => (
+                            <Box
+                              key={item.correctionId}
+                              sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#f8fafc" }}
+                            >
+                              <Typography sx={{ fontSize: 13, fontWeight: 800, color: INK, overflowWrap: "anywhere" }}>
+                                {item.policyTitle}
+                              </Typography>
+                              <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25 }}>
+                                {formatSourceType(item.sourceType)} · {item.sourceId || "sourceId 없음"} · {item.correctionType}
+                              </Typography>
+                              <Typography sx={{ fontSize: 12, color: INK2, mt: 0.5, overflowWrap: "anywhere" }}>
+                                {item.correctionJson}
+                              </Typography>
                             </Box>
                           )}
                         />

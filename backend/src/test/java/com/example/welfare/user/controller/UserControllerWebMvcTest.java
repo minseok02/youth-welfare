@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -199,5 +200,50 @@ class UserControllerWebMvcTest {
                 .andExpect(jsonPath("$.success").value(false));
 
         then(userProfileCommandService).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("비밀번호 변경은 새 비밀번호에 공백이 있으면 서비스 호출 전에 거부한다")
+    void changePasswordRejectsNewPasswordWithWhitespace() throws Exception {
+        mockMvc.perform(patch("/api/users/me/password")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(
+                                new AuthenticatedUser(1L, "user-key-1"),
+                                null,
+                                Collections.emptyList()
+                        )))
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "currentPassword": "current-password123",
+                                  "newPassword": "new password123"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+
+        then(userAccountCommandService).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("비밀번호 변경은 특수문자가 포함된 새 비밀번호를 허용한다")
+    void changePasswordAllowsPrintableSpecialCharacters() throws Exception {
+        mockMvc.perform(patch("/api/users/me/password")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(
+                                new AuthenticatedUser(1L, "user-key-1"),
+                                null,
+                                Collections.emptyList()
+                        )))
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "currentPassword": "current-password123",
+                                  "newPassword": "New123!'\\\";--"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        then(userAccountCommandService).should()
+                .changePassword(null, "current-password123", "New123!'\";--");
     }
 }

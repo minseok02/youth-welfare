@@ -52,6 +52,14 @@ public class WelfareServiceMapper {
     private static final String[] ONLINE_APPLY_KEYWORDS = {
             "온라인", "인터넷", "홈페이지", "웹", "모바일", "앱", "신청페이지", "누리집"
     };
+    private static final List<String> GOV24_FACILITY_REGION_TOKENS = List.of(
+            "서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종",
+            "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"
+    );
+    private static final List<String> GOV24_FACILITY_SUFFIXES = List.of(
+            "보훈병원", "공항", "발전본부", "발전소", "체험관", "센터", "지사",
+            "본부", "사업소", "의료원", "박물관", "시설", "출장소", "관리소"
+    );
     private static final Pattern URL_PATTERN = Pattern.compile("https?://[^\\s\"'<>]+|www\\.[^\\s\"'<>]+");
     private static final List<Gov24SupportConditionDefinition> GOV24_SUPPORT_CONDITION_DEFINITIONS = List.of(
             new Gov24SupportConditionDefinition("JA0101", "GENDER", "남성", "GOV24_GENDER:MALE"),
@@ -667,6 +675,9 @@ public class WelfareServiceMapper {
                     item.getManagingOrganizationName()
             );
         }
+        if (regions.isEmpty()) {
+            regions = inferGov24FacilityRegionNames(item);
+        }
         return regions.stream()
                 .map(region -> ServiceRegion.builder()
                         .service(service)
@@ -675,6 +686,39 @@ public class WelfareServiceMapper {
                         .sggName(region.sggName())
                         .build())
                 .toList();
+    }
+
+    private List<RegionCodeUtil.RegionName> inferGov24FacilityRegionNames(Gov24ServiceListDto.Item item) {
+        String haystack = joinNonBlank(
+                item.getServiceName(),
+                item.getDepartmentName(),
+                item.getReceptionOrganization()
+        );
+        if (haystack == null) {
+            return List.of();
+        }
+        for (String token : GOV24_FACILITY_REGION_TOKENS) {
+            if (!hasBoundedGov24FacilityRegionSignal(haystack, token)) {
+                continue;
+            }
+            String fullSidoName = RegionCodeUtil.fullSidoName(token);
+            if (fullSidoName == null || fullSidoName.isBlank()) {
+                continue;
+            }
+            List<RegionCodeUtil.RegionName> regions = RegionCodeUtil.inferRegionNamesFromText(fullSidoName);
+            if (!regions.isEmpty()) {
+                return regions;
+            }
+        }
+        return List.of();
+    }
+
+    private boolean hasBoundedGov24FacilityRegionSignal(String haystack, String token) {
+        if (haystack.contains("(" + token + ")") || haystack.contains("[" + token + "]")) {
+            return true;
+        }
+        return GOV24_FACILITY_SUFFIXES.stream()
+                .anyMatch(suffix -> haystack.contains(token + suffix));
     }
 
     // ===== 공통 유틸 =====
@@ -823,6 +867,24 @@ public class WelfareServiceMapper {
             }
         }
         return null;
+    }
+
+    private String joinNonBlank(String... values) {
+        if (values == null || values.length == 0) {
+            return null;
+        }
+        StringBuilder builder = new StringBuilder();
+        for (String value : values) {
+            String normalized = RawFieldValidator.normalize(value);
+            if (normalized == null) {
+                continue;
+            }
+            if (!builder.isEmpty()) {
+                builder.append(' ');
+            }
+            builder.append(normalized);
+        }
+        return builder.isEmpty() ? null : builder.toString();
     }
 
     private String firstNormalizedUrl(String... values) {

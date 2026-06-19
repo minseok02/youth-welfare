@@ -32,28 +32,25 @@ export default function LoginPage() {
   const [toast, setToast] = useState({ open: false, msg: "" });
 
   const buildPostLoginRecommendationNudge = (profile, effectiveHasPriorities) => {
-    const standardCodeEntries = [
-      { key: "houseTenureCode", label: "주거형태" },
-      { key: "housingTypeCode", label: "주택유형" },
-      { key: "basicLivingRecipientTypeCode", label: "기초생활수급권자" },
-      { key: "disabilityGradeCode", label: "장애등급" },
+    const standardCodeKeys = [
+      "houseTenureCode",
+      "housingTypeCode",
+      "basicLivingRecipientTypeCode",
+      "disabilityGradeCode",
     ];
-    const missingLabels = standardCodeEntries
-      .filter((entry) => !profile?.[entry.key])
-      .map((entry) => entry.label);
+    const missingCount = standardCodeKeys.filter((key) => !profile?.[key]).length;
 
-    if (effectiveHasPriorities && missingLabels.length === 0) {
+    if (effectiveHasPriorities && missingCount === 0) {
       return null;
     }
 
     return {
-      kind: !effectiveHasPriorities && missingLabels.length > 0
+      kind: !effectiveHasPriorities && missingCount > 0
         ? "both"
         : !effectiveHasPriorities
           ? "priorities"
           : "standardCodes",
-      filledCount: standardCodeEntries.length - missingLabels.length,
-      missingLabels,
+      filledCount: standardCodeKeys.length - missingCount,
     };
   };
 

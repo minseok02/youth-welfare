@@ -36,8 +36,11 @@ import com.example.welfare.admin.dashboard.service.AdminDashboardWrapperObservat
 import com.example.welfare.admin.dashboard.service.AdminNotificationBacklogService;
 import com.example.welfare.admin.dashboard.service.AdminNotificationStaleTargetService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyErrorReportService;
+import com.example.welfare.admin.dashboard.service.AdminPolicyFieldCorrectionService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyDuplicateGroupService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyLinkReviewService;
+import com.example.welfare.admin.dashboard.service.AdminPolicyRegionAuditService;
+import com.example.welfare.admin.dashboard.service.AdminPolicyRegionCorrectionService;
 import com.example.welfare.admin.dashboard.service.AdminSupportInquiryService;
 import com.example.welfare.collect.controller.CollectAdminController;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillService;
@@ -187,9 +190,15 @@ class AdminSecurityWebMvcTest {
     @MockitoBean
     private AdminPolicyErrorReportService adminPolicyErrorReportService;
     @MockitoBean
+    private AdminPolicyFieldCorrectionService adminPolicyFieldCorrectionService;
+    @MockitoBean
     private AdminPolicyDuplicateGroupService adminPolicyDuplicateGroupService;
     @MockitoBean
     private AdminPolicyLinkReviewService adminPolicyLinkReviewService;
+    @MockitoBean
+    private AdminPolicyRegionAuditService adminPolicyRegionAuditService;
+    @MockitoBean
+    private AdminPolicyRegionCorrectionService adminPolicyRegionCorrectionService;
     @MockitoBean
     private AdminSupportInquiryService adminSupportInquiryService;
     @MockitoBean

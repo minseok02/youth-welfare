@@ -22,7 +22,7 @@
 - API: `RecommendationController#getSimilarUsersViewedPolicies`
 - service: `SimilarUsersViewedPolicyReadService`
 - SQL read model: `SimilarUsersViewedPolicyReadRepositoryImpl`
-- frontend: `MainPage` 의 `SimilarUsersViewedRail`
+- frontend: 현재 `MainPage` 에는 이 API를 호출하는 레일이 연결되어 있지 않습니다. 결과 표본이 충분해진 뒤 별도 UI로 노출할 때 연결합니다.
 
 ## 관측 지표
 
@@ -84,6 +84,34 @@ bash deploy/smoke/run-local-similar-users-viewed-audit.sh
 이 기능은 클릭/조회 기반 탐색 힌트입니다.
 조회 이력은 정책 자격 충족이나 신청 의사를 직접 의미하지 않으므로, 메인 추천 점수나 review gate 판단의 source of truth로 쓰지 않습니다.
 실사용자 표본이 얇은 동안에는 결과가 비거나 소수 사용자 행동에 흔들릴 수 있습니다.
+
+### 2026-06-15 운영 관찰 기록
+
+서버/RDS 기준 `ba651649d4dfcdbec6bad45dc141eb35f50d3d57` audit 결과는 정상 관찰 상태입니다.
+
+- `expected_index_count=5` 로 read path 인덱스 5개가 모두 적용되어 있습니다.
+- `similar_users_viewed_audit=passed` 입니다.
+- `active_real_users=2` 이므로 현재 계약인 `minSimilarUsers=2` 를 구조적으로 만족하기 어렵습니다.
+- `candidate_policy_groups_before_exclusions=22` 이므로 후보 생성 경로는 살아 있습니다.
+- `candidate_policy_groups_min_sample=0`, `result_policy_groups=0` 은 `REAL_USER` 표본 부족에 따른 정상 결과로 봅니다.
+- `decision_class=REAL_USER_SAMPLE_THIN` 이며, similar-users-viewed는 관찰 상태를 유지합니다.
+- `minSimilarUsers`, similarity threshold, 30일 window, 기능 로직은 변경하지 않습니다.
+- actuator metrics 노출은 별도 운영 정책 작업으로 유지합니다.
+
+다음 audit은 `REAL_USER` 가 최소 3명 이상, 가능하면 최근 조회가 있는 `REAL_USER` 가 5~10명 이상 쌓인 뒤 다시 실행합니다.
+
+### 2026-06-17 운영 재확인 기록
+
+서버/RDS 기준 재확인 결과도 `REAL_USER_SAMPLE_THIN` 입니다.
+
+- endpoint smoke는 `200`, `success=true`, `data=[]` 계약으로 통과했습니다.
+- 관리자 계정 직접 호출도 `200`, `success=true`, `result_count=0` 입니다.
+- `active_real_users=2`, `recent_view_users_window=2`, `recent_policy_view_rows_30d=26` 입니다.
+- 후보 생성 전 단계는 `candidate_policy_groups_before_exclusions=22` 로 살아 있습니다.
+- 정책별 최소 유사 사용자 `2명` gate 뒤 `candidate_policy_groups_min_sample=0`, `result_policy_groups=0` 입니다.
+- 선호 신호 후보는 아직 얇습니다. REAL_USER 기준 북마크 추천 row는 `1`, 최근 30일 클릭 로그 사용자는 `1`명입니다.
+- 현재 구현은 "선호한 정책"이 아니라 "비슷한 프로필의 REAL_USER가 최근 확인한 정책" 기반입니다. 북마크/클릭 가중 추천은 별도 확장으로 봅니다.
+- 프론트 `MainPage` 에는 아직 이 API를 노출하는 레일이 연결되어 있지 않습니다.
 
 ## 확장 포인트
 

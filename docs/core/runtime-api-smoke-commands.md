@@ -69,6 +69,15 @@ deploy/smoke/run-local-admin-authorization-smoke.sh
 
 이 스크립트는 `비로그인 admin summary -> 401/A006`, `일반 사용자 admin summary -> 403/C003` 를 한 번에 확인합니다. 정상 admin smoke만 green이어도 이 경계가 깨져 있으면 false confidence가 생길 수 있으므로 같이 확인하는 편이 맞습니다.
 
+알림 채널 설정과 dispatch 경계는 아래 스크립트를 우선 사용합니다.
+
+```bash
+ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' \
+deploy/smoke/run-local-notification-channel-smoke.sh
+```
+
+이 스크립트는 `in-app only`, `webpush only profile/dispatch state`, `invalid no-channel reject` 를 확인합니다. 실제 브라우저 웹푸시 delivery는 운영 `web_push_subscriptions` 에 enabled 구독이 있어야 하므로, 구독 `0`건 상태에서는 `push-test-send` 가 `attemptedCount=0` 으로 끝나는 것이 정상입니다.
+
 로그인 실패 누적/초기화 반복 검증은 아래 스크립트를 우선 사용합니다.
 
 ```bash

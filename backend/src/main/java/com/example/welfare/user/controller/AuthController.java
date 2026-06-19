@@ -9,6 +9,7 @@ import com.example.welfare.user.dto.request.LoginRequest;
 import com.example.welfare.user.dto.request.PasswordResetConfirmRequest;
 import com.example.welfare.user.dto.request.PasswordResetRequest;
 import com.example.welfare.user.dto.request.SignupRequest;
+import com.example.welfare.user.dto.request.AuthInputPolicy;
 import com.example.welfare.user.dto.response.EmailAvailabilityResponse;
 import com.example.welfare.user.dto.response.TokenResponse;
 import com.example.welfare.user.service.AuthAvailabilityService;
@@ -55,7 +56,8 @@ public class AuthController {
 
     @GetMapping("/check-email")
     public ResponseEntity<ApiResponse<EmailAvailabilityResponse>> checkEmailAvailability(
-            @RequestParam @NotBlank @Email @Size(max = 254) String email,
+            @RequestParam @NotBlank @Email @Size(max = 254)
+            @Pattern(regexp = AuthInputPolicy.EMAIL_REGEXP, message = AuthInputPolicy.EMAIL_MESSAGE) String email,
             HttpServletRequest request) {
         authRateLimitService.checkEmailCheckLimit(clientFingerprintService.build(request));
         return ResponseEntity.ok(ApiResponse.success(authAvailabilityService.checkEmailAvailability(email)));
@@ -63,7 +65,8 @@ public class AuthController {
 
     @PostMapping("/email-verification/send")
     public ResponseEntity<ApiResponse<Void>> sendEmailVerificationCode(
-            @RequestParam @NotBlank @Email @Size(max = 254) String email,
+            @RequestParam @NotBlank @Email @Size(max = 254)
+            @Pattern(regexp = AuthInputPolicy.EMAIL_REGEXP, message = AuthInputPolicy.EMAIL_MESSAGE) String email,
             HttpServletRequest request) {
         authRateLimitService.checkEmailVerificationSendLimit(clientFingerprintService.build(request));
         emailVerificationService.sendCode(email);
@@ -72,7 +75,8 @@ public class AuthController {
 
     @PostMapping("/email-verification/verify")
     public ResponseEntity<ApiResponse<Void>> verifyEmailCode(
-            @RequestParam @NotBlank @Email @Size(max = 254) String email,
+            @RequestParam @NotBlank @Email @Size(max = 254)
+            @Pattern(regexp = AuthInputPolicy.EMAIL_REGEXP, message = AuthInputPolicy.EMAIL_MESSAGE) String email,
             @RequestParam @NotBlank @Pattern(regexp = "\\d{6}") String code) {
         emailVerificationService.verifyCode(email, code);
         return ResponseEntity.ok(ApiResponse.success(null));

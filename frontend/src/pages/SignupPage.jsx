@@ -23,10 +23,12 @@ const WARN = "#ef4444";
 const SUCCESS = "#166534";
 
 const STEPS = ["기본 정보", "추천 정보", "우선순위"];
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d)[\x21-\x7E]{10,72}$/;
 
 const INCOME_ROWS = [
-  { value: 1, left: "1~2분위 (하위 20%)", right: "기초생활수급자" },
-  { value: 3, left: "3~4분위 (하위 40%)", right: "차상위계층" },
+  { value: 1, left: "1~2분위 (하위 20%)", right: "기초생활 지원 대상" },
+  { value: 3, left: "3~4분위 (하위 40%)", right: "차상위 지원 대상" },
   { value: 5, left: "5~6분위 (중간)",     right: "소득 하위 50% 이하" },
   { value: 7, left: "7~8분위 (상위 40%)", right: "소득 중간 (50~100%)" },
   { value: 9, left: "9~10분위 (상위 20%)", right: "소득 상위 (100% 초과)" },
@@ -146,11 +148,10 @@ export default function SignupPage() {
   }, []);
 
   const nameRegex = /^[가-힣]{2,10}$/;
-  const emailRegex1 = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-  const emailRegex2 = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-  const isValidEmail = (v) => emailRegex1.test(v) && emailRegex2.test(v);
+  const normalizeEmailInput = (value) => value.trim().toLowerCase();
+  const isValidEmail = (v) => EMAIL_REGEX.test(normalizeEmailInput(v)) && normalizeEmailInput(v).length <= 254;
 
-  const pwValid = pw.length >= 8 && pw.length <= 100 && /[a-zA-Z]/.test(pw) && /[0-9]/.test(pw);
+  const pwValid = PASSWORD_REGEX.test(pw);
   const pwMatch = pw === pwConfirm && pwConfirm.length > 0;
   const nameValid = nameRegex.test(name);
   const step1Valid = nameValid && emailVerified && pwValid && pwMatch && privacyNoticeConfirmed;
@@ -210,9 +211,11 @@ export default function SignupPage() {
   const handleSendCode = async () => {
     if (!isValidEmail(email)) { setEmailFormatError("올바른 이메일 형식이 아닙니다"); return; }
     setEmailFormatError("");
+    const normalizedEmail = normalizeEmailInput(email);
+    setEmail(normalizedEmail);
     setSendingCode(true);
     try {
-      await api.post("/api/auth/email-verification/send", null, { params: { email } });
+      await api.post("/api/auth/email-verification/send", null, { params: { email: normalizedEmail } });
       setCodeSent(true);
       setCodeMsg("인증코드를 발송했습니다. 이메일을 확인해주세요.");
     } catch (e) {
@@ -225,10 +228,12 @@ export default function SignupPage() {
 
   const handleVerifyCode = async () => {
     if (!codeInput.trim()) return;
+    const normalizedEmail = normalizeEmailInput(email);
     setVerifyingCode(true);
     try {
-      await api.post("/api/auth/email-verification/verify", null, { params: { email, code: codeInput.trim() } });
+      await api.post("/api/auth/email-verification/verify", null, { params: { email: normalizedEmail, code: codeInput.trim() } });
       setEmailVerified(true);
+      setEmail(normalizedEmail);
       setCodeMsg("이메일 인증이 완료되었습니다.");
     } catch {
       setCodeMsg("인증코드가 올바르지 않거나 만료되었습니다.");
@@ -241,8 +246,9 @@ export default function SignupPage() {
     setLoading(true);
     try {
       const submittedSgg = resolveSubmittedSgg(region, subRegion, ward);
+      const normalizedEmail = normalizeEmailInput(email);
       const payload = {
-        name, email, password: pw,
+        name, email: normalizedEmail, password: pw,
         birthDate: birthDateValue,
         privacyNoticeConfirmed,
         optionalProfileConsentAgreed,
@@ -262,7 +268,7 @@ export default function SignupPage() {
         replace: true,
         state: {
           reason: "signup-complete",
-          email,
+          email: normalizedEmail,
           signupPriorities: priorities,
           from: location.state?.from,
           chatFrom,
@@ -350,8 +356,13 @@ export default function SignupPage() {
                   <input style={{ ...iCss(!!emailFormatError), opacity: emailVerified ? 0.7 : 1 }}
                     type="email" value={email}
                     onChange={e => { setEmail(e.target.value); setEmailFormatError(""); resetEmailVerification(); }}
-                    onBlur={() => { if (email && !isValidEmail(email)) setEmailFormatError("올바른 이메일 형식이 아닙니다"); }}
+                    onBlur={() => {
+                      const normalizedEmail = normalizeEmailInput(email);
+                      setEmail(normalizedEmail);
+                      if (normalizedEmail && !isValidEmail(normalizedEmail)) setEmailFormatError("올바른 이메일 형식이 아닙니다");
+                    }}
                     placeholder="example@email.com"
+                    maxLength={254}
                     disabled={emailVerified} />
                   <button onClick={handleSendCode} disabled={sendingCode || emailVerified} style={{
                     padding: "0 16px", borderRadius: 10, border: `1.5px solid ${emailVerified ? LINE : A}`,
@@ -386,15 +397,15 @@ export default function SignupPage() {
                 )}
               </Field>
 
-              <Field label="비밀번호 *" hint="8자 이상, 영문+숫자 조합"
-                error={pw.length > 0 && !pwValid ? "8자 이상, 영문+숫자 조합으로 입력해주세요" : ""}>
-                <input style={iCss(pw.length > 0 && !pwValid)} type="password" value={pw} onChange={e => setPw(e.target.value)} placeholder="비밀번호 입력" />
+              <Field label="비밀번호 *" hint="공백 없이 10~72자, 영문과 숫자 포함"
+                error={pw.length > 0 && !pwValid ? "공백 없이 10~72자, 영문과 숫자를 포함해주세요" : ""}>
+                <input style={iCss(pw.length > 0 && !pwValid)} type="password" value={pw} onChange={e => setPw(e.target.value)} placeholder="비밀번호 입력" maxLength={72} />
               </Field>
 
               <Field label="비밀번호 확인 *"
                 error={pwConfirm.length > 0 && !pwMatch ? "비밀번호가 일치하지 않습니다" : ""}
                 hint={pwMatch ? <span style={{ color: "#166534" }}><span style={{ fontWeight: 800 }}>✔ </span>비밀번호가 일치합니다</span> : ""}>
-                <input style={iCss(pwConfirm.length > 0 && !pwMatch)} type="password" value={pwConfirm} onChange={e => setPwConfirm(e.target.value)} placeholder="비밀번호 다시 입력" />
+                <input style={iCss(pwConfirm.length > 0 && !pwMatch)} type="password" value={pwConfirm} onChange={e => setPwConfirm(e.target.value)} placeholder="비밀번호 다시 입력" maxLength={72} />
               </Field>
 
               <label style={{
@@ -580,8 +591,8 @@ export default function SignupPage() {
               </Field>
 
               <Field label="주거 및 생활 여건" hint="선택 입력이지만 주거·복지 자격조건 매칭 정확도를 높여요">
-                <div style={{ padding: "12px 14px", borderRadius: 8, background: "#f8fafc", border: `1px solid ${LINE2}`, fontSize: 12, color: INK2, lineHeight: 1.6 }}>
-                  입력한 주거·생활 여건은 회원가입 직후부터 추천 점수에 반영됩니다.
+                <div style={{ padding: "12px 14px", borderRadius: 12, background: "#f8fafc", border: `1px solid ${LINE2}`, fontSize: 12, color: INK2, lineHeight: 1.6 }}>
+                  입력한 선택 프로필은 회원가입 직후부터 추천 점수에 반영됩니다.
                   현재 <span style={{ color: AI, fontWeight: 800 }}>{selectedStandardCodeCount}/3개</span> 선택됨
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
@@ -597,9 +608,8 @@ export default function SignupPage() {
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </select>
-                  <select style={selCss(false)} value={basicLivingRecipientTypeCode} onChange={e => setBasicLivingRecipientTypeCode(e.target.value)}>
-                    <option value="">기초생활수급권자 선택</option>
-                    <option value="NONE">해당하지 않음</option>
+                  <select style={selCss(!optionalProfileConsentAgreed)} disabled={!optionalProfileConsentAgreed} value={basicLivingRecipientTypeCode} onChange={e => setBasicLivingRecipientTypeCode(e.target.value)}>
+                    <option value="">복지 수급 정보 선택</option>
                     {profileCodeOptions.basicLivingRecipientType.map((option) => (
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
@@ -619,7 +629,7 @@ export default function SignupPage() {
                   style={{ marginTop: 2, accentColor: A }}
                 />
                 <span style={{ fontSize: 13, color: INK2, lineHeight: 1.55 }}>
-                  장애등급 등 민감정보 수집·이용에 별도로 동의합니다.
+                  장애 관련 지원 정보 등 민감정보 수집·이용에 별도로 동의합니다.
                   <span style={{ display: "block", color: INK3, marginTop: 2 }}>
                     동의하지 않아도 가입할 수 있으며, 해당 정보는 저장하지 않습니다.
                   </span>
@@ -628,8 +638,7 @@ export default function SignupPage() {
 
               <Field label="장애 관련 정보" hint="선택 입력이며, 민감정보 동의 시에만 저장됩니다">
                 <select style={selCss(!sensitiveInfoConsentAgreed)} disabled={!sensitiveInfoConsentAgreed} value={disabilityGradeCode} onChange={e => setDisabilityGradeCode(e.target.value)}>
-                  <option value="">장애등급 선택</option>
-                  <option value="NONE">해당하지 않음</option>
+                  <option value="">장애 관련 지원 정보 선택</option>
                   {profileCodeOptions.disabilityGrade.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}

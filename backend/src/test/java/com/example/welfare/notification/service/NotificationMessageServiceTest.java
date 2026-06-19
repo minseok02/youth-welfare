@@ -56,6 +56,6 @@ class NotificationMessageServiceTest {
 
         assertThat(message).contains("추천 이유: 주거비 부담 완화에 적합");
         assertThat(message).contains("/policies/11?log_id=100");
-        assertThat(message).contains("unsubscribe-token");
+        assertThat(message).contains("/notifications/unsubscribe#token=unsubscribe-token");
     }
 }

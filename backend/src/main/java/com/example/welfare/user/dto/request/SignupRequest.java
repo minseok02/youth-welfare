@@ -12,10 +12,16 @@ public class SignupRequest {
     @NotBlank
     @Email
     @Size(max = 254)
+    @Pattern(regexp = AuthInputPolicy.EMAIL_REGEXP, message = AuthInputPolicy.EMAIL_MESSAGE)
     private String email;
 
     @NotBlank
-    @Size(min = 8, max = 100, message = "비밀번호는 8자 이상 100자 이하여야 합니다.")
+    @Size(
+            min = AuthInputPolicy.PASSWORD_MIN_LENGTH,
+            max = AuthInputPolicy.PASSWORD_MAX_LENGTH,
+            message = AuthInputPolicy.NEW_PASSWORD_MESSAGE
+    )
+    @Pattern(regexp = AuthInputPolicy.NEW_PASSWORD_REGEXP, message = AuthInputPolicy.NEW_PASSWORD_MESSAGE)
     private String password;
 
     @NotBlank

@@ -68,8 +68,28 @@ class NotificationControllerWebMvcTest {
     private JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @Test
-    @DisplayName("수신 거부 토큰으로 알림 설정을 해제한다")
+    @DisplayName("POST 수신 거부 토큰으로 알림 설정을 해제한다")
     void unsubscribeByToken() throws Exception {
+        given(notificationUnsubscribeTokenService.consumeUserKey("unsubscribe-token"))
+                .willReturn(java.util.Optional.of("user-key-7"));
+
+        mockMvc.perform(post("/api/notifications/unsubscribe")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "token": "unsubscribe-token"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        then(notificationUnsubscribeTokenService).should().consumeUserKey("unsubscribe-token");
+        then(userAccountCommandService).should().unsubscribeNotificationsByUserKey("user-key-7");
+    }
+
+    @Test
+    @DisplayName("legacy GET 수신 거부 링크도 기존 메일 호환을 위해 허용한다")
+    void unsubscribeByLegacyGetToken() throws Exception {
         given(notificationUnsubscribeTokenService.consumeUserKey("unsubscribe-token"))
                 .willReturn(java.util.Optional.of("user-key-7"));
 
@@ -89,8 +109,13 @@ class NotificationControllerWebMvcTest {
                 .willReturn(java.util.Optional.empty());
         given(jwtUtil.getSubject("legacy-jwt-token")).willReturn("user-key-9");
 
-        mockMvc.perform(get("/api/notifications/unsubscribe")
-                        .param("token", "legacy-jwt-token"))
+        mockMvc.perform(post("/api/notifications/unsubscribe")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "token": "legacy-jwt-token"
+                                }
+                                """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
@@ -106,8 +131,13 @@ class NotificationControllerWebMvcTest {
                 .given(jwtUtil)
                 .validate("expired-token");
 
-        mockMvc.perform(get("/api/notifications/unsubscribe")
-                        .param("token", "expired-token"))
+        mockMvc.perform(post("/api/notifications/unsubscribe")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "token": "expired-token"
+                                }
+                                """))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("A002"));
@@ -122,8 +152,13 @@ class NotificationControllerWebMvcTest {
                 .given(jwtUtil)
                 .validate("invalid-token");
 
-        mockMvc.perform(get("/api/notifications/unsubscribe")
-                        .param("token", "invalid-token"))
+        mockMvc.perform(post("/api/notifications/unsubscribe")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "token": "invalid-token"
+                                }
+                                """))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("A001"));

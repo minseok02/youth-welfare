@@ -18,8 +18,8 @@ const MEDIAN_INCOME = {
 };
 
 const TIERS = [
-  { maxPct: 50,       value: "1", label: "기초생활수급자",         desc: "중위소득 50% 이하" },
-  { maxPct: 100,      value: "3", label: "차상위계층",             desc: "중위소득 50~100%" },
+  { maxPct: 50,       value: "1", label: "기초생활 지원 대상",     desc: "중위소득 50% 이하" },
+  { maxPct: 100,      value: "3", label: "차상위 지원 대상",       desc: "중위소득 50~100%" },
   { maxPct: 150,      value: "5", label: "소득 하위 50% 이하",     desc: "중위소득 100~150%" },
   { maxPct: 200,      value: "7", label: "소득 중간 (50~100%)",   desc: "중위소득 150~200%" },
   { maxPct: Infinity, value: "9", label: "소득 상위 (100% 초과)", desc: "중위소득 200% 초과" },

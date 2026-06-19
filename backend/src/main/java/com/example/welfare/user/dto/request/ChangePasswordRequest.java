@@ -1,6 +1,7 @@
 package com.example.welfare.user.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 
@@ -8,9 +9,15 @@ import lombok.Getter;
 public class ChangePasswordRequest {
 
     @NotBlank
+    @Size(max = 100)
     private String currentPassword;
 
     @NotBlank
-    @Size(min = 8, max = 100, message = "새 비밀번호는 8자 이상 100자 이하여야 합니다.")
+    @Size(
+            min = AuthInputPolicy.PASSWORD_MIN_LENGTH,
+            max = AuthInputPolicy.PASSWORD_MAX_LENGTH,
+            message = AuthInputPolicy.NEW_PASSWORD_MESSAGE
+    )
+    @Pattern(regexp = AuthInputPolicy.NEW_PASSWORD_REGEXP, message = AuthInputPolicy.NEW_PASSWORD_MESSAGE)
     private String newPassword;
 }

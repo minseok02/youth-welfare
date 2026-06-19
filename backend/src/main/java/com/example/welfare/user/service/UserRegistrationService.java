@@ -3,6 +3,7 @@ package com.example.welfare.user.service;
 import com.example.welfare.user.dto.request.SignupRequest;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.repository.UserRegistrationCommandRepository;
+import com.example.welfare.user.util.EmailLookupKeyGenerator;
 import com.example.welfare.user.util.UserEmailShadowValue;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -21,7 +22,7 @@ public class UserRegistrationService {
 
     @Transactional
     public void register(SignupRequest request, String encodedPassword) {
-        String normalizedEmail = request.getEmail();
+        String normalizedEmail = EmailLookupKeyGenerator.normalize(request.getEmail());
         userProfileStandardCodeValidator.validateProfileCodes(
                 request.getHouseTenureCode(),
                 request.getHousingTypeCode(),

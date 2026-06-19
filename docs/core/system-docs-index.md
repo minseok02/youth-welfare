@@ -17,6 +17,7 @@ cross-cutting 문서가 흩어져 있어도
 
 - [stabilization-checklist.md](./stabilization-checklist.md)
 - [final-ops-closeout-checklist.md](./final-ops-closeout-checklist.md)
+- [uptime-monitoring-runbook.md](./uptime-monitoring-runbook.md)
 - [project-spec.md](../project-spec.md)
 - [architecture.md](../architecture.md)
 - [api-mapping.md](./api-mapping.md)
@@ -48,6 +49,8 @@ cross-cutting 문서가 흩어져 있어도
 `stabilization-checklist.md` 는 기능 freeze 이후 CI/nightly/attention 실패만 처리하는 안정화 기준입니다.
 
 `final-ops-closeout-checklist.md` 는 안정화 작업을 PR/배포/운영 handoff 전에 어떤 명령 순서로 닫을지 고정합니다.
+
+`uptime-monitoring-runbook.md` 는 Healthchecks.io ping, 서버 내부 watchdog, AWS Route53/CloudWatch 알람을 운영 서버에 붙이는 순서를 정리합니다.
 
 `project-spec.md` 는
 
@@ -108,9 +111,10 @@ cross-cutting 문서가 흩어져 있어도
 
 1. [stabilization-checklist.md](./stabilization-checklist.md)
 2. [final-ops-closeout-checklist.md](./final-ops-closeout-checklist.md)
-3. [project-spec.md](../project-spec.md)
-4. [architecture.md](../architecture.md)
-5. [api-mapping.md](./api-mapping.md)
+3. [uptime-monitoring-runbook.md](./uptime-monitoring-runbook.md)
+4. [project-spec.md](../project-spec.md)
+5. [architecture.md](../architecture.md)
+6. [api-mapping.md](./api-mapping.md)
 
 ### DB/데이터 구조 판단이 필요할 때
 
@@ -132,9 +136,10 @@ cross-cutting 문서가 흩어져 있어도
 
 1. 안정화 단계에서는 [stabilization-checklist.md](./stabilization-checklist.md) 를 먼저 봅니다.
 2. PR/배포/운영 handoff를 닫을 때는 [final-ops-closeout-checklist.md](./final-ops-closeout-checklist.md) 를 봅니다.
-3. 구조와 contract는 [project-spec.md](../project-spec.md), [architecture.md](../architecture.md), [api-mapping.md](./api-mapping.md) 부터 봅니다.
-4. DB/schema 판단은 [db-migration.md](./db-migration.md) 과 [user-data-separation-design.md](./user-data-separation-design.md) 를 봅니다.
-5. 챗봇과 OpenAI 경계는 [chatbot-plan.md](./chatbot-plan.md), [openai-runtime-contract.md](./openai-runtime-contract.md) 를 같이 봅니다.
-6. 알림 채널 확장은 [notification-channel-expansion-plan.md](./notification-channel-expansion-plan.md) 부터 봅니다.
-7. backlog 운영 triage는 [notification-backlog-audit-runbook.md](./notification-backlog-audit-runbook.md) 를 봅니다.
-8. 실제 작업 범위는 [notification-channel-expansion-checklist.md](./notification-channel-expansion-checklist.md) 로 고정합니다.
+3. 서버 다운 감지는 [uptime-monitoring-runbook.md](./uptime-monitoring-runbook.md) 를 봅니다.
+4. 구조와 contract는 [project-spec.md](../project-spec.md), [architecture.md](../architecture.md), [api-mapping.md](./api-mapping.md) 부터 봅니다.
+5. DB/schema 판단은 [db-migration.md](./db-migration.md) 과 [user-data-separation-design.md](./user-data-separation-design.md) 를 봅니다.
+6. 챗봇과 OpenAI 경계는 [chatbot-plan.md](./chatbot-plan.md), [openai-runtime-contract.md](./openai-runtime-contract.md) 를 같이 봅니다.
+7. 알림 채널 확장은 [notification-channel-expansion-plan.md](./notification-channel-expansion-plan.md) 부터 봅니다.
+8. backlog 운영 triage는 [notification-backlog-audit-runbook.md](./notification-backlog-audit-runbook.md) 를 봅니다.
+9. 실제 작업 범위는 [notification-channel-expansion-checklist.md](./notification-channel-expansion-checklist.md) 로 고정합니다.
