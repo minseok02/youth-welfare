@@ -37,7 +37,6 @@ jobs:
         with:
           scan-args: |-
             --recursive
-            --skip-git
             .
 
   codeql-analysis:
