@@ -85,6 +85,33 @@ public class ChatAiGateway {
         }
     }
 
+    public ChatAiResult generateApplicationCoachingAnswer(
+            User user,
+            String ageBand,
+            String question,
+            List<ChatMessage> recentMessages,
+            List<ChatPolicyCandidate> candidates,
+            Map<Long, String> evidenceByServiceId) {
+        if (!StringUtils.hasText(apiKey) || candidates.isEmpty()) {
+            return null;
+        }
+
+        try {
+            String responseBody = callOpenAi(buildApplicationCoachingPrompt(
+                    user,
+                    ageBand,
+                    question,
+                    recentMessages,
+                    candidates,
+                    evidenceByServiceId
+            ));
+            return parseResponse(responseBody, candidates, evidenceByServiceId);
+        } catch (Exception e) {
+            log.warn("[ChatAiGateway] OpenAI 신청 코칭 호출 실패, fallback 사용 errorType={}", e.getClass().getSimpleName());
+            return null;
+        }
+    }
+
     public ChatAiResult generateAnswer(
             User user,
             String ageBand,
@@ -209,12 +236,14 @@ public class ChatAiGateway {
 
         String candidateBlock = candidates.stream()
                 .map(candidate -> String.format(
-                        "- service_id:%d | title:%s | host_org:%s | support:%s | description:%s | evidence:%s",
+                        "- service_id:%d | title:%s | host_org:%s | support:%s | description:%s | application_period:%s | apply_method:%s | evidence:%s",
                         candidate.getServiceId(),
                         candidate.getTitle(),
                         nullToPlaceholder(candidate.getHostOrg()),
                         nullToPlaceholder(trimToLength(candidate.getSupportContent(), 120)),
                         nullToPlaceholder(trimToLength(candidate.getDescription(), 120)),
+                        nullToPlaceholder(formatPeriod(candidate.getApplyStartDate(), candidate.getApplyEndDate())),
+                        nullToPlaceholder(trimToLength(firstText(candidate.getApplyMethodDetail(), candidate.getApplyMethodName()), 120)),
                         nullToPlaceholder(trimToLength(evidenceByServiceId.get(candidate.getServiceId()), 120))
                 ))
                 .collect(Collectors.joining("\n"));
@@ -269,6 +298,51 @@ public class ChatAiGateway {
                 redactSensitiveText(question.trim()),
                 candidateBlock
         );
+    }
+
+    String buildApplicationCoachingPrompt(
+            User user,
+            String ageBand,
+            String question,
+            List<ChatMessage> recentMessages,
+            List<ChatPolicyCandidate> candidates,
+            Map<Long, String> evidenceByServiceId) {
+        String basePrompt = buildUserPrompt(user, ageBand, question, recentMessages, candidates, evidenceByServiceId, null);
+        String coachingBlock = candidates.stream()
+                .map(candidate -> String.format("""
+                        [신청 코칭 대상]
+                        service_id: %d
+                        정책명: %s
+                        신청기간: %s
+                        신청방법: %s
+                        신청대상: %s
+                        선정기준: %s
+                        제출서류: %s
+                        문의처: %s
+                        연결링크: %s
+                        """,
+                        candidate.getServiceId(),
+                        candidate.getTitle(),
+                        nullToPlaceholder(formatPeriod(candidate.getApplyStartDate(), candidate.getApplyEndDate())),
+                        nullToPlaceholder(trimToLength(firstText(candidate.getApplyMethodDetail(), candidate.getApplyMethodName()), 500)),
+                        nullToPlaceholder(trimToLength(candidate.getTargetDetail(), 500)),
+                        nullToPlaceholder(trimToLength(candidate.getSelectionCriteria(), 400)),
+                        nullToPlaceholder(trimToLength(candidate.getFormFiles(), 300)),
+                        nullToPlaceholder(trimToLength(candidate.getContactList(), 240)),
+                        describeLinks(candidate)
+                ))
+                .collect(Collectors.joining("\n"));
+
+        return basePrompt + "\n\n" + coachingBlock + """
+
+                [신청 코칭 응답 규칙]
+                - 이 요청은 특정 정책의 신청 준비를 돕는 모드입니다.
+                - answer는 반드시 1단계 자격 조건 확인, 2단계 신청기간 확인, 3단계 신청방법 확인, 4단계 제출서류/공고 확인, 5단계 공식 링크/문의처 확인 순서로 작성
+                - 실제 신청서 제출을 대신한다고 말하지 말 것
+                - 신청 가능 확정, 지급 확정, 선정 확정 표현 금지
+                - 공식 신청과 최종 자격/서류는 운영기관 원문 또는 담당 기관에서 확인해야 한다고 마무리
+                - references에는 신청 코칭 대상 service_id를 포함
+                """;
     }
 
     static String systemPrompt() {
@@ -326,7 +400,43 @@ public class ChatAiGateway {
                 .title(candidate.getTitle())
                 .reason(reason)
                 .evidence(trimToLength(evidenceByServiceId.get(candidate.getServiceId()), 120))
+                .actionLinks(candidate.getActionLinks() != null ? candidate.getActionLinks() : List.of())
                 .build();
+    }
+
+    private String describeLinks(ChatPolicyCandidate candidate) {
+        if (candidate.getActionLinks() == null || candidate.getActionLinks().isEmpty()) {
+            return "없음";
+        }
+        return candidate.getActionLinks().stream()
+                .map(link -> "%s(%s): %s".formatted(
+                        nullToPlaceholder(link.getLabel()),
+                        nullToPlaceholder(link.getType()),
+                        nullToPlaceholder(link.getUrl())
+                ))
+                .collect(Collectors.joining(" / "));
+    }
+
+    private String firstText(String... values) {
+        for (String value : values) {
+            if (StringUtils.hasText(value)) {
+                return value.trim();
+            }
+        }
+        return null;
+    }
+
+    private String formatPeriod(LocalDate start, LocalDate end) {
+        if (start != null && end != null) {
+            return "%s ~ %s".formatted(start, end);
+        }
+        if (start != null) {
+            return "%s ~".formatted(start);
+        }
+        if (end != null) {
+            return "~ %s".formatted(end);
+        }
+        return null;
     }
 
     private String resolveAgeGroup(String ageBand, User user) {

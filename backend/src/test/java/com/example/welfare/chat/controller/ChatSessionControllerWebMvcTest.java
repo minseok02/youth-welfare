@@ -73,6 +73,24 @@ class ChatSessionControllerWebMvcTest {
     }
 
     @Test
+    @DisplayName("챗 메시지 전송은 1 미만 coachPolicyId를 400으로 거부한다")
+    void sendMessageRejectsInvalidCoachPolicyId() throws Exception {
+        mockMvc.perform(post("/api/chat/sessions/{sessionId}/messages", 10L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "content": "이 정책 신청 준비를 도와줘",
+                                  "coachPolicyId": 0
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        verify(chatConversationService, never()).sendMessage(any(), any(), any(SendChatMessageRequest.class));
+    }
+
+    @Test
     @DisplayName("챗 세션 생성은 과도한 제목을 400으로 거부한다")
     void createSessionRejectsOversizedTitle() throws Exception {
         mockMvc.perform(post("/api/chat/sessions")

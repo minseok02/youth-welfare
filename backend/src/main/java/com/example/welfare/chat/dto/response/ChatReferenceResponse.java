@@ -6,6 +6,8 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.AccessLevel;
 
+import java.util.List;
+
 @Getter
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -16,4 +18,5 @@ public class ChatReferenceResponse {
     private String title;
     private String reason;
     private String evidence;
+    private List<ChatActionLinkResponse> actionLinks;
 }

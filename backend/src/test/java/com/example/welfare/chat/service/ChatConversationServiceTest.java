@@ -65,6 +65,8 @@ class ChatConversationServiceTest {
     @Mock
     private ChatGroundingService chatGroundingService;
     @Mock
+    private ChatApplicationCoachingService chatApplicationCoachingService;
+    @Mock
     private UserProfileRepository userProfileRepository;
 
     private ChatConversationService chatConversationService;
@@ -82,6 +84,7 @@ class ChatConversationServiceTest {
                 chatRetrievalSnapshotService,
                 chatSessionContextStateService,
                 new ChatConversationContextSupport(new ObjectMapper(), new ChatBranchCatalog()),
+                chatApplicationCoachingService,
                 activeUserReadService,
                 userProfileRepository,
                 new ObjectMapper()

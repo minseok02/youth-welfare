@@ -12,8 +12,9 @@
 2. `맞춤 재추천` CTA 분기
 3. `/chat` 보호 경로 진입
 4. 세션 만료 후 `/chat` 복귀
+5. 정책 상세의 `AI와 신청 준비하기` -> `/chat?coachPolicyId=...` 신청 준비 코칭 진입
 
-즉 “추천 보강 -> 챗봇 진입/복귀” 를 하나의 assistive flow로 보는 runbook 입니다.
+즉 “추천 보강 -> 챗봇 진입/복귀 -> 정책 상세 기반 신청 준비 코칭” 을 하나의 assistive flow로 보는 runbook 입니다.
 
 ## 현재 기준선
 
@@ -23,6 +24,8 @@
 - `맞춤 재추천 →` 는 우선순위/표준코드 상태에 맞는 `mypage` 탭으로 가야 함
 - 비로그인 `/chat` 은 `/login` 으로 분기해야 함
 - 세션 만료 또는 `401 -> refresh 401` 뒤에도 재로그인 후 `/chat` 으로 복귀해야 함
+- 정책 상세 `AI와 신청 준비하기` 는 새 채팅 세션을 만들고 해당 정책을 고정한 `APPLICATION_COACHING` 답변을 보여야 함
+- 신청 코칭 답변의 연결 정책 카드에는 공식 신청/공고·서류/관련 사이트 링크가 있으면 같이 보여야 함
 
 ## Playwright 기준선
 
@@ -35,6 +38,7 @@
 - `비로그인 chat 접근 후 로그인하면 원래 chat 경로로 복귀한다`
 - `로그인된 chat 세션이 만료되면 로그인으로 이동하고 재로그인 후 chat으로 복귀한다`
 - `chat 보호 API가 401 후 refresh도 실패하면 로그인으로 이동하고 재로그인 후 chat으로 복귀한다`
+- `정책 상세에서 AI 신청 준비 코칭으로 진입하면 연결 정책과 신청 링크를 보여준다`
 
 실행:
 
@@ -48,4 +52,6 @@ PLAYWRIGHT_GREP='메인 재추천 CTA는 우선순위가 없으면 마이페이�
 - 추천 보강 CTA가 잘못된 탭으로 가면 recommendation assist 회귀입니다.
 - 로그인 직후 guide/nudge가 사라지면 onboarding assist 회귀입니다.
 - `/chat` 진입/복귀가 깨지면 chatbot assist 회귀입니다.
+- `coachPolicyId` 진입이 기존 검색 후보로 흘러가 해당 정책을 놓치면 application coaching 회귀입니다.
+- 신청 코칭 링크가 `APPLY` 와 참고 링크를 구분하지 못하면 신청 UX/데이터 신뢰도 회귀입니다.
 - 세션 만료 뒤 `/chat` 복귀가 깨지면 session recovery 가 아니라 assistive flow 회귀로도 같이 봅니다.

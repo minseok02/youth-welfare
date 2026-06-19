@@ -19,6 +19,7 @@ import OutlinedFlagIcon from "@mui/icons-material/OutlinedFlag";
 import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
 import LightbulbOutlinedIcon from "@mui/icons-material/LightbulbOutlined";
 import SentimentDissatisfiedOutlinedIcon from "@mui/icons-material/SentimentDissatisfiedOutlined";
+import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
 
 const A = "#2563eb";
 const A7 = "#1d4ed8";
@@ -706,6 +707,18 @@ export default function PolicyDetailPage() {
       return;
     }
     setReportModalOpen(true);
+  };
+
+  const handleStartApplicationCoaching = () => {
+    navigate(`/chat?coachPolicyId=${encodeURIComponent(policy?.id ?? id)}`, {
+      state: {
+        from: {
+          pathname: location.pathname,
+          search: location.search,
+          state: location.state,
+        },
+      },
+    });
   };
 
   const handleCloseErrorReport = () => {
@@ -1404,6 +1417,19 @@ export default function PolicyDetailPage() {
                     }}
                   >
                     {bookmarked ? "★ 북마크됨" : "♡ 북마크에 저장"}
+                  </button>
+                  <button
+                    onClick={handleStartApplicationCoaching}
+                    style={{
+                      padding: "12px 0", fontSize: 13, fontWeight: 700,
+                      background: "#ecfeff",
+                      color: "#0f766e",
+                      border: "1px solid #99f6e4",
+                      borderRadius: 10, cursor: "pointer",
+                      display: "flex", justifyContent: "center", alignItems: "center", gap: 6,
+                    }}
+                  >
+                    <ForumOutlinedIcon sx={{ fontSize: 16 }} /><span>AI와 신청 준비하기</span>
                   </button>
                   <button
                     onClick={handleOpenErrorReport}
