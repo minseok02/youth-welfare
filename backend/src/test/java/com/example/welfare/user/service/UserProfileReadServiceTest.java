@@ -3,11 +3,13 @@ package com.example.welfare.user.service;
 import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.user.dto.response.ProfileResponse;
 import com.example.welfare.user.entity.UserAttribute;
+import com.example.welfare.user.entity.UserConsent;
 import com.example.welfare.user.entity.UserProfile;
 import com.example.welfare.user.repository.UserPiiReadModel;
 import com.example.welfare.user.repository.UserProfileAggregateReadModel;
 import com.example.welfare.user.repository.UserProfileReadRepository;
 import com.example.welfare.user.repository.UserAttributeReadModel;
+import com.example.welfare.user.repository.UserConsentRepository;
 import com.example.welfare.user.repository.UserPriorityReadModel;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,6 +33,7 @@ class UserProfileReadServiceTest {
     @Mock private AesEncryptUtil aesEncryptUtil;
     @Mock private UserKeyLookupService userKeyLookupService;
     @Mock private AuthIdentityReadService authIdentityReadService;
+    @Mock private UserConsentRepository userConsentRepository;
 
     @Test
     @DisplayName("프로필 조회는 app_pii_rw 저장소에서 PII 암호문을 읽는다")
@@ -39,7 +42,8 @@ class UserProfileReadServiceTest {
                 userProfileReadRepository,
                 aesEncryptUtil,
                 userKeyLookupService,
-                authIdentityReadService
+                authIdentityReadService,
+                userConsentRepository
         );
         UserProfile profile = UserProfile.builder()
                 .userKey("user-key-1")
@@ -71,6 +75,14 @@ class UserProfileReadServiceTest {
         when(aesEncryptUtil.decrypt("enc-email")).thenReturn("user@example.com");
         when(aesEncryptUtil.decrypt("enc-name")).thenReturn("홍길동");
         when(aesEncryptUtil.decrypt("enc-birth")).thenReturn("1999-01-10");
+        when(userConsentRepository.existsByUserKeyAndConsentTypeAndWithdrawnAtIsNull(
+                "user-key-1",
+                UserConsent.ConsentType.OPTIONAL_PROFILE
+        )).thenReturn(true);
+        when(userConsentRepository.existsByUserKeyAndConsentTypeAndWithdrawnAtIsNull(
+                "user-key-1",
+                UserConsent.ConsentType.SENSITIVE_INFO
+        )).thenReturn(true);
 
         ProfileResponse response = userProfileReadService.getProfile(1L);
 
@@ -88,6 +100,8 @@ class UserProfileReadServiceTest {
         assertThat(response.isNotificationWebPushYn()).isFalse();
         assertThat(response.getNotificationConsentAt()).isEqualTo(LocalDateTime.of(2026, 5, 1, 9, 30));
         assertThat(response.isHasPhone()).isTrue();
+        assertThat(response.isOptionalProfileConsentAgreed()).isTrue();
+        assertThat(response.isSensitiveInfoConsentAgreed()).isTrue();
         verify(userProfileReadRepository).findProfileAggregateByUserKey("user-key-1");
     }
 
@@ -98,7 +112,8 @@ class UserProfileReadServiceTest {
                 userProfileReadRepository,
                 aesEncryptUtil,
                 userKeyLookupService,
-                authIdentityReadService
+                authIdentityReadService,
+                userConsentRepository
         );
         UserProfile profile = UserProfile.builder()
                 .userKey("user-key-1")
@@ -139,7 +154,8 @@ class UserProfileReadServiceTest {
                 userProfileReadRepository,
                 aesEncryptUtil,
                 userKeyLookupService,
-                authIdentityReadService
+                authIdentityReadService,
+                userConsentRepository
         );
         UserProfile profile = UserProfile.builder()
                 .userKey("user-key-1")

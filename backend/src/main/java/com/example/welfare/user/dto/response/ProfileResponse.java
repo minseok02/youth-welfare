@@ -43,6 +43,8 @@ public class ProfileResponse {
     private int displayCount;
     private int profileCompleteness;
     private boolean hasPhone;
+    private boolean optionalProfileConsentAgreed;
+    private boolean sensitiveInfoConsentAgreed;
     private List<String> interestFields;
     private List<String> targetTypes;
     private List<PriorityItem> priorities;
@@ -111,6 +113,8 @@ public class ProfileResponse {
                 .displayCount(user.getDisplayCount())
                 .profileCompleteness(profileCompleteness)
                 .hasPhone(user.getPhoneEnc() != null && !user.getPhoneEnc().trim().isEmpty())
+                .optionalProfileConsentAgreed(false)
+                .sensitiveInfoConsentAgreed(false)
                 .interestFields(interestFields)
                 .targetTypes(targetTypes)
                 .priorities(priorityItems)
@@ -120,7 +124,9 @@ public class ProfileResponse {
     public static ProfileResponse of(Long userId, String email, String name, LocalDate birthDate,
                                      UserProfile profile,
                                      List<UserAttributeReadModel> attributes,
-                                     List<UserPriorityReadModel> priorities) {
+                                     List<UserPriorityReadModel> priorities,
+                                     boolean optionalProfileConsentAgreed,
+                                     boolean sensitiveInfoConsentAgreed) {
         List<String> interestFields = attributes.stream()
                 .filter(a -> UserAttribute.AttrType.INTEREST_FIELD.name().equals(a.getAttrType()))
                 .map(UserAttributeReadModel::getAttrValue)
@@ -175,6 +181,8 @@ public class ProfileResponse {
                 .displayCount(profile.getDisplayCount())
                 .profileCompleteness(profileCompleteness)
                 .hasPhone(profile.isHasPhone())
+                .optionalProfileConsentAgreed(optionalProfileConsentAgreed)
+                .sensitiveInfoConsentAgreed(sensitiveInfoConsentAgreed)
                 .interestFields(interestFields)
                 .targetTypes(targetTypes)
                 .priorities(priorityItems)

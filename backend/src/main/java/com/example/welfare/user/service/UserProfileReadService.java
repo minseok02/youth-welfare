@@ -4,6 +4,8 @@ import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.user.dto.response.ProfileResponse;
+import com.example.welfare.user.entity.UserConsent;
+import com.example.welfare.user.repository.UserConsentRepository;
 import com.example.welfare.user.repository.UserProfileReadRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,6 +22,7 @@ public class UserProfileReadService {
     private final AesEncryptUtil aesEncryptUtil;
     private final UserKeyLookupService userKeyLookupService;
     private final AuthIdentityReadService authIdentityReadService;
+    private final UserConsentRepository userConsentRepository;
 
     @Transactional(readOnly = true)
     public ProfileResponse getProfile(Long userId) {
@@ -34,8 +37,14 @@ public class UserProfileReadService {
                 parseBirthDate(aggregate.pii().birthDateEnc()),
                 aggregate.profile(),
                 aggregate.attributes(),
-                aggregate.priorities()
+                aggregate.priorities(),
+                hasActiveConsent(userKey, UserConsent.ConsentType.OPTIONAL_PROFILE),
+                hasActiveConsent(userKey, UserConsent.ConsentType.SENSITIVE_INFO)
         );
+    }
+
+    private boolean hasActiveConsent(String userKey, UserConsent.ConsentType consentType) {
+        return userConsentRepository.existsByUserKeyAndConsentTypeAndWithdrawnAtIsNull(userKey, consentType);
     }
 
     private String resolveActiveUserKey(Long userId) {

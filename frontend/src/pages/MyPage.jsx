@@ -836,7 +836,7 @@ export default function MyPage() {
         setNotificationConsentAt(p.notificationConsentAt ?? null);
         setPriorities((p.priorities ?? []).map(item => item.code));
         setTargetTypes(Array.isArray(p.targetTypes) ? p.targetTypes : []);
-        setOptionalProfileConsentAgreed(Boolean(
+        const inferredOptionalProfileConsentAgreed = Boolean(
           p.sido
           || p.sgg
           || p.incomeLevel != null
@@ -847,8 +847,17 @@ export default function MyPage() {
           || p.basicLivingRecipientTypeCode
           || (Array.isArray(p.priorities) && p.priorities.length > 0)
           || (Array.isArray(p.targetTypes) && p.targetTypes.length > 0)
-        ));
-        setSensitiveInfoConsentAgreed(Boolean(p.disabilityGradeCode));
+        );
+        setOptionalProfileConsentAgreed(
+          typeof p.optionalProfileConsentAgreed === "boolean"
+            ? p.optionalProfileConsentAgreed
+            : inferredOptionalProfileConsentAgreed
+        );
+        setSensitiveInfoConsentAgreed(
+          typeof p.sensitiveInfoConsentAgreed === "boolean"
+            ? p.sensitiveInfoConsentAgreed
+            : Boolean(p.disabilityGradeCode)
+        );
         setUser({
           ...(p.name ? { name: p.name } : {}),
           ...(p.email ? { email: p.email } : {}),
