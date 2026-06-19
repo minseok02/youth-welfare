@@ -154,33 +154,53 @@ function Field({ label, error, hint, action, children }) {
   );
 }
 
-function ConsentNotice({ checked, onChange, disabled, title, description, warning, withdrawLabel, onWithdraw, withdrawDisabled }) {
+function ConsentNotice({
+  checked,
+  onChange,
+  disabled,
+  title,
+  description,
+  warning,
+  withdrawLabel,
+  onWithdraw,
+  withdrawDisabled,
+  stacked = false,
+}) {
   return (
-    <label style={{
+    <div style={{
       display: "flex",
+      flexDirection: stacked ? "column" : "row",
       gap: 10,
-      alignItems: "flex-start",
+      alignItems: stacked ? "stretch" : "flex-start",
       padding: "13px 14px",
       border: `1px solid ${checked ? A : LINE}`,
       borderRadius: 10,
       background: checked ? AS : "#f8fafc",
-      cursor: disabled ? "not-allowed" : "pointer",
       opacity: disabled ? 0.7 : 1,
     }}>
-      <input
-        type="checkbox"
-        checked={checked}
-        disabled={disabled}
-        onChange={e => onChange(e.target.checked)}
-        style={{ marginTop: 2, accentColor: A }}
-      />
-      <span style={{ fontSize: 13, color: INK2, lineHeight: 1.55 }}>
-        <span style={{ fontWeight: 800, color: checked ? AI : INK2 }}>{title}</span>
-        <span style={{ display: "block", color: INK3, marginTop: 2 }}>{description}</span>
-        {warning && !checked && (
-          <span style={{ display: "block", color: WARN, fontWeight: 700, marginTop: 6 }}>{warning}</span>
-        )}
-      </span>
+      <label style={{
+        display: "flex",
+        gap: 10,
+        alignItems: "flex-start",
+        flex: 1,
+        minWidth: 0,
+        cursor: disabled ? "not-allowed" : "pointer",
+      }}>
+        <input
+          type="checkbox"
+          checked={checked}
+          disabled={disabled}
+          onChange={e => onChange(e.target.checked)}
+          style={{ marginTop: 2, accentColor: A, flexShrink: 0 }}
+        />
+        <span style={{ fontSize: 13, color: INK2, lineHeight: 1.55, minWidth: 0 }}>
+          <span style={{ fontWeight: 800, color: checked ? AI : INK2 }}>{title}</span>
+          <span style={{ display: "block", color: INK3, marginTop: 2 }}>{description}</span>
+          {warning && !checked && (
+            <span style={{ display: "block", color: WARN, fontWeight: 700, marginTop: 6 }}>{warning}</span>
+          )}
+        </span>
+      </label>
       {checked && onWithdraw && (
         <button
           type="button"
@@ -191,7 +211,8 @@ function ConsentNotice({ checked, onChange, disabled, title, description, warnin
           }}
           disabled={withdrawDisabled}
           style={{
-            marginLeft: "auto",
+            alignSelf: stacked ? "flex-end" : "center",
+            marginLeft: stacked ? 0 : "auto",
             flexShrink: 0,
             padding: "7px 10px",
             borderRadius: 8,
@@ -207,7 +228,7 @@ function ConsentNotice({ checked, onChange, disabled, title, description, warnin
           {withdrawLabel}
         </button>
       )}
-    </label>
+    </div>
   );
 }
 
@@ -681,6 +702,7 @@ export default function MyPage() {
   const [optionalProfileConsentAgreed, setOptionalProfileConsentAgreed] = useState(false);
   const [sensitiveInfoConsentAgreed, setSensitiveInfoConsentAgreed] = useState(false);
   const [consentActionLoading, setConsentActionLoading] = useState("");
+  const [consentWithdrawTarget, setConsentWithdrawTarget] = useState(null);
 
   const [priorities, setPriorities] = useState([]);
   const [priorityLoading, setPriorityLoading] = useState(false);
@@ -1076,7 +1098,21 @@ export default function MyPage() {
     }
   };
 
+  const consentWithdrawCopy = {
+    OPTIONAL_PROFILE: {
+      title: "선택정보 동의를 철회할까요?",
+      body: "지역, 소득수준, 취업상태, 가구형태, 주거 및 수급 정보와 우선순위, 특화 대상이 함께 비워집니다.",
+      confirm: "선택정보 철회",
+    },
+    SENSITIVE_INFO: {
+      title: "민감정보 동의를 철회할까요?",
+      body: "장애 관련 지원 정보가 비워지고, 민감정보 기반 추천에는 더 이상 사용되지 않습니다.",
+      confirm: "민감정보 철회",
+    },
+  };
+
   const handleWithdrawConsent = async (consentType) => {
+    if (!consentType) return;
     setConsentActionLoading(consentType);
     try {
       await api.delete(`/api/users/me/consents/${consentType}`);
@@ -1110,6 +1146,7 @@ export default function MyPage() {
       showToast("동의 철회에 실패했습니다", "error");
     } finally {
       setConsentActionLoading("");
+      setConsentWithdrawTarget(null);
     }
   };
 
@@ -1679,8 +1716,9 @@ export default function MyPage() {
                       description="지역, 소득수준, 취업상태, 가구형태, 주거 및 수급 관련 정보가 맞춤 추천에 사용됩니다."
                       warning={hasOptionalProfileInput ? "이 정보를 저장하려면 동의가 필요합니다." : ""}
                       withdrawLabel="선택정보 동의 철회"
-                      onWithdraw={() => handleWithdrawConsent("OPTIONAL_PROFILE")}
+                      onWithdraw={() => setConsentWithdrawTarget("OPTIONAL_PROFILE")}
                       withdrawDisabled={consentActionLoading !== ""}
+                      stacked={isMobile}
                     />
                     <ConsentNotice
                       checked={sensitiveInfoConsentAgreed}
@@ -1690,8 +1728,9 @@ export default function MyPage() {
                       description="장애 관련 정보는 동의한 경우에만 저장하고 맞춤 추천에 사용합니다."
                       warning={hasSensitiveInfoInput ? "장애 관련 정보를 저장하려면 별도 동의가 필요합니다." : ""}
                       withdrawLabel="민감정보 동의 철회"
-                      onWithdraw={() => handleWithdrawConsent("SENSITIVE_INFO")}
+                      onWithdraw={() => setConsentWithdrawTarget("SENSITIVE_INFO")}
                       withdrawDisabled={consentActionLoading !== ""}
+                      stacked={isMobile}
                     />
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
@@ -1856,6 +1895,7 @@ export default function MyPage() {
                   title="추천용 선택 개인정보 수집·이용 동의"
                   description="우선순위와 특화 대상은 맞춤 추천 품질을 높이는 선택정보로 사용됩니다."
                   warning={(priorities.length > 0 || targetTypes.length > 0) ? "우선순위와 특화 대상을 저장하려면 동의가 필요합니다." : ""}
+                  stacked={isMobile}
                 />
 
                 <SaveBar onSave={handleSavePriorities} loading={priorityLoading} />
@@ -2574,6 +2614,38 @@ export default function MyPage() {
         <DialogActions>
           <button onClick={() => { setWithdrawModal(false); setWithdrawPw(""); }} style={{ padding: "8px 16px", background: WHITE, border: `1px solid ${LINE}`, borderRadius: 8, cursor: "pointer", fontWeight: 600 }}>취소</button>
           <button onClick={handleWithdraw} style={{ padding: "8px 16px", background: WARN, color: WHITE, border: 0, borderRadius: 8, fontWeight: 700, cursor: "pointer" }}>탈퇴하기</button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(consentWithdrawTarget)}
+        onClose={() => {
+          if (!consentActionLoading) setConsentWithdrawTarget(null);
+        }}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>{consentWithdrawCopy[consentWithdrawTarget]?.title ?? "동의를 철회할까요?"}</DialogTitle>
+        <DialogContent>
+          <p style={{ fontSize: 14, color: INK2, lineHeight: 1.7, margin: 0 }}>
+            {consentWithdrawCopy[consentWithdrawTarget]?.body}
+          </p>
+        </DialogContent>
+        <DialogActions>
+          <button
+            onClick={() => setConsentWithdrawTarget(null)}
+            disabled={Boolean(consentActionLoading)}
+            style={{ padding: "8px 16px", background: WHITE, border: `1px solid ${LINE}`, borderRadius: 8, cursor: consentActionLoading ? "wait" : "pointer", fontWeight: 600 }}
+          >
+            취소
+          </button>
+          <button
+            onClick={() => handleWithdrawConsent(consentWithdrawTarget)}
+            disabled={Boolean(consentActionLoading)}
+            style={{ padding: "8px 16px", background: WARN, color: WHITE, border: 0, borderRadius: 8, fontWeight: 700, cursor: consentActionLoading ? "wait" : "pointer", opacity: consentActionLoading ? 0.75 : 1 }}
+          >
+            {consentActionLoading ? "철회 중..." : (consentWithdrawCopy[consentWithdrawTarget]?.confirm ?? "철회")}
+          </button>
         </DialogActions>
       </Dialog>
 

@@ -1097,8 +1097,12 @@ test("마이페이지 동의 철회는 선택정보와 민감정보 철회 API�
   await expect(sensitiveConsent).toBeChecked();
 
   await page.getByRole("button", { name: "선택정보 동의 철회", exact: true }).click();
+  await expect(page.getByText("선택정보 동의를 철회할까요?", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "선택정보 철회", exact: true }).click();
   await expect(optionalConsent).not.toBeChecked();
   await page.getByRole("button", { name: "민감정보 동의 철회", exact: true }).click();
+  await expect(page.getByText("민감정보 동의를 철회할까요?", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "민감정보 철회", exact: true }).click();
   await expect(sensitiveConsent).not.toBeChecked();
 
   expect(withdrawnTypes).toEqual(["OPTIONAL_PROFILE", "SENSITIVE_INFO"]);
