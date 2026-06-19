@@ -192,6 +192,7 @@ export default function ChatPage() {
 
   const replaceSessionQuery = useCallback((sessionId) => {
     const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("coachPolicyId");
     if (sessionId) {
       nextParams.set("session", String(sessionId));
     } else {
