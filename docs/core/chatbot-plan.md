@@ -28,7 +28,8 @@
 - 2026-06-19 기준 정책 상세에서 `/chat?coachPolicyId={serviceId}` 로 진입하는 `AI 신청 준비 코칭` 흐름을 추가했습니다. 일반 챗봇 검색 흐름은 그대로 두고, `coachPolicyId` 가 있을 때만 해당 정책을 고정 후보로 삼아 신청 대상/기간/방법/제출서류/공식·참고 링크를 단계별로 안내합니다.
 - 신청 코칭 action link 생성은 별도 factory에서 담당합니다. `referenceUrlsJson` 본문 추출 URL에 `)`, 조사, 문장 꼬리표가 붙어 저장된 실제 데이터가 있어, 챗봇 CTA로 내리기 전에 `http/https` URL prefix와 host를 다시 확인하고 trailing noise를 제거합니다.
 - 2026-06-20 운영 샘플 최신 1000건 재점검에서 한글 도메인 URL이 정규식 경계에서 `https://www` 로 잘리는 후보 4건을 확인했습니다. 이후 action link 정규화는 잘못된 단일 라벨 host를 제외하되, 유효한 한글/IDN host는 punycode로 보존합니다. 운영 API 재점검 기준 `coachPolicyId=14886` 은 `APPLICATION_COACHING` 응답에서 IDN host를 action link로 유지했고, `reference_urls_json` 보유 전체 14,424건 재집계도 `truncated_www_dropped_count=0`, `punycode_idn_preserved_count=4`, `trailing_trimmed_count=33` 입니다.
-- 2026-06-20 기준 장기 세션 요약/압축의 1차 저장 경로를 `chat_sessions.context_state_json.memory` 로 추가했습니다. 매 답변 뒤 최근 질문 흐름, 답변 요지, 누적 추천 정책 제목을 bounded summary로 재생성하고, 다음 턴의 `[대화 연속 맥락]` 에 `저장된 세션 요약`, `누적 질문 관심사`, `누적 추천 정책` 으로 주입합니다. 별도 memory table/비동기 LLM summarizer와 multi-turn 전용 ranking 재학습은 후속 범위입니다.
+- 2026-06-20 기준 장기 세션 요약/압축의 1차 저장 경로를 `chat_sessions.context_state_json.memory` 로 추가했습니다. 매 답변 뒤 최근 질문 흐름, 답변 요지, 누적 추천 정책 제목을 bounded summary로 재생성하고, 다음 턴의 `[대화 연속 맥락]` 에 `저장된 세션 요약`, `누적 질문 관심사`, `누적 추천 정책` 으로 주입합니다.
+- 같은 날 multi-turn ranking 1차도 붙였습니다. 일반 후속 질문에서는 저장된 memory summary/recent questions/recent policy titles를 `저장된 관심 맥락` 으로 retrieval question 앞에 추가해 FTS/semantic candidate ranking 입력에 반영합니다. 주거 branch 흐름은 기존 anchor/branch 기반 ranking을 유지하고, 별도 ranking model 재학습과 memory table/비동기 LLM summarizer는 후속 범위입니다.
 
 ## 왜 주거만 먼저 붙였는가
 
