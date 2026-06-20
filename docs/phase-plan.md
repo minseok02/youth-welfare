@@ -1,5 +1,13 @@
 # 구현 현황
 
+- 2026-06-20: 최신 `main` `08589523` 를 운영 compose app/redis에 다시 반영했다. `docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build --force-recreate redis app` 로 재생성했고 health는 `UP` 다. `run-prod-cutover-verification.sh` 는 env preflight, RDS runtime privilege, nginx edge baseline, public root/actuator guard를 통과했고, runtime API smoke도 signup/login/recommend/bookmark/logout 및 presented/older token after logout `401/A006` 경계까지 통과했다.
+
+- 2026-06-20: 배포 후 chat memory/ranking 운영 smoke를 별도로 확인했다. 새 세션에서 `취업 지원 정책 추천해줘` 이후 `그럼 대출은?` 후속 질문을 보내면 `chat_sessions.context_state_json.memory` 에 질문 2개와 추천 정책 1개가 누적되고, 최신 `chat_retrieval_snapshots.search_keyword` 에 `저장된 관심 맥락` 이 포함된다. 두 번째 답변은 `POLICY_GROUNDED`, reference count `1` 로 확인되어, 저장된 세션 요약이 후속 retrieval/ranking 입력으로 실제 반영되는 기준선까지 닫았다.
+
+- 2026-06-20: 웹푸시 운영 경로도 현재 기준으로 재검증했다. `https://youthmoa.kr/sw.js` 는 HTTPS에서 `application/javascript` 200이고, 인증된 `GET /api/notifications/push-public-key` 는 200과 87자 public key를 반환한다. 운영 DB의 `web_push_subscriptions` 는 `total=1/enabled=1`, enabled endpoint host는 `fcm.googleapis.com` 이며, `POST /api/notifications/push-test-send` 는 `attempted=1`, `sent=1`, `disabled=0`, `failed=0` 으로 실제 발송 집계까지 성공했다.
+
+- 2026-06-20: 최신 배포 상태에서 deployed-origin 프론트 관측도 재실행했다. `run-local-frontend-observation-suite.sh` 를 `FRONTEND_E2E_MODE=deployed-origin`, `FRONTEND_PUBLIC_BASE_URL=https://youthmoa.kr`, lint/build/admin E2E skip 조건으로 돌렸고 Playwright 사용자 smoke 31개가 모두 통과했다. 결과는 `decision_class=BASELINE_HEALTHY`, artifact는 `tmp/frontend-observation/20260620T150550Z` 다.
+
 - 2026-06-20: 챗봇 장기 세션 요약/압축 1차를 `chat_sessions.context_state_json` 안의 `memory` 필드로 구현했다. `ChatSessionContextStateService` 는 매 assistant 답변 뒤 최근 질문 흐름, 답변 요지, 누적 추천 정책 제목을 bounded summary로 재생성하고, `ChatConversationContextSupport` 는 다음 턴의 conversation summary에 저장된 세션 요약/누적 질문/누적 추천 정책을 추가한다. 이 단계는 별도 테이블이나 추가 LLM summarizer 없이 기존 세션 JSON에 저장하는 보수적 persistence이며, 후속으로 별도 memory table과 multi-turn ranking 재학습을 남긴다. 검증은 `ChatSessionContextStateServiceTest`, `ChatConversationServiceTest`, `ChatAiGatewayTest` 좁은 세트로 통과했다.
 
 - 2026-06-20: multi-turn ranking 1차를 위 memory persistence와 연결했다. 일반 후속 질문에서 `ChatConversationContextSupport` 는 `memory.summary`, `memory.recentUserQuestions`, `memory.recentPolicyTitles` 를 `저장된 관심 맥락` 으로 retrieval question 앞에 붙여 FTS/semantic 후보 ranking 입력을 보강한다. 주거 branch 후속 질문은 기존 housing anchor/active branch 경로를 유지해 주거 세분화 exact 계약을 흔들지 않는다. 검증은 `ChatConversationServiceTest`, `ChatSessionContextStateServiceTest`, `PolicyExplorationServiceTest` 좁은 세트로 통과했다.
