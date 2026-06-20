@@ -12,6 +12,7 @@ SMOKE_NAME="${SMOKE_NAME:-주거코드점검}"
 SMOKE_BIRTH_DATE="${SMOKE_BIRTH_DATE:-2001-04-30}"
 SMOKE_SIDO="${SMOKE_SIDO:-인천광역시}"
 SMOKE_SGG="${SMOKE_SGG:-중구}"
+SMOKE_REGION_CODE="${SMOKE_REGION_CODE:-28110}"
 SMOKE_INCOME_LEVEL="${SMOKE_INCOME_LEVEL:-5}"
 SMOKE_EMPLOYMENT_STATUS="${SMOKE_EMPLOYMENT_STATUS:-미취업}"
 SMOKE_HOUSEHOLD_TYPE="${SMOKE_HOUSEHOLD_TYPE:-1인 가구}"
@@ -224,7 +225,7 @@ PROFILE_BASELINE_STATUS="$(
     -H "Authorization: Bearer ${ACCESS_TOKEN}" \
     -H 'Content-Type: application/json' \
     -d "{
-      \"regionCode\": \"\",
+      \"regionCode\": \"${SMOKE_REGION_CODE}\",
       \"sido\": \"${SMOKE_SIDO}\",
       \"sgg\": \"${SMOKE_SGG}\",
       \"incomeLevel\": ${SMOKE_INCOME_LEVEL},
@@ -233,6 +234,8 @@ PROFILE_BASELINE_STATUS="$(
       \"notificationYn\": false,
       \"notificationMinScore\": 0.5,
       \"displayCount\": 30,
+      \"optionalProfileConsentAgreed\": true,
+      \"sensitiveInfoConsentAgreed\": true,
       \"interestFields\": [\"${SMOKE_INTEREST_FIELD}\"],
       \"targetTypes\": []
     }"
@@ -254,7 +257,7 @@ enhanced_payload="$(
   python3 - <<PY
 import json
 payload = {
-    "regionCode": "",
+    "regionCode": "${SMOKE_REGION_CODE}",
     "sido": "${SMOKE_SIDO}",
     "sgg": "${SMOKE_SGG}",
     "incomeLevel": ${SMOKE_INCOME_LEVEL},
@@ -263,6 +266,8 @@ payload = {
     "notificationYn": False,
     "notificationMinScore": 0.5,
     "displayCount": 30,
+    "optionalProfileConsentAgreed": True,
+    "sensitiveInfoConsentAgreed": True,
     "interestFields": ["${SMOKE_INTEREST_FIELD}"],
     "targetTypes": [],
 }
