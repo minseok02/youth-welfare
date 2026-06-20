@@ -30,9 +30,11 @@
 
 ## 지금 먼저 할 일
 
-1. 지금 작업 주제의 `*-docs-index.md` 와 `*-current-state.md` 를 먼저 확인합니다.
-2. 필요한 smoke/test만 먼저 돌려 현재 기준선을 확인합니다.
-3. 코드 수정 후 문서, 검증 결과, Git 정리를 같은 작업 단위로 마무리합니다.
+1. 다음 작업 시작 시 `run-local-ops-observation-suite.sh` 를 먼저 돌려 attention warning이 다시 생겼는지 확인합니다. 현재 기준선은 `BASELINE_HEALTHY`, attention warning `0`, collect 실패/partial/circuit `0` 입니다.
+2. attention에 남는 `standard-code-backlog`, `notification-backlog` 는 현재 정보성 항목입니다. 표준코드는 `safe_reconcile_candidate_rows` 또는 `conflicting_value_gap_rows` 가 생길 때만 직접 보정하고, 알림은 `stale_14d_total > 0` 또는 failed queue가 생길 때만 bounded hide/retry를 검토합니다.
+3. 추천은 아직 reopen 대상이 아닙니다. `reopen_precheck_status=KEEP_OBSERVING`, real-user sample thin, `EXAMPLE_SMOKE_ONLY_LEADER` 기준이 바뀌는지 `run-local-recommendation-observation-suite.sh` 로 관찰합니다.
+4. 정책 데이터는 운영 review queue가 다시 열릴 때만 처리합니다. raw duplicate/link 잔량은 관찰값으로 두고, `policy_duplicate_open_groups` 또는 `policy_link_open_reviews` 가 1 이상이면 `policy-data-quality-triage-runbook.md` 순서로 review합니다.
+5. 지역/좌표 이슈는 현재 닫힌 상태입니다. 새 smoke나 seed가 `sido/sgg` 있음 + `region_code` 공백을 다시 만들면 해당 smoke payload부터 고치고, 운영 row는 `RegionCodeUtil` 매핑으로 bounded 보정합니다.
 
 ## 지금 먼저 볼 문서
 
