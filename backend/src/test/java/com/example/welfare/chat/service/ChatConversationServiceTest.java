@@ -491,6 +491,89 @@ class ChatConversationServiceTest {
     }
 
     @Test
+    @DisplayName("저장된 memory는 일반 후속 질문의 retrieval 입력에 포함되어 multi-turn ranking 맥락을 보강한다")
+    void sendMessageUsesStoredMemoryForGeneralFollowUpRetrieval() {
+        User user = createUser(1L);
+        ChatSessionContextState sessionState = ChatSessionContextState.builder()
+                .memory(ChatSessionContextState.MemoryContext.builder()
+                        .summary("사용자는 취업 지원과 창업 자금 정책을 비교하고 있다.")
+                        .recentUserQuestions(List.of("취업 지원도 있나", "창업 자금도 궁금해"))
+                        .recentPolicyTitles(List.of("청년일자리 도약장려금", "청년창업 지원자금"))
+                        .build())
+                .build();
+        ChatSession session = ChatSession.builder()
+                .id(10L)
+                .userKey("user-key-1")
+                .contextStateJson(new ObjectMapper().valueToTree(sessionState).toString())
+                .build();
+        SendChatMessageRequest request = new SendChatMessageRequest();
+        ReflectionTestUtils.setField(request, "content", "그럼 대출은?");
+
+        ChatMessage previousUserMessage = ChatMessage.builder()
+                .id(100L)
+                .session(session)
+                .role(ChatMessageRole.USER)
+                .content("창업 자금도 궁금해")
+                .build();
+        ChatMessage previousAssistantMessage = ChatMessage.builder()
+                .id(101L)
+                .session(session)
+                .role(ChatMessageRole.ASSISTANT)
+                .content("청년창업 지원자금을 확인해보세요.")
+                .referencesJson("[{\"serviceId\":77,\"title\":\"청년창업 지원자금\",\"reason\":\"창업 자금\",\"evidence\":\"창업 자금\"}]")
+                .build();
+        String expectedRetrievalQuestion = String.join("\n",
+                "저장된 관심 맥락: 사용자는 취업 지원과 창업 자금 정책을 비교하고 있다. / 취업 지원도 있나 창업 자금도 궁금해 / 청년일자리 도약장려금 청년창업 지원자금",
+                "창업 자금도 궁금해",
+                "후속 질문: 그럼 대출은?"
+        );
+
+        when(activeUserReadService.getActiveUserContext(1L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
+        when(chatMessageReadRepository.findOwnedSession(10L, "user-key-1")).thenReturn(Optional.of(session));
+        when(chatMessageReadRepository.findRecentMessages(10L, 6))
+                .thenReturn(List.of(previousAssistantMessage, previousUserMessage));
+        when(chatRetrievalSnapshotService.findSessionSnapshots(10L)).thenReturn(List.of());
+
+        ChatPolicyService.CandidateTrace trace = new ChatPolicyService.CandidateTrace(
+                expectedRetrievalQuestion,
+                "저장된 관심 맥락 취업 창업 자금 대출",
+                null,
+                null,
+                List.of(),
+                "MERGED_RESULTS",
+                List.of(),
+                List.of(),
+                List.of(
+                        ChatPolicyCandidate.builder().serviceId(77L).title("청년창업 지원자금").description("창업 대출을 지원합니다.").build()
+                )
+        );
+        when(chatPolicyService.traceCandidates(expectedRetrievalQuestion, null, 3)).thenReturn(trace);
+        when(chatGroundingService.loadEvidenceMap(any(List.class)))
+                .thenReturn(Map.of(77L, "창업 대출을 지원합니다."));
+        when(chatAiGateway.generateAnswer(any(User.class), nullable(String.class), anyString(), any(List.class), any(List.class), any(Map.class), anyString()))
+                .thenReturn(null);
+
+        var response = chatConversationService.sendMessage(1L, 10L, request);
+
+        assertThat(response.getAnswerMode()).isEqualTo(ChatAnswerMode.POLICY_GROUNDED);
+        verify(chatPolicyService).traceCandidates(expectedRetrievalQuestion, null, 3);
+        verify(chatAiGateway).generateAnswer(
+                any(User.class),
+                nullable(String.class),
+                eq("그럼 대출은?"),
+                any(List.class),
+                any(List.class),
+                any(Map.class),
+                argThat(value -> value != null
+                        && value.contains("저장된 세션 요약: 사용자는 취업 지원과 창업 자금 정책을 비교하고 있다.")
+                        && value.contains("누적 추천 정책: 청년일자리 도약장려금, 청년창업 지원자금")
+                        && value.contains("직전 사용자 질문: 창업 자금도 궁금해"))
+        );
+        verify(chatSessionContextStateService).captureConversationMemory(eq(10L), eq("그럼 대출은?"), any(String.class), any(List.class));
+    }
+
+    @Test
     @DisplayName("주거 후속 질문에서 정책 근거가 있으면 AI clarification 응답도 grounded로 승격한다")
     void sendMessagePromotesHousingFollowUpWithReferencesEvenWhenAiRequestsClarification() {
         User user = createUser(1L);

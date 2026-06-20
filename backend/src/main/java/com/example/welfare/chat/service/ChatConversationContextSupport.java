@@ -61,7 +61,14 @@ public class ChatConversationContextSupport {
                 : inheritedBranchKey;
 
         boolean followUp = shouldTreatAsFollowUp(normalizedQuestion, previousUserQuestion, effectiveBranchKey, suggestedBranchKey, housingContext);
-        String retrievalQuestion = buildRetrievalQuestion(normalizedQuestion, previousUserQuestion, housingContext, effectiveBranchKey, followUp);
+        String retrievalQuestion = buildRetrievalQuestion(
+                normalizedQuestion,
+                previousUserQuestion,
+                housingContext,
+                memoryContext,
+                effectiveBranchKey,
+                followUp
+        );
 
         String conversationSummary = buildConversationSummary(
                 previousUserQuestion,
@@ -222,6 +229,7 @@ public class ChatConversationContextSupport {
     private String buildRetrievalQuestion(String question,
                                           String previousUserQuestion,
                                           ChatSessionContextState.HousingContext housingContext,
+                                          ChatSessionContextState.MemoryContext memoryContext,
                                           String effectiveBranchKey,
                                           boolean followUp) {
         if (housingContext != null && chatBranchCatalog.isHousingBranchKey(effectiveBranchKey)) {
@@ -247,9 +255,33 @@ public class ChatConversationContextSupport {
             parts.add((followUp ? "후속 질문: " : "현재 질문: ") + question);
             return String.join("\n", parts);
         }
-        return followUp && StringUtils.hasText(previousUserQuestion)
-                ? previousUserQuestion + "\n후속 질문: " + question
-                : question;
+        if (followUp && StringUtils.hasText(previousUserQuestion)) {
+            String memoryRetrievalContext = buildMemoryRetrievalContext(memoryContext);
+            return StringUtils.hasText(memoryRetrievalContext)
+                    ? memoryRetrievalContext + "\n" + previousUserQuestion + "\n후속 질문: " + question
+                    : previousUserQuestion + "\n후속 질문: " + question;
+        }
+        return question;
+    }
+
+    private String buildMemoryRetrievalContext(ChatSessionContextState.MemoryContext memoryContext) {
+        if (memoryContext == null) {
+            return null;
+        }
+        List<String> parts = new ArrayList<>();
+        if (StringUtils.hasText(memoryContext.getSummary())) {
+            parts.add(trimToLength(memoryContext.getSummary().trim(), 180));
+        }
+        if (memoryContext.getRecentUserQuestions() != null && !memoryContext.getRecentUserQuestions().isEmpty()) {
+            parts.add(String.join(" ", memoryContext.getRecentUserQuestions().stream().limit(3).toList()));
+        }
+        if (memoryContext.getRecentPolicyTitles() != null && !memoryContext.getRecentPolicyTitles().isEmpty()) {
+            parts.add(String.join(" ", memoryContext.getRecentPolicyTitles().stream().limit(3).toList()));
+        }
+        if (parts.isEmpty()) {
+            return null;
+        }
+        return "저장된 관심 맥락: " + String.join(" / ", parts);
     }
 
     private String resolveHousingAnchorQuestion(ChatSessionContextState.HousingContext housingContext,
