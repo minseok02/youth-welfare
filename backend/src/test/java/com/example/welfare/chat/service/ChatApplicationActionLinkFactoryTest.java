@@ -40,4 +40,28 @@ class ChatApplicationActionLinkFactoryTest {
                 .extracting(ChatActionLinkResponse::getType)
                 .contains("NOTICE", "OFFICIAL_APPLY", "RELATED_SITE");
     }
+
+    @Test
+    @DisplayName("도메인이 정규식 경계에서 잘린 URL은 action link에서 제외한다")
+    void createLinksDropsTruncatedHost() {
+        WelfareService policy = WelfareService.builder()
+                .id(22L)
+                .detailUrl("https://detail.example.com")
+                .build();
+        WelfareServiceDetail detail = WelfareServiceDetail.builder()
+                .referenceUrlsJson("""
+                        [
+                          {"url":"https://www.디지털배움터.kr)","type":"DETAIL","label":"본문 추출 링크","sourceField":"applyMethodDetail"},
+                          {"url":"https://valid.example.com/notice","type":"DETAIL","label":"관련 사이트","sourceField":"detailUrl"}
+                        ]
+                        """)
+                .build();
+
+        List<ChatActionLinkResponse> links = factory.createLinks(policy, detail);
+
+        assertThat(links)
+                .extracting(ChatActionLinkResponse::getUrl)
+                .doesNotContain("https://www")
+                .contains("https://valid.example.com/notice", "https://detail.example.com");
+    }
 }
