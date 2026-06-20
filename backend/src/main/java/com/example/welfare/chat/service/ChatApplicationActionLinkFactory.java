@@ -138,10 +138,18 @@ public class ChatApplicationActionLinkFactory {
             if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
                 return null;
             }
-            return StringUtils.hasText(uri.getHost()) ? uri.toString() : null;
+            String host = uri.getHost();
+            if (!StringUtils.hasText(host) || !isExternalHost(host)) {
+                return null;
+            }
+            return uri.toString();
         } catch (URISyntaxException e) {
             return null;
         }
+    }
+
+    private boolean isExternalHost(String host) {
+        return host.contains(".");
     }
 
     private boolean containsAny(String value, String... needles) {
