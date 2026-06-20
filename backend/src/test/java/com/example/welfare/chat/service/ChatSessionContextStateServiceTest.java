@@ -116,4 +116,29 @@ class ChatSessionContextStateServiceTest {
         assertThat(state.getHousing().getActiveBranchKey()).isEqualTo("housing-cash");
         assertThat(state.getHousing().getRecentTopics()).contains("월세");
     }
+
+    @Test
+    @DisplayName("대화 memory는 질문, 답변 요지, 추천 정책을 세션 context state에 압축 저장한다")
+    void captureConversationMemoryStoresCompactedSummary() throws Exception {
+        ChatSession session = ChatSession.builder().id(10L).userKey("user-key-1").build();
+        when(chatSessionRepository.findById(10L)).thenReturn(Optional.of(session));
+
+        chatSessionContextStateService.captureConversationMemory(
+                10L,
+                "서울 월세 지원 알려줘",
+                "청년월세 한시 특별지원을 먼저 확인해보세요.",
+                List.of(
+                        ChatReferenceResponse.builder().serviceId(1829L).title("청년월세 한시 특별지원").build()
+                )
+        );
+
+        ChatSessionContextState state = objectMapper.readValue(session.getContextStateJson(), ChatSessionContextState.class);
+        assertThat(state.getMemory()).isNotNull();
+        assertThat(state.getMemory().getSummary())
+                .contains("최근 질문 흐름: 서울 월세 지원 알려줘")
+                .contains("최근 답변 요지: 청년월세 한시 특별지원을 먼저 확인해보세요.")
+                .contains("누적 추천 정책: 청년월세 한시 특별지원");
+        assertThat(state.getMemory().getRecentUserQuestions()).containsExactly("서울 월세 지원 알려줘");
+        assertThat(state.getMemory().getRecentPolicyTitles()).containsExactly("청년월세 한시 특별지원");
+    }
 }

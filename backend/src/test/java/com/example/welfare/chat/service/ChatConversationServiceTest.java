@@ -291,6 +291,11 @@ class ChatConversationServiceTest {
                         .recentPolicyTitles(List.of("청년월세 한시 특별지원"))
                         .recentPolicyIds(List.of(1829L))
                         .build())
+                .memory(ChatSessionContextState.MemoryContext.builder()
+                        .summary("사용자는 서울 주거 지원을 탐색했고 월세성 지원에 관심을 보였다.")
+                        .recentUserQuestions(List.of("서울 월세 지원 알려줘"))
+                        .recentPolicyTitles(List.of("청년월세 한시 특별지원"))
+                        .build())
                 .build();
         ChatSession session = ChatSession.builder()
                 .id(10L)
@@ -370,6 +375,9 @@ class ChatConversationServiceTest {
                 any(List.class),
                 any(Map.class),
                 argThat(value -> value != null
+                        && value.contains("저장된 세션 요약: 사용자는 서울 주거 지원을 탐색했고 월세성 지원에 관심을 보였다.")
+                        && value.contains("누적 질문 관심사: 서울 월세 지원 알려줘")
+                        && value.contains("누적 추천 정책: 청년월세 한시 특별지원")
                         && value.contains("직전 사용자 질문: 서울 월세 지원 알려줘")
                         && value.contains("직전 탐색 방향: 장기 주거 안정")
                         && value.contains("최근 탐색 흐름: 즉시 현금성 지원")

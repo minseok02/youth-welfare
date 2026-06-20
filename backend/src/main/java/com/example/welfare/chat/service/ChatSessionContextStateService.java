@@ -23,6 +23,10 @@ public class ChatSessionContextStateService {
     private static final int MAX_TOPICS = 4;
     private static final int MAX_POLICIES = 4;
     private static final int MAX_SUGGESTIONS = 3;
+    private static final int MAX_MEMORY_QUESTIONS = 5;
+    private static final int MAX_MEMORY_POLICIES = 6;
+    private static final int MEMORY_SUMMARY_LIMIT = 500;
+    private static final int MEMORY_FIELD_LIMIT = 120;
 
     private final ChatSessionRepository chatSessionRepository;
     private final ObjectMapper objectMapper;
@@ -95,6 +99,38 @@ public class ChatSessionContextStateService {
         });
     }
 
+    @Transactional
+    public void captureConversationMemory(Long sessionId,
+                                          String question,
+                                          String answer,
+                                          List<ChatReferenceResponse> references) {
+        if (!StringUtils.hasText(question) && !StringUtils.hasText(answer) && (references == null || references.isEmpty())) {
+            return;
+        }
+
+        chatSessionRepository.findById(sessionId).ifPresent(session -> {
+            ChatSessionContextState state = readState(session.getContextStateJson());
+            ChatSessionContextState.MemoryContext memory = ensureMemoryContext(state);
+            memory.setRecentUserQuestions(mergeRecentDistinct(
+                    memory.getRecentUserQuestions(),
+                    singleTextList(question),
+                    MAX_MEMORY_QUESTIONS
+            ));
+            memory.setRecentPolicyTitles(mergeRecentDistinct(
+                    memory.getRecentPolicyTitles(),
+                    references == null
+                            ? List.of()
+                            : references.stream()
+                            .map(ChatReferenceResponse::getTitle)
+                            .map(title -> trimToLength(title, MEMORY_FIELD_LIMIT))
+                            .toList(),
+                    MAX_MEMORY_POLICIES
+            ));
+            memory.setSummary(buildMemorySummary(memory, question, answer));
+            session.updateContextStateJson(writeState(state));
+        });
+    }
+
     private ChatSessionContextState readState(String rawState) {
         if (!StringUtils.hasText(rawState)) {
             return new ChatSessionContextState();
@@ -125,6 +161,35 @@ public class ChatSessionContextStateService {
                     .build());
         }
         return state.getHousing();
+    }
+
+    private ChatSessionContextState.MemoryContext ensureMemoryContext(ChatSessionContextState state) {
+        if (state.getMemory() == null) {
+            state.setMemory(ChatSessionContextState.MemoryContext.builder()
+                    .recentUserQuestions(List.of())
+                    .recentPolicyTitles(List.of())
+                    .build());
+        }
+        return state.getMemory();
+    }
+
+    private String buildMemorySummary(ChatSessionContextState.MemoryContext memory, String question, String answer) {
+        List<String> parts = new ArrayList<>();
+        if (memory.getRecentUserQuestions() != null && !memory.getRecentUserQuestions().isEmpty()) {
+            parts.add("최근 질문 흐름: " + String.join(" -> ", memory.getRecentUserQuestions()));
+        }
+        if (StringUtils.hasText(answer)) {
+            parts.add("최근 답변 요지: " + trimToLength(answer.trim(), MEMORY_FIELD_LIMIT));
+        }
+        if (memory.getRecentPolicyTitles() != null && !memory.getRecentPolicyTitles().isEmpty()) {
+            parts.add("누적 추천 정책: " + String.join(", ", memory.getRecentPolicyTitles().stream().limit(3).toList()));
+        }
+        return trimToLength(String.join(" / ", parts), MEMORY_SUMMARY_LIMIT);
+    }
+
+    private List<String> singleTextList(String value) {
+        String trimmed = trimToLength(value, MEMORY_FIELD_LIMIT);
+        return StringUtils.hasText(trimmed) ? List.of(trimmed) : List.of();
     }
 
     private String resolveAnchorQuestion(String question, String existingAnchorQuestion) {
@@ -162,6 +227,40 @@ public class ChatSessionContextStateService {
             }
         }
         return merged.stream().limit(limit).toList();
+    }
+
+    private List<String> mergeRecentDistinct(List<String> existing, List<String> additions, int limit) {
+        List<String> merged = new ArrayList<>();
+        if (existing != null) {
+            for (String value : existing) {
+                if (StringUtils.hasText(value) && !merged.contains(value.trim())) {
+                    merged.add(value.trim());
+                }
+            }
+        }
+        if (additions != null) {
+            for (String value : additions) {
+                if (!StringUtils.hasText(value)) {
+                    continue;
+                }
+                String trimmed = value.trim();
+                merged.remove(trimmed);
+                merged.add(trimmed);
+            }
+        }
+        int fromIndex = Math.max(0, merged.size() - limit);
+        return merged.subList(fromIndex, merged.size()).stream().toList();
+    }
+
+    private String trimToLength(String value, int maxLength) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        String trimmed = value.trim();
+        if (trimmed.length() <= maxLength) {
+            return trimmed;
+        }
+        return trimmed.substring(0, maxLength);
     }
 
     private List<String> limitDistinct(List<String> values, int limit) {
