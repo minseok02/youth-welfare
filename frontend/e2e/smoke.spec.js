@@ -1023,7 +1023,7 @@ test("마이페이지 내 정보 저장 후 선택 프로필 리마인드는 보
   await expect(page.locator("#profile-standard-code-section")).toBeVisible();
 });
 
-test("마이페이지 동의 철회는 선택정보와 민감정보 철회 API를 호출하고 체크 상태를 해제한다", async ({ page }) => {
+test("마이페이지 동의 철회는 선택정보와 민감정보 철회 API를 호출하고 체크 상태를 해제한다 @dev-only", async ({ page }) => {
   const withdrawnTypes = [];
 
   await mockLoginApis(page);
