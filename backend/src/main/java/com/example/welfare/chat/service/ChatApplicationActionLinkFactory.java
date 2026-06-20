@@ -11,11 +11,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import java.net.IDN;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -26,9 +30,10 @@ public class ChatApplicationActionLinkFactory {
 
     private static final int MAX_LINK_COUNT = 5;
     private static final Pattern URL_PREFIX_PATTERN = Pattern.compile(
-            "(?i)^(https?://|www\\.)[A-Za-z0-9\\-._~:/?#\\[\\]@!$&'()*+,;=%]+"
+            "(?i)^(https?://|www\\.)\\S+"
     );
     private static final Pattern TRAILING_URL_NOISE_PATTERN = Pattern.compile("[).,;:&?]+$");
+    private static final Pattern HOST_LABEL_PATTERN = Pattern.compile("[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?");
 
     private final ObjectMapper objectMapper;
 
@@ -131,21 +136,59 @@ public class ChatApplicationActionLinkFactory {
         String candidate = matched.regionMatches(true, 0, "www.", 0, 4)
                 ? "https://" + matched
                 : matched;
-        candidate = TRAILING_URL_NOISE_PATTERN.matcher(candidate).replaceFirst("");
+
+        String current = candidate;
+        while (StringUtils.hasText(current)) {
+            String normalized = normalizeUrlCandidate(TRAILING_URL_NOISE_PATTERN.matcher(current).replaceFirst(""));
+            if (StringUtils.hasText(normalized)) {
+                return normalized;
+            }
+            current = dropLastCodePoint(current);
+        }
+        return null;
+    }
+
+    private String normalizeUrlCandidate(String candidate) {
         try {
-            URI uri = new URI(candidate);
-            String scheme = uri.getScheme();
+            URL url = new URL(candidate);
+            String scheme = url.getProtocol();
             if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
                 return null;
             }
-            String host = uri.getHost();
-            if (!StringUtils.hasText(host) || !isExternalHost(host)) {
+            String asciiHost = normalizeHost(url.getHost());
+            if (!StringUtils.hasText(asciiHost) || !isExternalHost(asciiHost)) {
                 return null;
             }
-            return uri.toString();
-        } catch (URISyntaxException e) {
+            URI uri = new URI(
+                    scheme.toLowerCase(Locale.ROOT),
+                    url.getUserInfo(),
+                    asciiHost,
+                    url.getPort(),
+                    url.getPath(),
+                    url.getQuery(),
+                    url.getRef());
+            return uri.toASCIIString();
+        } catch (IllegalArgumentException | MalformedURLException | URISyntaxException e) {
             return null;
         }
+    }
+
+    private String normalizeHost(String host) {
+        if (!StringUtils.hasText(host)) {
+            return null;
+        }
+        String asciiHost = IDN.toASCII(host.trim()).toLowerCase(Locale.ROOT);
+        for (String label : asciiHost.split("\\.", -1)) {
+            if (!HOST_LABEL_PATTERN.matcher(label).matches()) {
+                return null;
+            }
+        }
+        return asciiHost;
+    }
+
+    private String dropLastCodePoint(String value) {
+        int endIndex = value.offsetByCodePoints(value.length(), -1);
+        return value.substring(0, endIndex);
     }
 
     private boolean isExternalHost(String host) {
