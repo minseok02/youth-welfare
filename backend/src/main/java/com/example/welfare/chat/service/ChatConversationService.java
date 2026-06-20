@@ -118,6 +118,7 @@ public class ChatConversationService {
                     "[]",
                     LocalDateTime.now()
             );
+            chatSessionContextStateService.captureConversationMemory(session.getId(), content, answer, List.of());
             return ChatAnswerResponse.builder()
                     .sessionId(session.getId())
                     .answer(answer)
@@ -176,6 +177,7 @@ public class ChatConversationService {
                 writeReferences(references),
                 LocalDateTime.now()
         );
+        chatSessionContextStateService.captureConversationMemory(session.getId(), content, answer, references);
 
         return ChatAnswerResponse.builder()
                 .sessionId(session.getId())
@@ -221,6 +223,7 @@ public class ChatConversationService {
                 writeReferences(references),
                 LocalDateTime.now()
         );
+        chatSessionContextStateService.captureConversationMemory(session.getId(), content, answer, references);
 
         return ChatAnswerResponse.builder()
                 .sessionId(session.getId())

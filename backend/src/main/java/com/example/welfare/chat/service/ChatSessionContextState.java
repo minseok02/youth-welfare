@@ -16,6 +16,7 @@ import java.util.List;
 public class ChatSessionContextState {
 
     private HousingContext housing;
+    private MemoryContext memory;
 
     @Getter
     @Setter
@@ -29,5 +30,16 @@ public class ChatSessionContextState {
         private List<String> recentPolicyTitles;
         private List<Long> recentPolicyIds;
         private List<String> suggestedBranchKeys;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class MemoryContext {
+        private String summary;
+        private List<String> recentUserQuestions;
+        private List<String> recentPolicyTitles;
     }
 }

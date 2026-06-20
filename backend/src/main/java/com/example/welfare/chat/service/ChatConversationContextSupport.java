@@ -46,6 +46,9 @@ public class ChatConversationContextSupport {
         ChatSessionContextState.HousingContext housingContext = sessionContextState != null
                 ? sessionContextState.getHousing()
                 : null;
+        ChatSessionContextState.MemoryContext memoryContext = sessionContextState != null
+                ? sessionContextState.getMemory()
+                : null;
         String suggestedBranchKey = findSuggestedBranchMatch(normalizedQuestion, recentSnapshots);
         String inheritedBranchKey = findLatestBranchKey(recentSnapshots);
         String housingBranchKey = findHousingBranchMatch(normalizedQuestion, housingContext);
@@ -60,7 +63,14 @@ public class ChatConversationContextSupport {
         boolean followUp = shouldTreatAsFollowUp(normalizedQuestion, previousUserQuestion, effectiveBranchKey, suggestedBranchKey, housingContext);
         String retrievalQuestion = buildRetrievalQuestion(normalizedQuestion, previousUserQuestion, housingContext, effectiveBranchKey, followUp);
 
-        String conversationSummary = buildConversationSummary(previousUserQuestion, effectiveBranchKey, recentMessages, recentSnapshots, housingContext);
+        String conversationSummary = buildConversationSummary(
+                previousUserQuestion,
+                effectiveBranchKey,
+                recentMessages,
+                recentSnapshots,
+                housingContext,
+                memoryContext
+        );
         return new ConversationContext(
                 retrievalQuestion,
                 effectiveBranchKey,
@@ -279,8 +289,18 @@ public class ChatConversationContextSupport {
                                             String inheritedBranchKey,
                                             List<ChatMessage> recentMessages,
                                             List<ChatRetrievalSnapshot> recentSnapshots,
-                                            ChatSessionContextState.HousingContext housingContext) {
+                                            ChatSessionContextState.HousingContext housingContext,
+                                            ChatSessionContextState.MemoryContext memoryContext) {
         List<String> lines = new ArrayList<>();
+        if (memoryContext != null && StringUtils.hasText(memoryContext.getSummary())) {
+            lines.add("저장된 세션 요약: " + trimToLength(memoryContext.getSummary().trim(), 500));
+        }
+        if (memoryContext != null && memoryContext.getRecentUserQuestions() != null && !memoryContext.getRecentUserQuestions().isEmpty()) {
+            lines.add("누적 질문 관심사: " + String.join(" -> ", memoryContext.getRecentUserQuestions().stream().limit(5).toList()));
+        }
+        if (memoryContext != null && memoryContext.getRecentPolicyTitles() != null && !memoryContext.getRecentPolicyTitles().isEmpty()) {
+            lines.add("누적 추천 정책: " + String.join(", ", memoryContext.getRecentPolicyTitles().stream().limit(4).toList()));
+        }
         if (StringUtils.hasText(previousUserQuestion)) {
             lines.add("직전 사용자 질문: " + trimToLength(previousUserQuestion, 120));
         }
