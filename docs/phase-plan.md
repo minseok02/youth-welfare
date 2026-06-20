@@ -1,5 +1,9 @@
 # 구현 현황
 
+- 2026-06-20: 운영 지역 데이터에 좌표값이 섞였는지 점검했다. 정규화된 `service_regions.sido_name/sgg_name`, `users/user_profiles/search_logs` 의 `sido/sgg`, `policy_region_corrections` JSON, `service_facts` 지역/주소 계열에서 좌표형 소수값과 좌표쌍은 `0`건이었다. `raw_api_payloads` 의 느슨한 숫자쌍은 대부분 금리·날짜·비율·본문 단어 false positive였고, 엄격한 JSON key 기준 `"lat"`, `"lng"`, `"latitude"`, `"longitude"`, `"위도"`, `"경도"`, `"좌표"` 및 지역 key 좌표값도 `0`건이었다. 즉 좌표 유입 이슈는 없고, 남은 문제는 사용자 `region_code` 빈 값 잔량이었다.
+
+- 2026-06-20: 사용자 지역 코드 빈 값 중 `sido/sgg` 가 명확한 운영 row만 bounded 보정했다. `RegionCodeUtil` 매핑으로 `users` 591건, `user_profiles` 592건을 5자리 `region_code` 로 채웠고, 보정 뒤 `sido/sgg` 가 있는데 `region_code` 가 비어 있는 row는 두 테이블 모두 `0`건이다. `service_regions.region_code` NULL 1,228건은 전부 `BOKJIRO_LOCAL` 이며 코드 주석/쿼리 계약상 `sido_name/sgg_name` 직접 매칭 경로라 수정하지 않았다. 검증은 `run-local-policy-search-scenario-audit.sh` `BASELINE_HEALTHY`, `run-local-gov24-region-coverage-audit.sh` 통과(`gov24_region_service_pct=89.71`, true local 잔여 1건은 운영 테스트성 row), `run-local-recommendation-region-mismatch-audit.sh` `affected_users=0/mismatch_rows=0` 으로 닫았다.
+
 - 2026-06-20: 최신 `main` `08589523` 를 운영 compose app/redis에 다시 반영했다. `docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build --force-recreate redis app` 로 재생성했고 health는 `UP` 다. `run-prod-cutover-verification.sh` 는 env preflight, RDS runtime privilege, nginx edge baseline, public root/actuator guard를 통과했고, runtime API smoke도 signup/login/recommend/bookmark/logout 및 presented/older token after logout `401/A006` 경계까지 통과했다.
 
 - 2026-06-20: 배포 후 chat memory/ranking 운영 smoke를 별도로 확인했다. 새 세션에서 `취업 지원 정책 추천해줘` 이후 `그럼 대출은?` 후속 질문을 보내면 `chat_sessions.context_state_json.memory` 에 질문 2개와 추천 정책 1개가 누적되고, 최신 `chat_retrieval_snapshots.search_keyword` 에 `저장된 관심 맥락` 이 포함된다. 두 번째 답변은 `POLICY_GROUNDED`, reference count `1` 로 확인되어, 저장된 세션 요약이 후속 retrieval/ranking 입력으로 실제 반영되는 기준선까지 닫았다.
