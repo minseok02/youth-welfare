@@ -136,7 +136,7 @@ bash deploy/smoke/run-local-notification-stale-target-audit.sh
 
 수준의 최근 recommendation digest unread tail 로 읽는 편이 맞다.
 
-2026-06-10 최신 server/RDS target audit 기준:
+2026-06-21 최신 server/RDS target audit 기준:
 
 - `stale_14d_total=0`
 - `stale_14d_groups=0`
@@ -145,6 +145,27 @@ bash deploy/smoke/run-local-notification-stale-target-audit.sh
 - `decision_class=NO_STALE_TARGETS`
 
 즉 현재는 `hide-stale` 대상이 없다.
+
+직전 재발 target은 아래였다.
+
+- `RECOMMENDATION_DIGEST`
+- `맞춤 정책 추천이 도착했어요`
+- `deeplink=/policies/3324`
+- `2 rows / 2 users`
+- 대상 cohort는 전부 `EXAMPLE_SMOKE`
+
+이 cluster는 `hide-stale` 로 bounded 정리했고, 최신 artifact는 `tmp/notification-stale-target-audit/20260621T135828Z` 다.
+
+같은 시점 notification backlog는 아래처럼 읽는다.
+
+- `unread_total=26`
+- `unread_digest=26`
+- `unread_deadline=0`
+- `stale_unread_7d=14`
+- `stale_unread_14d=0`
+- failed notification `0`
+
+즉 현재 직접 hide 대상은 14일 초과 target cluster가 아니라, 7일 초과 recommendation digest unread tail 관찰이다.
 
 ## 7일 초과 tail 운영 기준
 

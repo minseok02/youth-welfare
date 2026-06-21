@@ -116,6 +116,14 @@
 
 을 one-shot smoke/runbook 기준으로 다시 확인할 때 먼저 봅니다.
 
+챗봇 runtime quality를 다시 볼 때는 아래 순서를 우선합니다.
+
+- 대화 이어짐/branch 후속 회귀셋: `deploy/smoke/run-local-chat-followup-scenario-audit.sh`
+- 대화 연속 저장 + 신청 코칭 + snapshot cascade: `deploy/smoke/run-local-chat-continuity-coaching-smoke.sh`
+- 신청 코칭 action link 매트릭스: `deploy/smoke/run-local-chat-application-coaching-matrix-audit.sh`
+- 실사용자 샘플 관측: `deploy/smoke/run-local-chat-real-user-quality-sample-audit.sh`
+- 운영 관측 지표: `deploy/smoke/run-local-chat-observability-audit.sh`
+
 ## 읽는 순서
 
 ### 빠르게 빌드/테스트만 확인할 때
