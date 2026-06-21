@@ -35,6 +35,7 @@
 - `chat_retrieval_snapshots` 는 이제 `chat_sessions(id)` 에 `ON DELETE CASCADE` 로 연결됩니다. 운영 RDS patch 적용 시 기존 orphan snapshot 28건을 정리했고, 현재 기준 `fk_crs_session=1`, `idx_crs_session_id`, `orphan_snapshots=0` 입니다.
 - 신청 코칭 action link 정규화는 IDN/punycode 보존에 더해 URL user-info를 차단합니다. `https://trusted.example.com@evil.example.com/apply` 같은 URL은 신뢰 host 우회로 보지 않고 제외합니다.
 - 추가 운영 API/DB 점검 `tmp/chat-continuity-coaching-manual/20260621T114215Z` 에서 `서울 월세 지원 알려줘 -> 그럼 전세는? -> 다시 월세 쪽으로 돌아가면?` 3턴은 모두 `POLICY_GROUNDED` 로 저장됐고, `context_state_json` 의 최근 질문/summary와 `chat_retrieval_snapshots` 의 branch/preferred term이 후속 맥락을 유지했습니다. 같은 점검에서 `coachPolicyId=14886` 은 `APPLICATION_COACHING` 으로 지정 정책을 고정하고 신청 링크, 참고 링크, 자격·서류·신청방법 안내를 반환했습니다. 이 기준은 `run-local-chat-continuity-coaching-smoke.sh` 로 영구화했으며, 최신 운영형 로컬/RDS 실행 `tmp/chat-continuity-coaching-smoke/20260621T123649Z` 도 같은 조건으로 통과했습니다.
+- 프론트 신청 코칭 진입은 정책 상세의 `AI와 신청 준비하기` 에서 `/chat?coachPolicyId={id}` 로 이동한 뒤, `ChatPage` 가 새 세션 자동 생성과 신청 준비 질문 전송을 1회 수행하고 `coachPolicyId` query를 제거하는 방식입니다. 2026-06-21 기준 Playwright는 action link 표시뿐 아니라 새로고침/뒤로가기/앞으로가기 후 중복 자동 전송이 없는지도 검증합니다.
 
 ## 왜 주거만 먼저 붙였는가
 

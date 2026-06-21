@@ -716,6 +716,8 @@ test("정책 상세에서 AI 신청 준비 코칭으로 진입하면 연결 정�
     },
   ];
   let sessionCreated = false;
+  let createSessionRequestCount = 0;
+  let coachingMessageRequestCount = 0;
 
   await mockLoginApis(page);
   await page.route("**/api/notifications/me/unread-count", async (route) => {
@@ -762,6 +764,7 @@ test("정책 상세에서 AI 신청 준비 코칭으로 진입하면 연결 정�
   await page.route("**/api/chat/sessions", async (route) => {
     if (route.request().method() === "POST") {
       sessionCreated = true;
+      createSessionRequestCount += 1;
       await route.fulfill({
         status: 200,
         contentType: "application/json; charset=utf-8",
@@ -785,6 +788,7 @@ test("정책 상세에서 AI 신청 준비 코칭으로 진입하면 연결 정�
   });
   await page.route(`**/api/chat/sessions/${sessionId}/messages`, async (route) => {
     if (route.request().method() === "POST") {
+      coachingMessageRequestCount += 1;
       const body = route.request().postDataJSON();
       expect(body.coachPolicyId).toBe(policyId);
       await route.fulfill({
@@ -824,6 +828,25 @@ test("정책 상세에서 AI 신청 준비 코칭으로 진입하면 연결 정�
   await expect(page.getByText(policy.title, { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "공식 신청", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "공고/서류 확인", exact: true })).toBeVisible();
+  await expect.poll(() => createSessionRequestCount).toBe(1);
+  await expect.poll(() => coachingMessageRequestCount).toBe(1);
+  expect(new URL(page.url()).searchParams.get("coachPolicyId")).toBeNull();
+  expect(new URL(page.url()).searchParams.get("session")).toBe(String(sessionId));
+
+  await page.reload();
+  await expect(page.getByText("1. 자격 조건 확인", { exact: false })).toBeVisible({ timeout: 15_000 });
+  await expect.poll(() => createSessionRequestCount).toBe(1);
+  await expect.poll(() => coachingMessageRequestCount).toBe(1);
+
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`/policies/${policyId}$`));
+  await expectPolicyDetailReady(page, policy);
+
+  await page.goForward();
+  await expect(page).toHaveURL(/\/chat(?:\?.*)?$/);
+  await expect(page.getByText("1. 자격 조건 확인", { exact: false })).toBeVisible({ timeout: 15_000 });
+  await expect.poll(() => createSessionRequestCount).toBe(1);
+  await expect.poll(() => coachingMessageRequestCount).toBe(1);
 });
 
 test("이용가이드와 서비스 문의는 공개 진입면에서 서로 연결된다", async ({ page }) => {
