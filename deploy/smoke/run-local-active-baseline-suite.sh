@@ -120,6 +120,9 @@ if [[ "${RUN_FRONTEND_BASELINE}" == "true" ]]; then
         PLAYWRIGHT_GREP_INVERT="@dev-only"
         if [[ "${RUN_FRONTEND_ADMIN_E2E}" != "true" ]]; then
           PLAYWRIGHT_GREP_INVERT="${PLAYWRIGHT_GREP_INVERT}|@admin-required"
+        else
+          : "${ADMIN_EMAIL:?ADMIN_EMAIL is required when RUN_FRONTEND_ADMIN_E2E=true; set ADMIN_EMAIL/E2E_ADMIN_EMAIL or SECURITY_ADMIN_EMAILS}"
+          : "${ADMIN_PASSWORD:?ADMIN_PASSWORD is required when RUN_FRONTEND_ADMIN_E2E=true; set ADMIN_PASSWORD/E2E_ADMIN_PASSWORD}"
         fi
         run_command_step \
           "frontend_e2e_bootstrap" \

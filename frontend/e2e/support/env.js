@@ -76,23 +76,29 @@ function readFirstLine(filePath) {
   return trim(firstLine);
 }
 
+function allowDefaultAdminCredentials() {
+  return trim(process.env.ALLOW_DEFAULT_ADMIN_CREDENTIALS || envFile.ALLOW_DEFAULT_ADMIN_CREDENTIALS).toLowerCase() === "true";
+}
+
 const envFile = readEnvFile(resolveEnvFilePath(process.env.ENV_FILE));
 
 export function resolveAdminCredentials() {
+  const defaultEmail = allowDefaultAdminCredentials() ? "admin@example.com" : "";
+  const defaultPassword = allowDefaultAdminCredentials() ? "password123!" : "";
   const email = trim(
     process.env.E2E_ADMIN_EMAIL
     || process.env.ADMIN_EMAIL
     || readFirstLine(ADMIN_EMAIL_FILE)
     || envFile.ADMIN_EMAIL
     || firstCsvValue(process.env.SECURITY_ADMIN_EMAILS || envFile.SECURITY_ADMIN_EMAILS)
-    || "admin@example.com"
+    || defaultEmail
   );
   const password = trim(
     process.env.E2E_ADMIN_PASSWORD
     || process.env.ADMIN_PASSWORD
     || readFirstLine(ADMIN_PASSWORD_FILE)
     || envFile.ADMIN_PASSWORD
-    || "password123!"
+    || defaultPassword
   );
 
   return { email, password };

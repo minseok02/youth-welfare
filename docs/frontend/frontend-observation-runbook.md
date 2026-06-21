@@ -19,6 +19,8 @@ entrypoint는 아래 wrapper입니다.
 - 기본값에서는 `@dev-only` 와 `@admin-required` 케이스를 제외합니다.
 - API route mock을 전제로 UI state 전이를 고정하는 smoke는 `@dev-only` 로 표시해 deployed-origin 기본 경계에서 제외합니다. 예: 마이페이지 동의 철회 mock 테스트.
 - 실제 admin credential이 있고 admin dashboard smoke까지 포함해 확인하려면 `RUN_FRONTEND_ADMIN_E2E=true` 를 명시합니다.
+- `RUN_FRONTEND_ADMIN_E2E=true` 일 때는 `ADMIN_EMAIL`/`ADMIN_PASSWORD` 또는 `E2E_ADMIN_EMAIL`/`E2E_ADMIN_PASSWORD` 가 필요합니다. wrapper/bootstrap/Playwright helper는 더 이상 기본 `admin@example.com` / `password123!` 로 조용히 fallback 하지 않습니다.
+- 기본 admin credential은 의도적인 local-only smoke에서만 `ALLOW_DEFAULT_ADMIN_CREDENTIALS=true` 로 열 수 있습니다.
 
 ## latest artifact
 

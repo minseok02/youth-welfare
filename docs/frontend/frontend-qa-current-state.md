@@ -8,7 +8,7 @@
 
 현재 daily operator entrypoint는 `bash deploy/smoke/run-local-frontend-observation-suite.sh` 입니다.
 이 wrapper는 lint/build/Playwright smoke를 다시 읽어 `decision_class`, `enabled_smoke_steps`, `suite_duration_ms`, `next_action` 을 compact artifact로 남깁니다.
-운영 서버 `deployed-origin` 기본 경계에서는 backend bootstrap으로 fresh e2e user와 검색 fixture를 먼저 준비하고, `@dev-only`, `@admin-required` 케이스를 제외한 browser smoke를 기본 기준선으로 봅니다. admin dashboard smoke는 실제 admin credential이 있을 때만 `RUN_FRONTEND_ADMIN_E2E=true` 로 opt-in 합니다.
+운영 서버 `deployed-origin` 기본 경계에서는 backend bootstrap으로 fresh e2e user와 검색 fixture를 먼저 준비하고, `@dev-only`, `@admin-required` 케이스를 제외한 browser smoke를 기본 기준선으로 봅니다. admin dashboard smoke는 실제 admin credential이 있을 때만 `RUN_FRONTEND_ADMIN_E2E=true` 로 opt-in 합니다. 이때 `ADMIN_EMAIL`/`ADMIN_PASSWORD` 또는 `E2E_ADMIN_EMAIL`/`E2E_ADMIN_PASSWORD` 가 필요하고, 기본 `admin@example.com` / `password123!` fallback은 `ALLOW_DEFAULT_ADMIN_CREDENTIALS=true` 를 명시한 local-only smoke에서만 허용합니다.
 세부 브라우저 흐름을 직접 다시 따라갈 때만 [frontend-qa-checklist.md](./frontend-qa-checklist.md) 로 내려갑니다.
 
 ## 현재 결론

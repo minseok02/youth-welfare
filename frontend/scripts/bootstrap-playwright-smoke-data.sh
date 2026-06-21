@@ -7,17 +7,34 @@ source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
 APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:8082}"
 HEALTH_URL="${HEALTH_URL:-${APP_BASE_URL}/actuator/health}"
 RUN_ADMIN_SETUP="${RUN_ADMIN_SETUP:-true}"
-E2E_ADMIN_EMAIL="${E2E_ADMIN_EMAIL:-${ADMIN_EMAIL:-admin@example.com}}"
-E2E_ADMIN_PASSWORD="${E2E_ADMIN_PASSWORD:-${ADMIN_PASSWORD:-password123!}}"
+ALLOW_DEFAULT_ADMIN_CREDENTIALS="${ALLOW_DEFAULT_ADMIN_CREDENTIALS:-false}"
+E2E_ADMIN_EMAIL="${E2E_ADMIN_EMAIL:-${ADMIN_EMAIL:-}}"
+E2E_ADMIN_PASSWORD="${E2E_ADMIN_PASSWORD:-${ADMIN_PASSWORD:-}}"
 E2E_USER_EMAIL="${E2E_USER_EMAIL:-${SMOKE_EMAIL:-playwright.user@example.com}}"
 E2E_USER_PASSWORD="${E2E_USER_PASSWORD:-${SMOKE_PASSWORD:-Password123!}}"
-SECURITY_ADMIN_EMAILS="${SECURITY_ADMIN_EMAILS:-${E2E_ADMIN_EMAIL}}"
 ADMIN_EMAIL_FILE="${ADMIN_EMAIL_FILE:-/tmp/youth-welfare-admin-smoke-email}"
 ADMIN_PASSWORD_FILE="${ADMIN_PASSWORD_FILE:-/tmp/youth-welfare-admin-smoke-password}"
 
-export APP_BASE_URL E2E_ADMIN_EMAIL E2E_ADMIN_PASSWORD E2E_USER_EMAIL E2E_USER_PASSWORD SECURITY_ADMIN_EMAILS
-
 RUN_ADMIN_SETUP="$(smoke_normalize_bool "${RUN_ADMIN_SETUP}")"
+ALLOW_DEFAULT_ADMIN_CREDENTIALS="$(smoke_normalize_bool "${ALLOW_DEFAULT_ADMIN_CREDENTIALS}")"
+
+if [[ "${RUN_ADMIN_SETUP}" == "true" ]]; then
+  if [[ -z "${E2E_ADMIN_EMAIL}" || -z "${E2E_ADMIN_PASSWORD}" ]]; then
+    if [[ "${ALLOW_DEFAULT_ADMIN_CREDENTIALS}" == "true" ]]; then
+      E2E_ADMIN_EMAIL="${E2E_ADMIN_EMAIL:-admin@example.com}"
+      E2E_ADMIN_PASSWORD="${E2E_ADMIN_PASSWORD:-password123!}"
+    else
+      echo "admin setup requires E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD; set ALLOW_DEFAULT_ADMIN_CREDENTIALS=true only for intentional local default admin smoke" >&2
+      exit 1
+    fi
+  fi
+fi
+
+if [[ -z "${SECURITY_ADMIN_EMAILS:-}" && -n "${E2E_ADMIN_EMAIL}" ]]; then
+  SECURITY_ADMIN_EMAILS="${E2E_ADMIN_EMAIL}"
+fi
+
+export APP_BASE_URL E2E_ADMIN_EMAIL E2E_ADMIN_PASSWORD E2E_USER_EMAIL E2E_USER_PASSWORD SECURITY_ADMIN_EMAILS
 
 reset_login_account_state() {
   local email="$1"
