@@ -17,6 +17,7 @@ SMOKE_EMPLOYMENT_STATUS="${SMOKE_EMPLOYMENT_STATUS:-미취업}"
 SMOKE_HOUSEHOLD_TYPE="${SMOKE_HOUSEHOLD_TYPE:-1인 가구}"
 HEALTH_RETRY_COUNT="${HEALTH_RETRY_COUNT:-15}"
 HEALTH_RETRY_DELAY_SECONDS="${HEALTH_RETRY_DELAY_SECONDS:-1}"
+REQUIRE_ALL_LAST_TURNS_POLICY_GROUNDED="${REQUIRE_ALL_LAST_TURNS_POLICY_GROUNDED:-true}"
 RUN_TS_UTC="${RUN_TS_UTC:-$(smoke_now_ts_utc)}"
 ARTIFACT_ROOT="${ARTIFACT_ROOT:-${ROOT_DIR}/tmp/chat-followup-scenario-audit}"
 ARTIFACT_DIR="${ARTIFACT_DIR:-${ARTIFACT_ROOT}/${RUN_TS_UTC}}"
@@ -194,7 +195,27 @@ run_scenario "job-branch-freeform" \
   "일자리 지원" \
   "인턴 쪽으로 보여줘"
 
-python3 - "${ARTIFACT_DIR}" "${SUMMARY_OUT}" "${JSON_OUT}" "${NOTE_OUT}" <<'PY'
+run_scenario "interview-expense" \
+  "청년 면접비 지원 알려줘"
+
+run_scenario "certificate-followup" \
+  "취업 준비 지원 알려줘" \
+  "자격증 응시료 쪽으로 보여줘"
+
+run_scenario "transport-expense" \
+  "청년근로자 교통비 지원사업 알려줘"
+
+run_scenario "startup-support" \
+  "창업 지원 정책 알려줘" \
+  "청년창업센터 사업화자금 쪽으로 보여줘"
+
+run_scenario "youth-allowance" \
+  "서울 청년수당 알려줘"
+
+run_scenario "culture-voucher" \
+  "청년 동아리 활동비 지원 알려줘"
+
+python3 - "${ARTIFACT_DIR}" "${SUMMARY_OUT}" "${JSON_OUT}" "${NOTE_OUT}" "${REQUIRE_ALL_LAST_TURNS_POLICY_GROUNDED}" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -203,6 +224,7 @@ artifact_dir = Path(sys.argv[1])
 summary_path = Path(sys.argv[2])
 json_path = Path(sys.argv[3])
 note_path = Path(sys.argv[4])
+require_all_policy_grounded = sys.argv[5].lower() == "true"
 
 scenario_dirs = sorted([path for path in artifact_dir.iterdir() if path.is_dir()])
 scenario_payloads = []
@@ -215,11 +237,13 @@ for scenario_dir in scenario_dirs:
     for turn_file in turn_files:
         payload = json.loads(turn_file.read_text(encoding="utf-8"))
         data = payload["data"]
+        references = data.get("references") or []
         turns.append({
             "file": turn_file.name,
             "answerMode": data.get("answerMode"),
             "needsClarification": data.get("needsClarification"),
-            "referenceCount": len(data.get("references") or []),
+            "referenceCount": len(references),
+            "referenceTitles": [reference.get("title") for reference in references[:3]],
             "branchSuggestionCount": len(data.get("branchSuggestions") or []),
             "answerPreview": (data.get("answer") or "").replace("\n", " ")[:120],
         })
@@ -260,21 +284,32 @@ summary_lines = [
     f"clarification_last_turn_scenarios={clarification_count}",
     f"branch_suggestion_last_turn_scenarios={branch_suggestion_count}",
     f"decision={decision}",
+    f"require_all_last_turns_policy_grounded={str(require_all_policy_grounded).lower()}",
     f"artifact_dir={artifact_dir}",
+]
+failed_scenarios = [
+    scenario["scenarioKey"]
+    for scenario in scenario_payloads
+    if scenario["lastAnswerMode"] != "POLICY_GROUNDED"
 ]
 for scenario in scenario_payloads:
     summary_lines.append(
         "scenario="
         f"{scenario['scenarioKey']}|turns={scenario['turnCount']}|messages={scenario['messageCount']}|"
         f"last_mode={scenario['lastAnswerMode']}|last_refs={scenario['lastReferenceCount']}|"
-        f"last_branch_suggestions={scenario['lastBranchSuggestionCount']}"
+        f"last_branch_suggestions={scenario['lastBranchSuggestionCount']}|"
+        f"last_titles={','.join(scenario['turns'][-1]['referenceTitles'])}"
     )
+if failed_scenarios:
+    summary_lines.append(f"failed_policy_grounded_scenarios={','.join(failed_scenarios)}")
 summary_path.write_text("\n".join(summary_lines) + "\n", encoding="utf-8")
 
 json_payload = {
     "scenarioCount": len(scenario_payloads),
     "decision": decision,
     "lastAnswerModes": all_last_modes,
+    "requireAllLastTurnsPolicyGrounded": require_all_policy_grounded,
+    "failedPolicyGroundedScenarios": failed_scenarios,
     "scenarios": scenario_payloads,
 }
 json_path.write_text(json.dumps(json_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -296,9 +331,12 @@ for scenario in scenario_payloads:
     )
     for turn in scenario["turns"]:
         note_lines.append(
-            f"  - `{turn['file']}` `{turn['answerMode']}` refs=`{turn['referenceCount']}` branchSuggestions=`{turn['branchSuggestionCount']}` answer=`{turn['answerPreview']}`"
+            f"  - `{turn['file']}` `{turn['answerMode']}` refs=`{turn['referenceCount']}` titles=`{', '.join(turn['referenceTitles'])}` branchSuggestions=`{turn['branchSuggestionCount']}` answer=`{turn['answerPreview']}`"
         )
 note_path.write_text("\n".join(note_lines) + "\n", encoding="utf-8")
+
+if require_all_policy_grounded and failed_scenarios:
+    raise SystemExit("last turn was not POLICY_GROUNDED for: " + ", ".join(failed_scenarios))
 PY
 
 smoke_update_links \
