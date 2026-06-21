@@ -9,6 +9,7 @@ OPS_OBSERVATION_ROOT="${OPS_OBSERVATION_ROOT:-${ROOT_DIR}/tmp/ops-observation}"
 RUN_USER_PROFILE_STANDARD_CODE_COVERAGE_AUDIT="${RUN_USER_PROFILE_STANDARD_CODE_COVERAGE_AUDIT:-true}"
 RUN_RECOMMENDATION_STANDARD_CODE_OBSERVATION="${RUN_RECOMMENDATION_STANDARD_CODE_OBSERVATION:-true}"
 RUN_POLICY_DATA_TRIAGE_OBSERVATION="${RUN_POLICY_DATA_TRIAGE_OBSERVATION:-true}"
+RUN_CHAT_OBSERVABILITY_AUDIT="${RUN_CHAT_OBSERVABILITY_AUDIT:-true}"
 RUN_TS_UTC="$(smoke_now_ts_utc)"
 ARTIFACT_DIR="${ARTIFACT_DIR:-${OPS_OBSERVATION_ROOT}/${RUN_TS_UTC}}"
 
@@ -24,6 +25,7 @@ ATTENTION_FEED_OUTPUT="${ARTIFACT_DIR}/attention-feed.out"
 STANDARD_CODE_COVERAGE_OUTPUT="${ARTIFACT_DIR}/user-profile-standard-code-coverage.out"
 RECOMMENDATION_STANDARD_CODE_OBSERVATION_OUTPUT="${ARTIFACT_DIR}/recommendation-standard-code-observation.out"
 POLICY_DATA_TRIAGE_OBSERVATION_OUTPUT="${ARTIFACT_DIR}/policy-data-triage-observation.out"
+CHAT_OBSERVABILITY_OUTPUT="${ARTIFACT_DIR}/chat-observability.out"
 SUMMARY_OUT="${ARTIFACT_DIR}/ops-observation-summary.txt"
 JSON_OUT="${ARTIFACT_DIR}/ops-observation.json"
 NOTE_OUT="${ARTIFACT_DIR}/ops-observation-note.md"
@@ -46,6 +48,7 @@ KEEP_ARTIFACTS="$(smoke_normalize_bool "${KEEP_ARTIFACTS}")"
 RUN_USER_PROFILE_STANDARD_CODE_COVERAGE_AUDIT="$(smoke_normalize_bool "${RUN_USER_PROFILE_STANDARD_CODE_COVERAGE_AUDIT}")"
 RUN_RECOMMENDATION_STANDARD_CODE_OBSERVATION="$(smoke_normalize_bool "${RUN_RECOMMENDATION_STANDARD_CODE_OBSERVATION}")"
 RUN_POLICY_DATA_TRIAGE_OBSERVATION="$(smoke_normalize_bool "${RUN_POLICY_DATA_TRIAGE_OBSERVATION}")"
+RUN_CHAT_OBSERVABILITY_AUDIT="$(smoke_normalize_bool "${RUN_CHAT_OBSERVABILITY_AUDIT}")"
 mkdir -p "${ARTIFACT_DIR}" "${CHILD_ARTIFACT_DIR}"
 printf 'label\texit_code\tduration_ms\toutput_file\n' > "${DURATIONS_TSV}"
 
@@ -130,7 +133,22 @@ if [[ "${RUN_POLICY_DATA_TRIAGE_OBSERVATION}" == "true" ]]; then
   fi
 fi
 
-python3 - "${DURATIONS_TSV}" "${SUMMARY_OUT}" "${JSON_OUT}" "${NOTE_OUT}" "${ARTIFACT_DIR}" "${RUN_TS_UTC}" "${APP_BASE_URL}" "${SUMMARY_WINDOW_DAYS}" "${TREND_WINDOW_DAYS_CSV}" "${BREAKDOWN_LIMIT}" "${COLLECT_LIMIT}" "${CHILD_ARTIFACT_DIR}" "${ATTENTION_FEED_OUTPUT}" "${STANDARD_CODE_COVERAGE_OUTPUT}" "${RUN_USER_PROFILE_STANDARD_CODE_COVERAGE_AUDIT}" "${RECOMMENDATION_STANDARD_CODE_OBSERVATION_OUTPUT}" "${RUN_RECOMMENDATION_STANDARD_CODE_OBSERVATION}" "${POLICY_DATA_TRIAGE_OBSERVATION_OUTPUT}" "${RUN_POLICY_DATA_TRIAGE_OBSERVATION}" "${ROOT_DIR}" <<'PY'
+if [[ "${RUN_CHAT_OBSERVABILITY_AUDIT}" == "true" ]]; then
+  smoke_print_step "chat observability"
+  set +e
+  KEEP_ARTIFACTS=true \
+  ARTIFACT_DIR="${ARTIFACT_DIR}/chat-observability-artifact" \
+  smoke_duration_step "chat_observability" "${CHAT_OBSERVABILITY_OUTPUT}" \
+    bash "${ROOT_DIR}/deploy/smoke/run-local-chat-observability-audit.sh" >> "${DURATIONS_TSV}"
+  STATUS=$?
+  set -e
+  cat "${CHAT_OBSERVABILITY_OUTPUT}"
+  if [[ "${STATUS}" -ne 0 ]]; then
+    exit "${STATUS}"
+  fi
+fi
+
+python3 - "${DURATIONS_TSV}" "${SUMMARY_OUT}" "${JSON_OUT}" "${NOTE_OUT}" "${ARTIFACT_DIR}" "${RUN_TS_UTC}" "${APP_BASE_URL}" "${SUMMARY_WINDOW_DAYS}" "${TREND_WINDOW_DAYS_CSV}" "${BREAKDOWN_LIMIT}" "${COLLECT_LIMIT}" "${CHILD_ARTIFACT_DIR}" "${ATTENTION_FEED_OUTPUT}" "${STANDARD_CODE_COVERAGE_OUTPUT}" "${RUN_USER_PROFILE_STANDARD_CODE_COVERAGE_AUDIT}" "${RECOMMENDATION_STANDARD_CODE_OBSERVATION_OUTPUT}" "${RUN_RECOMMENDATION_STANDARD_CODE_OBSERVATION}" "${POLICY_DATA_TRIAGE_OBSERVATION_OUTPUT}" "${RUN_POLICY_DATA_TRIAGE_OBSERVATION}" "${CHAT_OBSERVABILITY_OUTPUT}" "${RUN_CHAT_OBSERVABILITY_AUDIT}" "${ROOT_DIR}" <<'PY'
 import csv
 import json
 import sys
@@ -221,7 +239,9 @@ recommendation_standard_code_observation_output = Path(sys.argv[16])
 run_recommendation_standard_code_observation = sys.argv[17] == "true"
 policy_data_triage_observation_output = Path(sys.argv[18])
 run_policy_data_triage_observation = sys.argv[19] == "true"
-root_dir = Path(sys.argv[20])
+chat_observability_output = Path(sys.argv[20])
+run_chat_observability_audit = sys.argv[21] == "true"
+root_dir = Path(sys.argv[22])
 
 rows = list(csv.DictReader(durations_path.open(encoding="utf-8"), delimiter="\t"))
 suite_duration_ms = sum(int(row["duration_ms"]) for row in rows)
@@ -244,6 +264,11 @@ recommendation_standard_code_observation = (
 policy_data_triage_observation = (
     read_key_values(policy_data_triage_observation_output)
     if run_policy_data_triage_observation and policy_data_triage_observation_output.exists()
+    else {}
+)
+chat_observability = (
+    read_key_values(chat_observability_output)
+    if run_chat_observability_audit and chat_observability_output.exists()
     else {}
 )
 current_priority_summary = read_key_values(root_dir / "tmp" / "current-priority-suite" / "latest-current-priority-summary.txt")
@@ -277,6 +302,9 @@ if run_recommendation_standard_code_observation:
 policy_data_triage_observation_status = "skipped"
 if run_policy_data_triage_observation:
     policy_data_triage_observation_status = "ok" if policy_data_triage_observation else "missing"
+chat_observability_status = "skipped"
+if run_chat_observability_audit:
+    chat_observability_status = "ok" if chat_observability else "missing"
 current_priority_missing_all_standard_codes_value = current_priority_summary.get(
     "active_baseline_user_profile_standard_code_users_missing_all_standard_codes", ""
 )
@@ -385,6 +413,14 @@ lines = [
     f"policy_data_triage_observation_status={policy_data_triage_observation_status}",
     f"policy_data_triage_decision_class={policy_data_triage_observation.get('decision_class', '')}",
     f"policy_data_triage_next_action={policy_data_triage_observation.get('next_action', '')}",
+    f"run_chat_observability_audit={str(run_chat_observability_audit).lower()}",
+    f"chat_observability_status={chat_observability_status}",
+    f"chat_observability_decision_class={chat_observability.get('decision_class', '')}",
+    f"chat_observability_primary_window_days={chat_observability.get('primary_window_days', '')}",
+    f"chat_observability_window_7d_assistant_messages={chat_observability.get('window_7d_assistant_messages', '')}",
+    f"chat_observability_window_7d_reference_rate_pct={chat_observability.get('window_7d_reference_rate_pct', '')}",
+    f"chat_observability_window_7d_clarification_rate_pct={chat_observability.get('window_7d_clarification_rate_pct', '')}",
+    f"chat_observability_window_7d_zero_result_rate_pct={chat_observability.get('window_7d_zero_result_rate_pct', '')}",
     f"wrapper_current_priority_previous_available={str(current_priority_previous_available).lower()}",
     f"wrapper_current_priority_users_missing_all_standard_codes_delta={current_priority_missing_all_standard_codes_delta}",
     f"wrapper_current_priority_users_missing_all_standard_codes_delta_label={current_priority_missing_all_standard_codes_delta_label}",
@@ -580,6 +616,21 @@ if run_policy_data_triage_observation:
         "benefit_support_count": int(policy_data_triage_observation.get("benefit_support_count", "0") or 0),
         "announcement_recruitment_count": int(policy_data_triage_observation.get("announcement_recruitment_count", "0") or 0),
     }
+if run_chat_observability_audit:
+    payload["chat_observability"] = {
+        "stdout": str(chat_observability_output),
+        "status": chat_observability_status,
+        "decision_class": chat_observability.get("decision_class", ""),
+        "operator_reading": chat_observability.get("operator_reading", ""),
+        "primary_window_days": chat_observability.get("primary_window_days", ""),
+        "window_7d_assistant_messages": int(chat_observability.get("window_7d_assistant_messages", "0") or 0),
+        "window_7d_reference_rate_pct": float(chat_observability.get("window_7d_reference_rate_pct", "0") or 0),
+        "window_7d_action_link_rate_pct": float(chat_observability.get("window_7d_action_link_rate_pct", "0") or 0),
+        "window_7d_retrieval_snapshots": int(chat_observability.get("window_7d_retrieval_snapshots", "0") or 0),
+        "window_7d_branch_suggestion_snapshots": int(chat_observability.get("window_7d_branch_suggestion_snapshots", "0") or 0),
+        "window_7d_clarification_rate_pct": float(chat_observability.get("window_7d_clarification_rate_pct", "0") or 0),
+        "window_7d_zero_result_rate_pct": float(chat_observability.get("window_7d_zero_result_rate_pct", "0") or 0),
+    }
 for row in rows:
     payload[f"{row['label']}_duration_ms"] = int(row["duration_ms"])
     payload[f"{row['label']}_duration_seconds"] = int(row["duration_ms"]) / 1000
@@ -606,6 +657,12 @@ note_lines = [
     f"- `policy_data_triage_observation_status`: `{policy_data_triage_observation_status}`",
     f"- `policy_data_triage_decision_class`: `{policy_data_triage_observation.get('decision_class', '')}`",
     f"- `policy_data_triage_next_action`: `{policy_data_triage_observation.get('next_action', '')}`",
+    f"- `chat_observability_status`: `{chat_observability_status}`",
+    f"- `chat_observability_decision_class`: `{chat_observability.get('decision_class', '')}`",
+    f"- `chat_observability_window_7d_assistant_messages`: `{chat_observability.get('window_7d_assistant_messages', '')}`",
+    f"- `chat_observability_window_7d_reference_rate_pct`: `{chat_observability.get('window_7d_reference_rate_pct', '')}`",
+    f"- `chat_observability_window_7d_clarification_rate_pct`: `{chat_observability.get('window_7d_clarification_rate_pct', '')}`",
+    f"- `chat_observability_window_7d_zero_result_rate_pct`: `{chat_observability.get('window_7d_zero_result_rate_pct', '')}`",
     f"- `wrapper_promoted_alert`: `{wrapper_promoted_alert['severity'] if wrapper_promoted_alert else 'none'}`",
     f"- `wrapper_promoted_alert_message`: `{wrapper_promoted_alert['message'] if wrapper_promoted_alert else ''}`",
     f"- `recommendation_standard_code_housing_positive_rule_delta_rows`: `{recommendation_standard_code_observation.get('housing_standard_code_effect_positive_rule_delta_rows', '')}`",
