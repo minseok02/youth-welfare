@@ -15,9 +15,11 @@ SMOKE_SGG="${SMOKE_SGG:-마포구}"
 SMOKE_INCOME_LEVEL="${SMOKE_INCOME_LEVEL:-5}"
 SMOKE_EMPLOYMENT_STATUS="${SMOKE_EMPLOYMENT_STATUS:-미취업}"
 SMOKE_HOUSEHOLD_TYPE="${SMOKE_HOUSEHOLD_TYPE:-1인 가구}"
+SMOKE_USER_AGENT_PREFIX="${SMOKE_USER_AGENT_PREFIX:-youth-welfare-chat-followup-audit}"
 HEALTH_RETRY_COUNT="${HEALTH_RETRY_COUNT:-15}"
 HEALTH_RETRY_DELAY_SECONDS="${HEALTH_RETRY_DELAY_SECONDS:-1}"
 REQUIRE_ALL_LAST_TURNS_POLICY_GROUNDED="${REQUIRE_ALL_LAST_TURNS_POLICY_GROUNDED:-true}"
+PROFILE_CHECK_ALLOWED_SCENARIOS="${PROFILE_CHECK_ALLOWED_SCENARIOS:-certificate-followup,transport-expense,culture-voucher}"
 RUN_TS_UTC="${RUN_TS_UTC:-$(smoke_now_ts_utc)}"
 ARTIFACT_ROOT="${ARTIFACT_ROOT:-${ROOT_DIR}/tmp/chat-followup-scenario-audit}"
 ARTIFACT_DIR="${ARTIFACT_DIR:-${ARTIFACT_ROOT}/${RUN_TS_UTC}}"
@@ -79,6 +81,7 @@ signup_and_login() {
   local login_response="${scenario_dir}/login.json"
   local smoke_email
   local cookie_jar="${scenario_dir}/user.cookie"
+  local smoke_user_agent="${SMOKE_USER_AGENT_PREFIX}/${scenario_key}/${RUN_TS_UTC}"
 
   smoke_email="$(smoke_build_email "${SMOKE_EMAIL_PREFIX}.${scenario_key}")"
   smoke_print_step "signup ${smoke_email}"
@@ -86,6 +89,7 @@ signup_and_login() {
   local signup_status
   signup_status="$(
     smoke_http_status POST "${APP_BASE_URL}/api/auth/signup" "${signup_response}" \
+      -H "User-Agent: ${smoke_user_agent}" \
       -H 'Content-Type: application/json' \
       -d "{
         \"email\": \"${smoke_email}\",
@@ -108,6 +112,7 @@ signup_and_login() {
   login_status="$(
     smoke_http_status POST "${APP_BASE_URL}/api/auth/login" "${login_response}" \
       -c "${cookie_jar}" \
+      -H "User-Agent: ${smoke_user_agent}" \
       -H 'Content-Type: application/json' \
       -d "{
         \"email\": \"${smoke_email}\",
@@ -215,7 +220,7 @@ run_scenario "youth-allowance" \
 run_scenario "culture-voucher" \
   "청년 동아리 활동비 지원 알려줘"
 
-python3 - "${ARTIFACT_DIR}" "${SUMMARY_OUT}" "${JSON_OUT}" "${NOTE_OUT}" "${REQUIRE_ALL_LAST_TURNS_POLICY_GROUNDED}" <<'PY'
+python3 - "${ARTIFACT_DIR}" "${SUMMARY_OUT}" "${JSON_OUT}" "${NOTE_OUT}" "${REQUIRE_ALL_LAST_TURNS_POLICY_GROUNDED}" "${PROFILE_CHECK_ALLOWED_SCENARIOS}" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -225,6 +230,11 @@ summary_path = Path(sys.argv[2])
 json_path = Path(sys.argv[3])
 note_path = Path(sys.argv[4])
 require_all_policy_grounded = sys.argv[5].lower() == "true"
+profile_check_allowed = {
+    item.strip()
+    for item in sys.argv[6].split(",")
+    if item.strip()
+}
 
 scenario_dirs = sorted([path for path in artifact_dir.iterdir() if path.is_dir()])
 scenario_payloads = []
@@ -264,6 +274,7 @@ all_last_modes = {}
 clarification_count = 0
 policy_grounded_count = 0
 branch_suggestion_count = 0
+profile_check_count = 0
 for scenario in scenario_payloads:
     mode = scenario["lastAnswerMode"] or "UNKNOWN"
     all_last_modes[mode] = all_last_modes.get(mode, 0) + 1
@@ -273,24 +284,52 @@ for scenario in scenario_payloads:
         policy_grounded_count += 1
     elif mode == "BRANCH_SUGGESTION":
         branch_suggestion_count += 1
+    if (
+        scenario["scenarioKey"] in profile_check_allowed
+        and mode == "CLARIFICATION"
+        and scenario["lastReferenceCount"] > 0
+        and scenario["lastBranchSuggestionCount"] == 0
+    ):
+        profile_check_count += 1
 
 decision = "HOLD_LONG_TERM_MEMORY"
 if clarification_count >= 2 and policy_grounded_count <= 1:
     decision = "CONSIDER_LONG_TERM_MEMORY"
 
+def scenario_is_required_success(scenario):
+    if scenario["lastAnswerMode"] == "POLICY_GROUNDED":
+        return True
+    return (
+        scenario["scenarioKey"] in profile_check_allowed
+        and scenario["lastAnswerMode"] == "CLARIFICATION"
+        and scenario["lastReferenceCount"] > 0
+        and scenario["lastBranchSuggestionCount"] == 0
+    )
+
+failed_scenarios = [
+    scenario["scenarioKey"]
+    for scenario in scenario_payloads
+    if not scenario_is_required_success(scenario)
+]
+profile_check_scenarios = [
+    scenario["scenarioKey"]
+    for scenario in scenario_payloads
+    if scenario["scenarioKey"] in profile_check_allowed
+    and scenario["lastAnswerMode"] == "CLARIFICATION"
+    and scenario["lastReferenceCount"] > 0
+    and scenario["lastBranchSuggestionCount"] == 0
+]
+
 summary_lines = [
     f"scenario_count={len(scenario_payloads)}",
     f"policy_grounded_last_turn_scenarios={policy_grounded_count}",
     f"clarification_last_turn_scenarios={clarification_count}",
+    f"profile_check_last_turn_scenarios={profile_check_count}",
     f"branch_suggestion_last_turn_scenarios={branch_suggestion_count}",
     f"decision={decision}",
     f"require_all_last_turns_policy_grounded={str(require_all_policy_grounded).lower()}",
+    f"profile_check_allowed_scenarios={','.join(sorted(profile_check_allowed))}",
     f"artifact_dir={artifact_dir}",
-]
-failed_scenarios = [
-    scenario["scenarioKey"]
-    for scenario in scenario_payloads
-    if scenario["lastAnswerMode"] != "POLICY_GROUNDED"
 ]
 for scenario in scenario_payloads:
     summary_lines.append(
@@ -301,7 +340,9 @@ for scenario in scenario_payloads:
         f"last_titles={','.join(scenario['turns'][-1]['referenceTitles'])}"
     )
 if failed_scenarios:
-    summary_lines.append(f"failed_policy_grounded_scenarios={','.join(failed_scenarios)}")
+    summary_lines.append(f"failed_required_scenarios={','.join(failed_scenarios)}")
+if profile_check_scenarios:
+    summary_lines.append(f"profile_check_scenarios={','.join(profile_check_scenarios)}")
 summary_path.write_text("\n".join(summary_lines) + "\n", encoding="utf-8")
 
 json_payload = {
@@ -309,7 +350,9 @@ json_payload = {
     "decision": decision,
     "lastAnswerModes": all_last_modes,
     "requireAllLastTurnsPolicyGrounded": require_all_policy_grounded,
-    "failedPolicyGroundedScenarios": failed_scenarios,
+    "profileCheckAllowedScenarios": sorted(profile_check_allowed),
+    "profileCheckScenarios": profile_check_scenarios,
+    "failedRequiredScenarios": failed_scenarios,
     "scenarios": scenario_payloads,
 }
 json_path.write_text(json.dumps(json_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -320,6 +363,7 @@ note_lines = [
     f"- scenario_count: `{len(scenario_payloads)}`",
     f"- policy_grounded_last_turn_scenarios: `{policy_grounded_count}`",
     f"- clarification_last_turn_scenarios: `{clarification_count}`",
+    f"- profile_check_last_turn_scenarios: `{profile_check_count}`",
     f"- branch_suggestion_last_turn_scenarios: `{branch_suggestion_count}`",
     f"- decision: `{decision}`",
     "",
@@ -336,7 +380,7 @@ for scenario in scenario_payloads:
 note_path.write_text("\n".join(note_lines) + "\n", encoding="utf-8")
 
 if require_all_policy_grounded and failed_scenarios:
-    raise SystemExit("last turn was not POLICY_GROUNDED for: " + ", ".join(failed_scenarios))
+    raise SystemExit("last turn did not meet required chat audit mode for: " + ", ".join(failed_scenarios))
 PY
 
 smoke_update_links \

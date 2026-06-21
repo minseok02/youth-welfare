@@ -124,9 +124,19 @@
 4. `정책 중복 review`는 `YOUTH exact/mirror` 또는 `BOKJIRO_LOCAL false positive` 중 하나를 5건 처리한다.
 5. 처리 후 남은 open count와 대표 note만 짧게 남긴다.
 
+## reopen 기준
+
+raw audit 숫자만으로 broad parser rewrite나 대량 보정을 열지 않습니다. 아래 중 하나가 1 이상일 때만 운영 review를 재개합니다.
+
+- `policy_error_open_reports`
+- `policy_duplicate_open_groups`
+- `policy_link_open_reviews`
+
+raw duplicate/link 잔량은 데이터 수집 특성과 source contract가 섞인 후보군입니다. 실제 운영 작업은 `OPEN` queue로 승격된 항목만 이 문서의 우선순위대로 처리합니다.
+
 ## 현재 server/RDS 기준
 
-2026-06-09 최신 policy data triage observation 기준으로 실제 운영 queue는 닫혀 있습니다.
+2026-06-21 최신 policy data triage observation 기준으로 실제 운영 queue는 닫혀 있습니다.
 
 - `policy_duplicate_open_groups=0`
 - `policy_duplicate_open_rows=0`
@@ -135,11 +145,9 @@
 
 raw audit에는 아래 후보가 남아 있지만, 이 값만으로 새 review 작업을 열지 않습니다.
 
-- `duplicate_groups_youth=82`
+- `duplicate_groups_youth=85`
 - `duplicate_groups_bokjiro_local=59`
-- `exact_duplicate_groups=12`
-- `mirror_variant_groups=16`
-- `active_visible_youth_total=172`
+- `active_visible_youth_total=161`
 
 운영자는 `OPEN` queue가 다시 생길 때만 위 우선순위 루프를 재개합니다.
 

@@ -114,10 +114,29 @@ smoke_db_query "
            count(crs.id) filter (where coalesce(crs.branch_suggestion_keys_json, '') not in ('', '[]')) as branch_suggestion_snapshots,
            count(crs.id) filter (where crs.needs_clarification is true) as clarification_snapshots,
            count(crs.id) filter (where crs.result_count = 0) as zero_result_snapshots,
+           count(crs.id) filter (
+             where crs.result_count = 0
+               and coalesce(crs.branch_suggestion_keys_json, '') not in ('', '[]')
+           ) as zero_result_branch_suggestion_snapshots,
+           count(crs.id) filter (
+             where crs.result_count = 0
+               and coalesce(crs.branch_suggestion_keys_json, '') in ('', '[]')
+           ) as zero_result_non_branch_snapshots,
            coalesce(round(avg(crs.result_count)::numeric, 2), 0) as avg_result_count,
            coalesce(max(crs.result_count), 0) as max_result_count,
            case when count(crs.id) = 0 then 0 else round((count(crs.id) filter (where crs.needs_clarification is true)::numeric * 100) / count(crs.id), 2) end as clarification_rate_pct,
-           case when count(crs.id) = 0 then 0 else round((count(crs.id) filter (where crs.result_count = 0)::numeric * 100) / count(crs.id), 2) end as zero_result_rate_pct
+           case when count(crs.id) = 0 then 0 else round((count(crs.id) filter (where crs.result_count = 0)::numeric * 100) / count(crs.id), 2) end as zero_result_rate_pct,
+           case
+             when count(crs.id) filter (where coalesce(crs.branch_suggestion_keys_json, '') in ('', '[]')) = 0 then 0
+             else round(
+               (count(crs.id) filter (
+                 where crs.result_count = 0
+                   and coalesce(crs.branch_suggestion_keys_json, '') in ('', '[]')
+               )::numeric * 100)
+               / (count(crs.id) filter (where coalesce(crs.branch_suggestion_keys_json, '') in ('', '[]'))),
+               2
+             )
+           end as zero_result_non_branch_rate_pct
     from windows w
     left join chat_retrieval_snapshots crs
       on crs.created_at >= now() - (w.days || ' days')::interval
@@ -210,10 +229,13 @@ snapshot_rows = read_tsv(snapshot_rows_path, [
     "branch_suggestion_snapshots",
     "clarification_snapshots",
     "zero_result_snapshots",
+    "zero_result_branch_suggestion_snapshots",
+    "zero_result_non_branch_snapshots",
     "avg_result_count",
     "max_result_count",
     "clarification_rate_pct",
     "zero_result_rate_pct",
+    "zero_result_non_branch_rate_pct",
 ])
 fallback_rows = read_tsv(fallback_rows_path, [
     "fallback_strategy",
@@ -239,6 +261,7 @@ primary_window = window_by_days.get(primary_days, {})
 
 clarification_rate = float(primary_snapshot.get("clarification_rate_pct") or 0)
 zero_result_rate = float(primary_snapshot.get("zero_result_rate_pct") or 0)
+zero_result_non_branch_rate = float(primary_snapshot.get("zero_result_non_branch_rate_pct") or 0)
 reference_rate = float(primary_window.get("reference_rate_pct") or 0)
 assistant_messages = int(primary_window.get("assistant_messages") or 0)
 
@@ -247,7 +270,7 @@ operator_reading = "Chatbot mode/reference/retrieval observations are inside the
 if assistant_messages == 0:
     decision_class = "CHAT_TRAFFIC_EMPTY"
     operator_reading = "No assistant messages were observed in the primary window."
-elif clarification_rate >= 35 or zero_result_rate >= 25 or reference_rate < 40:
+elif clarification_rate >= 35 or zero_result_non_branch_rate >= 25 or reference_rate < 40:
     decision_class = "CHAT_ATTENTION"
     operator_reading = "Chatbot observation rates crossed attention thresholds; inspect recent samples and scenario audit."
 
@@ -308,7 +331,9 @@ for row in snapshot_rows:
     note_lines.append(
         f"- `{row['days']}d snapshots`: total=`{row['retrieval_snapshots']}`, branch=`{row['branch_suggestion_snapshots']}`, "
         f"clarification=`{row['clarification_snapshots']}` (`{row['clarification_rate_pct']}%`), "
-        f"zero_result=`{row['zero_result_snapshots']}` (`{row['zero_result_rate_pct']}%`), avg_result=`{row['avg_result_count']}`"
+        f"zero_result=`{row['zero_result_snapshots']}` (`{row['zero_result_rate_pct']}%`), "
+        f"zero_result_non_branch=`{row['zero_result_non_branch_snapshots']}` (`{row['zero_result_non_branch_rate_pct']}%`), "
+        f"avg_result=`{row['avg_result_count']}`"
     )
 
 note_lines.extend(["", "## Fallback Strategies"])
