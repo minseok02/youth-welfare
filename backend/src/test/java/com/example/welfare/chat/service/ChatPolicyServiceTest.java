@@ -6,6 +6,7 @@ import com.example.welfare.chat.repository.ChatPolicyReadRepository;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.user.entity.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -154,7 +155,7 @@ class ChatPolicyServiceTest {
                 4,
                 "job-startup",
                 "일자리",
-                List.of("창업", "금융", "사업", "자금")
+                List.of("창업")
         ))).thenReturn(new com.example.welfare.policy.service.PolicyExplorationService.ChatExplorationTrace(
                 "창업 지원 창업 금융 사업 자금",
                 "MERGED_RESULTS",
@@ -171,6 +172,43 @@ class ChatPolicyServiceTest {
         assertThat(trace.preferredCategory()).isEqualTo("일자리");
         assertThat(trace.semanticCandidates()).hasSize(1);
         assertThat(trace.finalCandidates()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("trace 조회는 사용자 지역을 검색 조건에 포함한다")
+    void traceCandidatesIncludesUserRegionContext() {
+        User user = User.builder()
+                .id(1L)
+                .userKey("user-key-1")
+                .email("chat@example.com")
+                .passwordHash("hash")
+                .sido("서울특별시")
+                .sgg("마포구")
+                .regionCode("11440")
+                .build();
+        WelfareService service = createService(11160L, "서울시 청년 월세 지원");
+        when(chatPolicyReadRepository.traceCandidates(new ChatPolicyReadCondition(
+                "월세 쪽으로 보여줘",
+                3,
+                "housing-cash",
+                "주거",
+                List.of("월세"),
+                "11440",
+                "서울특별시",
+                "마포구"
+        ))).thenReturn(new com.example.welfare.policy.service.PolicyExplorationService.ChatExplorationTrace(
+                "월세 주거비 지원금",
+                "MERGED_RESULTS",
+                List.of(service),
+                List.of(),
+                List.of(service)
+        ));
+
+        ChatPolicyService.CandidateTrace trace =
+                chatPolicyService.traceCandidatesForUser("월세 쪽으로 보여줘", "housing-cash", 3, user);
+
+        assertThat(trace.finalCandidates()).extracting(ChatPolicyCandidate::getServiceId)
+                .containsExactly(11160L);
     }
 
     @Test

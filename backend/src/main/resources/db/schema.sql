@@ -914,9 +914,12 @@ CREATE TABLE IF NOT EXISTS chat_retrieval_snapshots (
     needs_clarification         BOOLEAN,
     result_count                INTEGER NOT NULL DEFAULT 0,
     created_at                  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at                  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at                  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_crs_session FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE
 );
 
+CREATE INDEX IF NOT EXISTS idx_crs_session_id
+    ON chat_retrieval_snapshots (session_id);
 CREATE INDEX IF NOT EXISTS idx_crs_snapshot_type_created
     ON chat_retrieval_snapshots (snapshot_type, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_crs_scenario_key_created

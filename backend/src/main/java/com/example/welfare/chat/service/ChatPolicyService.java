@@ -7,6 +7,7 @@ import com.example.welfare.chat.repository.ChatPolicyReadRepository;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.util.SearchKeywordSupport;
+import com.example.welfare.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,7 +43,7 @@ public class ChatPolicyService {
 
     @Transactional(readOnly = true)
     public CandidateTrace traceCandidates(String question, String branchKey, int limit) {
-        return traceCandidates(question, branchKey, limit, null);
+        return traceCandidates(question, branchKey, limit, (ChatRetrievalProperties) null);
     }
 
     @Transactional(readOnly = true)
@@ -50,6 +51,23 @@ public class ChatPolicyService {
                                           String branchKey,
                                           int limit,
                                           ChatRetrievalProperties tuning) {
+        return traceCandidates(question, branchKey, limit, tuning, null);
+    }
+
+    @Transactional(readOnly = true)
+    public CandidateTrace traceCandidatesForUser(String question,
+                                                 String branchKey,
+                                                 int limit,
+                                                 User user) {
+        return traceCandidates(question, branchKey, limit, null, user);
+    }
+
+    @Transactional(readOnly = true)
+    public CandidateTrace traceCandidates(String question,
+                                          String branchKey,
+                                          int limit,
+                                          ChatRetrievalProperties tuning,
+                                          User user) {
         if (!StringUtils.hasText(question)) {
             throw new CustomException(ErrorCode.INVALID_INPUT);
         }
@@ -60,12 +78,16 @@ public class ChatPolicyService {
         ChatCategoryHintCatalog.CategoryHint categoryHint = branch == null
                 ? chatCategoryHintCatalog.infer(keyword).orElse(null)
                 : null;
+        List<String> preferredTerms = resolvePreferredTerms(keyword, branch, categoryHint);
         ChatPolicyReadCondition condition = new ChatPolicyReadCondition(
                 keyword,
                 normalizedLimit,
                 branch != null ? branch.branchKey() : null,
                 branch != null ? branch.preferredCategory() : categoryHint != null ? categoryHint.preferredCategory() : null,
-                branch != null ? branch.searchTerms() : categoryHint != null ? categoryHint.searchTerms() : List.of()
+                preferredTerms,
+                user != null ? user.getRegionCode() : null,
+                user != null ? user.getSido() : null,
+                user != null ? user.getSgg() : null
         );
         com.example.welfare.policy.service.PolicyExplorationService.ChatExplorationTrace trace =
                 tuning == null
@@ -83,6 +105,32 @@ public class ChatPolicyService {
                 trace.semanticCandidates().stream().map(ChatPolicyCandidate::from).toList(),
                 trace.finalCandidates().stream().map(ChatPolicyCandidate::from).toList()
         );
+    }
+
+    private List<String> resolvePreferredTerms(String keyword,
+                                               ChatBranchCatalog.BranchDefinition branch,
+                                               ChatCategoryHintCatalog.CategoryHint categoryHint) {
+        if (branch == null) {
+            return categoryHint != null ? categoryHint.searchTerms() : List.of();
+        }
+
+        List<String> questionTokens = SearchKeywordSupport.extractTokens(keyword);
+        List<String> matchedSpecificTerms = branch.specificTokens().stream()
+                .filter(term -> matchesQuestionToken(questionTokens, term))
+                .distinct()
+                .toList();
+        return matchedSpecificTerms.isEmpty() ? branch.searchTerms() : matchedSpecificTerms;
+    }
+
+    private boolean matchesQuestionToken(List<String> questionTokens, String keyword) {
+        if (!StringUtils.hasText(keyword) || questionTokens == null || questionTokens.isEmpty()) {
+            return false;
+        }
+        String normalizedKeyword = keyword.trim();
+        return questionTokens.stream()
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .anyMatch(token -> token.equals(normalizedKeyword) || token.startsWith(normalizedKeyword));
     }
 
     private ChatBranchCatalog.BranchDefinition resolveBranch(String branchKey) {

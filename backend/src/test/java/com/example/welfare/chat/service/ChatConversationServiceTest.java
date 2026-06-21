@@ -118,7 +118,7 @@ class ChatConversationServiceTest {
                                 .description("청년 전세 주거 안정을 지원합니다.").build()
                 )
         );
-        when(chatPolicyService.traceCandidates("서울 월세 지원 알려줘", null, 3)).thenReturn(trace);
+        when(chatPolicyService.traceCandidatesForUser("서울 월세 지원 알려줘", null, 3, user)).thenReturn(trace);
         when(chatGroundingService.loadEvidenceMap(any(List.class)))
                 .thenReturn(Map.of(
                         1829L, "월세 부담을 낮추는 지원을 제공합니다.",
@@ -186,7 +186,7 @@ class ChatConversationServiceTest {
                 List.of(),
                 List.of()
         );
-        when(chatPolicyService.traceCandidates("조건을 모르겠어", null, 3)).thenReturn(trace);
+        when(chatPolicyService.traceCandidatesForUser("조건을 모르겠어", null, 3, user)).thenReturn(trace);
         when(chatGroundingService.loadEvidenceMap(any(List.class))).thenReturn(Map.of());
 
         var response = chatConversationService.sendMessage(1L, 10L, request);
@@ -228,7 +228,7 @@ class ChatConversationServiceTest {
                                 .supportContent("서울 청년의 주거비 부담 완화와 직접 연결됩니다.").build()
                 )
         );
-        when(chatPolicyService.traceCandidates("서울 월세 지원 알려줘", null, 3)).thenReturn(trace);
+        when(chatPolicyService.traceCandidatesForUser("서울 월세 지원 알려줘", null, 3, user)).thenReturn(trace);
         when(chatGroundingService.loadEvidenceMap(any(List.class)))
                 .thenReturn(Map.of(1829L, "월세 부담을 낮추는 지원을 제공합니다."));
         when(chatAiGateway.generateAnswer(any(User.class), nullable(String.class), anyString(), any(List.class), any(List.class), any(Map.class), nullable(String.class)))
@@ -273,7 +273,7 @@ class ChatConversationServiceTest {
         assertThat(response.getAnswerMode()).isEqualTo(ChatAnswerMode.BRANCH_SUGGESTION);
         assertThat(response.getBranchSuggestions()).hasSize(3);
         assertThat(response.getReferences()).isEmpty();
-        verify(chatPolicyService, never()).traceCandidates(any(String.class), isNull(), anyInt());
+        verify(chatPolicyService, never()).traceCandidatesForUser(any(String.class), isNull(), anyInt(), any(User.class));
         verify(chatMessageCommandService).appendAssistantMessage(eq(10L), any(String.class), eq("[]"), eq("[]"), any());
         verify(chatRetrievalSnapshotService).recordInteractiveBranchSuggestions(eq(session), eq("주거 지원"), isNull(), any(List.class));
         verify(chatSessionContextStateService).captureHousingBranchSuggestions(eq(10L), eq("주거 지원"), any(List.class));
@@ -348,10 +348,11 @@ class ChatConversationServiceTest {
                         ChatPolicyCandidate.builder().serviceId(2451L).title("청년전세임대").description("청년 전세 주거 안정을 지원합니다.").build()
                 )
         );
-        when(chatPolicyService.traceCandidates(
+        when(chatPolicyService.traceCandidatesForUser(
                 "서울 주거 지원\n현재 관심 갈래: 장기 주거 안정\n후속 질문: 그럼 전세는?",
                 "housing-stability",
-                3
+                3,
+                user
         ))
                 .thenReturn(trace);
         when(chatGroundingService.loadEvidenceMap(any(List.class)))
@@ -362,10 +363,11 @@ class ChatConversationServiceTest {
         var response = chatConversationService.sendMessage(1L, 10L, request);
 
         assertThat(response.getAnswerMode()).isEqualTo(ChatAnswerMode.POLICY_GROUNDED);
-        verify(chatPolicyService).traceCandidates(
+        verify(chatPolicyService).traceCandidatesForUser(
                 "서울 주거 지원\n현재 관심 갈래: 장기 주거 안정\n후속 질문: 그럼 전세는?",
                 "housing-stability",
-                3
+                3,
+                user
         );
         verify(chatAiGateway).generateAnswer(
                 any(User.class),
@@ -461,7 +463,7 @@ class ChatConversationServiceTest {
                                 .description("청년 월세 부담을 줄이는 정책입니다.").build()
                 )
         );
-        when(chatPolicyService.traceCandidates("주거 지원\n후속 질문: 월세 쪽으로 보여줘", "housing-cash", 3))
+        when(chatPolicyService.traceCandidatesForUser("주거 지원\n후속 질문: 월세 쪽으로 보여줘", "housing-cash", 3, user))
                 .thenReturn(trace);
         when(chatGroundingService.loadEvidenceMap(any(List.class)))
                 .thenReturn(Map.of(1829L, "월세 부담을 낮추는 지원을 제공합니다."));
@@ -471,7 +473,7 @@ class ChatConversationServiceTest {
         var response = chatConversationService.sendMessage(1L, 10L, request);
 
         assertThat(response.getAnswerMode()).isEqualTo(ChatAnswerMode.POLICY_GROUNDED);
-        verify(chatPolicyService).traceCandidates("주거 지원\n후속 질문: 월세 쪽으로 보여줘", "housing-cash", 3);
+        verify(chatPolicyService).traceCandidatesForUser("주거 지원\n후속 질문: 월세 쪽으로 보여줘", "housing-cash", 3, user);
         verify(chatAiGateway).generateAnswer(
                 any(User.class),
                 nullable(String.class),
@@ -548,7 +550,7 @@ class ChatConversationServiceTest {
                         ChatPolicyCandidate.builder().serviceId(77L).title("청년창업 지원자금").description("창업 대출을 지원합니다.").build()
                 )
         );
-        when(chatPolicyService.traceCandidates(expectedRetrievalQuestion, null, 3)).thenReturn(trace);
+        when(chatPolicyService.traceCandidatesForUser(expectedRetrievalQuestion, null, 3, user)).thenReturn(trace);
         when(chatGroundingService.loadEvidenceMap(any(List.class)))
                 .thenReturn(Map.of(77L, "창업 대출을 지원합니다."));
         when(chatAiGateway.generateAnswer(any(User.class), nullable(String.class), anyString(), any(List.class), any(List.class), any(Map.class), anyString()))
@@ -557,7 +559,7 @@ class ChatConversationServiceTest {
         var response = chatConversationService.sendMessage(1L, 10L, request);
 
         assertThat(response.getAnswerMode()).isEqualTo(ChatAnswerMode.POLICY_GROUNDED);
-        verify(chatPolicyService).traceCandidates(expectedRetrievalQuestion, null, 3);
+        verify(chatPolicyService).traceCandidatesForUser(expectedRetrievalQuestion, null, 3, user);
         verify(chatAiGateway).generateAnswer(
                 any(User.class),
                 nullable(String.class),
@@ -638,10 +640,11 @@ class ChatConversationServiceTest {
                                 .description("전세보증금반환보증 보증료를 지원합니다.").build()
                 )
         );
-        when(chatPolicyService.traceCandidates(
+        when(chatPolicyService.traceCandidatesForUser(
                 "서울 주거 지원\n현재 관심 갈래: 장기 주거 안정\n후속 질문: 그럼 전세는?",
                 "housing-stability",
-                3
+                3,
+                user
         )).thenReturn(trace);
         when(chatGroundingService.loadEvidenceMap(any(List.class)))
                 .thenReturn(Map.of(6359L, "전세보증금반환보증 보증료를 지원합니다."));

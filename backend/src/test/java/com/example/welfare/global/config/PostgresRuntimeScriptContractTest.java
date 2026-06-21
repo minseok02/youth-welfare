@@ -66,4 +66,26 @@ class PostgresRuntimeScriptContractTest {
         assertThat(schema).contains("CREATE TABLE IF NOT EXISTS policy_link_review_records");
         assertThat(schema).contains("CREATE INDEX IF NOT EXISTS idx_plrr_reviewed_at");
     }
+
+    @Test
+    @DisplayName("fresh schema와 runtime patch는 chat 세션 삭제 시 retrieval snapshot도 cascade 정리한다")
+    void chatRetrievalSnapshotsCascadeWithSessionDelete() throws IOException {
+        String schema = Files.readString(Path.of("src/main/resources/db/schema.sql"));
+        String migration = Files.readString(Path.of(
+                "src/main/resources/db/migration/V2026_06_21_01__cascade_chat_retrieval_snapshots.sql"));
+        String patch = Files.readString(Path.of(
+                "../deploy/postgres/patches/V2026_06_21_01__cascade_chat_retrieval_snapshots.sql"));
+
+        assertThat(schema)
+                .contains("CONSTRAINT fk_crs_session FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE")
+                .contains("CREATE INDEX IF NOT EXISTS idx_crs_session_id");
+        assertThat(migration)
+                .contains("DELETE FROM chat_retrieval_snapshots crs")
+                .contains("ADD CONSTRAINT fk_crs_session")
+                .contains("ON DELETE CASCADE");
+        assertThat(patch)
+                .contains("DELETE FROM chat_retrieval_snapshots crs")
+                .contains("ADD CONSTRAINT fk_crs_session")
+                .contains("ON DELETE CASCADE");
+    }
 }

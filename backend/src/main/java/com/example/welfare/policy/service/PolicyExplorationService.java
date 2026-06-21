@@ -13,9 +13,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -47,20 +50,33 @@ public class PolicyExplorationService {
                                                     ChatRetrievalProperties tuning) {
         LinkedHashMap<Long, WelfareService> merged = new LinkedHashMap<>();
         String searchKeyword = buildSearchKeyword(condition.keyword(), condition.preferredTerms(), tuning);
+        String regionSearchKeyword = buildRegionSearchKeyword(condition, tuning);
+        int searchLimit = expandedChatSearchLimit(condition);
         List<WelfareService> ftsCandidates = List.of();
 
-        if (StringUtils.hasText(searchKeyword)) {
-            ftsCandidates = welfareServiceSearchRepository.searchChatCandidates(searchKeyword, condition.limit()).stream()
+        if (StringUtils.hasText(regionSearchKeyword)) {
+            ftsCandidates = welfareServiceSearchRepository.searchChatCandidates(regionSearchKeyword, searchLimit).stream()
                     .filter(service -> matchesPreferredCategory(service, condition.preferredCategory()))
                     .toList();
             ftsCandidates.forEach(service -> merged.putIfAbsent(service.getId(), service));
+        }
+
+        if (StringUtils.hasText(searchKeyword)) {
+            List<WelfareService> keywordCandidates = welfareServiceSearchRepository.searchChatCandidates(searchKeyword, searchLimit).stream()
+                    .filter(service -> matchesPreferredCategory(service, condition.preferredCategory()))
+                    .toList();
+            LinkedHashMap<Long, WelfareService> ftsMerged = new LinkedHashMap<>();
+            ftsCandidates.forEach(service -> ftsMerged.putIfAbsent(service.getId(), service));
+            keywordCandidates.forEach(service -> ftsMerged.putIfAbsent(service.getId(), service));
+            ftsCandidates = ftsMerged.values().stream().toList();
+            keywordCandidates.forEach(service -> merged.putIfAbsent(service.getId(), service));
         }
 
         List<WelfareService> semanticCandidates = chatSemanticSearchService.findCandidates(
                 condition.keyword(),
                 condition.preferredCategory(),
                 condition.preferredTerms(),
-                condition.limit()
+                searchLimit
         );
         int semanticAddLimit = merged.isEmpty()
                 ? Math.min(condition.limit(), tuning.semanticOnlyLimit())
@@ -77,9 +93,9 @@ public class PolicyExplorationService {
                     "MERGED_RESULTS",
                     ftsCandidates,
                     semanticCandidates,
-                    merged.values().stream()
-                    .limit(condition.limit())
-                    .toList()
+                    orderChatCandidatesForRegion(merged.values().stream().toList(), condition).stream()
+                            .limit(condition.limit())
+                            .toList()
             );
         }
 
@@ -112,7 +128,7 @@ public class PolicyExplorationService {
                 fallbackStrategy,
                 ftsCandidates,
                 semanticCandidates,
-                merged.values().stream()
+                orderChatCandidatesForRegion(merged.values().stream().toList(), condition).stream()
                         .limit(condition.limit())
                         .toList()
         );
@@ -197,6 +213,160 @@ public class PolicyExplorationService {
             }
         }
         return String.join(" ", tokens);
+    }
+
+    private int expandedChatSearchLimit(ChatPolicyReadCondition condition) {
+        if (!hasRegionContext(condition)) {
+            return condition.limit();
+        }
+        return Math.max(condition.limit(), Math.min(condition.limit() * 4, 20));
+    }
+
+    private List<WelfareService> orderChatCandidatesForRegion(List<WelfareService> candidates,
+                                                              ChatPolicyReadCondition condition) {
+        if (candidates.isEmpty() || !hasRegionContext(condition)) {
+            return candidates;
+        }
+
+        List<Long> serviceIds = candidates.stream()
+                .map(WelfareService::getId)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        if (serviceIds.isEmpty()) {
+            return candidates;
+        }
+
+        Set<Long> servicesWithRegions = new java.util.HashSet<>(
+                welfareServiceRepository.findServiceIdsWithRegions(serviceIds)
+        );
+        Set<Long> regionMatchedServices = new java.util.HashSet<>(
+                welfareServiceRepository.findRegionMatchedServiceIds(
+                        serviceIds,
+                        condition.regionCode(),
+                        condition.sido(),
+                        condition.sgg()
+                )
+        );
+        Map<Long, Integer> originalOrder = new java.util.HashMap<>();
+        for (int i = 0; i < candidates.size(); i++) {
+            originalOrder.put(candidates.get(i).getId(), i);
+        }
+
+        List<WelfareService> ordered = new ArrayList<>(candidates);
+        ordered.sort(Comparator
+                .comparingInt((WelfareService service) -> branchTermRank(service, condition.preferredTerms()))
+                .thenComparingInt(service -> regionRank(
+                        service,
+                        condition,
+                        servicesWithRegions,
+                        regionMatchedServices
+                ))
+                .thenComparingInt(service -> originalOrder.getOrDefault(service.getId(), Integer.MAX_VALUE)));
+        return ordered;
+    }
+
+    private int branchTermRank(WelfareService service, List<String> preferredTerms) {
+        if (preferredTerms == null || preferredTerms.isEmpty()) {
+            return 0;
+        }
+        return preferredTerms.stream().anyMatch(term -> matchesServiceText(service, term)) ? 0 : 1;
+    }
+
+    private int regionRank(WelfareService service,
+                           ChatPolicyReadCondition condition,
+                           Set<Long> servicesWithRegions,
+                           Set<Long> regionMatchedServices) {
+        Long serviceId = service.getId();
+        if (serviceId != null && regionMatchedServices.contains(serviceId)) {
+            return 0;
+        }
+        if (matchesSidoText(service, condition.sido())) {
+            return 0;
+        }
+        boolean hasExplicitRegions = serviceId != null && servicesWithRegions.contains(serviceId);
+        if (!hasExplicitRegions && !isLocalOnlySource(service)) {
+            return 1;
+        }
+        return 2;
+    }
+
+    private boolean hasRegionContext(ChatPolicyReadCondition condition) {
+        return StringUtils.hasText(condition.regionCode()) || StringUtils.hasText(condition.sido());
+    }
+
+    private boolean isLocalOnlySource(WelfareService service) {
+        return service.getSourceType() == WelfareService.SourceType.BOKJIRO_LOCAL
+                || service.getSourceType() == WelfareService.SourceType.GOV24;
+    }
+
+    private boolean matchesSidoText(WelfareService service, String sido) {
+        if (!StringUtils.hasText(sido)) {
+            return false;
+        }
+        String fullSido = sido.trim();
+        String shortSido = fullSido
+                .replace("특별자치도", "")
+                .replace("특별자치시", "")
+                .replace("광역시", "")
+                .replace("특별시", "")
+                .replace("도", "");
+        return contains(service.getTitle(), fullSido)
+                || contains(service.getDescription(), fullSido)
+                || (StringUtils.hasText(shortSido)
+                && (contains(service.getTitle(), shortSido) || contains(service.getDescription(), shortSido)));
+    }
+
+    private boolean contains(String source, String token) {
+        return StringUtils.hasText(source) && StringUtils.hasText(token) && source.contains(token);
+    }
+
+    private boolean matchesServiceText(WelfareService service, String term) {
+        if (!StringUtils.hasText(term)) {
+            return false;
+        }
+        String normalizedTerm = term.trim();
+        return contains(service.getTitle(), normalizedTerm)
+                || contains(service.getDescription(), normalizedTerm)
+                || contains(service.getSupportContent(), normalizedTerm)
+                || contains(service.getKeyword(), normalizedTerm);
+    }
+
+    private String buildRegionSearchKeyword(ChatPolicyReadCondition condition, ChatRetrievalProperties tuning) {
+        if (!StringUtils.hasText(condition.sido()) || condition.preferredTerms().isEmpty()) {
+            return null;
+        }
+        Set<String> tokens = new LinkedHashSet<>();
+        String shortSido = shortenSido(condition.sido());
+        if (StringUtils.hasText(shortSido)) {
+            tokens.add(shortSido);
+        } else {
+            tokens.add(condition.sido().trim());
+        }
+        int addedPreferredTerms = 0;
+        for (String preferredTerm : condition.preferredTerms()) {
+            if (addedPreferredTerms >= tuning.maxPreferredTermsInSearchKeyword()) {
+                break;
+            }
+            List<String> preferredTokens = com.example.welfare.global.util.SearchKeywordSupport.extractTokens(preferredTerm);
+            if (preferredTokens.isEmpty()) {
+                continue;
+            }
+            tokens.addAll(preferredTokens);
+            addedPreferredTerms++;
+        }
+        return String.join(" ", tokens);
+    }
+
+    private String shortenSido(String sido) {
+        if (!StringUtils.hasText(sido)) {
+            return null;
+        }
+        return sido.trim()
+                .replace("특별자치도", "")
+                .replace("특별자치시", "")
+                .replace("광역시", "")
+                .replace("특별시", "")
+                .replace("도", "");
     }
 
     private void addUniqueCandidates(LinkedHashMap<Long, WelfareService> merged,

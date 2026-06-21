@@ -91,4 +91,28 @@ class ChatApplicationActionLinkFactoryTest {
                 .doesNotContain("https://www")
                 .contains("https://valid.example.com/notice", "https://detail.example.com");
     }
+
+    @Test
+    @DisplayName("user-info가 있는 URL은 오인 가능한 action link로 내리지 않는다")
+    void createLinksDropsUserInfoUrls() {
+        WelfareService policy = WelfareService.builder()
+                .id(24L)
+                .detailUrl("https://detail.example.com")
+                .build();
+        WelfareServiceDetail detail = WelfareServiceDetail.builder()
+                .referenceUrlsJson("""
+                        [
+                          {"url":"https://trusted.example.com@evil.example.com/apply","type":"APPLY","label":"신청 URL","sourceField":"onlineApplySiteUrl"},
+                          {"url":"https://valid.example.com/notice","type":"DETAIL","label":"관련 사이트","sourceField":"detailUrl"}
+                        ]
+                        """)
+                .build();
+
+        List<ChatActionLinkResponse> links = factory.createLinks(policy, detail);
+
+        assertThat(links)
+                .extracting(ChatActionLinkResponse::getUrl)
+                .doesNotContain("https://trusted.example.com@evil.example.com/apply")
+                .contains("https://valid.example.com/notice", "https://detail.example.com");
+    }
 }

@@ -131,6 +131,84 @@ class PolicyExplorationServiceTest {
     }
 
     @Test
+    @DisplayName("chat candidate 탐색은 사용자 지역 매칭 후보를 타지역 로컬 후보보다 앞에 둔다")
+    void traceChatCandidatesPrefersUserRegionMatches() {
+        WelfareService iksanLocal = service(858L, "익산형 청년월세 지원사업", "주거");
+        WelfareService national = service(2666L, "청년월세 지원사업", "주거");
+        WelfareService seoul = service(11160L, "서울시 청년 월세 지원", "주거");
+
+        when(welfareServiceSearchRepository.searchChatCandidates("서울 월세 주거비 지원금", 12))
+                .thenReturn(List.of(seoul));
+        when(welfareServiceSearchRepository.searchChatCandidates("월세 쪽으로 보여줘 주거비 지원금", 12))
+                .thenReturn(List.of(iksanLocal, national, seoul));
+        when(chatSemanticSearchService.findCandidates("월세 쪽으로 보여줘", "주거", List.of("월세", "주거비", "지원금"), 12))
+                .thenReturn(List.of());
+        when(welfareServiceRepository.findServiceIdsWithRegions(List.of(11160L, 858L, 2666L)))
+                .thenReturn(List.of(858L, 11160L));
+        when(welfareServiceRepository.findRegionMatchedServiceIds(
+                List.of(11160L, 858L, 2666L),
+                "11440",
+                "서울특별시",
+                "마포구"
+        )).thenReturn(List.of(11160L));
+
+        PolicyExplorationService.ChatExplorationTrace trace = policyExplorationService.traceChatCandidates(
+                new ChatPolicyReadCondition(
+                        "월세 쪽으로 보여줘",
+                        3,
+                        "housing-cash",
+                        "주거",
+                        List.of("월세", "주거비", "지원금"),
+                        "11440",
+                        "서울특별시",
+                        "마포구"
+                )
+        );
+
+        assertThat(trace.finalCandidates()).extracting(WelfareService::getId)
+                .containsExactly(11160L, 2666L, 858L);
+    }
+
+    @Test
+    @DisplayName("chat candidate 탐색은 branch term 미일치 지역 후보보다 term 일치 후보를 우선한다")
+    void traceChatCandidatesPrefersBranchTermBeforeRegionOnlyMatch() {
+        WelfareService seoulJeonse = service(14912L, "전세보증금반환보증 보증료 지원", "주거");
+        WelfareService nationalMonthly = service(2666L, "청년월세 지원사업", "주거");
+        WelfareService iksanMonthly = service(858L, "익산형 청년월세 지원사업", "주거");
+
+        when(welfareServiceSearchRepository.searchChatCandidates("서울 월세 주거비 지원금", 12))
+                .thenReturn(List.of(seoulJeonse, nationalMonthly, iksanMonthly));
+        when(welfareServiceSearchRepository.searchChatCandidates("월세 쪽으로 보여줘 주거비 지원금", 12))
+                .thenReturn(List.of(seoulJeonse, nationalMonthly, iksanMonthly));
+        when(chatSemanticSearchService.findCandidates("월세 쪽으로 보여줘", "주거", List.of("월세", "주거비", "지원금"), 12))
+                .thenReturn(List.of());
+        when(welfareServiceRepository.findServiceIdsWithRegions(List.of(14912L, 2666L, 858L)))
+                .thenReturn(List.of(14912L, 858L));
+        when(welfareServiceRepository.findRegionMatchedServiceIds(
+                List.of(14912L, 2666L, 858L),
+                "11440",
+                "서울특별시",
+                "마포구"
+        )).thenReturn(List.of(14912L));
+
+        PolicyExplorationService.ChatExplorationTrace trace = policyExplorationService.traceChatCandidates(
+                new ChatPolicyReadCondition(
+                        "월세 쪽으로 보여줘",
+                        3,
+                        "housing-cash",
+                        "주거",
+                        List.of("월세", "주거비", "지원금"),
+                        "11440",
+                        "서울특별시",
+                        "마포구"
+                )
+        );
+
+        assertThat(trace.finalCandidates()).extracting(WelfareService::getId)
+                .containsExactly(2666L, 858L, 14912L);
+    }
+
+    @Test
     @DisplayName("recommendation base 탐색은 regionCode 경로를 유지한다")
     void findRecommendationBaseCandidatesUsesRegionCodeQuery() {
         RecommendationCandidateReadCondition condition =

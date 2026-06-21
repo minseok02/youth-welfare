@@ -30,6 +30,11 @@
 - 2026-06-20 운영 샘플 최신 1000건 재점검에서 한글 도메인 URL이 정규식 경계에서 `https://www` 로 잘리는 후보 4건을 확인했습니다. 이후 action link 정규화는 잘못된 단일 라벨 host를 제외하되, 유효한 한글/IDN host는 punycode로 보존합니다. 운영 API 재점검 기준 `coachPolicyId=14886` 은 `APPLICATION_COACHING` 응답에서 IDN host를 action link로 유지했고, `reference_urls_json` 보유 전체 14,424건 재집계도 `truncated_www_dropped_count=0`, `punycode_idn_preserved_count=4`, `trailing_trimmed_count=33` 입니다.
 - 2026-06-20 기준 장기 세션 요약/압축의 1차 저장 경로를 `chat_sessions.context_state_json.memory` 로 추가했습니다. 매 답변 뒤 최근 질문 흐름, 답변 요지, 누적 추천 정책 제목을 bounded summary로 재생성하고, 다음 턴의 `[대화 연속 맥락]` 에 `저장된 세션 요약`, `누적 질문 관심사`, `누적 추천 정책` 으로 주입합니다.
 - 같은 날 multi-turn ranking 1차도 붙였습니다. 일반 후속 질문에서는 저장된 memory summary/recent questions/recent policy titles를 `저장된 관심 맥락` 으로 retrieval question 앞에 추가해 FTS/semantic candidate ranking 입력에 반영합니다. 주거 branch 흐름은 기존 anchor/branch 기반 ranking을 유지하고, 별도 ranking model 재학습과 memory table/비동기 LLM summarizer는 후속 범위입니다.
+- 2026-06-21 기준 챗봇 retrieval은 로그인 사용자의 `regionCode/sido/sgg` 를 후보 탐색 조건에 함께 싣습니다. FTS/semantic 후보 병합 뒤에는 leaf branch term 매칭을 먼저 보고, 그 다음 사용자 지역 매칭, 전국/비지역 정책, 타지역 로컬 정책 순서로 재정렬합니다. 또한 branch suggestion 자유 입력처럼 사용자가 `월세`, `전세`, `인턴` 같은 leaf token을 명시한 경우에는 같은 branch의 다른 term을 과하게 섞지 않고 실제 선택 term만 preferred term으로 사용합니다.
+- 같은 날 운영 시나리오 기준으로 `주거 지원 -> 월세 쪽으로`, `취업 지원 -> 주거 지원 -> 월세 쪽으로`, `서울 월세 지원 알려줘 -> 그럼 전세는?`, `일자리 지원 -> 인턴 쪽으로` 를 다시 확인했습니다. 최종 `run-local-chat-followup-scenario-audit.sh` 결과는 `POLICY_GROUNDED 4 / CLARIFICATION 0 / HOLD_LONG_TERM_MEMORY` 이며, 서울/마포 사용자 기준 월세는 `서울시 청년 월세 지원`, 전세 후속은 `전세보증금반환보증 보증료 지원` 중심으로 응답합니다.
+- `chat_retrieval_snapshots` 는 이제 `chat_sessions(id)` 에 `ON DELETE CASCADE` 로 연결됩니다. 운영 RDS patch 적용 시 기존 orphan snapshot 28건을 정리했고, 현재 기준 `fk_crs_session=1`, `idx_crs_session_id`, `orphan_snapshots=0` 입니다.
+- 신청 코칭 action link 정규화는 IDN/punycode 보존에 더해 URL user-info를 차단합니다. `https://trusted.example.com@evil.example.com/apply` 같은 URL은 신뢰 host 우회로 보지 않고 제외합니다.
+- 추가 운영 API/DB 점검 `tmp/chat-continuity-coaching-manual/20260621T114215Z` 에서 `서울 월세 지원 알려줘 -> 그럼 전세는? -> 다시 월세 쪽으로 돌아가면?` 3턴은 모두 `POLICY_GROUNDED` 로 저장됐고, `context_state_json` 의 최근 질문/summary와 `chat_retrieval_snapshots` 의 branch/preferred term이 후속 맥락을 유지했습니다. 같은 점검에서 `coachPolicyId=14886` 은 `APPLICATION_COACHING` 으로 지정 정책을 고정하고 신청 링크, 참고 링크, 자격·서류·신청방법 안내를 반환했습니다.
 
 ## 왜 주거만 먼저 붙였는가
 

@@ -6,6 +6,7 @@ import lombok.*;
 
 @Entity
 @Table(name = "chat_retrieval_snapshots", indexes = {
+        @Index(name = "idx_crs_session_id", columnList = "session_id"),
         @Index(name = "idx_crs_snapshot_type_created", columnList = "snapshot_type, created_at DESC"),
         @Index(name = "idx_crs_scenario_key_created", columnList = "scenario_key, created_at DESC"),
         @Index(name = "idx_crs_user_key_created", columnList = "user_key, created_at DESC")

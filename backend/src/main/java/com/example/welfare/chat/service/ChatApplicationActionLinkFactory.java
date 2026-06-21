@@ -155,13 +155,16 @@ public class ChatApplicationActionLinkFactory {
             if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
                 return null;
             }
+            if (StringUtils.hasText(url.getUserInfo())) {
+                return null;
+            }
             String asciiHost = normalizeHost(url.getHost());
             if (!StringUtils.hasText(asciiHost) || !isExternalHost(asciiHost)) {
                 return null;
             }
             URI uri = new URI(
                     scheme.toLowerCase(Locale.ROOT),
-                    url.getUserInfo(),
+                    null,
                     asciiHost,
                     url.getPort(),
                     url.getPath(),

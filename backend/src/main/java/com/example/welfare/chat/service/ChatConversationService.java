@@ -130,10 +130,11 @@ public class ChatConversationService {
         }
 
         ChatPolicyService.CandidateTrace candidateTrace =
-                chatPolicyService.traceCandidates(
+                chatPolicyService.traceCandidatesForUser(
                         conversationContext.retrievalQuestion(),
                         conversationContext.effectiveBranchKey(),
-                        REFERENCE_LIMIT
+                        REFERENCE_LIMIT,
+                        user
                 );
         List<ChatPolicyCandidate> candidates = candidateTrace.finalCandidates();
         Map<Long, String> evidenceByServiceId = chatGroundingService.loadEvidenceMap(candidates);

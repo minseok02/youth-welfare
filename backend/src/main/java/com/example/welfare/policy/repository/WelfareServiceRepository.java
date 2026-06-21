@@ -39,6 +39,29 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
     List<Long> findExistingIdsByIdIn(@Param("serviceIds") List<Long> serviceIds);
 
     @Query("""
+            SELECT DISTINCT sr.service.id FROM ServiceRegion sr
+            WHERE sr.service.id IN :serviceIds
+            """)
+    List<Long> findServiceIdsWithRegions(@Param("serviceIds") List<Long> serviceIds);
+
+    @Query("""
+            SELECT DISTINCT sr.service.id FROM ServiceRegion sr
+            WHERE sr.service.id IN :serviceIds
+              AND (
+                    (:regionCode IS NOT NULL AND sr.regionCode = :regionCode)
+                    OR (
+                        :sidoName IS NOT NULL
+                        AND sr.sidoName = :sidoName
+                        AND (:sggName IS NULL OR sr.sggName = :sggName)
+                    )
+                  )
+            """)
+    List<Long> findRegionMatchedServiceIds(@Param("serviceIds") List<Long> serviceIds,
+                                           @Param("regionCode") String regionCode,
+                                           @Param("sidoName") String sidoName,
+                                           @Param("sggName") String sggName);
+
+    @Query("""
             SELECT ws.id FROM WelfareService ws
             WHERE ws.searchYouthRelevant = true
               AND ws.status IN :statuses
