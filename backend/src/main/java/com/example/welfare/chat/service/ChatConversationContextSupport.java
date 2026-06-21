@@ -23,7 +23,7 @@ public class ChatConversationContextSupport {
 
     private static final List<String> FOLLOW_UP_MARKERS = List.of(
             "그럼", "그러면", "그거", "그건", "이거", "이건", "저거", "저건",
-            "말고", "대신", "추가로", "그중", "그 중", "또는", "그리고", "그 외"
+            "말고", "대신", "추가로", "그중", "그 중", "또는", "그리고", "그 외", "쪽으로"
     );
     private static final int SHORT_FOLLOW_UP_MAX_LENGTH = 18;
     private static final int BRIEF_FOLLOW_UP_MAX_LENGTH = 30;
@@ -256,6 +256,9 @@ public class ChatConversationContextSupport {
             return String.join("\n", parts);
         }
         if (followUp && StringUtils.hasText(previousUserQuestion)) {
+            if (isSpecificStandaloneFollowUp(question)) {
+                return question;
+            }
             String memoryRetrievalContext = buildMemoryRetrievalContext(memoryContext);
             return StringUtils.hasText(memoryRetrievalContext)
                     ? memoryRetrievalContext + "\n" + previousUserQuestion + "\n후속 질문: " + question
@@ -315,6 +318,14 @@ public class ChatConversationContextSupport {
 
     private boolean isLowSignalConversationToken(String token) {
         return List.of("지원", "알려줘", "보여줘", "그럼", "그러면", "쪽으로", "현재", "후속", "질문").contains(token);
+    }
+
+    private boolean isSpecificStandaloneFollowUp(String question) {
+        List<String> tokens = SearchKeywordSupport.extractTokens(question).stream()
+                .filter(token -> !isLowSignalConversationToken(token))
+                .distinct()
+                .toList();
+        return tokens.size() >= 2;
     }
 
     private String buildConversationSummary(String previousUserQuestion,

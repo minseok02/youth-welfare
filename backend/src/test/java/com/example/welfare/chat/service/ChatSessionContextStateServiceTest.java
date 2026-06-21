@@ -16,6 +16,8 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -115,6 +117,27 @@ class ChatSessionContextStateServiceTest {
         ChatSessionContextState state = objectMapper.readValue(session.getContextStateJson(), ChatSessionContextState.class);
         assertThat(state.getHousing().getActiveBranchKey()).isEqualTo("housing-cash");
         assertThat(state.getHousing().getRecentTopics()).contains("월세");
+    }
+
+    @Test
+    @DisplayName("일반 지원 질문은 주거 context로 오인 저장하지 않는다")
+    void captureHousingAnswerDoesNotInferHousingFromGenericSupportQuestion() {
+        ChatSession session = ChatSession.builder()
+                .id(10L)
+                .userKey("user-key-1")
+                .build();
+
+        chatSessionContextStateService.captureHousingAnswer(
+                10L,
+                "창업 지원 정책 알려줘",
+                null,
+                List.of(
+                        ChatReferenceResponse.builder().serviceId(12964L).title("청년 창업지원카드 사업").build()
+                )
+        );
+
+        assertThat(session.getContextStateJson()).isNull();
+        verify(chatSessionRepository, never()).findById(10L);
     }
 
     @Test

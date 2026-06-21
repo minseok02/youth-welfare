@@ -32,6 +32,11 @@ public class ChatCategoryHintCatalog {
                     "가족·돌봄",
                     Set.of("돌봄", "보육", "임신", "출산", "양육", "육아", "가족"),
                     List.of("돌봄", "보육", "출산", "양육")
+            ),
+            new CategoryHintDefinition(
+                    "일자리",
+                    Set.of("창업", "창업센터", "사업화", "사업화자금", "창업자금", "사업자금"),
+                    List.of("창업", "사업", "자금")
             )
     );
 

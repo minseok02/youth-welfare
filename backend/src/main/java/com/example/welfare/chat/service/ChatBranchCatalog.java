@@ -263,6 +263,7 @@ public class ChatBranchCatalog {
                     .filter(StringUtils::hasText)
                     .map(String::trim)
                     .filter(token -> !broadTokens.contains(token))
+                    .filter(token -> !List.of("지원").contains(token))
                     .distinct()
                     .toList();
         }

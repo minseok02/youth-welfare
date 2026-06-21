@@ -235,6 +235,30 @@ class ChatPolicyServiceTest {
         assertThat(candidates.get(0).getServiceId()).isEqualTo(88L);
     }
 
+    @Test
+    @DisplayName("branch가 없어도 창업/사업화자금 질문은 일자리 힌트를 붙여 조회한다")
+    void findCandidatesAppliesStartupCategoryHintWithoutBranch() {
+        WelfareService service = createService(14349L, "청년창업센터 지원");
+        when(chatPolicyReadRepository.traceCandidates(new ChatPolicyReadCondition(
+                "청년창업센터 사업화자금 쪽으로 보여줘",
+                5,
+                null,
+                "일자리",
+                List.of("창업", "사업", "자금")
+        ))).thenReturn(new com.example.welfare.policy.service.PolicyExplorationService.ChatExplorationTrace(
+                "청년창업센터 사업화자금 쪽으로 보여줘 창업 사업 자금",
+                "MERGED_RESULTS",
+                List.of(service),
+                List.of(),
+                List.of(service)
+        ));
+
+        List<ChatPolicyCandidate> candidates = chatPolicyService.findCandidates("청년창업센터 사업화자금 쪽으로 보여줘");
+
+        assertThat(candidates).hasSize(1);
+        assertThat(candidates.get(0).getServiceId()).isEqualTo(14349L);
+    }
+
     private WelfareService createService(Long serviceId, String title) {
         return WelfareService.builder()
                 .id(serviceId)

@@ -235,6 +235,18 @@ profile_check_allowed = {
     for item in sys.argv[6].split(",")
     if item.strip()
 }
+expected_title_fragments = {
+    "certificate-followup": ["자격증", "응시료"],
+    "culture-voucher": ["동아리"],
+    "housing-branch-freeform": ["월세"],
+    "housing-followup": ["전세", "이사비"],
+    "interview-expense": ["면접"],
+    "job-branch-freeform": ["일경험", "인턴"],
+    "mixed-topic-memory": ["월세"],
+    "startup-support": ["창업"],
+    "transport-expense": ["교통비"],
+    "youth-allowance": ["청년수당"],
+}
 
 scenario_dirs = sorted([path for path in artifact_dir.iterdir() if path.is_dir()])
 scenario_payloads = []
@@ -267,6 +279,12 @@ for scenario_dir in scenario_dirs:
         "lastNeedsClarification": turns[-1]["needsClarification"],
         "lastReferenceCount": turns[-1]["referenceCount"],
         "lastBranchSuggestionCount": turns[-1]["branchSuggestionCount"],
+        "lastTitleMatchesExpected": any(
+            fragment in (title or "")
+            for title in turns[-1]["referenceTitles"]
+            for fragment in expected_title_fragments.get(scenario_dir.name, [])
+        ) if expected_title_fragments.get(scenario_dir.name) else True,
+        "expectedTitleFragments": expected_title_fragments.get(scenario_dir.name, []),
         "turns": turns,
     })
 
@@ -297,13 +315,14 @@ if clarification_count >= 2 and policy_grounded_count <= 1:
     decision = "CONSIDER_LONG_TERM_MEMORY"
 
 def scenario_is_required_success(scenario):
-    if scenario["lastAnswerMode"] == "POLICY_GROUNDED":
+    if scenario["lastAnswerMode"] == "POLICY_GROUNDED" and scenario["lastTitleMatchesExpected"]:
         return True
     return (
         scenario["scenarioKey"] in profile_check_allowed
         and scenario["lastAnswerMode"] == "CLARIFICATION"
         and scenario["lastReferenceCount"] > 0
         and scenario["lastBranchSuggestionCount"] == 0
+        and scenario["lastTitleMatchesExpected"]
     )
 
 failed_scenarios = [
@@ -337,6 +356,8 @@ for scenario in scenario_payloads:
         f"{scenario['scenarioKey']}|turns={scenario['turnCount']}|messages={scenario['messageCount']}|"
         f"last_mode={scenario['lastAnswerMode']}|last_refs={scenario['lastReferenceCount']}|"
         f"last_branch_suggestions={scenario['lastBranchSuggestionCount']}|"
+        f"last_title_matches_expected={str(scenario['lastTitleMatchesExpected']).lower()}|"
+        f"expected_title_fragments={','.join(scenario['expectedTitleFragments'])}|"
         f"last_titles={','.join(scenario['turns'][-1]['referenceTitles'])}"
     )
 if failed_scenarios:
@@ -372,6 +393,7 @@ note_lines = [
 for scenario in scenario_payloads:
     note_lines.append(
         f"- `{scenario['scenarioKey']}`: last=`{scenario['lastAnswerMode']}` refs=`{scenario['lastReferenceCount']}` messages=`{scenario['messageCount']}`"
+        f" titleMatch=`{str(scenario['lastTitleMatchesExpected']).lower()}` expected=`{', '.join(scenario['expectedTitleFragments'])}`"
     )
     for turn in scenario["turns"]:
         note_lines.append(

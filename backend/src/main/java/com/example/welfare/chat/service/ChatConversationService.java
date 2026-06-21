@@ -484,7 +484,6 @@ public class ChatConversationService {
             if (aiResult.isNeedsClarification()
                     && conversationContext != null
                     && conversationContext.followUp()
-                    && chatBranchCatalog.isHousingBranchKey(conversationContext.effectiveBranchKey())
                     && !references.isEmpty()
                     && StringUtils.hasText(aiResult.getAnswer())) {
                 return false;

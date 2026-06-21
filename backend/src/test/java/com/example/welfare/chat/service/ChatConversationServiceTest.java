@@ -671,6 +671,77 @@ class ChatConversationServiceTest {
     }
 
     @Test
+    @DisplayName("일반 후속 질문도 정책 근거가 있으면 AI clarification 응답을 grounded로 승격한다")
+    void sendMessagePromotesGeneralFollowUpWithReferencesEvenWhenAiRequestsClarification() {
+        User user = createUser(1L);
+        ChatSession session = ChatSession.builder().id(10L).userKey("user-key-1").build();
+        SendChatMessageRequest request = new SendChatMessageRequest();
+        ReflectionTestUtils.setField(request, "content", "청년창업센터 사업화자금 쪽으로 보여줘");
+
+        ChatMessage previousUserMessage = ChatMessage.builder()
+                .id(100L)
+                .session(session)
+                .role(ChatMessageRole.USER)
+                .content("창업 지원 정책 알려줘")
+                .build();
+        ChatMessage previousAssistantMessage = ChatMessage.builder()
+                .id(101L)
+                .session(session)
+                .role(ChatMessageRole.ASSISTANT)
+                .content("청년 창업 지원 정책이 있습니다.")
+                .referencesJson("[{\"serviceId\":14348,\"title\":\"청년 창업 지원\",\"reason\":\"창업 지원\",\"evidence\":\"창업활동비를 지원합니다.\"}]")
+                .build();
+
+        when(activeUserReadService.getActiveUserContext(1L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
+        when(chatMessageReadRepository.findOwnedSession(10L, "user-key-1")).thenReturn(Optional.of(session));
+        when(chatMessageReadRepository.findRecentMessages(10L, 6))
+                .thenReturn(List.of(previousAssistantMessage, previousUserMessage));
+        when(chatRetrievalSnapshotService.findSessionSnapshots(10L)).thenReturn(List.of());
+
+        String expectedRetrievalQuestion = "청년창업센터 사업화자금 쪽으로 보여줘";
+        ChatPolicyService.CandidateTrace trace = new ChatPolicyService.CandidateTrace(
+                expectedRetrievalQuestion,
+                "청년창업센터 사업화자금 쪽으로 보여줘",
+                null,
+                "일자리",
+                List.of("창업"),
+                "MERGED_RESULTS",
+                List.of(),
+                List.of(),
+                List.of(
+                        ChatPolicyCandidate.builder().serviceId(14349L).title("청년창업센터 지원")
+                                .description("사무공간, 멘토링, 창업교육, 사업화자금 지원 등 초기창업 보육을 지원합니다.")
+                                .build()
+                )
+        );
+        when(chatPolicyService.traceCandidatesForUser(expectedRetrievalQuestion, null, 3, user))
+                .thenReturn(trace);
+        when(chatGroundingService.loadEvidenceMap(any(List.class)))
+                .thenReturn(Map.of(14349L, "사무공간, 멘토링, 창업교육, 사업화자금 지원 등 초기창업 보육을 지원합니다."));
+        when(chatAiGateway.generateAnswer(any(User.class), nullable(String.class), anyString(), any(List.class), any(List.class), any(Map.class), anyString()))
+                .thenReturn(ChatAiResult.builder()
+                        .answer("청년창업센터 지원은 예비 또는 창업 7년 이내 청년기업을 대상으로 사업화자금과 보육 프로그램을 제공합니다.")
+                        .needsClarification(true)
+                        .references(List.of(
+                                ChatReferenceResponse.builder()
+                                        .serviceId(14349L)
+                                        .title("청년창업센터 지원")
+                                        .reason("사업화자금과 창업 보육 지원입니다.")
+                                        .evidence("사무공간, 멘토링, 창업교육, 사업화자금 지원 등 초기창업 보육을 지원합니다.")
+                                        .build()
+                        ))
+                        .build());
+
+        var response = chatConversationService.sendMessage(1L, 10L, request);
+
+        assertThat(response.getAnswerMode()).isEqualTo(ChatAnswerMode.POLICY_GROUNDED);
+        assertThat(response.isNeedsClarification()).isFalse();
+        assertThat(response.getReferences()).hasSize(1);
+        verify(chatRetrievalSnapshotService).recordInteractiveTrace(eq(session), eq("청년창업센터 사업화자금 쪽으로 보여줘"), eq(trace), eq(false));
+    }
+
+    @Test
     @DisplayName("메시지 재조회는 snapshot 기준으로 branch suggestion 메타를 복원한다")
     void getMessagesRestoresBranchSuggestionMetadata() {
         User user = createUser(1L);
