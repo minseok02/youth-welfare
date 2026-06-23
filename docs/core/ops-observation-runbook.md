@@ -25,6 +25,8 @@ entrypoint는 아래 wrapper입니다.
 - `tmp/ops-observation/latest-ops-observation-summary.txt`
 - `tmp/ops-observation/latest-ops-observation-note.md`
 - `tmp/ops-observation/latest-ops-observation.json`
+- `tmp/performance/app-log-observability/latest-app-log-observability-summary.txt`
+- `tmp/performance/nginx-log-observability/latest-nginx-log-observability-summary.txt`
 
 `KEEP_ARTIFACTS=false` 기본값에서도 stable snapshot은 남습니다.
 
@@ -42,6 +44,40 @@ entrypoint는 아래 wrapper입니다.
 - `recommendation_recent_window_review_reading`
 - `suite_duration_ms`
 - `next_action`
+
+## log observation에서 먼저 볼 값
+
+ops baseline이 흔들리면 app/nginx 로그 관찰을 같이 봅니다.
+
+```bash
+bash deploy/performance/run-local-app-log-observability-baseline.sh
+bash deploy/performance/run-local-nginx-log-observability-baseline.sh
+bash deploy/performance/evaluate-log-alert-thresholds.sh
+```
+
+- app: `api_request_count`, `api_status_*`, `api_error_code_*`, `raw_error_lines`, `auth_audit`, `recommendation_run`, `notification_attempt`, `user_action`
+- app endpoint latency: `api_duration_by_path`, `api_slow_samples`
+- nginx: `request_time_available`, `upstream_time_available`, `status_class_*`, `request_time p95/p99`
+
+초기 warning/critical 기준은 [log-alert-thresholds.md](./log-alert-thresholds.md)를 따릅니다.
+
+웹훅까지 붙인 운영 cron은 아래 wrapper를 사용합니다.
+
+```bash
+LOG_ALERT_APP_SINCE=10m \
+LOG_ALERT_NGINX_TAIL_LINES=2000 \
+bash deploy/ops/send-log-alert.sh
+```
+
+24시간 threshold 재산출은 아래 명령으로 고정합니다.
+
+```bash
+LOG_ALERT_TUNE_WINDOW=24h \
+NGINX_LOG_TUNE_TAIL_LINES=50000 \
+bash deploy/performance/tune-log-alert-thresholds.sh
+```
+
+관리자 dashboard는 DB 기반 로그 테이블 요약을 보여주고, app/nginx 파일 artifact는 host ops script와 webhook에서 다룹니다. 운영 app 컨테이너는 read-only이고 host `tmp/performance` 를 mount하지 않으므로 dashboard API가 파일 artifact를 직접 읽는 구조로 확장하지 않습니다.
 
 ## 현재 해석
 
