@@ -28,6 +28,9 @@ DB_QUERY_PASSWORD="${DB_QUERY_PASSWORD:-$(smoke_load_env_value "${ENV_FILE_RESOL
 DB_QUERY_PASSWORD="${DB_QUERY_PASSWORD:-$(smoke_load_env_value "${ENV_FILE_RESOLVED}" DB_PASSWORD welfare1234!)}"
 HEALTH_RETRY_COUNT="${HEALTH_RETRY_COUNT:-15}"
 HEALTH_RETRY_DELAY_SECONDS="${HEALTH_RETRY_DELAY_SECONDS:-1}"
+SMOKE_TRUSTED_ORIGIN="${SMOKE_TRUSTED_ORIGIN:-${PLAYWRIGHT_BASE_URL:-http://127.0.0.1:5173}}"
+SMOKE_TRUSTED_REFERER="${SMOKE_TRUSTED_REFERER:-${SMOKE_TRUSTED_ORIGIN}/}"
+TRUSTED_ORIGIN_HEADERS=(-H "Origin: ${SMOKE_TRUSTED_ORIGIN}" -H "Referer: ${SMOKE_TRUSTED_REFERER}")
 
 ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
 COOKIE_JAR="${ARTIFACT_DIR}/user.cookie"
@@ -128,6 +131,7 @@ LOGIN_TOKEN="$(extract_access_token "${LOGIN_RESPONSE}")"
 smoke_print_step "refresh"
 REFRESH_STATUS="$(
   smoke_http_status POST "${APP_BASE_URL}/api/auth/refresh" "${REFRESH_RESPONSE}" \
+    "${TRUSTED_ORIGIN_HEADERS[@]}" \
     -b "${COOKIE_JAR}" \
     -c "${COOKIE_JAR}"
 )"
@@ -168,6 +172,7 @@ fi
 smoke_print_step "stale refresh denied"
 STALE_REFRESH_STATUS="$(
   smoke_http_status POST "${APP_BASE_URL}/api/auth/refresh" "${STALE_REFRESH_RESPONSE}" \
+    "${TRUSTED_ORIGIN_HEADERS[@]}" \
     -b "${COOKIE_JAR}" \
     -c "${COOKIE_JAR}"
 )"
@@ -201,6 +206,7 @@ fi
 echo
 echo "withdraw smoke passed"
 echo "app_base_url=${APP_BASE_URL}"
+echo "smoke_trusted_origin=${SMOKE_TRUSTED_ORIGIN}"
 echo "smoke_email=${SMOKE_EMAIL}"
 echo "user_key=${USER_KEY}"
 echo "old_access_after_withdraw=401/${OLD_ACCESS_ERROR}"

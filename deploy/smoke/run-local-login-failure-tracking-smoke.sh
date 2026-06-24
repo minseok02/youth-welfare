@@ -18,6 +18,9 @@ SMOKE_EMPLOYMENT_STATUS="${SMOKE_EMPLOYMENT_STATUS:-미취업}"
 SMOKE_HOUSEHOLD_TYPE="${SMOKE_HOUSEHOLD_TYPE:-1인 가구}"
 HEALTH_RETRY_COUNT="${HEALTH_RETRY_COUNT:-15}"
 HEALTH_RETRY_DELAY_SECONDS="${HEALTH_RETRY_DELAY_SECONDS:-1}"
+SMOKE_TRUSTED_ORIGIN="${SMOKE_TRUSTED_ORIGIN:-${PLAYWRIGHT_BASE_URL:-http://127.0.0.1:5173}}"
+SMOKE_TRUSTED_REFERER="${SMOKE_TRUSTED_REFERER:-${SMOKE_TRUSTED_ORIGIN}/}"
+TRUSTED_ORIGIN_HEADERS=(-H "Origin: ${SMOKE_TRUSTED_ORIGIN}" -H "Referer: ${SMOKE_TRUSTED_REFERER}")
 
 ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
 COOKIE_JAR="${ARTIFACT_DIR}/login-failure.cookie"
@@ -201,6 +204,7 @@ assert_login_failure_state "${SMOKE_EMAIL}" "0" "0" "empty" "empty"
 smoke_print_step "logout"
 LOGOUT_STATUS="$(
   smoke_http_status POST "${APP_BASE_URL}/api/auth/logout" "${LOGOUT_RESPONSE}" \
+    "${TRUSTED_ORIGIN_HEADERS[@]}" \
     -b "${COOKIE_JAR}" \
     -c "${COOKIE_JAR}" \
     -H "Authorization: Bearer ${SUCCESS_LOGIN_TOKEN}"
@@ -210,6 +214,7 @@ smoke_assert_status 200 "${LOGOUT_STATUS}" "logout" "${LOGOUT_RESPONSE}"
 echo
 echo "login failure tracking smoke passed"
 echo "app_base_url=${APP_BASE_URL}"
+echo "smoke_trusted_origin=${SMOKE_TRUSTED_ORIGIN}"
 echo "smoke_email=${SMOKE_EMAIL}"
 echo "wrong_login_error_1=401/${WRONG_LOGIN_ONE_ERROR}"
 echo "wrong_login_error_2=401/${WRONG_LOGIN_TWO_ERROR}"
