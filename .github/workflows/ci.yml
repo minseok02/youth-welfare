@@ -162,6 +162,7 @@ jobs:
           APP_BASE_URL: http://127.0.0.1:8082
           APP_HEALTH_URL: http://127.0.0.1:8082/actuator/health
           REQUIRE_RECOMMENDATIONS: "false"
+          SMOKE_TRUSTED_ORIGIN: http://127.0.0.1:5173
         run: bash deploy/smoke/run-local-runtime-api-smoke.sh
 
       - name: Run admin forced logout smoke
@@ -171,6 +172,7 @@ jobs:
           APP_LOG_FILE: ${{ github.workspace }}/backend-bootRun.log
           ADMIN_EMAIL: admin@example.com
           ADMIN_PASSWORD: password123!
+          SMOKE_TRUSTED_ORIGIN: http://127.0.0.1:5173
         run: bash deploy/smoke/run-local-admin-forced-logout-smoke.sh
 
       - name: Install Playwright Chromium

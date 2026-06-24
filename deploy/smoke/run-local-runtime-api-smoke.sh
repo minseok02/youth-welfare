@@ -22,6 +22,9 @@ SMOKE_INTEREST_FIELD="${SMOKE_INTEREST_FIELD:-교육}"
 REQUIRE_RECOMMENDATIONS="${REQUIRE_RECOMMENDATIONS:-false}"
 HEALTH_RETRY_COUNT="${HEALTH_RETRY_COUNT:-15}"
 HEALTH_RETRY_DELAY_SECONDS="${HEALTH_RETRY_DELAY_SECONDS:-1}"
+SMOKE_TRUSTED_ORIGIN="${SMOKE_TRUSTED_ORIGIN:-${PLAYWRIGHT_BASE_URL:-http://127.0.0.1:5173}}"
+SMOKE_TRUSTED_REFERER="${SMOKE_TRUSTED_REFERER:-${SMOKE_TRUSTED_ORIGIN}/}"
+TRUSTED_ORIGIN_HEADERS=(-H "Origin: ${SMOKE_TRUSTED_ORIGIN}" -H "Referer: ${SMOKE_TRUSTED_REFERER}")
 
 ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
 COOKIE_JAR="${ARTIFACT_DIR}/runtime.cookie"
@@ -107,6 +110,7 @@ smoke_print_step "signup ${SMOKE_EMAIL}"
 smoke_seed_verified_email "${SMOKE_EMAIL}"
 SIGNUP_STATUS="$(
   smoke_http_status POST "${APP_BASE_URL}/api/auth/signup" "${SIGNUP_RESPONSE}" \
+    "${TRUSTED_ORIGIN_HEADERS[@]}" \
     -H 'Content-Type: application/json' \
     -d "{
       \"email\": \"${SMOKE_EMAIL}\",
@@ -127,6 +131,7 @@ smoke_assert_status 200 "${SIGNUP_STATUS}" "signup" "${SIGNUP_RESPONSE}"
 smoke_print_step "login"
 LOGIN_STATUS="$(
   smoke_http_status POST "${APP_BASE_URL}/api/auth/login" "${LOGIN_RESPONSE}" \
+    "${TRUSTED_ORIGIN_HEADERS[@]}" \
     -c "${COOKIE_JAR}" \
     -H 'Content-Type: application/json' \
     -d "{
@@ -140,6 +145,7 @@ LOGIN_TOKEN="$(extract_access_token "${LOGIN_RESPONSE}")"
 smoke_print_step "refresh"
 REFRESH_STATUS="$(
   smoke_http_status POST "${APP_BASE_URL}/api/auth/refresh" "${REFRESH_RESPONSE}" \
+    "${TRUSTED_ORIGIN_HEADERS[@]}" \
     -b "${COOKIE_JAR}" \
     -c "${COOKIE_JAR}"
 )"
@@ -149,6 +155,7 @@ REFRESHED_TOKEN="$(extract_access_token "${REFRESH_RESPONSE}")"
 smoke_print_step "recommendations refresh"
 RECOMMEND_REFRESH_STATUS="$(
   smoke_http_status POST "${APP_BASE_URL}/api/recommendations/refresh" "${RECOMMEND_REFRESH_RESPONSE}" \
+    "${TRUSTED_ORIGIN_HEADERS[@]}" \
     -H "Authorization: Bearer ${REFRESHED_TOKEN}"
 )"
 smoke_assert_status 200 "${RECOMMEND_REFRESH_STATUS}" "recommendations refresh" "${RECOMMEND_REFRESH_RESPONSE}"
@@ -166,6 +173,7 @@ else
   smoke_print_step "toggle bookmark recommendationId=${RECOMMENDATION_ID}"
   BOOKMARK_STATUS="$(
     smoke_http_status POST "${APP_BASE_URL}/api/recommendations/${RECOMMENDATION_ID}/bookmark" /dev/null \
+      "${TRUSTED_ORIGIN_HEADERS[@]}" \
       -H "Authorization: Bearer ${REFRESHED_TOKEN}"
   )"
   if [[ "${BOOKMARK_STATUS}" != "200" ]]; then
@@ -184,6 +192,7 @@ fi
 smoke_print_step "logout"
 LOGOUT_STATUS="$(
   smoke_http_status POST "${APP_BASE_URL}/api/auth/logout" "${LOGOUT_RESPONSE}" \
+    "${TRUSTED_ORIGIN_HEADERS[@]}" \
     -b "${COOKIE_JAR}" \
     -c "${COOKIE_JAR}" \
     -H "Authorization: Bearer ${REFRESHED_TOKEN}"
@@ -193,6 +202,7 @@ smoke_assert_status 200 "${LOGOUT_STATUS}" "logout" "${LOGOUT_RESPONSE}"
 smoke_print_step "refresh after logout"
 REFRESH_AFTER_LOGOUT_STATUS="$(
   smoke_http_status POST "${APP_BASE_URL}/api/auth/refresh" "${REFRESH_AFTER_LOGOUT_RESPONSE}" \
+    "${TRUSTED_ORIGIN_HEADERS[@]}" \
     -b "${COOKIE_JAR}" \
     -c "${COOKIE_JAR}"
 )"
@@ -233,6 +243,7 @@ fi
 echo
 echo "runtime api smoke passed"
 echo "app_base_url=${APP_BASE_URL}"
+echo "smoke_trusted_origin=${SMOKE_TRUSTED_ORIGIN}"
 echo "smoke_email=${SMOKE_EMAIL}"
 echo "recommendation_count=${RECOMMENDATION_COUNT}"
 echo "presented_after_logout=401/${PRESENTED_AFTER_LOGOUT_ERROR}"

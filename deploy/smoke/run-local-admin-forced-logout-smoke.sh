@@ -41,6 +41,9 @@ DB_QUERY_PASSWORD="${DB_QUERY_PASSWORD:-$(smoke_load_env_value "${ENV_FILE_RESOL
 DB_QUERY_PASSWORD="${DB_QUERY_PASSWORD:-$(smoke_load_env_value "${ENV_FILE_RESOLVED}" DB_PASSWORD welfare1234!)}"
 HEALTH_RETRY_COUNT="${HEALTH_RETRY_COUNT:-15}"
 HEALTH_RETRY_DELAY_SECONDS="${HEALTH_RETRY_DELAY_SECONDS:-1}"
+SMOKE_TRUSTED_ORIGIN="${SMOKE_TRUSTED_ORIGIN:-${PLAYWRIGHT_BASE_URL:-http://127.0.0.1:5173}}"
+SMOKE_TRUSTED_REFERER="${SMOKE_TRUSTED_REFERER:-${SMOKE_TRUSTED_ORIGIN}/}"
+TRUSTED_ORIGIN_HEADERS=(-H "Origin: ${SMOKE_TRUSTED_ORIGIN}" -H "Referer: ${SMOKE_TRUSTED_REFERER}")
 
 ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
 USER_COOKIE_JAR="${ARTIFACT_DIR}/user.cookie"
@@ -118,6 +121,7 @@ smoke_print_step "signup ${SMOKE_EMAIL}"
 smoke_seed_verified_email "${SMOKE_EMAIL}"
 SIGNUP_STATUS="$(
   smoke_http_status POST "${APP_BASE_URL}/api/auth/signup" "${SIGNUP_RESPONSE}" \
+    "${TRUSTED_ORIGIN_HEADERS[@]}" \
     -H 'Content-Type: application/json' \
     -d "{
       \"email\": \"${SMOKE_EMAIL}\",
@@ -138,6 +142,7 @@ smoke_assert_status 200 "${SIGNUP_STATUS}" "signup" "${SIGNUP_RESPONSE}"
 smoke_print_step "user login"
 USER_LOGIN_STATUS="$(
   smoke_http_status POST "${APP_BASE_URL}/api/auth/login" "${USER_LOGIN_RESPONSE}" \
+    "${TRUSTED_ORIGIN_HEADERS[@]}" \
     -c "${USER_COOKIE_JAR}" \
     -H 'Content-Type: application/json' \
     -d "{
@@ -151,6 +156,7 @@ USER_LOGIN_TOKEN="$(extract_access_token "${USER_LOGIN_RESPONSE}")"
 smoke_print_step "user refresh"
 USER_REFRESH_STATUS="$(
   smoke_http_status POST "${APP_BASE_URL}/api/auth/refresh" "${USER_REFRESH_RESPONSE}" \
+    "${TRUSTED_ORIGIN_HEADERS[@]}" \
     -b "${USER_COOKIE_JAR}" \
     -c "${USER_COOKIE_JAR}"
 )"
@@ -174,6 +180,7 @@ else
   smoke_print_step "admin login (${ADMIN_EMAIL})"
   ADMIN_LOGIN_STATUS="$(
     smoke_http_status POST "${APP_BASE_URL}/api/auth/login" "${ADMIN_LOGIN_RESPONSE}" \
+      "${TRUSTED_ORIGIN_HEADERS[@]}" \
       -c "${ADMIN_COOKIE_JAR}" \
       -H 'Content-Type: application/json' \
       -d "{
@@ -188,6 +195,7 @@ fi
 smoke_print_step "forced logout userKey=${USER_KEY}"
 FORCED_LOGOUT_STATUS="$(
   smoke_http_status POST "${APP_BASE_URL}/api/admin/users/forced-logout" "${FORCED_LOGOUT_RESPONSE}" \
+    "${TRUSTED_ORIGIN_HEADERS[@]}" \
     -H "Authorization: Bearer ${ADMIN_TOKEN}" \
     -H 'Content-Type: application/json' \
     -d "{\"userKey\":\"${USER_KEY}\"}"
@@ -210,6 +218,7 @@ fi
 smoke_print_step "old refresh denied"
 OLD_REFRESH_STATUS="$(
   smoke_http_status POST "${APP_BASE_URL}/api/auth/refresh" "${OLD_REFRESH_RESPONSE}" \
+    "${TRUSTED_ORIGIN_HEADERS[@]}" \
     -b "${USER_COOKIE_JAR}" \
     -c "${USER_COOKIE_JAR}"
 )"
@@ -224,6 +233,7 @@ fi
 smoke_print_step "relogin after forced logout"
 RELOGIN_STATUS="$(
   smoke_http_status POST "${APP_BASE_URL}/api/auth/login" "${RELOGIN_RESPONSE}" \
+    "${TRUSTED_ORIGIN_HEADERS[@]}" \
     -c "${USER_COOKIE_JAR}" \
     -H 'Content-Type: application/json' \
     -d "{
@@ -256,6 +266,7 @@ fi
 echo
 echo "admin forced logout smoke passed"
 echo "app_base_url=${APP_BASE_URL}"
+echo "smoke_trusted_origin=${SMOKE_TRUSTED_ORIGIN}"
 echo "admin_email=${ADMIN_EMAIL}"
 echo "smoke_email=${SMOKE_EMAIL}"
 echo "user_key=${USER_KEY}"
