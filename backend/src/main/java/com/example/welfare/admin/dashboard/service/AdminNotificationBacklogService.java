@@ -10,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.LocalDateTime;
 
 @Service
@@ -22,7 +24,7 @@ public class AdminNotificationBacklogService {
     public AdminNotificationStaleHideResponse hideStaleAlerts(AdminNotificationStaleHideRequest request) {
         UserAlert.UserAlertKind kind = normalizeKind(request.kind());
         String title = normalizeRequired(request.title(), 200);
-        String deeplinkUrl = normalizeRequired(request.deeplinkUrl(), 500);
+        String deeplinkUrl = normalizeRequiredInternalPath(request.deeplinkUrl(), 500);
         int olderThanDays = normalizeDays(request.olderThanDays());
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime cutoff = now.minusDays(olderThanDays);
@@ -62,6 +64,26 @@ public class AdminNotificationBacklogService {
             throw new CustomException(ErrorCode.INVALID_INPUT);
         }
         return normalized;
+    }
+
+    private String normalizeRequiredInternalPath(String raw, int maxLength) {
+        String normalized = normalizeRequired(raw, maxLength);
+        if (normalized.startsWith("//")) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+        try {
+            URI uri = new URI(normalized);
+            if (uri.isAbsolute() || uri.getHost() != null) {
+                throw new CustomException(ErrorCode.INVALID_INPUT);
+            }
+            String path = uri.getRawPath();
+            if (path == null || path.isBlank() || !path.startsWith("/")) {
+                throw new CustomException(ErrorCode.INVALID_INPUT);
+            }
+            return uri.toASCIIString();
+        } catch (URISyntaxException | IllegalArgumentException ex) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
     }
 
     private int normalizeDays(Integer raw) {

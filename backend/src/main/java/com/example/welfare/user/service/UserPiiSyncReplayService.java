@@ -1,5 +1,6 @@
 package com.example.welfare.user.service;
 
+import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.user.dto.response.UserPiiSyncReplayResponse;
 import com.example.welfare.user.entity.UserPiiSyncQueueStatus;
 import lombok.RequiredArgsConstructor;
@@ -30,14 +31,14 @@ public class UserPiiSyncReplayService {
 
     private UserPiiSyncReplayResponse replaySingle(String userKey) {
         if (!userPiiSyncQueueService.exists(userKey)) {
-            log.warn("[UserPiiSyncReplayService] queue row missing for manual replay userKey={}", userKey);
+            log.warn("[UserPiiSyncReplayService] queue row missing for manual replay userKeyHash={}", RedisKeyHash.sha256Hex(userKey));
             return new UserPiiSyncReplayResponse(0, 0, 0, 1);
         }
 
         UserPiiSyncQueueStatus status = userPiiSyncProcessor.process(userKey);
         UserPiiSyncReplayResponse response = summarize(List.of(status));
-        log.info("[UserPiiSyncReplayService] single replay complete userKey={} attempted={} synced={} failed={} missing={}",
-                userKey,
+        log.info("[UserPiiSyncReplayService] single replay complete userKeyHash={} attempted={} synced={} failed={} missing={}",
+                RedisKeyHash.sha256Hex(userKey),
                 response.attemptedCount(),
                 response.syncedCount(),
                 response.failedCount(),

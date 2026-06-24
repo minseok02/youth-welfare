@@ -37,7 +37,7 @@ class PolicySearchKeywordReadServiceTest {
     @DisplayName("인기 검색어 조회는 기본/최대 limit을 정규화한다")
     void getTrendingKeywordsNormalizesLimit() {
         given(policySearchKeywordReadRepository.findTrendingKeywords(any(LocalDateTime.class), eq(2), eq(10)))
-                .willReturn(List.of("월세 지원", "도약계좌"));
+                .willReturn(List.of("월세 지원", "010-1234-5678", "도약계좌"));
 
         List<String> response = policySearchKeywordReadService.getTrendingKeywords(99);
 
@@ -66,7 +66,7 @@ class PolicySearchKeywordReadServiceTest {
                         WelfareService.builder().title("월세 지원").build()
                 ));
         given(policySearchKeywordReadRepository.findSuggestions(eq("월세 지원"), any(LocalDateTime.class), eq(2), eq(8)))
-                .willReturn(List.of("월세 지원", "청년 월세 지원", "월세 긴급 지원"));
+                .willReturn(List.of("월세 지원", "010-1234-5678", "청년 월세 지원", "월세 긴급 지원"));
 
         List<String> response = policySearchKeywordReadService.getSuggestions("  월세!   지원?  ", null);
 

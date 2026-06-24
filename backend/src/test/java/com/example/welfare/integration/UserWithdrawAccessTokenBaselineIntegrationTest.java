@@ -115,7 +115,8 @@ class UserWithdrawAccessTokenBaselineIntegrationTest {
                 .andExpect(jsonPath("$.errorCode").value("A006"));
 
         mockMvc.perform(post("/api/auth/refresh")
-                        .header("X-Refresh-Token", refreshToken))
+                        .header("Origin", "http://127.0.0.1:5173")
+                        .cookie(new jakarta.servlet.http.Cookie("refresh_token", refreshToken)))
                 .andExpect(status().isGone())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("U003"));

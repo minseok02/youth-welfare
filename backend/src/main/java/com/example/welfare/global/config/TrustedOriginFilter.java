@@ -2,6 +2,7 @@ package com.example.welfare.global.config;
 
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.response.ApiResponse;
+import com.example.welfare.global.web.ObservabilityAttributes;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -41,7 +42,7 @@ public class TrustedOriginFilter extends OncePerRequestFilter {
             return;
         }
 
-        writeSecurityError(response);
+        writeSecurityError(request, response);
     }
 
     private boolean requiresTrustedOrigin(HttpServletRequest request) {
@@ -70,7 +71,7 @@ public class TrustedOriginFilter extends OncePerRequestFilter {
             return StringUtils.hasText(refererOrigin) && allowedOrigins().contains(refererOrigin);
         }
 
-        return true;
+        return false;
     }
 
     private Set<String> allowedOrigins() {
@@ -97,8 +98,9 @@ public class TrustedOriginFilter extends OncePerRequestFilter {
         }
     }
 
-    private void writeSecurityError(HttpServletResponse response) throws IOException {
+    private void writeSecurityError(HttpServletRequest request, HttpServletResponse response) throws IOException {
         ErrorCode errorCode = ErrorCode.ACCESS_DENIED;
+        ObservabilityAttributes.setErrorCode(request, errorCode.getCode());
         response.setStatus(errorCode.getHttpStatus().value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding(java.nio.charset.StandardCharsets.UTF_8.name());

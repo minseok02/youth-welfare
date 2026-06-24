@@ -119,8 +119,13 @@ class AuthRedisIntegrationTest {
     void checkEmailAvailabilityDoesNotRevealSignupState() throws Exception {
         String email = TEST_EMAIL_PREFIX + UUID.randomUUID() + "@example.com";
 
-        mockMvc.perform(get("/api/auth/check-email")
-                        .param("email", email))
+        mockMvc.perform(post("/api/auth/check-email")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "%s"
+                                }
+                                """.formatted(email)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.available").value(true));
@@ -142,8 +147,13 @@ class AuthRedisIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
-        mockMvc.perform(get("/api/auth/check-email")
-                        .param("email", email))
+        mockMvc.perform(post("/api/auth/check-email")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "%s"
+                                }
+                                """.formatted(email)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.available").value(true));
@@ -169,8 +179,13 @@ class AuthRedisIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
-        mockMvc.perform(get("/api/auth/check-email")
-                        .param("email", email.toUpperCase()))
+        mockMvc.perform(post("/api/auth/check-email")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "%s"
+                                }
+                                """.formatted(email.toUpperCase())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.available").value(true));
@@ -357,7 +372,8 @@ class AuthRedisIntegrationTest {
         String refreshToken = extractRefreshTokenCookie(loginResult);
 
         var refreshResult = mockMvc.perform(post("/api/auth/refresh")
-                        .header("X-Refresh-Token", refreshToken))
+                        .header(HttpHeaders.ORIGIN, "http://127.0.0.1:5173")
+                        .cookie(new jakarta.servlet.http.Cookie("refresh_token", refreshToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
@@ -370,7 +386,8 @@ class AuthRedisIntegrationTest {
 
         mockMvc.perform(post("/api/auth/logout")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + refreshedAccessToken)
-                        .header("X-Refresh-Token", rotatedRefreshToken))
+                        .header(HttpHeaders.ORIGIN, "http://127.0.0.1:5173")
+                        .cookie(new jakarta.servlet.http.Cookie("refresh_token", rotatedRefreshToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
@@ -392,7 +409,8 @@ class AuthRedisIntegrationTest {
                 .andExpect(jsonPath("$.errorCode").value("A006"));
 
         mockMvc.perform(post("/api/auth/refresh")
-                        .header("X-Refresh-Token", rotatedRefreshToken))
+                        .header(HttpHeaders.ORIGIN, "http://127.0.0.1:5173")
+                        .cookie(new jakarta.servlet.http.Cookie("refresh_token", rotatedRefreshToken)))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("A003"));

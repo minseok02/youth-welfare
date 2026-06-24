@@ -282,6 +282,45 @@ public final class AdminDashboardReadRows {
     ) {
     }
 
+    public record RecommendationRunSummaryRow(
+            long totalRuns,
+            long successRuns,
+            long errorRuns,
+            long noCandidateRuns,
+            long personalRuns,
+            long savedCount,
+            BigDecimal averageDurationMs,
+            BigDecimal averageSavedCount,
+            LocalDateTime latestRunAt
+    ) {
+    }
+
+    public record RecommendationRunOutcomeBreakdownRow(
+            String outcome,
+            long runCount,
+            long savedCount,
+            BigDecimal averageDurationMs,
+            LocalDateTime latestRunAt
+    ) {
+    }
+
+    public record RecommendationRunSampleRow(
+            long id,
+            String userKey,
+            boolean personal,
+            String outcome,
+            String clusterId,
+            int retrievedCount,
+            int ruleScoredCount,
+            int postFilterCount,
+            int rerankedCount,
+            int savedCount,
+            String aiStatusCountsJson,
+            long durationMs,
+            LocalDateTime createdAt
+    ) {
+    }
+
     public record RecommendationSampleRow(
             Long logId,
             Long serviceId,
@@ -331,6 +370,39 @@ public final class AdminDashboardReadRows {
             long staleUnread14d,
             long retryableFailedNotifications,
             long terminalFailedNotifications
+    ) {
+    }
+
+    public record NotificationAttemptSummaryRow(
+            long totalAttempts,
+            long successAttempts,
+            long failedAttempts,
+            long disabledAttempts,
+            BigDecimal averageDurationMs,
+            LocalDateTime latestAttemptAt
+    ) {
+    }
+
+    public record NotificationAttemptBreakdownRow(
+            String channel,
+            String kind,
+            String outcome,
+            long attemptCount,
+            BigDecimal averageDurationMs,
+            LocalDateTime latestAttemptAt
+    ) {
+    }
+
+    public record NotificationAttemptSampleRow(
+            long id,
+            String channel,
+            String kind,
+            String outcome,
+            int itemCount,
+            String endpointHost,
+            String errorType,
+            long durationMs,
+            LocalDateTime createdAt
     ) {
     }
 

@@ -67,6 +67,45 @@ class SupportInquiryCommandServiceTest {
     }
 
     @Test
+    @DisplayName("서비스 문의 routePath는 query와 hash를 저장하지 않는다")
+    void submitStripsRoutePathQueryAndHash() {
+        given(supportInquiryRepository.save(any(SupportInquiry.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+
+        supportInquiryCommandService.submit(
+                3L,
+                "user-key-3",
+                new SupportInquiryCreateRequest(
+                        SupportInquiry.Category.BUG_ERROR,
+                        "user@example.com",
+                        "비밀번호 재설정 화면에서 문의합니다.",
+                        "/reset-password?token=secret#token=secret"
+                )
+        );
+
+        ArgumentCaptor<SupportInquiry> captor = ArgumentCaptor.forClass(SupportInquiry.class);
+        verify(supportInquiryRepository).save(captor.capture());
+        assertEquals("/reset-password", captor.getValue().getRoutePath());
+    }
+
+    @Test
+    @DisplayName("서비스 문의 routePath는 protocol-relative 경로를 저장하지 않는다")
+    void submitRejectsProtocolRelativeRoutePath() {
+        CustomException exception = assertThrows(CustomException.class, () -> supportInquiryCommandService.submit(
+                null,
+                null,
+                new SupportInquiryCreateRequest(
+                        SupportInquiry.Category.ETC,
+                        "user@example.com",
+                        "문의 내용",
+                        "//evil.example/guide"
+                )
+        ));
+
+        assertEquals(ErrorCode.INVALID_INPUT, exception.getErrorCode());
+    }
+
+    @Test
     @DisplayName("이메일이 없으면 예외를 던진다")
     void submitRejectsMissingEmail() {
         CustomException exception = assertThrows(CustomException.class, () -> supportInquiryCommandService.submit(

@@ -66,4 +66,30 @@ class AdminNotificationBacklogServiceTest {
                 )
         )).isInstanceOf(CustomException.class);
     }
+
+    @Test
+    @DisplayName("stale notification backlog hide는 외부 deeplinkUrl을 거부한다")
+    void hideStaleAlertsRejectsExternalDeeplink() {
+        assertThatThrownBy(() -> service.hideStaleAlerts(
+                new AdminNotificationStaleHideRequest(
+                        "DEADLINE_REMINDER",
+                        "북마크한 정책 마감이 임박했어요",
+                        "https://evil.example/policies/2622",
+                        14
+                )
+        )).isInstanceOf(CustomException.class);
+    }
+
+    @Test
+    @DisplayName("stale notification backlog hide는 protocol-relative deeplinkUrl을 거부한다")
+    void hideStaleAlertsRejectsProtocolRelativeDeeplink() {
+        assertThatThrownBy(() -> service.hideStaleAlerts(
+                new AdminNotificationStaleHideRequest(
+                        "DEADLINE_REMINDER",
+                        "북마크한 정책 마감이 임박했어요",
+                        "//evil.example/policies/2622",
+                        14
+                )
+        )).isInstanceOf(CustomException.class);
+    }
 }

@@ -2,6 +2,7 @@ package com.example.welfare.notification.service;
 
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.notification.dto.WebPushTestSendRequest;
 import com.example.welfare.notification.dto.WebPushTestSendResponse;
 import com.example.welfare.notification.entity.WebPushSubscription;
@@ -18,6 +19,7 @@ import org.springframework.util.StringUtils;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -31,18 +33,19 @@ public class WebPushDispatchService {
     private final RecommendationDigestContentService recommendationDigestContentService;
     private final DeadlineReminderContentService deadlineReminderContentService;
     private final WebPushEndpointPolicyService webPushEndpointPolicyService;
+    private final NotificationAttemptLogService notificationAttemptLogService;
 
     @Value("${app.base-url:http://localhost:5173}")
     private String appBaseUrl;
 
     @Transactional
     public void sendRecommendationDigest(String userKey, List<UserRecommendation> recommendations) {
-        dispatchContent(userKey, recommendationDigestContentService.build(recommendations));
+        dispatchContent(userKey, "recommendation_digest", recommendationDigestContentService.build(recommendations));
     }
 
     @Transactional
     public void sendDeadlineReminder(String userKey, List<WelfareService> services, int days) {
-        dispatchContent(userKey, deadlineReminderContentService.build(services, days));
+        dispatchContent(userKey, "deadline_reminder", deadlineReminderContentService.build(services, days));
     }
 
     @Transactional
@@ -53,8 +56,8 @@ public class WebPushDispatchService {
             return new WebPushTestSendResponse(0, 0, 0, 0);
         }
         if (!webPushSenderClient.isConfigured()) {
-            log.info("[WebPushDispatchService] web push sender not configured. skip test send userKey={} subscriptions={}",
-                    userKey, subscriptions.size());
+            log.info("[WebPushDispatchService] web push sender not configured. skip test send userKeyHash={} subscriptions={}",
+                    RedisKeyHash.sha256Hex(userKey), subscriptions.size());
             return new WebPushTestSendResponse(subscriptions.size(), 0, 0, subscriptions.size());
         }
 
@@ -65,28 +68,34 @@ public class WebPushDispatchService {
         int failedCount = 0;
         for (WebPushSubscription subscription : subscriptions) {
             WebPushSendResult result;
+            long startedNanos = System.nanoTime();
+            String endpointHost = webPushEndpointPolicyService.describeEndpointForLog(subscription.getEndpoint());
             try {
                 result = webPushSenderClient.send(subscription, content);
             } catch (RuntimeException | LinkageError e) {
-                log.warn("[WebPushDispatchService] unexpected web push test send failure endpointHost={}: {}",
-                        webPushEndpointPolicyService.describeEndpointForLog(subscription.getEndpoint()),
-                        e.getMessage());
-                subscription.markError(e.getMessage());
+                String errorType = e.getClass().getSimpleName();
+                log.warn("[WebPushDispatchService] unexpected web push test send failure endpointHost={} errorType={}",
+                        endpointHost, errorType);
+                recordAttempt("test", "exception", userKey, 1, endpointHost, errorType, elapsedMs(startedNanos));
+                subscription.markError("web push test send failed (" + errorType + ")");
                 failedCount++;
                 continue;
             }
 
             if (result.success()) {
                 subscription.markSent();
+                recordAttempt("test", "sent", userKey, 1, endpointHost, null, elapsedMs(startedNanos));
                 sentCount++;
                 continue;
             }
             if (result.disableSubscription()) {
                 subscription.disable(result.errorMessage());
+                recordAttempt("test", "disabled", userKey, 1, endpointHost, safeError(result.errorMessage()), elapsedMs(startedNanos));
                 disabledCount++;
                 continue;
             }
             subscription.markError(result.errorMessage());
+            recordAttempt("test", "failed", userKey, 1, endpointHost, safeError(result.errorMessage()), elapsedMs(startedNanos));
             failedCount++;
         }
 
@@ -103,39 +112,83 @@ public class WebPushDispatchService {
         );
     }
 
-    private void dispatchContent(String userKey, NotificationContent content) {
+    private void dispatchContent(String userKey, String kind, NotificationContent content) {
         List<WebPushSubscription> subscriptions =
                 webPushSubscriptionRepository.findByUserKeyAndEnabledTrueOrderByCreatedAtDesc(userKey);
         if (subscriptions.isEmpty()) {
             return;
         }
         if (!webPushSenderClient.isConfigured()) {
-            log.info("[WebPushDispatchService] web push sender not configured. skip userKey={} subscriptions={}",
-                    userKey, subscriptions.size());
+            log.info("[WebPushDispatchService] web push sender not configured. skip userKeyHash={} subscriptions={}",
+                    RedisKeyHash.sha256Hex(userKey), subscriptions.size());
             return;
         }
 
         for (WebPushSubscription subscription : subscriptions) {
             WebPushSendResult result;
+            long startedNanos = System.nanoTime();
+            String endpointHost = webPushEndpointPolicyService.describeEndpointForLog(subscription.getEndpoint());
             try {
                 result = webPushSenderClient.send(subscription, content);
             } catch (RuntimeException | LinkageError e) {
-                log.warn("[WebPushDispatchService] unexpected web push send failure endpointHost={}: {}",
-                        webPushEndpointPolicyService.describeEndpointForLog(subscription.getEndpoint()),
-                        e.getMessage());
-                subscription.markError(e.getMessage());
+                String errorType = e.getClass().getSimpleName();
+                log.warn("[WebPushDispatchService] unexpected web push send failure endpointHost={} errorType={}",
+                        endpointHost, errorType);
+                recordAttempt(kind, "exception", userKey, 1, endpointHost, errorType, elapsedMs(startedNanos));
+                subscription.markError("web push send failed (" + errorType + ")");
                 continue;
             }
             if (result.success()) {
                 subscription.markSent();
+                recordAttempt(kind, "sent", userKey, 1, endpointHost, null, elapsedMs(startedNanos));
                 continue;
             }
             if (result.disableSubscription()) {
                 subscription.disable(result.errorMessage());
+                recordAttempt(kind, "disabled", userKey, 1, endpointHost, safeError(result.errorMessage()), elapsedMs(startedNanos));
                 continue;
             }
             subscription.markError(result.errorMessage());
+            recordAttempt(kind, "failed", userKey, 1, endpointHost, safeError(result.errorMessage()), elapsedMs(startedNanos));
         }
+    }
+
+    private long elapsedMs(long startedNanos) {
+        return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedNanos);
+    }
+
+    private void recordAttempt(String kind,
+                               String outcome,
+                               String userKey,
+                               int itemCount,
+                               String endpointHost,
+                               String errorType,
+                               long durationMs) {
+        String userKeyHash = RedisKeyHash.sha256Hex(userKey);
+        if (errorType == null) {
+            log.info("[NotificationAttempt] channel=web_push kind={} outcome={} userKeyHash={} endpointHost={} durationMs={}",
+                    kind, outcome, userKeyHash, endpointHost, durationMs);
+        } else {
+            log.warn("[NotificationAttempt] channel=web_push kind={} outcome={} userKeyHash={} endpointHost={} errorType={} durationMs={}",
+                    kind, outcome, userKeyHash, endpointHost, errorType, durationMs);
+        }
+        notificationAttemptLogService.record(new NotificationAttemptLogCommand(
+                userKeyHash,
+                "web_push",
+                kind,
+                outcome,
+                itemCount,
+                endpointHost,
+                errorType,
+                durationMs
+        ));
+    }
+
+    private String safeError(String errorMessage) {
+        if (!StringUtils.hasText(errorMessage)) {
+            return "unknown";
+        }
+        return errorMessage.trim().replaceAll("[^A-Za-z0-9._:-]", "_");
     }
 
     private String sanitizeTestPushUrl(String rawUrl) {

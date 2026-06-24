@@ -31,10 +31,18 @@ import {
 
 const userCredentials = resolveUserCredentials();
 const adminCredentials = resolveAdminCredentials();
+const hasAdminCredentials = Boolean(adminCredentials.email && adminCredentials.password);
 const apiBaseUrl = process.env.VITE_API_BASE_URL || "http://127.0.0.1:8082";
 const adminDashboardE2EFailureStorageKey = "__ADMIN_DASHBOARD_E2E_FAIL__";
 
 test.setTimeout(90_000);
+
+test.beforeEach(async ({ page }, testInfo) => {
+  void page;
+  if (testInfo.title.startsWith("admin dashboard") && !hasAdminCredentials) {
+    test.skip(true, "admin dashboard smoke requires E2E_ADMIN_EMAIL/E2E_ADMIN_PASSWORD or ALLOW_DEFAULT_ADMIN_CREDENTIALS=true");
+  }
+});
 
 const policyDetailUrl = (policyId) => new RegExp(`/policies/${policyId}(?:\\?.*)?$`);
 
@@ -190,16 +198,16 @@ async function searchPolicies(page, keyword) {
   await waitForProgressToSettle(page);
   await page.getByPlaceholder("정책명, 키워드를 검색해보세요 (예: 월세, 창업)").fill(keyword);
   await page.getByRole("button", { name: "검색", exact: true }).click();
-  await expect(page).toHaveURL(new RegExp(`/policies\\?[^#]*search=[^#]*${encodeURIComponent(keyword)}`));
+  await expect(page).toHaveURL(/\/policies$/);
   await waitForProgressToSettle(page);
 }
 
 async function fetchFirstSearchResult(request, keyword) {
-  const response = await request.get(`${apiBaseUrl}/api/policies/search`, {
-    params: {
+  const response = await request.post(`${apiBaseUrl}/api/policies/search`, {
+    data: {
       keyword,
-      page: "0",
-      size: "10",
+      page: 0,
+      size: 10,
       sort: "RELEVANCE",
       statusFilter: "ACTIVE_ONLY",
     },
@@ -213,8 +221,7 @@ async function fetchFirstSearchResult(request, keyword) {
 
 async function openFirstSearchResult(page, request, keyword) {
   await searchPolicies(page, keyword);
-  const currentSearch = new URL(page.url()).searchParams.get("search") || keyword;
-  const firstPolicy = await fetchFirstSearchResult(request, currentSearch);
+  const firstPolicy = await fetchFirstSearchResult(request, keyword);
   await openPolicyFromList(page, firstPolicy);
   return firstPolicy;
 }
@@ -401,6 +408,7 @@ async function mockAdminDashboardApis(page) {
   const routes = [
     ["**/api/admin/dashboard/summary*", adminDashboardFixtures.summary],
     ["**/api/admin/dashboard/recommendation-breakdowns*", adminDashboardFixtures.breakdowns],
+    ["**/api/admin/dashboard/recommendation-run-summary*", adminDashboardFixtures.recommendationRunSummary],
     ["**/api/admin/dashboard/collect-failures*", adminDashboardFixtures.collectFailures],
     ["**/api/admin/dashboard/search-failures*", adminDashboardFixtures.searchFailures],
     ["**/api/admin/dashboard/user-profile-standard-code-coverage*", adminDashboardFixtures.userProfileStandardCodeCoverage],
@@ -414,6 +422,7 @@ async function mockAdminDashboardApis(page) {
     ["**/api/admin/dashboard/support-inquiries*", adminDashboardFixtures.supportInquiries],
     ["**/api/admin/dashboard/policy-duplicate-groups*", adminDashboardFixtures.policyDuplicateGroups],
     ["**/api/admin/dashboard/policy-link-reviews*", adminDashboardFixtures.policyLinkReviews],
+    ["**/api/admin/dashboard/notification-attempt-summary*", adminDashboardFixtures.notificationAttemptSummary],
   ];
 
   await Promise.all(routes.map(([url, data]) => page.route(url, (route) => route.fulfill({
@@ -609,20 +618,22 @@ test("로그인 401은 refresh를 시도하지 않고 원래 credential 오류�
   await expect(page).toHaveURL(/\/login$/);
 });
 
-test("정책 목록 검색 query는 상세 진입 후 브라우저 back과 상세 뒤로가기에서 유지된다", async ({ page, request }) => {
+test("정책 목록 검색 상태는 URL query 없이 상세 진입 후 브라우저 back과 상세 뒤로가기에서 유지된다", async ({ page, request }) => {
   const firstPolicy = await openFirstSearchResult(page, request, "청년");
   await page.goBack();
-  await expect(page).toHaveURL(/\/policies\?[^#]*search=%EC%B2%AD%EB%85%84/);
+  await expect(page).toHaveURL(/\/policies$/);
+  expect(new URL(page.url()).searchParams.get("search")).toBeNull();
   await waitForProgressToSettle(page);
   await expectPolicyListItemReady(page, firstPolicy);
 
   await openPolicyFromList(page, firstPolicy);
   await Promise.all([
-    page.waitForURL(/\/policies\?[^#]*search=%EC%B2%AD%EB%85%84/, { timeout: 15_000 }),
+    page.waitForURL(/\/policies$/, { timeout: 15_000 }),
     page.getByRole("button", { name: /뒤로가기/ }).click(),
   ]);
 
-  await expect(page).toHaveURL(/\/policies\?[^#]*search=%EC%B2%AD%EB%85%84/);
+  await expect(page).toHaveURL(/\/policies$/);
+  expect(new URL(page.url()).searchParams.get("search")).toBeNull();
   await waitForProgressToSettle(page);
   await expectPolicyListItemReady(page, firstPolicy);
 });
@@ -831,7 +842,7 @@ test("정책 상세에서 AI 신청 준비 코칭으로 진입하면 연결 정�
   await expect.poll(() => createSessionRequestCount).toBe(1);
   await expect.poll(() => coachingMessageRequestCount).toBe(1);
   expect(new URL(page.url()).searchParams.get("coachPolicyId")).toBeNull();
-  expect(new URL(page.url()).searchParams.get("session")).toBe(String(sessionId));
+  expect(new URL(page.url()).searchParams.get("session")).toBeNull();
 
   await page.reload();
   await expect(page.getByText("1. 자격 조건 확인", { exact: false })).toBeVisible({ timeout: 15_000 });
@@ -1501,7 +1512,7 @@ test("reset-password query token 진입은 새 비밀번호 설정 후 새 비�
   const resetToken = await issuePasswordReset(request, email, originalPassword);
 
   await page.goto(`/reset-password?token=${encodeURIComponent(resetToken)}`);
-  await expect(page).toHaveURL(new RegExp(`/reset-password#token=${encodeURIComponent(resetToken)}`));
+  await expect(page).toHaveURL(/\/reset-password$/);
   await expect(page.getByText("새 비밀번호 설정", { exact: true })).toBeVisible();
 
   await page.getByPlaceholder("8자 이상 입력").fill(newPassword);
@@ -1528,7 +1539,7 @@ test("reset-password hash token 딥링크 진입은 새 비밀번호 설정 후 
   const resetToken = await issuePasswordReset(request, email, originalPassword);
 
   await page.goto(`/reset-password#token=${encodeURIComponent(resetToken)}`);
-  await expect(page).toHaveURL(new RegExp(`/reset-password#token=${encodeURIComponent(resetToken)}`));
+  await expect(page).toHaveURL(/\/reset-password$/);
   await expect(page.getByText("새 비밀번호 설정", { exact: true })).toBeVisible();
 
   await page.getByPlaceholder("8자 이상 입력").fill(newPassword);
@@ -1541,6 +1552,7 @@ test("reset-password hash token 딥링크 진입은 새 비밀번호 설정 후 
 });
 
 test("reset-password invalid token 진입은 만료 안내를 보여주고 로그인으로 이동하지 않는다", async ({ page }) => {
+  await page.goto("/login");
   await page.goto("/reset-password#token=definitely-invalid-reset-token");
   await expect(page.getByText("새 비밀번호 설정", { exact: true })).toBeVisible();
 
@@ -1549,8 +1561,37 @@ test("reset-password invalid token 진입은 만료 안내를 보여주고 로�
   await page.getByRole("button", { name: "비밀번호 변경" }).click();
 
   await expect(page.getByText("링크가 만료되었거나 이미 사용되었습니다. 다시 재설정 메일을 요청해주세요.")).toBeVisible();
-  await expect(page).toHaveURL(/\/reset-password#token=definitely-invalid-reset-token$/);
+  await expect(page).toHaveURL(/\/reset-password$/);
   await expect(page.getByPlaceholder("8자 이상 입력")).toBeVisible();
+
+  await page.goBack();
+  await expect(page).toHaveURL(/\/login$/);
+  await page.goForward();
+  await expect(page).toHaveURL(/\/reset-password$/);
+});
+
+test("notification unsubscribe token 진입은 히스토리 이동 후에도 token URL을 복구하지 않는다", async ({ page }) => {
+  let unsubscribeRequestBody = null;
+  await page.route("**/api/notifications/unsubscribe", async (route) => {
+    unsubscribeRequestBody = route.request().postDataJSON();
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify({ success: true, data: null }),
+    });
+  });
+
+  await page.goto("/login");
+  await page.goto("/notifications/unsubscribe#token=unsubscribe-token-1");
+
+  await expect(page).toHaveURL(/\/notifications\/unsubscribe$/);
+  await expect(page.getByText("알림 수신이 해제되었습니다.")).toBeVisible();
+  expect(unsubscribeRequestBody).toEqual({ token: "unsubscribe-token-1" });
+
+  await page.goBack();
+  await expect(page).toHaveURL(/\/login$/);
+  await page.goForward();
+  await expect(page).toHaveURL(/\/notifications\/unsubscribe$/);
 });
 
 test("일반 사용자로 admin dashboard 접근 시 홈으로 리다이렉트되고 경고 toast가 보인다", async ({ page }) => {
@@ -1701,7 +1742,7 @@ test("admin dashboard 정책 중복 review 섹션은 duplicate queue를 보여�
   await expect(duplicateSection.getByText("청년문화예술패스", { exact: true })).toBeVisible();
   await expect(duplicateSection.getByText("공공근로사업", { exact: true })).toBeVisible();
   await expect(duplicateSection.getByText("12건 중복", { exact: true })).toBeVisible();
-  await expect(duplicateSection.getByText("처리완료 · admin-user-key")).toBeVisible();
+  await expect(duplicateSection.getByText(/처리완료 · admin-.+-key/)).toBeVisible();
 });
 
 test("admin dashboard 정책 링크 review 섹션은 열린 링크 review queue를 보여준다 @admin-required", async ({ page }) => {
@@ -1722,7 +1763,7 @@ test("admin dashboard 정책 링크 review 섹션은 열린 링크 review queue�
   await expect(linkReviewSection.getByText("대표 링크 비어있음", { exact: true }).first()).toBeVisible();
   await expect(linkReviewSection.getByText("프로그램형", { exact: true })).toBeVisible();
   await expect(linkReviewSection.getByText("공고/모집형", { exact: true })).toBeVisible();
-  await expect(linkReviewSection.getByText("처리완료 · admin-user-key")).toBeVisible();
+  await expect(linkReviewSection.getByText(/처리완료 · admin-.+-key/)).toBeVisible();
 });
 
 test("admin dashboard policy triage 요약은 duplicate/link 우선순위를 상단 카드에 보여준다 @admin-required", async ({ page }) => {

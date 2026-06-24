@@ -766,6 +766,104 @@ public class AdminDashboardRecommendationReadRepository {
         );
     }
 
+    public AdminDashboardReadRows.RecommendationRunSummaryRow fetchRecommendationRunSummary(LocalDateTime windowAgo) {
+        return jdbcTemplate.queryForObject("""
+                select count(*) as total_runs,
+                       coalesce(sum(case when outcome = 'SUCCESS' then 1 else 0 end), 0) as success_runs,
+                       coalesce(sum(case when outcome = 'ERROR' then 1 else 0 end), 0) as error_runs,
+                       coalesce(sum(case when outcome = 'NO_CANDIDATES' then 1 else 0 end), 0) as no_candidate_runs,
+                       coalesce(sum(case when personal = true then 1 else 0 end), 0) as personal_runs,
+                       coalesce(sum(saved_count), 0) as saved_count,
+                       coalesce(avg(duration_ms), 0) as average_duration_ms,
+                       coalesce(avg(saved_count), 0) as average_saved_count,
+                       max(created_at) as latest_run_at
+                  from recommendation_run_logs
+                 where created_at >= :windowAgo
+                """,
+                new MapSqlParameterSource("windowAgo", windowAgo),
+                (rs, rowNum) -> new AdminDashboardReadRows.RecommendationRunSummaryRow(
+                        rs.getLong("total_runs"),
+                        rs.getLong("success_runs"),
+                        rs.getLong("error_runs"),
+                        rs.getLong("no_candidate_runs"),
+                        rs.getLong("personal_runs"),
+                        rs.getLong("saved_count"),
+                        rs.getBigDecimal("average_duration_ms"),
+                        rs.getBigDecimal("average_saved_count"),
+                        AdminDashboardJdbcSupport.getLocalDateTime(rs, "latest_run_at")
+                )
+        );
+    }
+
+    public List<AdminDashboardReadRows.RecommendationRunOutcomeBreakdownRow> fetchRecommendationRunOutcomeBreakdowns(
+            LocalDateTime windowAgo,
+            int limit
+    ) {
+        return jdbcTemplate.query("""
+                select outcome,
+                       count(*) as run_count,
+                       coalesce(sum(saved_count), 0) as saved_count,
+                       coalesce(avg(duration_ms), 0) as average_duration_ms,
+                       max(created_at) as latest_run_at
+                  from recommendation_run_logs
+                 where created_at >= :windowAgo
+              group by outcome
+              order by run_count desc, outcome asc
+                 limit %d
+                """.formatted(limit),
+                new MapSqlParameterSource("windowAgo", windowAgo),
+                (rs, rowNum) -> new AdminDashboardReadRows.RecommendationRunOutcomeBreakdownRow(
+                        rs.getString("outcome"),
+                        rs.getLong("run_count"),
+                        rs.getLong("saved_count"),
+                        rs.getBigDecimal("average_duration_ms"),
+                        AdminDashboardJdbcSupport.getLocalDateTime(rs, "latest_run_at")
+                )
+        );
+    }
+
+    public List<AdminDashboardReadRows.RecommendationRunSampleRow> fetchRecentRecommendationRuns(
+            LocalDateTime windowAgo,
+            int limit
+    ) {
+        return jdbcTemplate.query("""
+                select id,
+                       user_key,
+                       personal,
+                       outcome,
+                       cluster_id,
+                       retrieved_count,
+                       rule_scored_count,
+                       post_filter_count,
+                       reranked_count,
+                       saved_count,
+                       ai_status_counts_json,
+                       duration_ms,
+                       created_at
+                  from recommendation_run_logs
+                 where created_at >= :windowAgo
+              order by created_at desc, id desc
+                 limit %d
+                """.formatted(limit),
+                new MapSqlParameterSource("windowAgo", windowAgo),
+                (rs, rowNum) -> new AdminDashboardReadRows.RecommendationRunSampleRow(
+                        rs.getLong("id"),
+                        rs.getString("user_key"),
+                        rs.getBoolean("personal"),
+                        rs.getString("outcome"),
+                        rs.getString("cluster_id"),
+                        rs.getInt("retrieved_count"),
+                        rs.getInt("rule_scored_count"),
+                        rs.getInt("post_filter_count"),
+                        rs.getInt("reranked_count"),
+                        rs.getInt("saved_count"),
+                        rs.getString("ai_status_counts_json"),
+                        rs.getLong("duration_ms"),
+                        AdminDashboardJdbcSupport.getLocalDateTime(rs, "created_at")
+                )
+        );
+    }
+
     public List<AdminDashboardReadRows.RecommendationSampleRow> fetchRecentFallbackRecommendationSamples(LocalDateTime windowAgo, int limit) {
         return jdbcTemplate.query("""
                 select rl.id as log_id,

@@ -21,12 +21,16 @@ public class PolicySearchLogService {
         if (command == null || command.keyword() == null || command.keyword().isBlank()) {
             return;
         }
+        String trimmedKeyword = command.keyword().trim();
+        if (PolicySearchKeywordPrivacy.containsSensitiveIdentifier(trimmedKeyword)) {
+            return;
+        }
 
         try {
             policySearchLogCommandRepository.save(SearchLog.builder()
                     .userKey(userKeyLookupService.findNullable(command.userId()))
                     .clientFingerprint(normalizeClientFingerprint(command.clientFingerprint()))
-                    .keyword(command.keyword().trim())
+                    .keyword(trimmedKeyword)
                     .resultCount(command.resultCount())
                     .statusFilter(normalizeUpper(command.status()))
                     .includeClosed("ALL".equals(command.statusFilter()) || "EXPIRED_ONLY".equals(command.statusFilter()))
@@ -41,7 +45,7 @@ public class PolicySearchLogService {
                     .build());
         } catch (RuntimeException e) {
             log.warn("[PolicySearchLogService] 검색 로그 저장 실패 keywordLength={} resultCount={} page={} size={}",
-                    command.keyword().trim().length(),
+                    trimmedKeyword.length(),
                     command.resultCount(),
                     command.page(),
                     command.size(),

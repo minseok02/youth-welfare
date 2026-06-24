@@ -10,6 +10,11 @@ export const PROFILE_STANDARD_CODEBOOK_KEYS = {
 const CODE_VALUE_KEY = "코드값";
 const CODE_LABEL_KEY = "코드값의미";
 const DEFAULT_LIMIT = 500;
+const NOT_APPLICABLE_OPTION = { value: "NONE", label: "해당 없음" };
+const NOT_APPLICABLE_CODEBOOK_KEYS = new Set([
+  PROFILE_STANDARD_CODEBOOK_KEYS.basicLivingRecipientType,
+  PROFILE_STANDARD_CODEBOOK_KEYS.disabilityGrade,
+]);
 
 function mapCodebookRowsToOptions(rows = []) {
   return rows
@@ -24,7 +29,14 @@ export async function fetchOfficialCodebookOptions(codeSetKey, limit = DEFAULT_L
   const { data } = await api.get(`/api/reference/official-codes/${codeSetKey}`, {
     params: { limit },
   });
-  return mapCodebookRowsToOptions(data?.data?.rows ?? []);
+  const options = mapCodebookRowsToOptions(data?.data?.rows ?? []);
+  if (!NOT_APPLICABLE_CODEBOOK_KEYS.has(codeSetKey)) {
+    return options;
+  }
+  if (options.some((option) => option.value === NOT_APPLICABLE_OPTION.value)) {
+    return options;
+  }
+  return [NOT_APPLICABLE_OPTION, ...options];
 }
 
 export async function fetchProfileStandardCodebookOptions() {

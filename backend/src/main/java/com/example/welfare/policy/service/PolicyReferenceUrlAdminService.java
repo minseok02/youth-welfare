@@ -77,8 +77,8 @@ public class PolicyReferenceUrlAdminService {
                     updated++;
                 } catch (Exception e) {
                     failed++;
-                    log.warn("[PolicyReferenceUrlAdminService] reference url backfill 실패 sourceType={} sourceId={} err={}",
-                            sourceType, target.rawApiPayload().getSourceId(), e.getMessage());
+                    log.warn("[PolicyReferenceUrlAdminService] reference url backfill 실패 sourceType={} sourceId={} errorType={}",
+                            sourceType, target.rawApiPayload().getSourceId(), e.getClass().getSimpleName());
                 }
             }
         }

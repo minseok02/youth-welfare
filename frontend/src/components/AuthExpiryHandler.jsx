@@ -1,11 +1,13 @@
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
+import { buildSafeReturnLocation } from "../lib/safeNavigation";
 
 export default function AuthExpiryHandler({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { isLoggedIn, clearSession } = useAuthStore();
+  const returnLocation = buildSafeReturnLocation(location);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -20,7 +22,7 @@ export default function AuthExpiryHandler({ children }) {
       navigate("/login", {
         replace: true,
         state: {
-          from: location,
+          from: returnLocation,
           reason: "expired",
         },
       });
@@ -33,7 +35,7 @@ export default function AuthExpiryHandler({ children }) {
         delete window.__authExpired;
       }
     };
-  }, [clearSession, isLoggedIn, location, navigate]);
+  }, [clearSession, isLoggedIn, navigate, returnLocation]);
 
   return children;
 }

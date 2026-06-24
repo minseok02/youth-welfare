@@ -3,6 +3,7 @@ package com.example.welfare.user.service;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.util.AesEncryptUtil;
+import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.notification.dto.NotificationTarget;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.repository.NotificationTargetAggregateReadModel;
@@ -52,7 +53,8 @@ public class UserNotificationReadService {
     private NotificationTarget toNotificationTarget(NotificationTargetAggregateReadModel row) {
         String email = decryptNullable(row.emailEnc());
         if (!StringUtils.hasText(email)) {
-            log.warn("[UserNotificationReadService] 알림 대상 이메일 누락 userId={} userKey={}", row.userId(), row.userKey());
+            log.warn("[UserNotificationReadService] 알림 대상 이메일 누락 userId={} userKeyHash={}",
+                    row.userId(), RedisKeyHash.sha256Hex(row.userKey()));
         }
         return new NotificationTarget(
                 row.userId(),

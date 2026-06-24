@@ -138,6 +138,60 @@ class AdminPolicyFieldCorrectionServiceTest {
     }
 
     @Test
+    @DisplayName("링크 보정은 http/https 외 URL을 거부한다")
+    void applyDetailUrlCorrectionRejectsUnsafeScheme() {
+        WelfareService policy = WelfareService.builder()
+                .id(203L)
+                .sourceType(WelfareService.SourceType.GOV24)
+                .sourceId("GOV-203")
+                .title("위험 링크 보정 대상")
+                .build();
+        given(policyLookupService.getRequiredService(203L)).willReturn(policy);
+
+        assertThatThrownBy(() -> service.applyCorrection(
+                new AdminPolicyFieldCorrectionRequest(
+                        203L,
+                        null,
+                        "DETAIL_URL",
+                        null,
+                        null,
+                        "javascript:alert(1)",
+                        null,
+                        null,
+                        "위험 링크"
+                ),
+                "admin-key"
+        )).isInstanceOf(CustomException.class);
+    }
+
+    @Test
+    @DisplayName("링크 보정은 user-info가 있는 오인 가능 URL을 거부한다")
+    void applyDetailUrlCorrectionRejectsUserInfoUrl() {
+        WelfareService policy = WelfareService.builder()
+                .id(204L)
+                .sourceType(WelfareService.SourceType.GOV24)
+                .sourceId("GOV-204")
+                .title("위험 링크 보정 대상")
+                .build();
+        given(policyLookupService.getRequiredService(204L)).willReturn(policy);
+
+        assertThatThrownBy(() -> service.applyCorrection(
+                new AdminPolicyFieldCorrectionRequest(
+                        204L,
+                        null,
+                        "DETAIL_URL",
+                        null,
+                        null,
+                        "https://trusted.example.com@evil.example.com/apply",
+                        null,
+                        null,
+                        "위험 링크"
+                ),
+                "admin-key"
+        )).isInstanceOf(CustomException.class);
+    }
+
+    @Test
     @DisplayName("중복 정책 보정은 기준 정책 ID가 없으면 거부한다")
     void duplicateCorrectionRequiresDuplicatePolicyId() {
         WelfareService policy = WelfareService.builder()

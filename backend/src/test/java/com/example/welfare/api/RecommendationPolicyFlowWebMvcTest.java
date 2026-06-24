@@ -50,6 +50,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
@@ -224,15 +225,20 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(jsonPath("$.data[0].gov24UserTypeLabel").value("청년"))
                 .andExpect(jsonPath("$.data[0].gov24BenefitTypeLabel").value("서비스"));
 
-        mockMvc.perform(get("/api/policies/search")
-                        .param("keyword", "월세")
-                        .param("status", "ACTIVE")
-                        .param("category", "HOUSING")
-                        .param("sourceType", "YOUTH")
-                        .param("onlineApply", "true")
-                        .param("sort", "RELEVANCE")
-                        .param("page", "0")
-                        .param("size", "10"))
+        mockMvc.perform(post("/api/policies/search")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                  {
+                                    "keyword": "월세",
+                                    "status": "ACTIVE",
+                                    "category": "HOUSING",
+                                    "sourceType": "YOUTH",
+                                    "onlineApply": true,
+                                    "sort": "RELEVANCE",
+                                    "page": 0,
+                                    "size": 10
+                                  }
+                                  """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.content[0].id").value(11))
@@ -347,8 +353,13 @@ class RecommendationPolicyFlowWebMvcTest {
                 .given(policyTrafficRateLimitService)
                 .checkSearchLimit("fp:fp-search");
 
-        mockMvc.perform(get("/api/policies/search")
-                        .param("keyword", "월세"))
+        mockMvc.perform(post("/api/policies/search")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                  {
+                                    "keyword": "월세"
+                                  }
+                                  """))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("P003"));
@@ -367,9 +378,14 @@ class RecommendationPolicyFlowWebMvcTest {
     @Test
     @DisplayName("정책 검색 API는 과도한 page를 400으로 거부한다")
     void searchRejectsOversizedPage() throws Exception {
-        mockMvc.perform(get("/api/policies/search")
-                        .param("keyword", "월세")
-                        .param("page", "1001"))
+        mockMvc.perform(post("/api/policies/search")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                  {
+                                    "keyword": "월세",
+                                    "page": 1001
+                                  }
+                                  """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("C001"));
@@ -505,8 +521,8 @@ class RecommendationPolicyFlowWebMvcTest {
     }
 
     @Test
-    @DisplayName("정책 상세 조회 시 log_id가 있으면 클릭 로그를 기록한다")
-    void policyDetailMarksClickWhenLogIdExists() throws Exception {
+    @DisplayName("정책 상세 조회는 URL log_id로 클릭 로그를 기록하지 않는다")
+    void policyDetailDoesNotMarkClickFromUrlLogId() throws Exception {
         PolicyDetailResponse detail = PolicyDetailResponse.builder()
                 .id(11L)
                 .title("청년 월세 지원")
@@ -547,7 +563,28 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(jsonPath("$.data.gov24BenefitTypeLabel").value("서비스"));
 
         verify(policyDetailService).getDetail(isNull(), eq(11L), eq(true));
-        verify(recommendationLogService).markClicked(9001L, null);
+        verify(recommendationLogService, never()).markClicked(anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("추천 클릭 추적은 URL이 아닌 POST body로 기록한다")
+    void recommendationClickMarksClickFromPostBody() throws Exception {
+        mockMvc.perform(post("/api/policies/{id}/recommendation-click", 11L)
+                        .with(authentication(new UsernamePasswordAuthenticationToken(
+                                new AuthenticatedUser(1L, "user-key-1"),
+                                null,
+                                Collections.emptyList()
+                        )))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "logId": 9001
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        verify(recommendationLogService).markClicked(9001L, null, 11L);
     }
 
     @Test

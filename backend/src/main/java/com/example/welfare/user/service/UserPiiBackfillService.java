@@ -1,6 +1,7 @@
 package com.example.welfare.user.service;
 
 import com.example.welfare.global.util.AesEncryptUtil;
+import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.user.dto.response.UserPiiBackfillResponse;
 import com.example.welfare.user.dto.response.UserPiiEncryptionRotationResponse;
 import com.example.welfare.user.entity.UserPiiSyncQueue;
@@ -38,7 +39,8 @@ public class UserPiiBackfillService {
         for (UserPiiBackfillStateReadModel state : backfillStates) {
             UserLegacyPiiSourceReadModel source = sourceByUserKey.get(state.userKey());
             if (source == null) {
-                log.warn("[UserPiiBackfillService] legacy user source not found for userKey={}", state.userKey());
+                log.warn("[UserPiiBackfillService] legacy user source not found for userKeyHash={}",
+                        RedisKeyHash.sha256Hex(state.userKey()));
                 skippedCount++;
                 continue;
             }
@@ -104,8 +106,8 @@ public class UserPiiBackfillService {
                 userPiiUpdatedCount++;
             } catch (RuntimeException e) {
                 failedCount++;
-                log.error("[UserPiiBackfillService] user_pii encryption rotation failed userKey={} errorType={}",
-                        row.userKey(), e.getClass().getSimpleName());
+                log.error("[UserPiiBackfillService] user_pii encryption rotation failed userKeyHash={} errorType={}",
+                        RedisKeyHash.sha256Hex(row.userKey()), e.getClass().getSimpleName());
             }
         }
 
@@ -122,8 +124,8 @@ public class UserPiiBackfillService {
                 queueUpdatedCount++;
             } catch (RuntimeException e) {
                 failedCount++;
-                log.error("[UserPiiBackfillService] user_pii sync queue encryption rotation failed userKey={} errorType={}",
-                        queue.getUserKey(), e.getClass().getSimpleName());
+                log.error("[UserPiiBackfillService] user_pii sync queue encryption rotation failed userKeyHash={} errorType={}",
+                        RedisKeyHash.sha256Hex(queue.getUserKey()), e.getClass().getSimpleName());
             }
         }
 

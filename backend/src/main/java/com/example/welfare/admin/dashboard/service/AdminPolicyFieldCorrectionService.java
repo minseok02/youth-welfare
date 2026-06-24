@@ -18,8 +18,11 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -90,7 +93,7 @@ public class AdminPolicyFieldCorrectionService {
         switch (type) {
             case APPLICATION_PERIOD -> policy.applyAdminApplicationPeriod(request.applyStartDate(), request.applyEndDate());
             case DETAIL_URL -> {
-                String detailUrl = normalizeRequired(request.detailUrl());
+                String detailUrl = normalizeRequiredExternalUrl(request.detailUrl());
                 policy.applyAdminDetailUrl(detailUrl);
             }
             case ELIGIBILITY -> {
@@ -141,7 +144,7 @@ public class AdminPolicyFieldCorrectionService {
             case APPLICATION_PERIOD -> mapOf(
                     "applyStartDate", request.applyStartDate(),
                     "applyEndDate", request.applyEndDate());
-            case DETAIL_URL -> Map.of("detailUrl", normalizeRequired(request.detailUrl()));
+            case DETAIL_URL -> Map.of("detailUrl", normalizeRequiredExternalUrl(request.detailUrl()));
             case ELIGIBILITY -> Map.of("eligibilityText", normalizeRequired(request.eligibilityText()));
             case DUPLICATE_POLICY -> singleMap("duplicateOfPolicyId", request.duplicateOfPolicyId());
         });
@@ -197,6 +200,26 @@ public class AdminPolicyFieldCorrectionService {
             throw new CustomException(ErrorCode.INVALID_INPUT);
         }
         return normalized;
+    }
+
+    private String normalizeRequiredExternalUrl(String value) {
+        String normalized = normalizeText(value, 1000);
+        if (normalized == null) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+
+        try {
+            URI uri = new URI(normalized);
+            String scheme = uri.getScheme() != null ? uri.getScheme().toLowerCase(Locale.ROOT) : null;
+            if ((!"http".equals(scheme) && !"https".equals(scheme))
+                    || uri.getHost() == null
+                    || uri.getRawUserInfo() != null) {
+                throw new CustomException(ErrorCode.INVALID_INPUT);
+            }
+            return uri.toASCIIString();
+        } catch (URISyntaxException | IllegalArgumentException e) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
     }
 
     private String normalizeNote(String note) {

@@ -74,6 +74,21 @@ class RecommendationLogServiceTest {
     }
 
     @Test
+    @DisplayName("markClicked는 정책 상세 클릭이면 로그와 정책 ID를 함께 검증한다")
+    void markClickedUpdatesLogWithServiceScope() {
+        RecommendationLog log = RecommendationLog.builder().id(100L).isClicked(false).build();
+        given(userKeyLookupService.findNullable(1L)).willReturn("user-key-1");
+        given(recommendationLogCommandRepository.findByIdAndUserKeyAndServiceId(100L, "user-key-1", 10L))
+                .willReturn(Optional.of(log));
+
+        recommendationLogService.markClicked(100L, 1L, 10L);
+
+        assertThat(log.isClicked()).isTrue();
+        then(recommendationLogCommandRepository).should()
+                .findByIdAndUserKeyAndServiceId(100L, "user-key-1", 10L);
+    }
+
+    @Test
     @DisplayName("markClicked는 로그가 없으면 예외를 던진다")
     void markClickedThrowsWhenMissing() {
         given(userKeyLookupService.findNullable(1L)).willReturn("user-key-1");

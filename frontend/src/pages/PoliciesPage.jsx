@@ -13,6 +13,13 @@ import FloatingNav from "../components/FloatingNav";
 import IncomeCalculatorModal from "../components/IncomeCalculatorModal";
 import api from "../lib/axios";
 import { useAuthStore } from "../store/authStore";
+import { resolveStandardProfileCodeCompletion } from "../lib/profileStandardCodes";
+import {
+  buildSafeReturnLocation,
+  resolveSafeRouteTarget,
+  sanitizePostLoginAction,
+  sanitizeTransientRouteState,
+} from "../lib/safeNavigation";
 import {
   FILTER_REGIONS,
   formatRegionSelectionLabel,
@@ -111,14 +118,8 @@ const GOV24_BENEFIT_TYPES = [
   "봉사/기부",
 ];
 const GOV24_BADGE_LIMIT = 4;
+const MAX_POLICY_SEARCH_STATE_KEYWORD_LENGTH = 100;
 const POLICY_SOURCE_NOTICE = "정책 정보는 온통청년·복지로·정부24와 각 운영기관 공고를 기준으로 수집한 내용입니다. 신청 전 상세 페이지의 원문 안내를 확인하세요.";
-const STANDARD_CODE_ENTRIES = [
-  { key: "houseTenureCode", label: "주거형태" },
-  { key: "housingTypeCode", label: "주택유형" },
-  { key: "basicLivingRecipientTypeCode", label: "복지 수급 정보" },
-  { key: "disabilityGradeCode", label: "장애 관련 지원 정보" },
-];
-
 const SORT_MAP = { relevance: "RELEVANCE", views: "VIEWS", latest: "LATEST", deadline: "DEADLINE" };
 const STATUS_FILTER_MAP = { "신청가능": "ACTIVE_ONLY", "마감": "EXPIRED_ONLY", "전부표기": "ALL" };
 const STATUS_FILTER_LABEL_BY_API = Object.fromEntries(
@@ -309,6 +310,13 @@ const normalizeStatusFilterParam = (rawStatusFilter, fallback) => {
   return STATUS_FILTER_MAP[trimmed] ? trimmed : (STATUS_FILTER_LABEL_BY_API[trimmed] ?? fallback);
 };
 
+const normalizePolicySearchStateKeyword = (value) => {
+  if (typeof value !== "string") return "";
+  return value.trim().slice(0, MAX_POLICY_SEARCH_STATE_KEYWORD_LENGTH);
+};
+
+const stringifyRouteState = (state) => JSON.stringify(state ?? null);
+
 const ddayStyle = (dday) => {
   if (dday === "종료") return { background: LINE2, color: INK3 };
   if (dday === "상시/문의" || dday === "진행중" || dday === "상시") return { background: OK_BG, color: OK };
@@ -354,6 +362,7 @@ function RadioItem({ label, checked, onChange }) {
 function StandardCodePolicyPrompt({
   missingCount,
   filledCount,
+  totalCount,
   onNavigate,
 }) {
   if (!missingCount) return null;
@@ -375,7 +384,7 @@ function StandardCodePolicyPrompt({
           추천 정확도 보강
         </div>
         <div style={{ fontSize: 17, fontWeight: 800, color: INK, marginTop: 6, letterSpacing: "-0.02em" }}>
-          선택 프로필 {filledCount}/4개 입력됨
+          선택 프로필 {filledCount}/{totalCount}개 입력됨
         </div>
         <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.6 }}>
           선택 프로필 {missingCount}개를 보완하면 주거·복지 자격조건 매칭이 더 정확해집니다.
@@ -532,11 +541,14 @@ export default function PoliciesPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const returnLocation = buildSafeReturnLocation(location);
   const { isLoggedIn, user, filterSettings, setUser } = useAuthStore();
   const defaultStatusFilter = filterSettings?.includeExpired ? "전부표기" : "신청가능";
+  const initialSearchKeyword = normalizePolicySearchStateKeyword(location.state?.policySearchKeyword)
+    || normalizePolicySearchStateKeyword(searchParams.get("search"));
 
-  const [draftSearch, setDraftSearch] = useState(searchParams.get("search") || "");
-  const [appliedSearch, setAppliedSearch] = useState(searchParams.get("search") || "");
+  const [draftSearch, setDraftSearch] = useState(initialSearchKeyword);
+  const [appliedSearch, setAppliedSearch] = useState(initialSearchKeyword);
   const [selectedCat, setSelectedCat] = useState(searchParams.get("category") || "");
   const [region, setRegion] = useState(searchParams.get("region") || "전체");
   const initialRegionSelection = resolveFilterRegionSelection(
@@ -561,7 +573,7 @@ export default function PoliciesPage() {
   const [statusFilter, setStatusFilter] = useState(
     normalizeStatusFilterParam(searchParams.get("statusFilter"), defaultStatusFilter)
   );
-  const [sort, setSort] = useState(resolveInitialSort(searchParams.get("search") || "", searchParams.get("sort")));
+  const [sort, setSort] = useState(resolveInitialSort(initialSearchKeyword, searchParams.get("sort")));
   const [pageSize, setPageSize] = useState(Number(searchParams.get("pageSize")) || 10);
   const [cols, setCols] = useState(1);
   const [page, setPage] = useState(Number(searchParams.get("page")) || 1);
@@ -603,12 +615,12 @@ export default function PoliciesPage() {
   const districtOptions = getDistrictOptions(region, { includeAll: true });
   const wardOptions = getWardOptions(region, subRegion, { includeAll: true });
   const standardCodeMissingCount = user?.standardCodeMissingCount ?? 0;
-  const standardCodeFilledCount = user?.standardCodeFilledCount ?? Math.max(0, STANDARD_CODE_ENTRIES.length - standardCodeMissingCount);
+  const standardCodeTotalCount = user?.standardCodeTotalCount ?? 4;
+  const standardCodeFilledCount = user?.standardCodeFilledCount ?? Math.max(0, standardCodeTotalCount - standardCodeMissingCount);
 
   // ── URL 파라미터 동기화 ──────────────────────────────────────────────────────
   useEffect(() => {
     const params = {};
-    if (appliedSearch) params.search = appliedSearch;
     if (selectedCat) params.category = selectedCat;
     if (region !== "전체") params.region = region;
     if (subRegion !== "전체") params.subRegion = subRegion;
@@ -624,11 +636,31 @@ export default function PoliciesPage() {
     if (sort !== defaultSort) params.sort = sort;
     if (page !== 1) params.page = String(page);
     if (pageSize !== 10) params.pageSize = String(pageSize);
-    setSearchParams(params, { replace: true, state: location.state });
-  }, [appliedSearch, defaultSort, defaultStatusFilter, gov24BenefitType, gov24ServiceField, gov24UserType, income, location.state, page, pageSize, region, selectedCat, setSearchParams, sort, sourceType, statusFilter, subRegion, targetGroup, ward]);
+    const nextRouteState = {
+      ...(sanitizeTransientRouteState(location.state) ?? {}),
+    };
+    const normalizedSearchState = normalizePolicySearchStateKeyword(appliedSearch);
+    if (normalizedSearchState) {
+      nextRouteState.policySearchKeyword = normalizedSearchState;
+    } else {
+      delete nextRouteState.policySearchKeyword;
+    }
+    const nextState = Object.keys(nextRouteState).length ? nextRouteState : undefined;
+    const nextSearch = new URLSearchParams(params).toString();
+    const currentState = sanitizeTransientRouteState(location.state);
+    if (
+      searchParams.toString() === nextSearch
+      && stringifyRouteState(currentState) === stringifyRouteState(nextState)
+    ) {
+      return;
+    }
+    setSearchParams(params, {
+      replace: true,
+      state: nextState,
+    });
+  }, [appliedSearch, defaultSort, defaultStatusFilter, gov24BenefitType, gov24ServiceField, gov24UserType, income, location.state, page, pageSize, region, searchParams, selectedCat, setSearchParams, sort, sourceType, statusFilter, subRegion, targetGroup, ward]);
 
   useEffect(() => {
-    const nextSearch = searchParams.get("search") || "";
     const nextSelectedCat = searchParams.get("category") || "";
     const nextRegion = searchParams.get("region") || "전체";
     const nextRegionSelection = resolveFilterRegionSelection(
@@ -645,12 +677,10 @@ export default function PoliciesPage() {
     const nextGov24UserType = normalizeGov24OptionParam(searchParams.get("gov24UserType"), GOV24_USER_TYPES);
     const nextGov24BenefitType = normalizeGov24OptionParam(searchParams.get("gov24BenefitType"), GOV24_BENEFIT_TYPES);
     const nextStatusFilter = normalizeStatusFilterParam(searchParams.get("statusFilter"), defaultStatusFilter);
-    const nextSort = resolveInitialSort(nextSearch, searchParams.get("sort"));
+    const nextSort = resolveInitialSort(appliedSearch, searchParams.get("sort"));
     const nextPageSize = Number(searchParams.get("pageSize")) || 10;
     const nextPage = Number(searchParams.get("page")) || 1;
 
-    setDraftSearch((prev) => (prev === nextSearch ? prev : nextSearch));
-    setAppliedSearch((prev) => (prev === nextSearch ? prev : nextSearch));
     setSelectedCat((prev) => (prev === nextSelectedCat ? prev : nextSelectedCat));
     setRegion((prev) => (prev === nextRegion ? prev : nextRegion));
     setSubRegion((prev) => (prev === nextSubRegion ? prev : nextSubRegion));
@@ -665,7 +695,7 @@ export default function PoliciesPage() {
     setSort((prev) => (prev === nextSort ? prev : nextSort));
     setPageSize((prev) => (prev === nextPageSize ? prev : nextPageSize));
     setPage((prev) => (prev === nextPage ? prev : nextPage));
-  }, [defaultStatusFilter, searchParams]);
+  }, [appliedSearch, defaultStatusFilter, searchParams]);
 
   useEffect(() => {
     if (sourceType !== GOV24_SOURCE_LABEL && gov24ServiceField !== "전체") {
@@ -696,15 +726,14 @@ export default function PoliciesPage() {
         if (!profile) {
           return;
         }
-        const missingCount = STANDARD_CODE_ENTRIES
-          .filter((entry) => !profile[entry.key])
-          .length;
+        const standardCodeCompletion = resolveStandardProfileCodeCompletion(profile);
         setUser({
           ...(profile.name ? { name: profile.name } : {}),
           ...(profile.email ? { email: profile.email } : {}),
           hasPriorities: Array.isArray(profile.priorities) && profile.priorities.length > 0,
-          standardCodeFilledCount: STANDARD_CODE_ENTRIES.length - missingCount,
-          standardCodeMissingCount: missingCount,
+          standardCodeFilledCount: standardCodeCompletion.filledCount,
+          standardCodeMissingCount: standardCodeCompletion.missingCount,
+          standardCodeTotalCount: standardCodeCompletion.totalCount,
         });
       })
       .catch((error) => {
@@ -747,13 +776,14 @@ export default function PoliciesPage() {
     const controller = new AbortController();
     const timerId = window.setTimeout(async () => {
       try {
-        const { data } = await api.get("/api/policies/search/suggestions", {
-          params: {
+        const { data } = await api.post(
+          "/api/policies/search/suggestions",
+          {
             keyword: draftSearch.trim(),
             limit: SUGGESTION_LIMIT,
           },
-          signal: controller.signal,
-        });
+          { signal: controller.signal }
+        );
         const nextSuggestions = Array.isArray(data.data) ? data.data.filter(Boolean) : [];
         setSuggestions(nextSuggestions);
         setHighlightedSuggestionIndex(-1);
@@ -811,9 +841,17 @@ export default function PoliciesPage() {
         };
         const apiStatusFilter = STATUS_FILTER_MAP[statusFilter] ?? "ACTIVE_ONLY";
 
-        const endpoint = appliedSearch.trim() ? "/api/policies/search" : "/api/policies";
-        const reqParams = appliedSearch.trim() ? { ...commonParams, keyword: appliedSearch.trim(), statusFilter: apiStatusFilter } : { ...commonParams, statusFilter: apiStatusFilter };
-        const { data } = await api.get(endpoint, { params: reqParams, signal: controller.signal });
+        const searchKeyword = appliedSearch.trim();
+        const { data } = searchKeyword
+          ? await api.post(
+            "/api/policies/search",
+            { ...commonParams, keyword: searchKeyword, statusFilter: apiStatusFilter },
+            { signal: controller.signal }
+          )
+          : await api.get("/api/policies", {
+            params: { ...commonParams, statusFilter: apiStatusFilter },
+            signal: controller.signal,
+          });
         const pageData = data.data ?? {};
         setPolicies((pageData.content ?? []).map(mapPolicySummary));
         setTotalCount(pageData.totalElements ?? 0);
@@ -839,11 +877,7 @@ export default function PoliciesPage() {
     if (!isLoggedIn) {
       navigate("/login", {
         state: {
-          from: {
-            pathname: location.pathname,
-            search: location.search,
-            state: location.state,
-          },
+          from: returnLocation,
           reason: "login-required",
           postLoginAction: {
             type: "toggle-bookmark",
@@ -914,18 +948,17 @@ export default function PoliciesPage() {
     }
     applyKeywordSearch(draftSearch);
   };
-  const chatFromTarget = location.state?.chatFrom?.pathname === "/chat"
-    ? location.state.chatFrom
-    : location.state?.from?.pathname === "/chat"
-      ? location.state.from
+  const safeChatFromStateTarget = resolveSafeRouteTarget(location.state?.chatFrom);
+  const safeFromTarget = resolveSafeRouteTarget(location.state?.from);
+  const chatFromTarget = safeChatFromStateTarget?.pathname === "/chat"
+    ? safeChatFromStateTarget
+    : safeFromTarget?.pathname === "/chat"
+      ? safeFromTarget
       : undefined;
   const navigateToPolicyDetail = (policyId) => {
     navigate(`/policies/${policyId}`, {
       state: {
-        from: {
-          pathname: location.pathname,
-          search: location.search,
-        },
+        from: returnLocation,
         chatFrom: chatFromTarget,
       },
     });
@@ -951,7 +984,7 @@ export default function PoliciesPage() {
   ].filter(Boolean);
 
   useEffect(() => {
-    const postLoginAction = location.state?.postLoginAction;
+    const postLoginAction = sanitizePostLoginAction(location.state?.postLoginAction);
     if (!isLoggedIn || loading || postLoginAction?.type !== "toggle-bookmark") {
       if (!postLoginAction) {
         bookmarkActionKeyRef.current = null;
@@ -963,7 +996,7 @@ export default function PoliciesPage() {
     }
 
     const clearPostLoginAction = () => {
-      const nextState = { ...(location.state ?? {}) };
+      const nextState = { ...(sanitizeTransientRouteState(location.state) ?? {}) };
       delete nextState.postLoginAction;
       navigate(`${location.pathname}${location.search}`, {
         replace: true,
@@ -1328,6 +1361,7 @@ export default function PoliciesPage() {
             <StandardCodePolicyPrompt
               missingCount={standardCodeMissingCount}
               filledCount={standardCodeFilledCount}
+              totalCount={standardCodeTotalCount}
               onNavigate={() => navigate("/mypage?tab=0")}
             />
           )}

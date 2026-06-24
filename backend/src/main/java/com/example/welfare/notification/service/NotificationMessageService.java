@@ -27,14 +27,13 @@ public class NotificationMessageService {
         StringBuilder sb = new StringBuilder("맞춤 복지 정책 추천\n\n");
         for (int i = 0; i < recommendations.size(); i++) {
             UserRecommendation recommendation = recommendations.get(i);
-            String logId = (i < logs.size()) ? String.valueOf(logs.get(i).getId()) : "";
             sb.append(i + 1).append(". ").append(recommendation.getService().getTitle()).append("\n");
             if (recommendation.getAiReason() != null && !recommendation.getAiReason().isBlank()) {
                 sb.append("   추천 이유: ").append(recommendation.getAiReason()).append("\n");
             }
             sb.append("   ").append(appBaseUrl).append("/policies/")
                     .append(recommendation.getService().getId())
-                    .append("?log_id=").append(logId).append("\n\n");
+                    .append("\n\n");
         }
         if (userKey != null && userId != null) {
             String unsubscribeToken = notificationUnsubscribeTokenService.issueToken(userKey);

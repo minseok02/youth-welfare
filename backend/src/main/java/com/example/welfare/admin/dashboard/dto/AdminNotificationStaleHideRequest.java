@@ -16,7 +16,7 @@ public record AdminNotificationStaleHideRequest(
         String title,
         @NotBlank(message = "deeplinkUrl은 필수입니다.")
         @Size(max = 500, message = "deeplinkUrl은 500자 이하여야 합니다.")
-        @Pattern(regexp = "^/[^\\r\\n]*$", message = "deeplinkUrl 형식이 올바르지 않습니다.")
+        @Pattern(regexp = "^/(?!/)[^\\r\\n]*$", message = "deeplinkUrl 형식이 올바르지 않습니다.")
         String deeplinkUrl,
         @Min(value = 1, message = "olderThanDays는 1 이상이어야 합니다.")
         @Max(value = 365, message = "olderThanDays는 365 이하여야 합니다.")

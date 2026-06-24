@@ -7,6 +7,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Repository
 @Transactional(readOnly = true)
@@ -62,6 +63,93 @@ public class AdminDashboardNotificationReadRepository {
                         rs.getLong("stale_unread_14d"),
                         rs.getLong("retryable_failed_notifications"),
                         rs.getLong("terminal_failed_notifications")
+                )
+        );
+    }
+
+    public AdminDashboardReadRows.NotificationAttemptSummaryRow fetchNotificationAttemptSummary(LocalDateTime windowAgo) {
+        return jdbcTemplate.queryForObject("""
+                select count(*) as total_attempts,
+                       coalesce(sum(case when outcome in ('sent', 'fanout_completed', 'skipped_disabled') then 1 else 0 end), 0) as success_attempts,
+                       coalesce(sum(case when outcome in ('gateway_false', 'failed', 'exception', 'fanout_failed') then 1 else 0 end), 0) as failed_attempts,
+                       coalesce(sum(case when outcome = 'disabled' then 1 else 0 end), 0) as disabled_attempts,
+                       coalesce(avg(duration_ms), 0) as average_duration_ms,
+                       max(created_at) as latest_attempt_at
+                  from notification_attempt_logs
+                 where created_at >= :windowAgo
+                """,
+                new MapSqlParameterSource("windowAgo", windowAgo),
+                (rs, rowNum) -> new AdminDashboardReadRows.NotificationAttemptSummaryRow(
+                        rs.getLong("total_attempts"),
+                        rs.getLong("success_attempts"),
+                        rs.getLong("failed_attempts"),
+                        rs.getLong("disabled_attempts"),
+                        rs.getBigDecimal("average_duration_ms"),
+                        AdminDashboardJdbcSupport.getLocalDateTime(rs, "latest_attempt_at")
+                )
+        );
+    }
+
+    public List<AdminDashboardReadRows.NotificationAttemptBreakdownRow> fetchNotificationAttemptBreakdowns(
+            LocalDateTime windowAgo,
+            int limit
+    ) {
+        return jdbcTemplate.query("""
+                select channel,
+                       kind,
+                       outcome,
+                       count(*) as attempt_count,
+                       coalesce(avg(duration_ms), 0) as average_duration_ms,
+                       max(created_at) as latest_attempt_at
+                  from notification_attempt_logs
+                 where created_at >= :windowAgo
+              group by channel, kind, outcome
+              order by attempt_count desc, channel asc, kind asc, outcome asc
+                 limit %d
+                """.formatted(limit),
+                new MapSqlParameterSource("windowAgo", windowAgo),
+                (rs, rowNum) -> new AdminDashboardReadRows.NotificationAttemptBreakdownRow(
+                        rs.getString("channel"),
+                        rs.getString("kind"),
+                        rs.getString("outcome"),
+                        rs.getLong("attempt_count"),
+                        rs.getBigDecimal("average_duration_ms"),
+                        AdminDashboardJdbcSupport.getLocalDateTime(rs, "latest_attempt_at")
+                )
+        );
+    }
+
+    public List<AdminDashboardReadRows.NotificationAttemptSampleRow> fetchRecentNotificationAttemptFailures(
+            LocalDateTime windowAgo,
+            int limit
+    ) {
+        return jdbcTemplate.query("""
+                select id,
+                       channel,
+                       kind,
+                       outcome,
+                       item_count,
+                       endpoint_host,
+                       error_type,
+                       duration_ms,
+                       created_at
+                  from notification_attempt_logs
+                 where created_at >= :windowAgo
+                   and outcome in ('gateway_false', 'failed', 'exception', 'fanout_failed', 'disabled')
+              order by created_at desc, id desc
+                 limit %d
+                """.formatted(limit),
+                new MapSqlParameterSource("windowAgo", windowAgo),
+                (rs, rowNum) -> new AdminDashboardReadRows.NotificationAttemptSampleRow(
+                        rs.getLong("id"),
+                        rs.getString("channel"),
+                        rs.getString("kind"),
+                        rs.getString("outcome"),
+                        rs.getInt("item_count"),
+                        rs.getString("endpoint_host"),
+                        rs.getString("error_type"),
+                        rs.getLong("duration_ms"),
+                        AdminDashboardJdbcSupport.getLocalDateTime(rs, "created_at")
                 )
         );
     }

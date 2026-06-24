@@ -21,6 +21,7 @@ RUN_DB_OBSERVABILITY="${RUN_DB_OBSERVABILITY:-true}"
 RUN_REDIS_OBSERVABILITY="${RUN_REDIS_OBSERVABILITY:-true}"
 RUN_WEB_INTERACTION="${RUN_WEB_INTERACTION:-true}"
 RUN_NGINX_LOG_OBSERVABILITY="${RUN_NGINX_LOG_OBSERVABILITY:-true}"
+RUN_APP_LOG_OBSERVABILITY="${RUN_APP_LOG_OBSERVABILITY:-true}"
 RUN_JVM_RUNTIME="${RUN_JVM_RUNTIME:-true}"
 
 mkdir -p "${ARTIFACT_DIR}"
@@ -67,6 +68,14 @@ if [[ "${RUN_NGINX_LOG_OBSERVABILITY}" == "true" ]]; then
     "${ARTIFACT_DIR}/nginx-log-observability.out" \
     env ARTIFACT_DIR="${ARTIFACT_DIR}/nginx-log-observability" \
       bash "${ROOT_DIR}/deploy/performance/run-local-nginx-log-observability-baseline.sh"
+fi
+
+if [[ "${RUN_APP_LOG_OBSERVABILITY}" == "true" ]]; then
+  run_deep_step \
+    "app_log_observability" \
+    "${ARTIFACT_DIR}/app-log-observability.out" \
+    env ARTIFACT_DIR="${ARTIFACT_DIR}/app-log-observability" \
+      bash "${ROOT_DIR}/deploy/performance/run-local-app-log-observability-baseline.sh"
 fi
 
 if [[ "${RUN_JVM_RUNTIME}" == "true" ]]; then

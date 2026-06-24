@@ -2,6 +2,7 @@ package com.example.welfare.policy.service;
 
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.global.util.RegionCodeUtil;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.PolicyListReadCondition;
@@ -57,7 +58,7 @@ public class PolicyListService {
                         normalizeSourceType(sourceType),
                         normalizeStatus(status),
                         normalizeStatusFilter(statusFilter),
-                        normalizeNullable(sido),
+                        normalizeSidoNullable(sido),
                         normalizeNullable(sgg),
                         onlineApply,
                         normalizeSort(sort),
@@ -120,6 +121,11 @@ public class PolicyListService {
         if (value == null) return null;
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String normalizeSidoNullable(String value) {
+        String normalized = normalizeNullable(value);
+        return normalized == null ? null : RegionCodeUtil.fullSidoName(normalized);
     }
 
     private String normalizeGov24ServiceField(String gov24ServiceField) {

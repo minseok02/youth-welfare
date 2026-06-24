@@ -45,18 +45,17 @@ public class DeadlineReminderContentService {
     }
 
     private String toAbsoluteUrl(String deeplinkUrl) {
-        if (deeplinkUrl == null || deeplinkUrl.isBlank()) {
-            return appBaseUrl + "/mypage?tab=3";
+        String safePath = normalizeInternalPath(deeplinkUrl);
+        if (appBaseUrl.endsWith("/") && safePath.startsWith("/")) {
+            return appBaseUrl.substring(0, appBaseUrl.length() - 1) + safePath;
         }
-        if (deeplinkUrl.startsWith("http://") || deeplinkUrl.startsWith("https://")) {
-            return deeplinkUrl;
+        return appBaseUrl + safePath;
+    }
+
+    private String normalizeInternalPath(String deeplinkUrl) {
+        if (deeplinkUrl == null || deeplinkUrl.isBlank() || !deeplinkUrl.startsWith("/") || deeplinkUrl.startsWith("//")) {
+            return "/mypage?tab=3";
         }
-        if (appBaseUrl.endsWith("/") && deeplinkUrl.startsWith("/")) {
-            return appBaseUrl.substring(0, appBaseUrl.length() - 1) + deeplinkUrl;
-        }
-        if (!appBaseUrl.endsWith("/") && !deeplinkUrl.startsWith("/")) {
-            return appBaseUrl + "/" + deeplinkUrl;
-        }
-        return appBaseUrl + deeplinkUrl;
+        return deeplinkUrl;
     }
 }

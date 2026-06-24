@@ -32,4 +32,9 @@ public class RecommendationLogCommandRepositoryImpl implements RecommendationLog
     public Optional<RecommendationLog> findByIdAndUserKey(Long logId, String userKey) {
         return recommendationLogRepository.findByIdAndUserKey(logId, userKey);
     }
+
+    @Override
+    public Optional<RecommendationLog> findByIdAndUserKeyAndServiceId(Long logId, String userKey, Long serviceId) {
+        return recommendationLogRepository.findByIdAndUserKeyAndService_Id(logId, userKey, serviceId);
+    }
 }

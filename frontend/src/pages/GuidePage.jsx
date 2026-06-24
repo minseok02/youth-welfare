@@ -4,6 +4,7 @@ import { useMediaQuery } from "@mui/material";
 import Header from "../components/Header";
 import FloatingNav from "../components/FloatingNav";
 import { useAuthStore } from "../store/authStore";
+import { buildSafeReturnLocation } from "../lib/safeNavigation";
 
 const A = "#2563eb";
 const A7 = "#1d4ed8";
@@ -127,7 +128,8 @@ export default function GuidePage() {
   const isMobile = useMediaQuery("(max-width: 1199px)");
   const { isLoggedIn } = useAuthStore();
 
-  const authState = useMemo(() => ({ from: location }), [location]);
+  const returnLocation = buildSafeReturnLocation(location);
+  const authState = useMemo(() => ({ from: returnLocation }), [returnLocation]);
 
   const moveToTarget = (target) => {
     if (target === "recommend") {

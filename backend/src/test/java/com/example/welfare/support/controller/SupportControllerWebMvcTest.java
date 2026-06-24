@@ -129,4 +129,26 @@ class SupportControllerWebMvcTest {
 
         then(supportInquiryCommandService).should(never()).submit(any(), any(), any());
     }
+
+    @Test
+    @DisplayName("공개 서비스 문의는 protocol-relative routePath를 400으로 거부한다")
+    void submitInquiryRejectsProtocolRelativeRoutePath() throws Exception {
+        given(clientFingerprintService.build(any())).willReturn("fp-support");
+
+        mockMvc.perform(post("/api/support/inquiries")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "category": "ETC",
+                                  "contactEmail": "user@example.com",
+                                  "message": "서비스가 좋아요",
+                                  "routePath": "//evil.example/guide"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        then(supportInquiryCommandService).should(never()).submit(any(), any(), any());
+    }
 }

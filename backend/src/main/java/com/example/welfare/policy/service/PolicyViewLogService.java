@@ -1,5 +1,6 @@
 package com.example.welfare.policy.service;
 
+import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.policy.repository.PolicyViewLogCommandRepository;
 import com.example.welfare.user.service.UserKeyLookupService;
 import jakarta.transaction.Transactional;
@@ -51,7 +52,8 @@ public class PolicyViewLogService {
         try {
             policyViewLogCommandRepository.upsertRecentView(serviceId, userKey, viewedAt);
         } catch (RuntimeException exception) {
-            log.warn("recent policy view upsert failed serviceId={} userKey={}", serviceId, userKey, exception);
+            log.warn("recent policy view upsert failed serviceId={} userKeyHash={}",
+                    serviceId, RedisKeyHash.sha256Hex(userKey), exception);
         }
     }
 }

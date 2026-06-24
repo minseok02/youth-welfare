@@ -5,6 +5,8 @@ import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.response.ApiResponse;
+import com.example.welfare.global.util.RedisKeyHash;
+import com.example.welfare.user.dto.request.UserPiiSyncReplayRequest;
 import com.example.welfare.user.dto.response.UserMetadataUserKeyBackfillResponse;
 import com.example.welfare.user.dto.response.UserPiiBackfillResponse;
 import com.example.welfare.user.dto.response.UserPiiEncryptionRotationResponse;
@@ -90,25 +92,28 @@ public class UserAdminController {
 
         long cutoffMillis = System.currentTimeMillis();
         userSessionRevocationService.revokeUserSessions(userKey, cutoffMillis);
-        log.info("[Admin] forced logout 트리거 userKey={} cutoffMillis={}", userKey, cutoffMillis);
+        log.info("[AdminAudit] event=forced_logout outcome=accepted actorHash={} targetUserKeyHash={} cutoffMillis={}",
+                RedisKeyHash.sha256Hex(actorKey(authenticatedUser)), RedisKeyHash.sha256Hex(userKey), cutoffMillis);
         return ResponseEntity.ok(ApiResponse.success(new ForcedLogoutResponse(userKey, true)));
     }
 
     @PostMapping("/pii-sync-replay")
     public ResponseEntity<ApiResponse<UserPiiSyncReplayResponse>> replayUserPiiSync(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
-            @RequestParam(required = false) @Size(max = 32, message = "userKey는 32자 이하여야 합니다.") String userKey,
-            @RequestParam(defaultValue = "100") @Min(value = 1, message = "limit는 1 이상이어야 합니다.") @Max(value = 1000, message = "limit는 1000 이하여야 합니다.") int limit
+            @Valid @RequestBody(required = false) UserPiiSyncReplayRequest request
     ) {
         adminOperationRateLimitService.checkMutationLimit(actorKey(authenticatedUser), "users:pii-sync-replay");
-        String normalizedUserKey = userKey == null ? null : userKey.trim();
+        String normalizedUserKey = request == null || request.userKey() == null ? null : request.userKey().trim();
+        int limit = request != null && request.limit() != null ? request.limit() : 100;
         if (StringUtils.hasText(normalizedUserKey) && normalizedUserKey.length() > 32) {
             throw new CustomException(ErrorCode.INVALID_INPUT);
         }
         if (limit < 1 || limit > 1000) {
             throw new CustomException(ErrorCode.INVALID_INPUT);
         }
-        log.info("[Admin] user_pii sync queue replay 트리거 userKey={} limit={}", normalizedUserKey, limit);
+        log.info("[Admin] user_pii sync queue replay 트리거 userKeyHash={} limit={}",
+                StringUtils.hasText(normalizedUserKey) ? RedisKeyHash.sha256Hex(normalizedUserKey) : null,
+                limit);
         return ResponseEntity.ok(ApiResponse.success(userPiiSyncReplayService.replay(normalizedUserKey, limit)));
     }
 

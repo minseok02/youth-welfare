@@ -79,4 +79,18 @@ class PolicySearchLogServiceTest {
 
         verify(policySearchLogCommandRepository, never()).save(org.mockito.ArgumentMatchers.any());
     }
+
+    @Test
+    @DisplayName("개인정보형 검색어는 검색 로그에 저장하지 않는다")
+    void recordSkipsSensitiveKeyword() {
+        policySearchLogService.record(PolicySearchLogCommand.builder()
+                .clientFingerprint("fp-1")
+                .keyword("010-1234-5678 월세")
+                .resultCount(0L)
+                .page(0)
+                .size(20)
+                .build());
+
+        verify(policySearchLogCommandRepository, never()).save(org.mockito.ArgumentMatchers.any());
+    }
 }

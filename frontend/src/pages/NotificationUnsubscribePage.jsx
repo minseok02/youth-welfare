@@ -28,12 +28,8 @@ export default function NotificationUnsubscribePage() {
       return;
     }
 
-    if (searchParams.get("token") && !readTokenFromHash(window.location.hash)) {
-      window.history.replaceState(
-        window.history.state,
-        document.title,
-        `${window.location.pathname}#token=${encodeURIComponent(token)}`
-      );
+    if (searchParams.get("token") || readTokenFromHash(window.location.hash)) {
+      window.history.replaceState(window.history.state, document.title, window.location.pathname);
     }
 
     let mounted = true;
@@ -42,7 +38,6 @@ export default function NotificationUnsubscribePage() {
         if (!mounted) return;
         setStatus("success");
         setMessage("알림 수신이 해제되었습니다.");
-        window.history.replaceState(window.history.state, document.title, window.location.pathname);
       })
       .catch((error) => {
         if (!mounted) return;

@@ -7,6 +7,7 @@ import api from "../lib/axios";
 import PrivacyPolicyContent from "../components/PrivacyPolicyContent";
 import PrioritySortableList from "../components/PrioritySortableList";
 import { fetchProfileStandardCodebookOptions } from "../lib/officialCodebookOptions";
+import { resolveSafeRouteTarget, sanitizePostLoginAction } from "../lib/safeNavigation";
 import {
   REGIONS,
   REGION_TO_SIDO,
@@ -45,7 +46,8 @@ const PRIORITY_OPTIONS = [
   { value: "DEADLINE",      label: "마감임박",        fg: "#dc2626" },
 ];
 
-const HOUSEHOLD_TYPES = ["1인가구", "한부모", "다자녀", "조손", "기타"];
+const EMPLOYMENT_STATUS_OPTIONS = ["재직중", "구직중", "학생", "해당 없음", "기타"];
+const HOUSEHOLD_TYPES = ["해당 없음", "1인가구", "한부모", "다자녀", "조손", "기타"];
 const EMPTY_PROFILE_CODE_OPTIONS = {
   houseTenure: [],
   housingType: [],
@@ -82,9 +84,11 @@ export default function SignupPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useMediaQuery("(max-width: 600px)");
-  const nestedFromState = location.state?.from?.state ?? {};
-  const chatFrom = location.state?.chatFrom ?? nestedFromState.chatFrom;
-  const postLoginAction = location.state?.postLoginAction ?? nestedFromState.postLoginAction;
+  const safeFromTarget = resolveSafeRouteTarget(location.state?.from);
+  const safeChatFromStateTarget = resolveSafeRouteTarget(location.state?.chatFrom);
+  const nestedFromState = safeFromTarget?.state ?? {};
+  const chatFrom = safeChatFromStateTarget ?? nestedFromState.chatFrom;
+  const postLoginAction = sanitizePostLoginAction(location.state?.postLoginAction) ?? nestedFromState.postLoginAction;
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
@@ -201,6 +205,18 @@ export default function SignupPage() {
 
   const handleOptionalProfileConsentChange = (checked) => {
     setOptionalProfileConsentAgreed(checked);
+    if (!checked) {
+      setRegion("");
+      setSubRegion("");
+      setWard("");
+      setIncome("");
+      setEmploy("");
+      setHouseholdType("");
+      setHouseTenureCode("");
+      setHousingTypeCode("");
+      setBasicLivingRecipientTypeCode("");
+      setPriorities([]);
+    }
   };
 
   const handleSensitiveInfoConsentChange = (checked) => {
@@ -215,7 +231,7 @@ export default function SignupPage() {
     setEmail(normalizedEmail);
     setSendingCode(true);
     try {
-      await api.post("/api/auth/email-verification/send", null, { params: { email: normalizedEmail } });
+      await api.post("/api/auth/email-verification/send", { email: normalizedEmail });
       setCodeSent(true);
       setCodeMsg("인증코드를 발송했습니다. 이메일을 확인해주세요.");
     } catch (e) {
@@ -231,7 +247,7 @@ export default function SignupPage() {
     const normalizedEmail = normalizeEmailInput(email);
     setVerifyingCode(true);
     try {
-      await api.post("/api/auth/email-verification/verify", null, { params: { email: normalizedEmail, code: codeInput.trim() } });
+      await api.post("/api/auth/email-verification/verify", { email: normalizedEmail, code: codeInput.trim() });
       setEmailVerified(true);
       setEmail(normalizedEmail);
       setCodeMsg("이메일 인증이 완료되었습니다.");
@@ -245,6 +261,12 @@ export default function SignupPage() {
   const handleSignup = async () => {
     setLoading(true);
     try {
+      if (priorities.length > 0 && !optionalProfileConsentAgreed) {
+        setStep2Attempted(true);
+        setStep(1);
+        showToast("우선순위를 저장하려면 선택 개인정보 수집 및 이용에 동의해 주세요.", "warning");
+        return;
+      }
       const submittedSgg = resolveSubmittedSgg(region, subRegion, ward);
       const normalizedEmail = normalizeEmailInput(email);
       const payload = {
@@ -262,6 +284,7 @@ export default function SignupPage() {
         ...(optionalProfileConsentAgreed && housingTypeCode && { housingTypeCode }),
         ...(optionalProfileConsentAgreed && basicLivingRecipientTypeCode && { basicLivingRecipientTypeCode }),
         ...(sensitiveInfoConsentAgreed && disabilityGradeCode && { disabilityGradeCode }),
+        ...(optionalProfileConsentAgreed && priorities.length > 0 && { priorityCodes: priorities }),
       };
       await api.post("/api/auth/signup", payload);
       navigate("/login", {
@@ -270,7 +293,7 @@ export default function SignupPage() {
           reason: "signup-complete",
           email: normalizedEmail,
           signupPriorities: priorities,
-          from: location.state?.from,
+          from: safeFromTarget ?? undefined,
           chatFrom,
           postLoginAction,
         },
@@ -289,6 +312,7 @@ export default function SignupPage() {
   const removePriority = (val) => setPriorities(priorities.filter(p => p !== val));
   const districtOptions = getDistrictOptions(region);
   const wardOptions = getWardOptions(region, subRegion);
+  const optionalProfileInputDisabled = !optionalProfileConsentAgreed;
   const selectedStandardCodeCount = [
     houseTenureCode,
     housingTypeCode,
@@ -437,7 +461,7 @@ export default function SignupPage() {
               <div style={{ textAlign: "center" }}>
                 <button onClick={() => navigate("/login", {
                   state: {
-                    from: location.state?.from,
+                    from: safeFromTarget ?? undefined,
                     email,
                     chatFrom,
                     postLoginAction,
@@ -512,16 +536,16 @@ export default function SignupPage() {
 
               <Field label="주소">
                 <div style={{ display: "grid", gridTemplateColumns: wardOptions.length > 0 ? "1fr 1fr 1fr" : "1fr 1fr", gap: 8 }}>
-                  <select style={selCss(false)} value={region} onChange={e => { setRegion(e.target.value); setSubRegion(""); setWard(""); }}>
+                  <select style={selCss(optionalProfileInputDisabled)} disabled={optionalProfileInputDisabled} value={region} onChange={e => { setRegion(e.target.value); setSubRegion(""); setWard(""); }}>
                     <option value="">시/도 선택</option>
                     {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
                   </select>
-                  <select style={selCss(districtOptions.length === 0)} disabled={districtOptions.length === 0} value={subRegion} onChange={e => { setSubRegion(e.target.value); setWard(""); }}>
+                  <select style={selCss(optionalProfileInputDisabled || districtOptions.length === 0)} disabled={optionalProfileInputDisabled || districtOptions.length === 0} value={subRegion} onChange={e => { setSubRegion(e.target.value); setWard(""); }}>
                     <option value="">시/군/구 선택</option>
                     {districtOptions.map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
                   {wardOptions.length > 0 && (
-                    <select style={selCss(false)} value={ward} onChange={e => setWard(e.target.value)}>
+                    <select style={selCss(optionalProfileInputDisabled)} disabled={optionalProfileInputDisabled} value={ward} onChange={e => setWard(e.target.value)}>
                       <option value="">구 선택</option>
                       {wardOptions.map((value) => <option key={value} value={value}>{value}</option>)}
                     </select>
@@ -536,10 +560,11 @@ export default function SignupPage() {
                     <div style={{ borderLeft: `1px solid ${LINE}`, paddingLeft: 16 }}>보기 쉬운 기준</div>
                   </div>
                   {INCOME_ROWS.map(row => (
-                    <label key={row.value} onClick={() => setIncome(String(row.value))} style={{
+                    <label key={row.value} onClick={() => { if (!optionalProfileInputDisabled) setIncome(String(row.value)); }} style={{
                       display: "grid", gridTemplateColumns: "1fr 1fr", padding: "12px 16px",
-                      borderBottom: `1px solid ${LINE2}`, cursor: "pointer", alignItems: "center",
+                      borderBottom: `1px solid ${LINE2}`, cursor: optionalProfileInputDisabled ? "not-allowed" : "pointer", alignItems: "center",
                       background: income === String(row.value) ? AS : WHITE,
+                      opacity: optionalProfileInputDisabled ? 0.6 : 1,
                     }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
                         <input type="radio" readOnly checked={income === String(row.value)} onChange={() => {}} style={{ accentColor: A }} />
@@ -554,16 +579,17 @@ export default function SignupPage() {
                 </div>
               </Field>
 
-              <Field label="취업상태">
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-                  {["재직중", "구직중", "학생", "기타"].map(v => {
+              <Field label="취업상태" hint="'해당 없음'은 현재 해당되는 상태가 없다는 뜻이고, '기타'는 위 분류 밖의 다른 상태가 있다는 뜻입니다.">
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
+                  {EMPLOYMENT_STATUS_OPTIONS.map(v => {
                     const active = employ === v;
                     return (
-                      <button key={v} onClick={() => setEmploy(v)} style={{
+                      <button key={v} disabled={optionalProfileInputDisabled} onClick={() => setEmploy(v)} style={{
                         padding: "11px 4px", borderRadius: 10, whiteSpace: "nowrap",
                         border: `1.5px solid ${active ? A : LINE}`,
                         background: active ? AS : WHITE, color: active ? AI : INK2,
-                        fontSize: 13, fontWeight: 700, cursor: "pointer",
+                        fontSize: 13, fontWeight: 700, cursor: optionalProfileInputDisabled ? "not-allowed" : "pointer",
+                        opacity: optionalProfileInputDisabled ? 0.6 : 1,
                       }}>
                         {v}
                       </button>
@@ -572,16 +598,17 @@ export default function SignupPage() {
                 </div>
               </Field>
 
-              <Field label="가구 형태">
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
+              <Field label="가구 형태" hint="'해당 없음'은 특화 가구 조건이 없다는 뜻이고, '기타'는 별도 특화 가구 조건이 있다는 뜻입니다.">
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
                   {HOUSEHOLD_TYPES.map(v => {
                     const active = householdType === v;
                     return (
-                      <button key={v} onClick={() => setHouseholdType(v)} style={{
+                      <button key={v} disabled={optionalProfileInputDisabled} onClick={() => setHouseholdType(v)} style={{
                         padding: "11px 4px", borderRadius: 10, whiteSpace: "nowrap",
                         border: `1.5px solid ${active ? A : LINE}`,
                         background: active ? AS : WHITE, color: active ? AI : INK2,
-                        fontSize: 13, fontWeight: 700, cursor: "pointer",
+                        fontSize: 13, fontWeight: 700, cursor: optionalProfileInputDisabled ? "not-allowed" : "pointer",
+                        opacity: optionalProfileInputDisabled ? 0.6 : 1,
                       }}>
                         {v}
                       </button>
@@ -596,20 +623,20 @@ export default function SignupPage() {
                   현재 <span style={{ color: AI, fontWeight: 800 }}>{selectedStandardCodeCount}/3개</span> 선택됨
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
-                  <select style={selCss(false)} value={houseTenureCode} onChange={e => setHouseTenureCode(e.target.value)}>
+                  <select style={selCss(optionalProfileInputDisabled)} disabled={optionalProfileInputDisabled} value={houseTenureCode} onChange={e => setHouseTenureCode(e.target.value)}>
                     <option value="">주거형태 선택</option>
                     {profileCodeOptions.houseTenure.map((option) => (
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </select>
-                  <select style={selCss(false)} value={housingTypeCode} onChange={e => setHousingTypeCode(e.target.value)}>
+                  <select style={selCss(optionalProfileInputDisabled)} disabled={optionalProfileInputDisabled} value={housingTypeCode} onChange={e => setHousingTypeCode(e.target.value)}>
                     <option value="">주택유형 선택</option>
                     {profileCodeOptions.housingType.map((option) => (
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </select>
-                  <select style={selCss(!optionalProfileConsentAgreed)} disabled={!optionalProfileConsentAgreed} value={basicLivingRecipientTypeCode} onChange={e => setBasicLivingRecipientTypeCode(e.target.value)}>
-                    <option value="">복지 수급 정보 선택</option>
+                  <select style={selCss(optionalProfileInputDisabled)} disabled={optionalProfileInputDisabled} value={basicLivingRecipientTypeCode} onChange={e => setBasicLivingRecipientTypeCode(e.target.value)}>
+                    <option value="">복지 수급 정보 선택 안 함</option>
                     {profileCodeOptions.basicLivingRecipientType.map((option) => (
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
@@ -636,9 +663,9 @@ export default function SignupPage() {
                 </span>
               </label>
 
-              <Field label="장애 관련 정보" hint="선택 입력이며, 민감정보 동의 시에만 저장됩니다">
+              <Field label="장애 관련 정보" hint="대상이 아니면 '해당 없음'을 선택하세요. 선택 입력이며, 민감정보 동의 시에만 저장됩니다">
                 <select style={selCss(!sensitiveInfoConsentAgreed)} disabled={!sensitiveInfoConsentAgreed} value={disabilityGradeCode} onChange={e => setDisabilityGradeCode(e.target.value)}>
-                  <option value="">장애 관련 지원 정보 선택</option>
+                  <option value="">장애 관련 지원 정보 선택 안 함</option>
                   {profileCodeOptions.disabilityGrade.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
@@ -662,21 +689,27 @@ export default function SignupPage() {
               <div>
                 <div style={{ fontSize: 16, fontWeight: 800, color: INK, marginBottom: 4 }}>어떤 정책을 우선적으로 받고 싶으세요?</div>
                 <div style={{ fontSize: 13, color: INK3 }}>최대 5개 선택 · 순서가 중요해요 (건너뛸 수 있어요)</div>
+                {!optionalProfileConsentAgreed && (
+                  <div style={{ marginTop: 8, fontSize: 12, color: INK3 }}>
+                    우선순위를 선택하려면 이전 단계에서 선택 개인정보 수집·이용에 동의해주세요.
+                  </div>
+                )}
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 10 }}>
                 {PRIORITY_OPTIONS.map(c => {
                   const idx = priorities.indexOf(c.value);
                   const active = idx >= 0;
+                  const disabled = optionalProfileInputDisabled || (!active && priorities.length >= 5);
                   return (
                     <button key={c.value} onClick={() => togglePriority(c.value)}
-                      disabled={!active && priorities.length >= 5}
+                      disabled={disabled}
                       style={{
                         position: "relative", padding: "14px 14px", borderRadius: 12,
                         border: `2px solid ${active ? A : LINE}`,
                         background: active ? AS : WHITE,
-                        textAlign: "left", cursor: (!active && priorities.length >= 5) ? "not-allowed" : "pointer",
-                        opacity: (!active && priorities.length >= 5) ? 0.5 : 1,
+                        textAlign: "left", cursor: disabled ? "not-allowed" : "pointer",
+                        opacity: disabled ? 0.5 : 1,
                         display: "flex", alignItems: "center", gap: 8,
                       }}>
                       <span style={{ width: 12, height: 12, borderRadius: "50%", background: c.fg, flexShrink: 0 }} />

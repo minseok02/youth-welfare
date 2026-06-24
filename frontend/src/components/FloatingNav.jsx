@@ -7,6 +7,7 @@ import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
 import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
 import { useAuthStore } from "../store/authStore";
 import { useUnreadAlertCount } from "../lib/useUnreadAlertCount";
+import { buildSafeReturnLocation, resolveSafeRouteTarget } from "../lib/safeNavigation";
 
 const NAV_ITEMS = [
   { label: "맞춤정책", path: "/", icon: HomeIcon, authRequired: false },
@@ -28,61 +29,64 @@ export default function FloatingNav() {
   const unreadAlertCount = useUnreadAlertCount(isLoggedIn);
   const unreadBadge = unreadAlertCount > 99 ? "99+" : unreadAlertCount;
   const visibleItems = NAV_ITEMS.filter((item) => !item.adminRequired || user?.isAdmin);
+  const returnLocation = buildSafeReturnLocation(location);
+  const safeFromTarget = resolveSafeRouteTarget(location.state?.from);
+  const safeChatFromStateTarget = resolveSafeRouteTarget(location.state?.chatFrom);
   const mypageTarget = location.pathname === "/mypage"
     ? {
         pathname: "/mypage",
         search: location.search,
-        state: location.state,
+        state: returnLocation?.state,
       }
     : {
         pathname: "/mypage",
-        search: location.state?.from?.pathname === "/mypage" ? (location.state.from.search ?? "") : "",
+        search: safeFromTarget?.pathname === "/mypage" ? (safeFromTarget.search ?? "") : "",
         state: {
-          ...(location.state?.from?.pathname === "/mypage" ? (location.state.from.state ?? {}) : {}),
-          from: location,
+          ...(safeFromTarget?.pathname === "/mypage" ? (safeFromTarget.state ?? {}) : {}),
+          from: returnLocation,
         },
       };
   const policiesTarget = location.pathname === "/policies"
     ? {
         pathname: "/policies",
         search: location.search,
-        state: location.state,
+        state: returnLocation?.state,
       }
-    : location.state?.from?.pathname === "/policies"
+    : safeFromTarget?.pathname === "/policies"
       ? {
           pathname: "/policies",
-          search: location.state.from.search ?? "",
-          state: location.state.from.state,
+          search: safeFromTarget.search ?? "",
+          state: safeFromTarget.state,
         }
       : {
           pathname: "/policies",
           search: "",
         };
-  const chatOriginTarget = location.state?.chatFrom?.pathname === "/chat"
+  const chatOriginTarget = safeChatFromStateTarget?.pathname === "/chat"
     ? {
         pathname: "/chat",
-        search: location.state.chatFrom.search ?? "",
-        state: location.state.chatFrom.state,
+        search: safeChatFromStateTarget.search ?? "",
+        state: safeChatFromStateTarget.state,
       }
-    : location.state?.from?.pathname === "/chat"
+    : safeFromTarget?.pathname === "/chat"
       ? {
           pathname: "/chat",
-          search: location.state.from.search ?? "",
-          state: location.state.from.state,
+          search: safeFromTarget.search ?? "",
+          state: safeFromTarget.state,
         }
       : null;
   const chatTarget = location.pathname === "/chat"
     ? {
         pathname: "/chat",
         search: location.search,
-        state: location.state,
+        state: returnLocation?.state,
       }
     : {
         pathname: "/chat",
         search: chatOriginTarget?.search ?? "",
         state: {
           ...(chatOriginTarget?.state ?? {}),
-          from: location,
+          from: returnLocation,
           chatFrom: {
             pathname: "/chat",
             search: chatOriginTarget?.search ?? "",
@@ -106,7 +110,7 @@ export default function FloatingNav() {
       return;
     }
     if (item.adminRequired && !user?.isAdmin) {
-      navigate("/", { state: { from: location, reason: "admin-required" } });
+      navigate("/", { state: { from: returnLocation, reason: "admin-required" } });
       return;
     }
     navigate(`${target.pathname}${target.search ?? ""}`, {

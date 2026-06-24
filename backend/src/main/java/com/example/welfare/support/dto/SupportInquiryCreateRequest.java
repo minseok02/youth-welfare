@@ -18,7 +18,7 @@ public record SupportInquiryCreateRequest(
         @Size(max = 2000, message = "message는 2000자 이하여야 합니다.")
         String message,
         @Size(max = 255, message = "routePath는 255자 이하여야 합니다.")
-        @Pattern(regexp = "^$|^/[^\\r\\n]*$", message = "routePath 형식이 올바르지 않습니다.")
+        @Pattern(regexp = "^$|^/(?!/)[^\\r\\n]*$", message = "routePath 형식이 올바르지 않습니다.")
         String routePath
 ) {
 }

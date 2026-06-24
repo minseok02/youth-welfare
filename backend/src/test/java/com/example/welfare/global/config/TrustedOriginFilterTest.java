@@ -48,15 +48,16 @@ class TrustedOriginFilterTest {
     }
 
     @Test
-    @DisplayName("origin 없는 서버 간 보호 POST는 기존 API 호환을 위해 통과한다")
-    void protectedPostAllowsRequestWithoutBrowserOrigin() throws ServletException, IOException {
+    @DisplayName("보호된 POST는 origin/referer가 모두 없으면 403을 반환한다")
+    void protectedPostRejectsRequestWithoutBrowserOrigin() throws ServletException, IOException {
         MockHttpServletRequest request = post("/api/notifications/unsubscribe");
         MockHttpServletResponse response = new MockHttpServletResponse();
         MockFilterChain chain = new MockFilterChain();
 
         filter.doFilter(request, response, chain);
 
-        assertThat(response.getStatus()).isEqualTo(200);
+        assertThat(response.getStatus()).isEqualTo(403);
+        assertThat(response.getContentAsString()).contains("\"errorCode\":\"C003\"");
     }
 
     @Test

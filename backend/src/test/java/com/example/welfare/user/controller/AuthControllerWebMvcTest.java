@@ -24,7 +24,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -64,8 +63,13 @@ class AuthControllerWebMvcTest {
         given(authAvailabilityService.checkEmailAvailability("new@example.com"))
                 .willReturn(new com.example.welfare.user.dto.response.EmailAvailabilityResponse(true));
 
-        mockMvc.perform(get("/api/auth/check-email")
-                        .param("email", "new@example.com"))
+        mockMvc.perform(post("/api/auth/check-email")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "new@example.com"
+                                }
+                                """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.available").value(true));
@@ -77,11 +81,12 @@ class AuthControllerWebMvcTest {
     @Test
     @DisplayName("이메일 확인은 email 파라미터가 없으면 500 대신 400 invalid input을 반환한다")
     void checkEmailAvailabilityWithoutEmailReturnsBadRequest() throws Exception {
-        mockMvc.perform(get("/api/auth/check-email"))
+        mockMvc.perform(post("/api/auth/check-email")
+                        .contentType("application/json")
+                        .content("{}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.errorCode").value("C001"))
-                .andExpect(jsonPath("$.message").value("입력값이 올바르지 않습니다."));
+                .andExpect(jsonPath("$.errorCode").value("C001"));
 
         then(authAvailabilityService).should(never()).checkEmailAvailability(org.mockito.ArgumentMatchers.any());
         then(authRateLimitService).should(never()).checkEmailCheckLimit(org.mockito.ArgumentMatchers.any());
@@ -90,8 +95,13 @@ class AuthControllerWebMvcTest {
     @Test
     @DisplayName("이메일 확인은 잘못된 이메일 형식을 서비스 호출 전에 거부한다")
     void checkEmailAvailabilityRejectsInvalidEmail() throws Exception {
-        mockMvc.perform(get("/api/auth/check-email")
-                        .param("email", "not-an-email"))
+        mockMvc.perform(post("/api/auth/check-email")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "not-an-email"
+                                }
+                                """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("C001"));
@@ -103,8 +113,13 @@ class AuthControllerWebMvcTest {
     @Test
     @DisplayName("이메일 확인은 quoted local-part 같은 비표준 가입용 이메일을 거부한다")
     void checkEmailAvailabilityRejectsQuotedEmail() throws Exception {
-        mockMvc.perform(get("/api/auth/check-email")
-                        .param("email", "\"user\"@example.com"))
+        mockMvc.perform(post("/api/auth/check-email")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "\\"user\\"@example.com"
+                                }
+                                """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("C001"));
@@ -119,7 +134,12 @@ class AuthControllerWebMvcTest {
         given(clientFingerprintService.build(org.mockito.ArgumentMatchers.any())).willReturn("fp-email-send");
 
         mockMvc.perform(post("/api/auth/email-verification/send")
-                        .param("email", "new@example.com"))
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "new@example.com"
+                                }
+                                """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
@@ -131,7 +151,12 @@ class AuthControllerWebMvcTest {
     @DisplayName("이메일 인증코드 발송은 잘못된 이메일 형식을 400으로 거부한다")
     void sendEmailVerificationRejectsInvalidEmail() throws Exception {
         mockMvc.perform(post("/api/auth/email-verification/send")
-                        .param("email", "not-an-email"))
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "not-an-email"
+                                }
+                                """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("C001"));
@@ -149,7 +174,12 @@ class AuthControllerWebMvcTest {
                 .checkEmailVerificationSendLimit("fp-email-send");
 
         mockMvc.perform(post("/api/auth/email-verification/send")
-                        .param("email", "new@example.com"))
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "new@example.com"
+                                }
+                                """))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("A010"));
@@ -161,8 +191,13 @@ class AuthControllerWebMvcTest {
     @DisplayName("이메일 인증 확인은 6자리 숫자가 아닌 코드를 서비스 호출 전에 거부한다")
     void verifyEmailCodeRejectsInvalidCodeFormat() throws Exception {
         mockMvc.perform(post("/api/auth/email-verification/verify")
-                        .param("email", "new@example.com")
-                        .param("code", "12ab"))
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "new@example.com",
+                                  "code": "12ab"
+                                }
+                                """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("C001"));
@@ -176,6 +211,7 @@ class AuthControllerWebMvcTest {
     void logoutUsesRefreshCookieWithoutAuthentication() throws Exception {
         mockMvc.perform(post("/api/auth/logout")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer access-token-value")
+                        .header(HttpHeaders.ORIGIN, "http://127.0.0.1:5173")
                         .cookie(new jakarta.servlet.http.Cookie("refresh_token", "refresh-token-value")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
@@ -346,6 +382,19 @@ class AuthControllerWebMvcTest {
 
         then(passwordResetService).should(never())
                 .confirmPasswordReset(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("refresh는 X-Refresh-Token 헤더만으로는 토큰을 받지 않는다")
+    void refreshRejectsHeaderOnlyRefreshToken() throws Exception {
+        mockMvc.perform(post("/api/auth/refresh")
+                        .header(HttpHeaders.ORIGIN, "http://127.0.0.1:5173")
+                        .header("X-Refresh-Token", "refresh-token"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("A001"));
+
+        then(authSessionService).should(never()).refresh(org.mockito.ArgumentMatchers.any());
     }
 
     @Test

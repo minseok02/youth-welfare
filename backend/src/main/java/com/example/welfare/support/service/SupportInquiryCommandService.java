@@ -80,6 +80,21 @@ public class SupportInquiryCommandService {
         if (normalized.length() > 255) {
             throw new CustomException(ErrorCode.INVALID_INPUT);
         }
-        return normalized;
+        if (!normalized.startsWith("/") || normalized.startsWith("//")
+                || normalized.contains("\r") || normalized.contains("\n")) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+
+        int cutIndex = normalized.length();
+        int queryIndex = normalized.indexOf('?');
+        int hashIndex = normalized.indexOf('#');
+        if (queryIndex >= 0) {
+            cutIndex = Math.min(cutIndex, queryIndex);
+        }
+        if (hashIndex >= 0) {
+            cutIndex = Math.min(cutIndex, hashIndex);
+        }
+        String pathOnly = normalized.substring(0, cutIndex);
+        return pathOnly.isEmpty() ? "/" : pathOnly;
     }
 }

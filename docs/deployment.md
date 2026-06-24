@@ -201,6 +201,8 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up -d redis
 
 - `Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options` 는 edge nginx가 단일 책임으로 내려준다.
 - `server_tokens off;` 로 edge nginx 버전 문자열을 응답에서 숨긴다.
+- `youth_welfare_timed` access log format으로 `$request_time`, `$upstream_response_time`, `$request_id`, `$upstream_status` 를 남긴다.
+- 프록시 요청에는 `X-Request-Id: $request_id` 를 전달해 nginx access log와 Spring `[ApiRequest]` 로그를 같은 id로 맞춘다.
 - `/api/`, `/swagger-ui/`, `/v3/api-docs/`, `/actuator/` 프록시 경로에서는 upstream Spring이 내려준 같은 헤더를 `proxy_hide_header` 로 숨긴다.
 - `/actuator/` 는 외부 인터넷에 공개하지 않고 `127.0.0.1` / `::1` 및 명시적으로 허용한 내부 모니터링 IP만 통과시킨다.
 
@@ -220,6 +222,7 @@ bash deploy/nginx/verify-edge-baseline.sh
 - `Content-Security-Policy`
 - `Server` 헤더의 nginx 버전 노출 여부
 - 외부 `/actuator/health` status
+- nginx reload 뒤 성능 로그 관찰은 `bash deploy/performance/run-local-nginx-log-observability-baseline.sh` 로 다시 확인한다.
 
 를 같이 확인합니다.
 

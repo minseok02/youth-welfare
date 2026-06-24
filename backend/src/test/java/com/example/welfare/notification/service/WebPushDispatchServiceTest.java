@@ -38,6 +38,8 @@ class WebPushDispatchServiceTest {
     private DeadlineReminderContentService deadlineReminderContentService;
     @Mock
     private WebPushEndpointPolicyService webPushEndpointPolicyService;
+    @Mock
+    private NotificationAttemptLogService notificationAttemptLogService;
 
     @InjectMocks
     private WebPushDispatchService webPushDispatchService;
@@ -134,7 +136,7 @@ class WebPushDispatchServiceTest {
 
         assertThat(subscription.isEnabled()).isTrue();
         assertThat(subscription.getLastErrorAt()).isNotNull();
-        assertThat(subscription.getLastErrorMessage()).isEqualTo("sender bootstrap failed");
+        assertThat(subscription.getLastErrorMessage()).isEqualTo("web push send failed (RuntimeException)");
     }
 
     @Test

@@ -4,6 +4,7 @@ import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.config.JacksonConfig;
 import com.example.welfare.global.config.SecurityConfig;
 import com.example.welfare.global.util.JwtUtil;
+import com.example.welfare.global.web.ClientFingerprintService;
 import com.example.welfare.notification.dto.WebPushTestSendResponse;
 import com.example.welfare.notification.service.DeadlineReminderDispatchService;
 import com.example.welfare.notification.service.NotificationDispatchService;
@@ -48,6 +49,8 @@ class NotificationSecurityWebMvcTest {
     private JwtUtil jwtUtil;
     @MockitoBean
     private UserSessionRevocationService userSessionRevocationService;
+    @MockitoBean
+    private ClientFingerprintService clientFingerprintService;
     @MockitoBean
     private NotificationUnsubscribeTokenService notificationUnsubscribeTokenService;
     @MockitoBean

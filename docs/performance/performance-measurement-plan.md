@@ -49,6 +49,7 @@ Use lightweight local scripts first, then add heavier load and observability too
 | PostgreSQL | `EXPLAIN (ANALYZE, BUFFERS)`, `pg_stat_user_tables` | `pg_stat_statements`, `auto_explain`, `pgbench` | query plans, buffer reads, slow query ranking, DB-only load |
 | Redis | `redis-cli INFO`, `SLOWLOG` | `redis-cli --latency`, `LATENCY DOCTOR`, commandstats | cache hit rate, memory pressure, command latency |
 | JVM/Spring | Actuator health | Micrometer, Prometheus, Grafana, OpenTelemetry | HTTP histograms, GC, heap, Hikari pool, thread saturation |
+| App logs | `[ApiRequest]`/audit pattern parser | centralized log backend | request/error/auth/recommendation/notification/user-action observation |
 | Edge/nginx | smoke headers and curl timing | access log percentiles, TLS timing | external latency and security header regression |
 | Batch/wrappers | duration wrapper | scheduled historical trend | deploy confidence and operational runtime drift |
 
@@ -192,6 +193,30 @@ Deep observability snapshot:
 ENV_FILE=.env.production SMOKE_DB_MODE=postgres \
   bash deploy/performance/run-local-db-observability-baseline.sh
 ```
+
+### Application Logs
+
+Spring app logs expose structured prefixes for lightweight operational parsing:
+
+- `[ApiRequest]`: method/path/status/duration/requestId/userKeyHash/clientFingerprint/errorCode
+- `[AuthAudit]`: login/signup/email verification/password reset/logout/rate-limit events
+- `[AdminAudit]`: admin rate-limit and forced logout actor/target evidence
+- `[RecommendationRun]`: recommendation batch outcome, candidate counts, AI status distribution, duration
+- `[NotificationAttempt]`: email/web push attempt outcome, kind, item count, duration
+- `[UserAction]`: policy list/ranking/search-suggestion/trending/bookmark/report actions
+
+Script:
+
+```bash
+bash deploy/performance/run-local-app-log-observability-baseline.sh
+```
+
+Inputs:
+
+- Default: `docker compose -f docker-compose.prod.yml logs --tail=10000 app`
+- File mode: `APP_LOG_FILE=/var/log/youth-welfare/app.log bash deploy/performance/run-local-app-log-observability-baseline.sh`
+
+The deep observation suite includes this step by default through `RUN_APP_LOG_OBSERVABILITY=true`.
 
 ### Redis
 

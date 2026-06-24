@@ -547,6 +547,12 @@ const formatNumber = (value) => {
   return Number.isFinite(num) ? num.toLocaleString("ko-KR") : "—";
 };
 
+const formatCompactJson = (value) => {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "—";
+  return raw.length > 96 ? `${raw.slice(0, 96)}...` : raw;
+};
+
 const formatDateTime = (value) => {
   if (!value) return "—";
   const parsed = new Date(value);
@@ -567,6 +573,62 @@ const formatDate = (value) => {
     month: "numeric",
     day: "numeric",
   }).format(parsed);
+};
+
+const formatMaskedUserKey = (value, fallback = "미연결") => {
+  const raw = String(value ?? "").trim();
+  if (!raw) return fallback;
+  if (raw.length <= 8) return `${raw.slice(0, 2)}…${raw.slice(-2)}`;
+  return `${raw.slice(0, 6)}…${raw.slice(-4)}`;
+};
+
+const EMAIL_DISPLAY_PATTERN = /([A-Z0-9._%+-]{1,64})@([A-Z0-9.-]+\.[A-Z]{2,})/gi;
+const PHONE_DISPLAY_PATTERN = /\b(?:\+?82[-.\s]?)?0?1[016789][-\s.]?\d{3,4}[-\s.]?\d{4}\b/g;
+const RESIDENT_ID_DISPLAY_PATTERN = /\b\d{6}[-\s]?[1-8]\d{6}\b/g;
+const LONG_NUMBER_DISPLAY_PATTERN = /\b\d{4,6}[-\s]\d{2,6}[-\s]\d{2,8}\b/g;
+
+const formatMaskedEmail = (value, fallback = "이메일 없음") => {
+  const raw = String(value ?? "").trim();
+  if (!raw) return fallback;
+  const atIndex = raw.lastIndexOf("@");
+  if (atIndex <= 0 || atIndex === raw.length - 1) return "이메일 형식 오류";
+
+  const local = raw.slice(0, atIndex);
+  const domain = raw.slice(atIndex + 1);
+  const visibleLocal = local.length <= 2 ? local.slice(0, 1) : local.slice(0, 2);
+  return `${visibleLocal}***@${domain}`;
+};
+
+const redactAdminDisplayText = (value) => String(value ?? "")
+  .replace(EMAIL_DISPLAY_PATTERN, "[이메일]")
+  .replace(PHONE_DISPLAY_PATTERN, "[전화번호]")
+  .replace(RESIDENT_ID_DISPLAY_PATTERN, "[식별번호]")
+  .replace(LONG_NUMBER_DISPLAY_PATTERN, "[번호]");
+
+const formatAdminDisplayText = (value, fallback = "내용 없음") => {
+  const text = redactAdminDisplayText(value).trim();
+  return text || fallback;
+};
+
+const formatAdminReviewNoteSuffix = (value) => {
+  const text = formatAdminDisplayText(value, "");
+  return text ? ` · ${text}` : "";
+};
+
+const formatAdminRoutePath = (value, fallback = "경로 정보 없음") => {
+  const raw = String(value ?? "").trim();
+  if (!raw) return fallback;
+
+  try {
+    const baseOrigin = typeof window !== "undefined" ? window.location.origin : "http://localhost";
+    const parsed = new URL(raw, baseOrigin);
+    if (parsed.origin !== baseOrigin || !parsed.pathname.startsWith("/")) {
+      return fallback;
+    }
+    return parsed.pathname;
+  } catch {
+    return fallback;
+  }
 };
 
 const formatRelativeDateTime = (value) => {
@@ -614,6 +676,13 @@ const fetchBreakdowns = async (windowDays) => {
   maybeThrowE2EFailure("breakdown");
   const { data } = await api.get("/api/admin/dashboard/recommendation-breakdowns", {
     params: { summaryWindowDays: windowDays, limit: 3 },
+  });
+  return data?.data;
+};
+
+const fetchRecommendationRunSummary = async (windowDays) => {
+  const { data } = await api.get("/api/admin/dashboard/recommendation-run-summary", {
+    params: { summaryWindowDays: windowDays, limit: 5 },
   });
   return data?.data;
 };
@@ -702,6 +771,13 @@ const fetchPolicyLinkReviews = async (status = "OPEN") => {
 const fetchNotificationStaleTargets = async (olderThanDays = 14) => {
   const { data } = await api.get("/api/admin/dashboard/notification-stale-targets", {
     params: { limit: 5, olderThanDays },
+  });
+  return data?.data;
+};
+
+const fetchNotificationAttemptSummary = async (windowDays) => {
+  const { data } = await api.get("/api/admin/dashboard/notification-attempt-summary", {
+    params: { summaryWindowDays: windowDays, limit: 5 },
   });
   return data?.data;
 };
@@ -1042,6 +1118,12 @@ export default function AdminDashboardPage() {
     ...queryBaseOptions,
   });
 
+  const recommendationRunSummaryQuery = useQuery({
+    queryKey: ["admin-dashboard-recommendation-run-summary", windowDays],
+    queryFn: () => fetchRecommendationRunSummary(windowDays),
+    ...queryBaseOptions,
+  });
+
   const collectFailuresQuery = useQuery({
     queryKey: ["admin-dashboard-collect-failures", windowDays],
     queryFn: () => fetchCollectFailures(windowDays),
@@ -1126,6 +1208,12 @@ export default function AdminDashboardPage() {
     ...queryBaseOptions,
   });
 
+  const notificationAttemptSummaryQuery = useQuery({
+    queryKey: ["admin-dashboard-notification-attempt-summary", windowDays],
+    queryFn: () => fetchNotificationAttemptSummary(windowDays),
+    ...queryBaseOptions,
+  });
+
   const officialCodebooksQuery = useQuery({
     queryKey: ["official-codebooks"],
     queryFn: fetchOfficialCodebooks,
@@ -1146,6 +1234,7 @@ export default function AdminDashboardPage() {
   const recommendationSummary = summaryData?.recommendation;
   const concentration = recommendationSummary?.latestBatchConcentration;
   const breakdowns = breakdownQuery.data;
+  const recommendationRunSummary = recommendationRunSummaryQuery.data;
   const collectFailures = collectFailuresQuery.data;
   const searchFailures = searchFailuresQuery.data;
   const standardCodeCoverage = standardCodeCoverageQuery.data;
@@ -1160,11 +1249,14 @@ export default function AdminDashboardPage() {
   const policyDuplicateGroups = policyDuplicateGroupsQuery.data;
   const policyLinkReviews = policyLinkReviewsQuery.data;
   const notificationStaleTargets = notificationStaleTargetsQuery.data;
+  const notificationAttemptSummary = notificationAttemptSummaryQuery.data;
   const selectedCodebookSummary = officialCodebooks.find((item) => item.codeSetKey === effectiveSelectedCodeSetKey) ?? null;
   const officialCodebookDetail = officialCodebookDetailQuery.data;
   const detailRows = officialCodebookDetail?.rows ?? officialCodebookDetail?.metadata?.sampleRows ?? [];
   const summaryErrorMessage = summaryQuery.error?.response?.data?.message ?? "요약 데이터를 불러오지 못했습니다.";
   const breakdownErrorMessage = breakdownQuery.error?.response?.data?.message ?? "추천 상세 triage를 불러오지 못했습니다.";
+  const recommendationRunSummaryErrorMessage =
+    recommendationRunSummaryQuery.error?.response?.data?.message ?? "추천 실행 로그 요약을 불러오지 못했습니다.";
   const collectErrorMessage = collectFailuresQuery.error?.response?.data?.message ?? "수집 실패 상세를 불러오지 못했습니다.";
   const searchErrorMessage = searchFailuresQuery.error?.response?.data?.message ?? "검색 실패 상세를 불러오지 못했습니다.";
   const standardCodeCoverageErrorMessage =
@@ -1191,6 +1283,8 @@ export default function AdminDashboardPage() {
     policyLinkReviewsQuery.error?.response?.data?.message ?? "정책 링크 review 목록을 불러오지 못했습니다.";
   const notificationStaleTargetsErrorMessage =
     notificationStaleTargetsQuery.error?.response?.data?.message ?? "stale notification target 목록을 불러오지 못했습니다.";
+  const notificationAttemptSummaryErrorMessage =
+    notificationAttemptSummaryQuery.error?.response?.data?.message ?? "알림 attempt 요약을 불러오지 못했습니다.";
   const officialCodebooksErrorMessage = officialCodebooksQuery.error?.response?.data?.message ?? "공식 코드북 목록을 불러오지 못했습니다.";
   const officialCodebookDetailErrorMessage = officialCodebookDetailQuery.error?.response?.data?.message ?? "선택한 코드북 상세를 불러오지 못했습니다.";
   const animateJumpTarget = (target, tone, duration = 1400) => {
@@ -1421,6 +1515,7 @@ export default function AdminDashboardPage() {
   const refetchAll = () => {
     summaryQuery.refetch();
     breakdownQuery.refetch();
+    recommendationRunSummaryQuery.refetch();
     collectFailuresQuery.refetch();
     searchFailuresQuery.refetch();
     standardCodeCoverageQuery.refetch();
@@ -1435,6 +1530,7 @@ export default function AdminDashboardPage() {
     policyDuplicateGroupsQuery.refetch();
     policyLinkReviewsQuery.refetch();
     notificationStaleTargetsQuery.refetch();
+    notificationAttemptSummaryQuery.refetch();
     officialCodebooksQuery.refetch();
     if (effectiveSelectedCodeSetKey) {
       officialCodebookDetailQuery.refetch();
@@ -2281,16 +2377,16 @@ export default function AdminDashboardPage() {
                                       alignSelf: { xs: "flex-start", md: "center" },
                                     }}
                                   />
-                                </Stack>
-                                <Typography sx={{ fontSize: 13, color: INK2 }}>
-                                  제보자 {item.userKey || "익명"}{item.note ? ` · ${item.note}` : " · 추가 메모 없음"}
-                                </Typography>
-                                {item.status === "REVIEWED" && (
-                                  <Alert severity="success" sx={{ py: 0 }}>
-                                    {`처리완료 · ${item.reviewedByUserKey || "운영자"} · ${formatDateTime(item.reviewedAt)}`}
-                                    {item.reviewNote ? ` · ${item.reviewNote}` : ""}
-                                  </Alert>
-                                )}
+	                                </Stack>
+	                                <Typography sx={{ fontSize: 13, color: INK2 }}>
+	                                  제보자 {formatMaskedUserKey(item.userKey, "익명")} · {formatAdminDisplayText(item.note, "추가 메모 없음")}
+	                                </Typography>
+	                                {item.status === "REVIEWED" && (
+	                                  <Alert severity="success" sx={{ py: 0 }}>
+	                                    {`처리완료 · ${formatMaskedUserKey(item.reviewedByUserKey, "운영자")} · ${formatDateTime(item.reviewedAt)}`}
+	                                    {formatAdminReviewNoteSuffix(item.reviewNote)}
+	                                  </Alert>
+	                                )}
                                 {item.reasonCode === "REGION_MISMATCH" && item.status !== "REVIEWED" && (
                                   <Box sx={{ p: 1.5, borderRadius: 1.5, border: `1px solid ${INFO_BORDER}`, bgcolor: INFO_BG }}>
                                     <Stack spacing={1}>
@@ -2658,9 +2754,9 @@ export default function AdminDashboardPage() {
                                     <Typography sx={{ fontSize: 14, fontWeight: 800, color: INK, overflowWrap: "anywhere", wordBreak: "break-word" }}>
                                       {item.categoryLabel}
                                     </Typography>
-                                    <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25, overflowWrap: "anywhere", wordBreak: "break-word" }}>
-                                      {item.contactEmail} · {item.routePath || "경로 정보 없음"} · {formatDateTime(item.createdAt)}
-                                    </Typography>
+	                                    <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25, overflowWrap: "anywhere", wordBreak: "break-word" }}>
+	                                      {formatMaskedEmail(item.contactEmail)} · {formatAdminRoutePath(item.routePath)} · {formatDateTime(item.createdAt)}
+	                                    </Typography>
                                   </Box>
                                   <Chip
                                     label={item.categoryLabel}
@@ -2673,19 +2769,19 @@ export default function AdminDashboardPage() {
                                       alignSelf: { xs: "flex-start", md: "center" },
                                     }}
                                   />
-                                </Stack>
-                                <Typography sx={{ fontSize: 13, color: INK2 }}>
-                                  {item.message}
-                                </Typography>
-                                <Typography sx={{ fontSize: 12, color: INK3 }}>
-                                  문의자 {item.userKey || "비로그인/미연결"}
-                                </Typography>
-                                {item.status === "REVIEWED" && (
-                                  <Alert severity="success" sx={{ py: 0 }}>
-                                    {`처리완료 · ${item.reviewedByUserKey || "운영자"} · ${formatDateTime(item.reviewedAt)}`}
-                                    {item.reviewNote ? ` · ${item.reviewNote}` : ""}
-                                  </Alert>
-                                )}
+	                                </Stack>
+	                                <Typography sx={{ fontSize: 13, color: INK2 }}>
+	                                  {formatAdminDisplayText(item.message)}
+	                                </Typography>
+	                                <Typography sx={{ fontSize: 12, color: INK3 }}>
+	                                  문의자 {formatMaskedUserKey(item.userKey, "비로그인/미연결")}
+	                                </Typography>
+	                                {item.status === "REVIEWED" && (
+	                                  <Alert severity="success" sx={{ py: 0 }}>
+	                                    {`처리완료 · ${formatMaskedUserKey(item.reviewedByUserKey, "운영자")} · ${formatDateTime(item.reviewedAt)}`}
+	                                    {formatAdminReviewNoteSuffix(item.reviewNote)}
+	                                  </Alert>
+	                                )}
                                 <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ xs: "stretch", md: "center" }}>
                                   <TextField
                                     size="small"
@@ -2852,12 +2948,12 @@ export default function AdminDashboardPage() {
                                   <Typography sx={{ fontSize: 13, color: INK2, overflowWrap: "anywhere", wordBreak: "break-word" }}>
                                     sourceIds {item.sourceIds}
                                   </Typography>
-                                  {item.status === "REVIEWED" && (
-                                    <Alert severity="success" sx={{ py: 0 }}>
-                                      {`처리완료 · ${item.reviewedByUserKey || "운영자"} · ${formatDateTime(item.reviewedAt)}`}
-                                      {item.reviewNote ? ` · ${item.reviewNote}` : ""}
-                                    </Alert>
-                                  )}
+	                                  {item.status === "REVIEWED" && (
+	                                    <Alert severity="success" sx={{ py: 0 }}>
+	                                      {`처리완료 · ${formatMaskedUserKey(item.reviewedByUserKey, "운영자")} · ${formatDateTime(item.reviewedAt)}`}
+	                                      {formatAdminReviewNoteSuffix(item.reviewNote)}
+	                                    </Alert>
+	                                  )}
                                   <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ xs: "stretch", md: "center" }}>
                                     <TextField
                                       size="small"
@@ -3018,12 +3114,12 @@ export default function AdminDashboardPage() {
                                     variant="outlined"
                                   />
                                 </Stack>
-                                {item.status === "REVIEWED" && (
-                                  <Alert severity="success" sx={{ py: 0 }}>
-                                    {`처리완료 · ${item.reviewedByUserKey || "운영자"} · ${formatDateTime(item.reviewedAt)}`}
-                                    {item.reviewNote ? ` · ${item.reviewNote}` : ""}
-                                  </Alert>
-                                )}
+	                                {item.status === "REVIEWED" && (
+	                                  <Alert severity="success" sx={{ py: 0 }}>
+	                                    {`처리완료 · ${formatMaskedUserKey(item.reviewedByUserKey, "운영자")} · ${formatDateTime(item.reviewedAt)}`}
+	                                    {formatAdminReviewNoteSuffix(item.reviewNote)}
+	                                  </Alert>
+	                                )}
                                 <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ xs: "stretch", md: "center" }}>
                                   <TextField
                                     size="small"
@@ -3563,6 +3659,113 @@ export default function AdminDashboardPage() {
                   />
                 </Box>
 
+                <Box id="admin-notification-attempt-summary" sx={{ mt: 2, scrollMarginTop: 96 }}>
+                  {notificationAttemptSummaryQuery.isLoading && (
+                    <SectionLoadingCard
+                      title="알림 attempt 로딩 중"
+                      description="채널별 발송 attempt outcome과 최근 실패 샘플을 불러오는 중입니다."
+                    />
+                  )}
+
+                  {notificationAttemptSummaryQuery.isError && (
+                    <SectionErrorCard
+                      title="알림 attempt 로드 실패"
+                      description="신규 notification_attempt_logs migration 적용 상태와 admin read 권한을 확인해야 합니다."
+                      message={notificationAttemptSummaryErrorMessage}
+                      onRetry={() => notificationAttemptSummaryQuery.refetch()}
+                    />
+                  )}
+
+                  {notificationAttemptSummary && (
+                    <Card sx={{ background: PANEL_BG, border: `1px solid ${PANEL_LINE}`, boxShadow: "0 10px 28px rgba(15,23,42,0.04)" }}>
+                      <CardContent sx={{ p: 2.5 }}>
+                        <Stack spacing={2}>
+                          <Box>
+                            <Typography sx={{ fontSize: 12, fontWeight: 800, color: ACCENT, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                              알림 attempt
+                            </Typography>
+                            <Typography sx={{ fontSize: 20, fontWeight: 900, color: INK, mt: 0.75, letterSpacing: "-0.02em" }}>
+                              채널별 발송 상태
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" } }}>
+                            <MetricCard
+                              title={`${notificationAttemptSummary.windowDays}일 attempt`}
+                              value={formatNumber(notificationAttemptSummary.totalAttempts)}
+                              description={`최근 ${formatDateTime(notificationAttemptSummary.latestAttemptAt)}`}
+                            />
+                            <MetricCard
+                              title="성공 / 실패"
+                              value={`${formatNumber(notificationAttemptSummary.successAttempts)} / ${formatNumber(notificationAttemptSummary.failedAttempts)}`}
+                              description="sent, fanout, gateway outcome 기준"
+                              descriptionColor={Number(notificationAttemptSummary.failedAttempts) > 0 ? WARNING_TEXT : INK3}
+                            />
+                            <MetricCard
+                              title="disabled"
+                              value={formatNumber(notificationAttemptSummary.disabledAttempts)}
+                              description="web push 구독 무효화/해제 신호"
+                            />
+                            <MetricCard
+                              title="평균 지연"
+                              value={`${formatNumber(notificationAttemptSummary.averageDurationMs)}ms`}
+                              description="channel attempt 기준"
+                            />
+                          </Box>
+
+                          <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", xl: "1fr 1fr" } }}>
+                            <CompactListCard
+                              title="attempt outcome 분포"
+                              description="channel / kind / outcome 기준 상위 집계"
+                              items={notificationAttemptSummary.breakdowns}
+                              renderItem={(item) => (
+                                <Box key={`${item.channel}-${item.kind}-${item.outcome}`} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
+                                  <Stack direction="row" justifyContent="space-between" spacing={2}>
+                                    <Box sx={{ minWidth: 0 }}>
+                                      <Typography sx={{ fontSize: 13, fontWeight: 800, color: INK }}>
+                                        {item.channel} · {item.kind}
+                                      </Typography>
+                                      <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25 }}>
+                                        {item.outcome} · 평균 {formatNumber(item.averageDurationMs)}ms
+                                      </Typography>
+                                    </Box>
+                                    <Chip
+                                      label={formatNumber(item.attemptCount)}
+                                      size="small"
+                                      sx={{ bgcolor: INFO_BG, color: INFO_TEXT, border: `1px solid ${INFO_BORDER}`, fontWeight: 700 }}
+                                    />
+                                  </Stack>
+                                </Box>
+                              )}
+                            />
+                            <CompactListCard
+                              title="최근 실패/disabled"
+                              description="실패 outcome과 disabled endpoint 샘플"
+                              items={notificationAttemptSummary.recentFailures}
+                              renderItem={(item) => (
+                                <Box key={item.id} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
+                                  <Stack spacing={0.75}>
+                                    <Stack direction="row" justifyContent="space-between" spacing={2}>
+                                      <Typography sx={{ fontSize: 13, fontWeight: 800, color: INK }}>
+                                        {item.channel} · {item.kind}
+                                      </Typography>
+                                      <Typography sx={{ fontSize: 12, fontWeight: 800, color: WARNING_TEXT }}>
+                                        {item.outcome}
+                                      </Typography>
+                                    </Stack>
+                                    <Typography sx={{ fontSize: 12, color: INK3 }}>
+                                      {formatDateTime(item.createdAt)} · {item.endpointHost || "endpoint 없음"} · {item.errorType || "errorType 없음"}
+                                    </Typography>
+                                  </Stack>
+                                </Box>
+                              )}
+                            />
+                          </Box>
+                        </Stack>
+                      </CardContent>
+                    </Card>
+                  )}
+                </Box>
+
                 <Box id="admin-notification-stale-targets" sx={{ mt: 2, scrollMarginTop: 96 }}>
                   <Card sx={{ background: PANEL_BG, border: `1px solid ${PANEL_LINE}`, boxShadow: "0 10px 28px rgba(15,23,42,0.04)" }}>
                     <CardContent sx={{ p: 2.5 }}>
@@ -3659,7 +3862,7 @@ export default function AdminDashboardPage() {
                                               {item.title}
                                             </Typography>
                                             <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25, overflowWrap: "anywhere", wordBreak: "break-word" }}>
-                                              {formatStatusLabel(item.kind)} · {item.deeplinkUrl || "deeplink 없음"} · 가장 오래된 row {formatDateTime(item.oldestCreatedAt)}
+                                              {formatStatusLabel(item.kind)} · {formatAdminRoutePath(item.deeplinkUrl, "deeplink 없음")} · 가장 오래된 row {formatDateTime(item.oldestCreatedAt)}
                                             </Typography>
                                           </Box>
                                           <Chip
@@ -3759,6 +3962,124 @@ export default function AdminDashboardPage() {
                 </Box>
               </Box>
             </>
+          )}
+
+          {recommendationRunSummaryQuery.isLoading && (
+            <SectionLoadingCard
+              title="추천 실행 로그 로딩 중"
+              description="추천 생성 run outcome, 저장량, 지연시간, 최근 실행 샘플을 불러오는 중입니다."
+            />
+          )}
+
+          {recommendationRunSummaryQuery.isError && (
+            <SectionErrorCard
+              title="추천 실행 로그 로드 실패"
+              description="신규 recommendation_run_logs migration 적용 상태와 admin read 권한을 확인해야 합니다."
+              message={recommendationRunSummaryErrorMessage}
+              onRetry={() => recommendationRunSummaryQuery.refetch()}
+            />
+          )}
+
+          {recommendationRunSummary && (
+            <Box id="admin-recommendation-run-summary" sx={{ scrollMarginTop: 96 }}>
+              <TriageSectionTitle
+                eyebrow="추천 실행 로그"
+                title="추천 생성 run 상태"
+                description="recommendation_run_logs 기준으로 생성 결과, 빈 후보, 오류, 평균 지연시간을 확인합니다."
+              />
+              <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" } }}>
+                <MetricCard
+                  title={`${recommendationRunSummary.windowDays}일 실행`}
+                  value={formatNumber(recommendationRunSummary.totalRuns)}
+                  description={`최근 실행 ${formatDateTime(recommendationRunSummary.latestRunAt)}`}
+                />
+                <MetricCard
+                  title="성공 / 오류"
+                  value={`${formatNumber(recommendationRunSummary.successRuns)} / ${formatNumber(recommendationRunSummary.errorRuns)}`}
+                  description={`후보 없음 ${formatNumber(recommendationRunSummary.noCandidateRuns)}`}
+                  descriptionColor={Number(recommendationRunSummary.errorRuns) > 0 ? WARNING_TEXT : INK3}
+                />
+                <MetricCard
+                  title="저장 추천"
+                  value={formatNumber(recommendationRunSummary.savedCount)}
+                  description={`평균 저장 ${formatNumber(recommendationRunSummary.averageSavedCount)}`}
+                />
+                <MetricCard
+                  title="평균 지연"
+                  value={`${formatNumber(recommendationRunSummary.averageDurationMs)}ms`}
+                  description={`개인화 실행 ${formatNumber(recommendationRunSummary.personalRuns)}`}
+                />
+              </Box>
+
+              <Box sx={{ display: "grid", gap: 2, mt: 2, gridTemplateColumns: { xs: "1fr", xl: "0.8fr 1.2fr" } }}>
+                <CompactListCard
+                  title="outcome 분포"
+                  description="선택한 기간 내 추천 실행 outcome별 집계"
+                  items={recommendationRunSummary.outcomeBreakdowns}
+                  renderItem={(item) => (
+                    <Box key={item.outcome} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
+                      <Stack direction="row" justifyContent="space-between" spacing={2}>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography sx={{ fontSize: 13, fontWeight: 800, color: INK }}>{formatStatusLabel(item.outcome)}</Typography>
+                          <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25 }}>
+                            저장 {formatNumber(item.savedCount)} · 평균 {formatNumber(item.averageDurationMs)}ms
+                          </Typography>
+                        </Box>
+                        <Chip
+                          label={formatNumber(item.runCount)}
+                          size="small"
+                          sx={{ bgcolor: INFO_BG, color: INFO_TEXT, border: `1px solid ${INFO_BORDER}`, fontWeight: 700 }}
+                        />
+                      </Stack>
+                    </Box>
+                  )}
+                />
+
+                <Card sx={{ background: PANEL_BG, border: `1px solid ${PANEL_LINE}`, boxShadow: "0 8px 24px rgba(15,23,42,0.04)" }}>
+                  <CardContent sx={{ p: 2.5 }}>
+                    <Typography sx={{ fontSize: 15, fontWeight: 800, color: INK }}>최근 실행 샘플</Typography>
+                    <Typography sx={{ fontSize: 13, color: INK3, mt: 0.75 }}>
+                      최신 run 기준 후보 수, 저장 수, AI status count를 확인합니다.
+                    </Typography>
+                    <TableContainer sx={{ mt: 2, border: `1px solid ${PANEL_LINE}`, borderRadius: 2, overflow: "auto" }}>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>시간</TableCell>
+                            <TableCell>outcome</TableCell>
+                            <TableCell align="right">후보</TableCell>
+                            <TableCell align="right">저장</TableCell>
+                            <TableCell align="right">지연</TableCell>
+                            <TableCell>AI status</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {(recommendationRunSummary.recentRuns ?? []).map((item) => (
+                            <TableRow key={item.id}>
+                              <TableCell sx={{ whiteSpace: "nowrap" }}>{formatDateTime(item.createdAt)}</TableCell>
+                              <TableCell>{formatStatusLabel(item.outcome)}</TableCell>
+                              <TableCell align="right">{formatNumber(item.retrievedCount)}</TableCell>
+                              <TableCell align="right">{formatNumber(item.savedCount)}</TableCell>
+                              <TableCell align="right">{formatNumber(item.durationMs)}ms</TableCell>
+                              <TableCell sx={{ maxWidth: 260, overflowWrap: "anywhere", wordBreak: "break-word" }}>
+                                {formatCompactJson(item.aiStatusCountsJson)}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                          {(recommendationRunSummary.recentRuns ?? []).length === 0 && (
+                            <TableRow>
+                              <TableCell colSpan={6} sx={{ color: INK3 }}>
+                                최근 실행 로그가 없습니다.
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </CardContent>
+                </Card>
+              </Box>
+            </Box>
           )}
 
           {breakdownQuery.isLoading && (

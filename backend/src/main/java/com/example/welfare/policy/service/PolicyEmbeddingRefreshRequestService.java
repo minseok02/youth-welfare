@@ -95,8 +95,8 @@ public class PolicyEmbeddingRefreshRequestService {
         try {
             policyChunkEmbeddingService.refreshEmbeddingsForServiceIds(serviceIds);
         } catch (RuntimeException e) {
-            log.warn("[PolicyEmbeddingRefreshRequestService] batch embedding refresh skipped serviceCount={} err={}",
-                    serviceIds.size(), e.getMessage());
+            log.warn("[PolicyEmbeddingRefreshRequestService] batch embedding refresh skipped serviceCount={} errorType={}",
+                    serviceIds.size(), e.getClass().getSimpleName());
         }
     }
 

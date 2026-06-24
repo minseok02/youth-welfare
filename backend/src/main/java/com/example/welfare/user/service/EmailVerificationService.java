@@ -5,6 +5,7 @@ import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.notification.gateway.EmailClient;
 import com.example.welfare.user.util.EmailLookupKeyGenerator;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ import java.util.HexFormat;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class EmailVerificationService {
 
     private static final String CODE_PREFIX      = "email-verify:code:";
@@ -52,12 +54,14 @@ public class EmailVerificationService {
         Boolean acquired = redisTemplate.opsForValue().setIfAbsent(
                 COOLDOWN_PREFIX + hash, "1", Duration.ofSeconds(cooldownSeconds));
         if (!Boolean.TRUE.equals(acquired)) {
+            log.warn("[AuthAudit] event=email_verification_send outcome=cooldown_limited emailHash={}", hash);
             throw new CustomException(ErrorCode.EMAIL_VERIFICATION_SEND_LIMIT);
         }
 
         if (authIdentityReadService.existsByEmail(rawEmail)) {
             redisTemplate.delete(CODE_PREFIX + hash);
             redisTemplate.delete(ATTEMPTS_PREFIX + hash);
+            log.info("[AuthAudit] event=email_verification_send outcome=duplicate_noop emailHash={}", hash);
             return;
         }
 
@@ -69,8 +73,10 @@ public class EmailVerificationService {
         if (!sent) {
             redisTemplate.delete(CODE_PREFIX + hash);
             redisTemplate.delete(COOLDOWN_PREFIX + hash);
+            log.warn("[AuthAudit] event=email_verification_send outcome=send_failed emailHash={}", hash);
             throw new CustomException(ErrorCode.PASSWORD_RESET_EMAIL_SEND_FAILED);
         }
+        log.info("[AuthAudit] event=email_verification_send outcome=sent emailHash={}", hash);
     }
 
     public void verifyCode(String rawEmail, String inputCode) {
@@ -78,6 +84,7 @@ public class EmailVerificationService {
         String storedCode = redisTemplate.opsForValue().get(CODE_PREFIX + hash);
 
         if (storedCode == null) {
+            log.warn("[AuthAudit] event=email_verification_verify outcome=missing_or_expired emailHash={}", hash);
             throw new CustomException(ErrorCode.EMAIL_VERIFICATION_CODE_INVALID);
         }
 
@@ -89,16 +96,21 @@ public class EmailVerificationService {
         if (attempts != null && attempts > MAX_ATTEMPTS) {
             redisTemplate.delete(CODE_PREFIX + hash);
             redisTemplate.delete(ATTEMPTS_PREFIX + hash);
+            log.warn("[AuthAudit] event=email_verification_verify outcome=max_attempts_exceeded emailHash={} attempts={}",
+                    hash, attempts);
             throw new CustomException(ErrorCode.EMAIL_VERIFICATION_CODE_INVALID);
         }
 
         if (!matchesCode(hash, storedCode, inputCode)) {
+            log.warn("[AuthAudit] event=email_verification_verify outcome=invalid_code emailHash={} attempts={}",
+                    hash, attempts);
             throw new CustomException(ErrorCode.EMAIL_VERIFICATION_CODE_INVALID);
         }
 
         redisTemplate.delete(CODE_PREFIX + hash);
         redisTemplate.delete(ATTEMPTS_PREFIX + hash);
         redisTemplate.opsForValue().set(VERIFIED_PREFIX + hash, "1", Duration.ofMinutes(verifiedTtlMinutes));
+        log.info("[AuthAudit] event=email_verification_verify outcome=success emailHash={}", hash);
     }
 
     public boolean isVerified(String rawEmail) {

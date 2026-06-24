@@ -1,5 +1,6 @@
 package com.example.welfare.recommend.service;
 
+import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.recommend.dto.ScoredCandidate;
 import com.example.welfare.recommend.entity.ScoreWeight;
@@ -41,7 +42,8 @@ public class RecommendationPersistenceService {
 
         List<ScoredCandidate> existingServiceCandidates = filterExistingServiceCandidates(candidates);
         if (existingServiceCandidates.isEmpty()) {
-            log.warn("[RecommendationPersistenceService] 저장 가능한 추천 후보가 없습니다. userKey={}", user.getUserKey());
+            log.warn("[RecommendationPersistenceService] 저장 가능한 추천 후보가 없습니다. userKeyHash={}",
+                    RedisKeyHash.sha256Hex(user.getUserKey()));
             return List.of();
         }
 
