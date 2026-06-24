@@ -74,6 +74,25 @@ class UserConsentServiceTest {
     }
 
     @Test
+    @DisplayName("프로필 수정은 장애 관련 '해당 없음'도 민감정보 동의 없이는 거부한다")
+    void ensureProfileUpdateConsentsRejectsDisabilityNotApplicableWithoutSensitiveConsent() {
+        UserConsentService service = new UserConsentService(userConsentRepository);
+        UpdateProfileRequest request = new UpdateProfileRequest();
+        ReflectionTestUtils.setField(request, "disabilityGradeCode", "NONE");
+        when(userConsentRepository.existsByUserKeyAndConsentTypeAndWithdrawnAtIsNull(
+                "user-key-1",
+                UserConsent.ConsentType.SENSITIVE_INFO
+        )).thenReturn(false);
+
+        assertThatThrownBy(() -> service.ensureProfileUpdateConsents("user-key-1", request))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.CONSENT_REQUIRED);
+
+        verify(userConsentRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("프로필 수정 요청에 동의 플래그가 있으면 동의를 기록하고 저장을 허용한다")
     void ensureProfileUpdateConsentsRecordsConsentFromUpdateRequest() {
         UserConsentService service = new UserConsentService(userConsentRepository);

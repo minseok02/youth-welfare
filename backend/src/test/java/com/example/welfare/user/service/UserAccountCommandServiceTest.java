@@ -12,7 +12,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.util.Optional;
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
@@ -70,5 +70,43 @@ class UserAccountCommandServiceTest {
         verify(userCoreSyncService).syncWithdrawnUser(user, "user-key-1");
         assertThat(user.isActive()).isFalse();
         assertThat(user.getEmail()).isEqualTo("withdrawn_1");
+    }
+
+    @Test
+    @DisplayName("알림 수신 해지는 알림 동의 시각도 함께 비운다")
+    void unsubscribeNotificationsClearsNotificationConsentAt() {
+        UserAccountCommandService service = new UserAccountCommandService(
+                activeUserReadService,
+                userMetadataCommandRepository,
+                passwordEncoder,
+                redisTemplate,
+                accessTokenRevocationService,
+                userCoreSyncService,
+                recommendationRefreshCacheService,
+                userWithdrawalDataCleanupService,
+                userConsentService
+        );
+        User user = User.builder()
+                .id(1L)
+                .userKey("user-key-1")
+                .email("user@example.com")
+                .passwordHash("encoded-password")
+                .notificationYn(true)
+                .notificationEmailYn(true)
+                .notificationInAppYn(true)
+                .notificationPeriod(User.NotificationPeriod.WEEKLY)
+                .notificationConsentAt(LocalDateTime.of(2026, 6, 1, 10, 0))
+                .build();
+        when(activeUserReadService.getActiveUserContext(1L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
+
+        service.unsubscribeNotifications(1L);
+
+        verify(userCoreSyncService).syncFromUser(user);
+        assertThat(user.isNotificationYn()).isFalse();
+        assertThat(user.isNotificationEmailYn()).isFalse();
+        assertThat(user.isNotificationInAppYn()).isFalse();
+        assertThat(user.getNotificationPeriod()).isEqualTo(User.NotificationPeriod.NONE);
+        assertThat(user.getNotificationConsentAt()).isNull();
     }
 }

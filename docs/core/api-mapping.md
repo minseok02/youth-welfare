@@ -47,6 +47,7 @@ API / 응답 contract 문서군 진입점은 [system-docs-index.md](./system-doc
     - 추천용 선택정보이며 `optionalProfileConsentAgreed=true` 일 때만 저장 가능
   - `disabilityGradeCode`
     - 민감정보로 취급하며 `sensitiveInfoConsentAgreed=true` 일 때만 저장 가능
+    - `NONE` 은 "장애 관련 지원 대상 아님"을 명시한 앱 sentinel 이지만, 장애 관련 항목에 대한 응답값으로 저장되므로 동일하게 민감정보 동의가 필요하다.
 - 만 14세 미만 생년월일은 현재 가입을 거부한다.
 - 성공 시 `user_consents` 에 개인정보 처리 안내 확인 동의를 기록하고, 선택/민감정보 동의 플래그가 `true` 인 경우 해당 동의도 함께 기록한다.
 - response
@@ -83,7 +84,7 @@ API / 응답 contract 문서군 진입점은 [system-docs-index.md](./system-doc
   - `interestFields`, `targetTypes`
   - 알림 설정 필드
 - 선택 프로필 정보나 추천 선호 정보(`sido`, `incomeLevel`, `householdType`, 주거 코드, `basicLivingRecipientTypeCode`, `interestFields`, `targetTypes` 등)를 새로 저장하려면 기존 `OPTIONAL_PROFILE` 동의가 있거나 이번 요청의 `optionalProfileConsentAgreed=true` 가 필요하다.
-- 민감정보인 `disabilityGradeCode` 를 새로 저장하려면 기존 `SENSITIVE_INFO` 동의가 있거나 이번 요청의 `sensitiveInfoConsentAgreed=true` 가 필요하다.
+- 민감정보인 `disabilityGradeCode` 를 새로 저장하려면 기존 `SENSITIVE_INFO` 동의가 있거나 이번 요청의 `sensitiveInfoConsentAgreed=true` 가 필요하다. `disabilityGradeCode=NONE` 도 "선택 안 함"이 아니라 "해당 없음" 응답값이므로 같은 규칙을 적용한다.
 - 이번 요청에서 동의 플래그를 받은 경우 서버는 `user_consents` 에 동의 상태를 기록한 뒤 프로필 저장을 진행한다.
 - 필수 가입 개인정보 동의(`PRIVACY_NOTICE`)는 회원가입 시 기록하며, 프로필 수정에서 반복 요구하지 않는다.
 

@@ -195,6 +195,7 @@ public class User extends BaseTimeEntity {
         this.notificationInAppYn = false;
         this.notificationWebPushYn = false;
         this.notificationPeriod = NotificationPeriod.NONE;
+        this.notificationConsentAt = null;
     }
 
     public void withdraw() {

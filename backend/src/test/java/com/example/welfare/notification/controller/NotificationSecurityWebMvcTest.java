@@ -6,6 +6,7 @@ import com.example.welfare.global.config.SecurityConfig;
 import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.global.web.ClientFingerprintService;
 import com.example.welfare.notification.dto.WebPushTestSendResponse;
+import com.example.welfare.notification.dto.WebPushPublicKeyResponse;
 import com.example.welfare.notification.service.DeadlineReminderDispatchService;
 import com.example.welfare.notification.service.NotificationDispatchService;
 import com.example.welfare.notification.service.NotificationUnsubscribeTokenService;
@@ -34,6 +35,7 @@ import java.util.List;
 
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -77,6 +79,25 @@ class NotificationSecurityWebMvcTest {
     private AdminAccessAuthorityService adminAccessAuthorityService;
     @MockitoBean
     private JpaMetamodelMappingContext jpaMetamodelMappingContext;
+
+    @Test
+    @DisplayName("웹푸시 공개키 조회는 로그인 사용자에게만 허용한다")
+    void webPushPublicKeyRequiresAuthenticatedUser() throws Exception {
+        mockMvc.perform(get("/api/notifications/push-public-key"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("A006"));
+
+        mockAuthenticatedToken("user-token", List.of(new SimpleGrantedAuthority("ROLE_USER")));
+        given(webPushSubscriptionReadService.getPublicKey())
+                .willReturn(new WebPushPublicKeyResponse("public-key"));
+
+        mockMvc.perform(get("/api/notifications/push-public-key")
+                        .header("Authorization", "Bearer user-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.publicKey").value("public-key"));
+    }
 
     @Test
     @DisplayName("일반 사용자 토큰으로 notification test dispatch를 호출하면 403을 반환한다")

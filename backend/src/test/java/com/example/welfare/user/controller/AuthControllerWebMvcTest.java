@@ -708,6 +708,28 @@ class AuthControllerWebMvcTest {
     }
 
     @Test
+    @DisplayName("회원가입은 장애 관련 '해당 없음'도 민감정보 동의 없이 저장하지 않는다")
+    void signupRejectsDisabilityNotApplicableWithoutSensitiveConsent() throws Exception {
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "user@example.com",
+                                  "password": "password123!",
+                                  "name": "홍길동",
+                                  "birthDate": "2001-01-01",
+                                  "privacyNoticeConfirmed": true,
+                                  "disabilityGradeCode": "NONE"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        then(authSignupService).should(never()).signup(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     @DisplayName("회원가입은 만 14세 미만 생년월일을 거부한다")
     void signupRejectsUnderFourteen() throws Exception {
         mockMvc.perform(post("/api/auth/signup")
