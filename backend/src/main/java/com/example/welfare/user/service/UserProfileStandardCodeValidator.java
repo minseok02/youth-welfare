@@ -16,7 +16,7 @@ public class UserProfileStandardCodeValidator {
     public static final String DISABILITY_GRADE_CODE_SET = "LOCAL_DISABILITY_GRADE";
 
     /**
-     * "해당하지 않음"(비수급·비장애)을 명시적으로 선택했음을 나타내는 sentinel.
+     * "해당하지 않음"을 명시적으로 선택했음을 나타내는 sentinel.
      * 공식 코드북에는 없는 앱 레이어 값이며, "선택 안 함"(미응답, 빈 값)과 구분된다.
      * 추천 매칭에서는 미보유(null과 동일)로 취급한다. ({@code RecommendationMatchingSupport})
      */
@@ -47,7 +47,9 @@ public class UserProfileStandardCodeValidator {
     }
 
     private boolean supportsNotApplicable(String codeSetKey) {
-        return BASIC_LIVING_RECIPIENT_TYPE_CODE_SET.equals(codeSetKey)
+        return HOUSE_TENURE_CODE_SET.equals(codeSetKey)
+                || HOUSING_TYPE_CODE_SET.equals(codeSetKey)
+                || BASIC_LIVING_RECIPIENT_TYPE_CODE_SET.equals(codeSetKey)
                 || DISABILITY_GRADE_CODE_SET.equals(codeSetKey);
     }
 }

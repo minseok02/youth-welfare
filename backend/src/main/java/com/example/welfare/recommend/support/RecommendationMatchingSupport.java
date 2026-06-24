@@ -120,8 +120,8 @@ public final class RecommendationMatchingSupport {
                                                 WelfareService service,
                                                 List<ServiceTag> tags,
                                                 RecommendationCandidateProjection projection) {
-        if ((user.houseTenureCode() == null || user.houseTenureCode().isBlank())
-                && (user.housingTypeCode() == null || user.housingTypeCode().isBlank())) {
+        if (!hasApplicableProfileCode(user.houseTenureCode())
+                && !hasApplicableProfileCode(user.housingTypeCode())) {
             return false;
         }
 
@@ -130,11 +130,11 @@ public final class RecommendationMatchingSupport {
             return false;
         }
 
-        Set<String> houseTenureSignals = user.houseTenureCode() == null
-                ? null
+        Set<String> houseTenureSignals = !hasApplicableProfileCode(user.houseTenureCode())
+                ? Set.of()
                 : HOUSE_TENURE_SIGNALS.get(user.houseTenureCode());
-        Set<String> housingTypeSignals = user.housingTypeCode() == null
-                ? null
+        Set<String> housingTypeSignals = !hasApplicableProfileCode(user.housingTypeCode())
+                ? Set.of()
                 : HOUSING_TYPE_SIGNALS.get(user.housingTypeCode());
 
         return hasMappedSignal(haystack, houseTenureSignals)

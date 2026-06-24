@@ -168,6 +168,19 @@ class RecommendationMatchingSupportTest {
         )).isTrue();
     }
 
+    @Test
+    @DisplayName("주거 프로필 '해당하지 않음'(NONE)은 주거 신호와 매칭하지 않는다")
+    void doesNotMatchHousingProfileWhenHousingCodesAreNotApplicable() {
+        RecommendationUserSnapshot user = snapshot((byte) 5, null, null, List.of(), null, null, "NONE", "NONE");
+
+        assertThat(RecommendationMatchingSupport.housingProfileMatches(
+                user,
+                WelfareService.builder().title("청년 월세 주거 지원").build(),
+                List.of(),
+                null
+        )).isFalse();
+    }
+
     private RecommendationUserSnapshot snapshot(Byte incomeLevel,
                                                 String householdType,
                                                 String employmentStatus,

@@ -11,10 +11,7 @@ const CODE_VALUE_KEY = "코드값";
 const CODE_LABEL_KEY = "코드값의미";
 const DEFAULT_LIMIT = 500;
 const NOT_APPLICABLE_OPTION = { value: "NONE", label: "해당 없음" };
-const NOT_APPLICABLE_CODEBOOK_KEYS = new Set([
-  PROFILE_STANDARD_CODEBOOK_KEYS.basicLivingRecipientType,
-  PROFILE_STANDARD_CODEBOOK_KEYS.disabilityGrade,
-]);
+const NOT_APPLICABLE_CODEBOOK_KEYS = new Set(Object.values(PROFILE_STANDARD_CODEBOOK_KEYS));
 
 function mapCodebookRowsToOptions(rows = []) {
   return rows
