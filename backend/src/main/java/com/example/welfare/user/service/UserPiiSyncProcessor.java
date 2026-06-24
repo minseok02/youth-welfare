@@ -1,5 +1,6 @@
 package com.example.welfare.user.service;
 
+import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.user.entity.UserPiiSyncQueue;
 import com.example.welfare.user.entity.UserPiiSyncQueueStatus;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +22,7 @@ public class UserPiiSyncProcessor {
         UserPiiSyncQueue queue = userPiiSyncQueueService.findOptional(userKey)
                 .orElse(null);
         if (queue == null) {
-            log.warn("[UserPiiSyncProcessor] queue row not found userKey={}", userKey);
+            log.warn("[UserPiiSyncProcessor] queue row not found userKeyHash={}", RedisKeyHash.sha256Hex(userKey));
             return null;
         }
 
@@ -36,8 +37,8 @@ public class UserPiiSyncProcessor {
             queue.markSynced();
         } catch (RuntimeException e) {
             queue.markFailed(safeFailureMessage(e));
-            log.error("[UserPiiSyncProcessor] app_pii sync failed userKey={} errorType={}",
-                    userKey, e.getClass().getSimpleName());
+            log.error("[UserPiiSyncProcessor] app_pii sync failed userKeyHash={} errorType={}",
+                    RedisKeyHash.sha256Hex(userKey), e.getClass().getSimpleName());
         }
         return queue.getStatus();
     }

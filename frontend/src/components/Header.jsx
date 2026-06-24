@@ -12,6 +12,7 @@ import { useAuthStore } from "../store/authStore";
 import { useUnreadAlertCount } from "../lib/useUnreadAlertCount";
 import { performServerLogout } from "../lib/session";
 import api from "../lib/axios";
+import { buildSafeReturnLocation, resolveSafeInternalPath, resolveSafeRouteTarget } from "../lib/safeNavigation";
 
 const formatAlertTime = (value) => {
   if (!value) return "";
@@ -51,34 +52,36 @@ export default function Header() {
     handleUserMenuClose();
     performServerLogout(logout).then(() => navigate("/"));
   };
+  const returnLocation = buildSafeReturnLocation(location);
   const authFromState = {
-    from: location,
+    from: returnLocation,
   };
   const unreadBadge = unreadAlertCount > 99 ? "99+" : unreadAlertCount;
   const isAdmin = Boolean(user?.isAdmin);
   const alertMenuOpen = Boolean(alertAnchorEl);
+  const safeFromTarget = resolveSafeRouteTarget(location.state?.from);
   const mypageTarget = location.pathname === "/mypage"
     ? {
         pathname: "/mypage",
         search: location.search,
-        state: location.state,
+        state: returnLocation?.state,
       }
     : {
         pathname: "/mypage",
-        search: location.state?.from?.pathname === "/mypage" ? (location.state.from.search ?? "") : "",
+        search: safeFromTarget?.pathname === "/mypage" ? (safeFromTarget.search ?? "") : "",
         state: {
-          ...(location.state?.from?.pathname === "/mypage" ? (location.state.from.state ?? {}) : {}),
-          from: location,
+          ...(safeFromTarget?.pathname === "/mypage" ? (safeFromTarget.state ?? {}) : {}),
+          from: returnLocation,
         },
       };
   const alertInboxTarget = useMemo(() => ({
     pathname: "/alerts",
     search: "",
     state: {
-      ...(location.state ?? {}),
-      from: location,
+      ...(returnLocation?.state ?? {}),
+      from: returnLocation,
     },
-  }), [location]);
+  }), [returnLocation]);
 
   const {
     data: headerAlerts = [],
@@ -107,10 +110,12 @@ export default function Header() {
       // Keep navigation best-effort even if read-sync fails.
     }
 
-    const target = alert?.deeplinkUrl
-      ? { pathname: alert.deeplinkUrl, state: { from: location } }
-      : alertInboxTarget;
-    navigate(`${target.pathname}${target.search ?? ""}`, { state: target.state });
+    const safePath = resolveSafeInternalPath(alert?.deeplinkUrl);
+    if (safePath) {
+      navigate(safePath, { state: { from: returnLocation } });
+      return;
+    }
+    navigate(`${alertInboxTarget.pathname}${alertInboxTarget.search}`, { state: alertInboxTarget.state });
   };
 
   return (

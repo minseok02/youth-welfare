@@ -18,7 +18,7 @@ import java.util.List;
 
 /**
  * 알림 발송 시점에 recommendation_logs 기록
- * 클릭 추적: ?log_id= 파라미터로 PolicyController에서 호출
+ * 클릭 추적은 URL query가 아닌 인증된 POST body로 처리한다.
  */
 @Service
 @RequiredArgsConstructor
@@ -56,12 +56,19 @@ public class RecommendationLogService {
 
     @Transactional
     public void markClicked(Long logId, Long userId) {
+        markClicked(logId, userId, null);
+    }
+
+    @Transactional
+    public void markClicked(Long logId, Long userId, Long serviceId) {
         String userKey = userKeyLookupService.findNullable(userId);
         if (!StringUtils.hasText(userKey)) {
             return;
         }
 
-        RecommendationLog log = recommendationLogCommandRepository.findByIdAndUserKey(logId, userKey)
+        RecommendationLog log = (serviceId != null
+                ? recommendationLogCommandRepository.findByIdAndUserKeyAndServiceId(logId, userKey, serviceId)
+                : recommendationLogCommandRepository.findByIdAndUserKey(logId, userKey))
                 .orElseThrow(() -> new CustomException(ErrorCode.RECOMMENDATION_NOT_FOUND));
         log.click();
     }

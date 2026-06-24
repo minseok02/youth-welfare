@@ -1,6 +1,7 @@
 package com.example.welfare.policy.repository;
 
 import com.example.welfare.global.util.SearchKeywordSupport;
+import com.example.welfare.global.util.RegionCodeUtil;
 import com.example.welfare.policy.entity.WelfareService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -259,8 +260,14 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
                             OR EXISTS (
                                 SELECT 1 FROM service_regions sr2
                                 WHERE sr2.service_id = ws.id
-                                  AND sr2.sido_name = :sido
-                                  AND sr2.sgg_name = :sgg
+                                  AND (
+                                      sr2.sido_name = :sido
+                                      OR (:sidoCode IS NOT NULL AND sr2.region_code LIKE CONCAT(:sidoCode, '%'))
+                                  )
+                                  AND (
+                                      sr2.sgg_name = :sgg
+                                      OR (:regionCode IS NOT NULL AND sr2.region_code = :regionCode)
+                                  )
                             )
                           )
                     """);
@@ -275,7 +282,10 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
                             OR EXISTS (
                                 SELECT 1 FROM service_regions sr2
                                 WHERE sr2.service_id = ws.id
-                                  AND sr2.sido_name = :sido
+                                  AND (
+                                      sr2.sido_name = :sido
+                                      OR (:sidoCode IS NOT NULL AND sr2.region_code LIKE CONCAT(:sidoCode, '%'))
+                                  )
                             )
                           )
                     """);
@@ -335,8 +345,14 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
                         WHEN EXISTS (
                             SELECT 1 FROM service_regions sr_ord
                             WHERE sr_ord.service_id = ws.id
-                              AND sr_ord.sido_name = :sido
-                              AND sr_ord.sgg_name = :sgg
+                              AND (
+                                  sr_ord.sido_name = :sido
+                                  OR (:sidoCode IS NOT NULL AND sr_ord.region_code LIKE CONCAT(:sidoCode, '%'))
+                              )
+                              AND (
+                                  sr_ord.sgg_name = :sgg
+                                  OR (:regionCode IS NOT NULL AND sr_ord.region_code = :regionCode)
+                              )
                         ) THEN 0
                         ELSE 1
                     END
@@ -347,7 +363,10 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
                     WHEN EXISTS (
                         SELECT 1 FROM service_regions sr_ord
                         WHERE sr_ord.service_id = ws.id
-                          AND sr_ord.sido_name = :sido
+                          AND (
+                              sr_ord.sido_name = :sido
+                              OR (:sidoCode IS NOT NULL AND sr_ord.region_code LIKE CONCAT(:sidoCode, '%'))
+                          )
                     ) THEN 0
                     ELSE 1
                 END
@@ -355,14 +374,19 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
     }
 
     private MapSqlParameterSource policyParams(PolicySearchReadCondition condition, SearchKeyword keyword) {
+        String sido = RegionCodeUtil.fullSidoName(condition.sido());
+        String sidoCode = RegionCodeUtil.getSidoCode(sido);
+        String regionCode = RegionCodeUtil.getRegionCode(sido, condition.sgg());
         return baseKeywordParams(keyword)
                 .addValue("status", condition.status(), Types.VARCHAR)
                 .addValue("statusFilter", condition.statusFilter(), Types.VARCHAR)
                 .addValue("category", condition.category(), Types.VARCHAR)
                 .addValue("sourceType", condition.sourceType(), Types.VARCHAR)
                 .addValue("onlineApply", toBoolean(condition.onlineApply()), Types.BOOLEAN)
-                .addValue("sido", condition.sido(), Types.VARCHAR)
+                .addValue("sido", sido, Types.VARCHAR)
                 .addValue("sgg", condition.sgg(), Types.VARCHAR)
+                .addValue("sidoCode", sidoCode, Types.VARCHAR)
+                .addValue("regionCode", regionCode, Types.VARCHAR)
                 .addValue("incomeMaxWon", condition.incomeMaxWon(), Types.INTEGER)
                 .addValue("targetGroup", condition.targetGroup(), Types.VARCHAR)
                 .addValue("gov24ServiceField", condition.gov24ServiceField(), Types.VARCHAR)

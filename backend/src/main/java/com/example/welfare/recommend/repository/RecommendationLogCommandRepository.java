@@ -14,4 +14,6 @@ public interface RecommendationLogCommandRepository {
     Optional<RecommendationLog> findById(Long logId);
 
     Optional<RecommendationLog> findByIdAndUserKey(Long logId, String userKey);
+
+    Optional<RecommendationLog> findByIdAndUserKeyAndServiceId(Long logId, String userKey, Long serviceId);
 }

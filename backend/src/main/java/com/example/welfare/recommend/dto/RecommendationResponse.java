@@ -15,7 +15,7 @@ public class RecommendationResponse {
 
     private Long id;
     private Long serviceId;
-    private Long logId;             // CTR 클릭 추적용 (?log_id= 파라미터)
+    private Long logId;             // CTR 클릭 추적용 POST 본문 값
     private String title;
     private String description;
     private String unifiedCategory;

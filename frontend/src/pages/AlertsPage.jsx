@@ -4,7 +4,7 @@ import { Alert, CircularProgress, Snackbar, useMediaQuery } from "@mui/material"
 import Header from "../components/Header";
 import FloatingNav from "../components/FloatingNav";
 import api from "../lib/axios";
-import { resolveSafeInternalPath } from "../lib/safeNavigation";
+import { buildSafeReturnLocation, resolveSafeInternalPath } from "../lib/safeNavigation";
 
 const A = "#2563eb", A7 = "#1d4ed8", BG = "#f7f8fc", WHITE = "#fff";
 const WARN = "#ef4444";
@@ -58,6 +58,7 @@ export default function AlertsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useMediaQuery("(max-width: 1199px)");
+  const returnLocation = buildSafeReturnLocation(location);
   const [alerts, setAlerts] = useState([]);
   const [alertsLoading, setAlertsLoading] = useState(false);
   const [alertUnreadCount, setAlertUnreadCount] = useState(0);
@@ -156,7 +157,7 @@ export default function AlertsPage() {
       if (safePath) {
         navigate(safePath, {
           state: {
-            from: location,
+            from: returnLocation,
           },
         });
       } else {
@@ -165,7 +166,7 @@ export default function AlertsPage() {
     } catch {
       // markAlertRead already surfaced the error.
     }
-  }, [location, markAlertRead, navigate, showToast]);
+  }, [markAlertRead, navigate, returnLocation, showToast]);
 
   const filteredAlerts = alerts.filter((alert) => {
     if (unreadOnly && alert.status !== "UNREAD") {
@@ -255,7 +256,7 @@ export default function AlertsPage() {
               읽지 않은 알림 <strong style={{ color: alertUnreadCount > 0 ? WARN : INK2 }}>{alertUnreadCount}</strong>개
             </div>
             <button
-              onClick={() => navigate("/mypage?tab=3", { state: { from: location } })}
+              onClick={() => navigate("/mypage?tab=3", { state: { from: returnLocation } })}
               style={{ padding: "10px 14px", borderRadius: 10, border: `1px solid ${LINE}`, background: WHITE, color: INK2, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
             >
               알림 설정 열기
@@ -476,7 +477,7 @@ export default function AlertsPage() {
                   정책 보러가기
                 </button>
                 <button
-                  onClick={() => navigate("/mypage?tab=3", { state: { from: location } })}
+                  onClick={() => navigate("/mypage?tab=3", { state: { from: returnLocation } })}
                   style={{ padding: "10px 18px", borderRadius: 10, border: `1px solid ${LINE}`, background: WHITE, color: INK2, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
                 >
                   알림 설정 열기

@@ -3,6 +3,9 @@ package com.example.welfare.global.config;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.response.ApiResponse;
 import com.example.welfare.global.util.JwtUtil;
+import com.example.welfare.global.web.ApiRequestLoggingFilter;
+import com.example.welfare.global.web.ClientFingerprintService;
+import com.example.welfare.global.web.ObservabilityAttributes;
 import com.example.welfare.user.service.AdminAccessAuthorityService;
 import com.example.welfare.user.service.UserSessionRevocationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -37,6 +40,7 @@ public class SecurityConfig {
     private final UserSessionRevocationService userSessionRevocationService;
     private final AdminAccessAuthorityService adminAccessAuthorityService;
     private final ObjectMapper objectMapper;
+    private final ClientFingerprintService clientFingerprintService;
     @Value("${security.cors.allowed-origins:http://127.0.0.1:3000,http://localhost:3000,http://127.0.0.1:5173,http://localhost:5173}")
     private String corsAllowedOrigins;
 
@@ -67,12 +71,12 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) ->
-                                writeSecurityError(response, ErrorCode.UNAUTHORIZED))
+                                writeSecurityError(request, response, ErrorCode.UNAUTHORIZED))
                         .accessDeniedHandler((request, response, accessDeniedException) ->
-                                writeSecurityError(response, ErrorCode.ACCESS_DENIED))
+                                writeSecurityError(request, response, ErrorCode.ACCESS_DENIED))
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.POST, "/api/auth/signup", "/api/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/signup", "/api/auth/login", "/api/auth/check-email").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/support/inquiries").permitAll()
                         .requestMatchers(HttpMethod.POST,
                                 "/api/auth/password-reset/request",
@@ -81,20 +85,21 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/refresh").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/logout").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/notifications/unsubscribe").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/notifications/unsubscribe").permitAll()
                         .requestMatchers(HttpMethod.POST,
                                 "/api/notifications/push-test-send",
                                 "/api/notifications/digest-test-dispatch",
-                                "/api/notifications/deadline-test-dispatch"
+                        "/api/notifications/deadline-test-dispatch"
                         ).hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/policies/search",
+                                "/api/policies/search/suggestions"
+                        ).permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         // 정책 조회/검색/랭킹 — 비로그인도 허용 (북마크 상태는 null 처리)
                         .requestMatchers(HttpMethod.GET,
                                 "/api/policies",
-                                "/api/policies/search",
                                 "/api/policies/search/trending",
-                                "/api/policies/search/suggestions",
                                 "/api/policies/ranking",
                                 "/api/policies/{id}",
                                 "/api/reference/official-codes",
@@ -106,7 +111,6 @@ public class SecurityConfig {
                                 "/swagger-ui.html",
                                 "/v3/api-docs/**"
                         ).hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/auth/check-email").permitAll()
                         .requestMatchers(HttpMethod.POST,
                                 "/api/auth/email-verification/send",
                                 "/api/auth/email-verification/verify"
@@ -116,7 +120,9 @@ public class SecurityConfig {
                 .addFilterBefore(new TrustedOriginFilter(corsAllowedOrigins, objectMapper),
                         UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(new JwtAuthenticationFilter(jwtUtil, userSessionRevocationService, adminAccessAuthorityService),
-                        UsernamePasswordAuthenticationFilter.class);
+                        UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(new ApiRequestLoggingFilter(clientFingerprintService),
+                        TrustedOriginFilter.class);
 
         return http.build();
     }
@@ -128,8 +134,11 @@ public class SecurityConfig {
                 .collect(Collectors.toList());
     }
 
-    private void writeSecurityError(jakarta.servlet.http.HttpServletResponse response, ErrorCode errorCode)
+    private void writeSecurityError(jakarta.servlet.http.HttpServletRequest request,
+                                    jakarta.servlet.http.HttpServletResponse response,
+                                    ErrorCode errorCode)
             throws java.io.IOException {
+        ObservabilityAttributes.setErrorCode(request, errorCode.getCode());
         response.setStatus(errorCode.getHttpStatus().value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding(java.nio.charset.StandardCharsets.UTF_8.name());

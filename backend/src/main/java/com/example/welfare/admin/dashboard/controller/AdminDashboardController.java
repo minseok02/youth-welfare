@@ -2,8 +2,10 @@ package com.example.welfare.admin.dashboard.controller;
 
 import com.example.welfare.admin.dashboard.dto.AdminCollectFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardAttentionResponse;
+import com.example.welfare.admin.dashboard.dto.AdminRecommendationCandidateDiagnosticRequest;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationCandidateDiagnosticResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
+import com.example.welfare.admin.dashboard.dto.AdminRecommendationRunSummaryResponse;
 import com.example.welfare.admin.dashboard.dto.AdminPolicyErrorReportResponse;
 import com.example.welfare.admin.dashboard.dto.AdminPolicyDuplicateGroupResponse;
 import com.example.welfare.admin.dashboard.dto.AdminPolicyDuplicateGroupReviewRequest;
@@ -28,6 +30,7 @@ import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
 import com.example.welfare.admin.dashboard.dto.AdminNotificationStaleHideRequest;
 import com.example.welfare.admin.dashboard.dto.AdminNotificationStaleHideResponse;
 import com.example.welfare.admin.dashboard.dto.AdminNotificationStaleTargetResponse;
+import com.example.welfare.admin.dashboard.dto.AdminNotificationAttemptSummaryResponse;
 import com.example.welfare.admin.dashboard.dto.AdminStandardCodeEffectObservationResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSupportInquiryResponse;
 import com.example.welfare.admin.dashboard.dto.AdminUserProfileStandardCodeCoverageResponse;
@@ -44,6 +47,7 @@ import com.example.welfare.admin.dashboard.service.AdminDashboardUserProfileServ
 import com.example.welfare.admin.dashboard.service.AdminDashboardWrapperObservationService;
 import com.example.welfare.admin.dashboard.service.AdminNotificationBacklogService;
 import com.example.welfare.admin.dashboard.service.AdminNotificationStaleTargetService;
+import com.example.welfare.admin.dashboard.service.AdminNotificationAttemptSummaryService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyErrorReportService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyFieldCorrectionService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyDuplicateGroupService;
@@ -56,13 +60,11 @@ import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.response.ApiResponse;
+import com.example.welfare.global.util.RedisKeyHash;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -95,6 +97,7 @@ public class AdminDashboardController {
     private final AdminDashboardWrapperObservationService adminDashboardWrapperObservationService;
     private final AdminNotificationBacklogService adminNotificationBacklogService;
     private final AdminNotificationStaleTargetService adminNotificationStaleTargetService;
+    private final AdminNotificationAttemptSummaryService adminNotificationAttemptSummaryService;
     private final AdminPolicyErrorReportService adminPolicyErrorReportService;
     private final AdminPolicyFieldCorrectionService adminPolicyFieldCorrectionService;
     private final AdminPolicyDuplicateGroupService adminPolicyDuplicateGroupService;
@@ -163,24 +166,39 @@ public class AdminDashboardController {
         ));
     }
 
-    @GetMapping("/recommendation-diagnostics")
+    @GetMapping("/recommendation-run-summary")
+    public ResponseEntity<ApiResponse<AdminRecommendationRunSummaryResponse>> getRecommendationRunSummary(
+            @RequestParam(name = "summaryWindowDays", required = false)
+            @Min(value = 1, message = "summaryWindowDays는 1 이상이어야 합니다.")
+            @Max(value = 365, message = "summaryWindowDays는 365 이하여야 합니다.")
+            Integer summaryWindowDays,
+            @RequestParam(name = "limit", required = false)
+            @Min(value = 1, message = "limit는 1 이상이어야 합니다.")
+            @Max(value = 20, message = "limit는 20 이하여야 합니다.")
+            Integer limit
+    ) {
+        validateSummaryWindowDays(summaryWindowDays);
+        validateDashboardLimit(limit);
+        log.info("[Admin] dashboard recommendation run summary 조회 summaryWindowDays={} limit={}",
+                summaryWindowDays, limit);
+        return ResponseEntity.ok(ApiResponse.success(
+                adminDashboardRecommendationService.getRecommendationRunSummary(summaryWindowDays, limit)
+        ));
+    }
+
+    @PostMapping("/recommendation-diagnostics")
     public ResponseEntity<ApiResponse<AdminRecommendationCandidateDiagnosticResponse>> getRecommendationDiagnostics(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
-            @RequestParam(name = "userKey")
-            @NotBlank(message = "userKey는 필수입니다.")
-            @Size(max = 32, message = "userKey는 32자 이하여야 합니다.")
-            @Pattern(regexp = "^[A-Za-z0-9_-]+$", message = "userKey 형식이 올바르지 않습니다.")
-            String userKey,
-            @RequestParam(name = "serviceId")
-            @Size(min = 1, max = 20, message = "serviceId는 1개 이상 20개 이하여야 합니다.")
-            List<@Min(value = 1, message = "serviceId는 1 이상이어야 합니다.") Long> serviceIds
+            @Valid @RequestBody AdminRecommendationCandidateDiagnosticRequest request
     ) {
+        String userKey = request.userKey();
+        List<Long> serviceIds = request.serviceIds();
         if (userKey == null || userKey.isBlank() || serviceIds == null || serviceIds.isEmpty()) {
             throw new CustomException(ErrorCode.INVALID_INPUT);
         }
         adminOperationRateLimitService.checkExpensiveReadLimit(actorKey(authenticatedUser), "dashboard:recommendation-diagnostics");
-        log.info("[Admin] dashboard recommendation diagnostics 조회 userKey={} serviceIdCount={}",
-                userKey, serviceIds.size());
+        log.info("[Admin] dashboard recommendation diagnostics 조회 userKeyHash={} serviceIdCount={}",
+                RedisKeyHash.sha256Hex(userKey), serviceIds.size());
         return ResponseEntity.ok(ApiResponse.success(
                 adminDashboardRecommendationDiagnosticService.getRecommendationDiagnostics(userKey.trim(), serviceIds)
         ));
@@ -506,6 +524,26 @@ public class AdminDashboardController {
         log.info("[Admin] dashboard notification stale targets 조회 limit={} olderThanDays={}", limit, olderThanDays);
         return ResponseEntity.ok(ApiResponse.success(
                 adminNotificationStaleTargetService.getRecentTargets(limit, olderThanDays)
+        ));
+    }
+
+    @GetMapping("/notification-attempt-summary")
+    public ResponseEntity<ApiResponse<AdminNotificationAttemptSummaryResponse>> getNotificationAttemptSummary(
+            @RequestParam(name = "summaryWindowDays", required = false)
+            @Min(value = 1, message = "summaryWindowDays는 1 이상이어야 합니다.")
+            @Max(value = 365, message = "summaryWindowDays는 365 이하여야 합니다.")
+            Integer summaryWindowDays,
+            @RequestParam(name = "limit", required = false)
+            @Min(value = 1, message = "limit는 1 이상이어야 합니다.")
+            @Max(value = 20, message = "limit는 20 이하여야 합니다.")
+            Integer limit
+    ) {
+        validateSummaryWindowDays(summaryWindowDays);
+        validateDashboardLimit(limit);
+        log.info("[Admin] dashboard notification attempt summary 조회 summaryWindowDays={} limit={}",
+                summaryWindowDays, limit);
+        return ResponseEntity.ok(ApiResponse.success(
+                adminNotificationAttemptSummaryService.getSummary(summaryWindowDays, limit)
         ));
     }
 

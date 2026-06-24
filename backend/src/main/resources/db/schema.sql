@@ -600,6 +600,44 @@ CREATE TABLE IF NOT EXISTS recommendation_logs (
 CREATE INDEX IF NOT EXISTS idx_rl_user_key_sent ON recommendation_logs (user_key, sent_at);
 CREATE INDEX IF NOT EXISTS idx_rl_service ON recommendation_logs (service_id);
 
+CREATE TABLE IF NOT EXISTS recommendation_run_logs (
+    id                    BIGSERIAL PRIMARY KEY,
+    user_key              VARCHAR(32) NOT NULL,
+    personal              BOOLEAN NOT NULL DEFAULT FALSE,
+    outcome               VARCHAR(40) NOT NULL,
+    cluster_id            VARCHAR(80),
+    retrieved_count       INTEGER NOT NULL DEFAULT 0,
+    rule_scored_count     INTEGER NOT NULL DEFAULT 0,
+    post_filter_count     INTEGER NOT NULL DEFAULT 0,
+    reranked_count        INTEGER NOT NULL DEFAULT 0,
+    saved_count           INTEGER NOT NULL DEFAULT 0,
+    ai_status_counts_json TEXT,
+    duration_ms           BIGINT NOT NULL DEFAULT 0,
+    created_at            TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_rrl_created ON recommendation_run_logs (created_at);
+CREATE INDEX IF NOT EXISTS idx_rrl_outcome_created ON recommendation_run_logs (outcome, created_at);
+CREATE INDEX IF NOT EXISTS idx_rrl_user_created ON recommendation_run_logs (user_key, created_at);
+
+CREATE TABLE IF NOT EXISTS notification_attempt_logs (
+    id              BIGSERIAL PRIMARY KEY,
+    user_key_hash   VARCHAR(64),
+    channel         VARCHAR(20) NOT NULL,
+    kind            VARCHAR(60) NOT NULL,
+    outcome         VARCHAR(60) NOT NULL,
+    item_count      INTEGER NOT NULL DEFAULT 0,
+    endpoint_host   VARCHAR(160),
+    error_type      VARCHAR(160),
+    duration_ms     BIGINT NOT NULL DEFAULT 0,
+    created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_nal_created ON notification_attempt_logs (created_at);
+CREATE INDEX IF NOT EXISTS idx_nal_outcome_created ON notification_attempt_logs (outcome, created_at);
+CREATE INDEX IF NOT EXISTS idx_nal_channel_kind_created ON notification_attempt_logs (channel, kind, created_at);
+CREATE INDEX IF NOT EXISTS idx_nal_user_created ON notification_attempt_logs (user_key_hash, created_at);
+
 CREATE TABLE IF NOT EXISTS service_view_logs (
     id                 BIGSERIAL PRIMARY KEY,
     service_id         BIGINT NOT NULL,

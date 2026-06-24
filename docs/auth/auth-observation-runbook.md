@@ -35,6 +35,23 @@ daily operator가 auth/session smoke 묶음 전체를 다시 해석하지 않아
 - `operator_reading`
 - `next_action`
 
+## app log observation에서 볼 값
+
+auth smoke가 흔들리거나 운영 4xx/429가 늘면 아래를 같이 봅니다.
+
+```bash
+bash deploy/performance/run-local-app-log-observability-baseline.sh
+```
+
+먼저 볼 prefix/key:
+
+- `[AuthAudit] event=login outcome=invalid_credentials|account_locked|success`
+- `[AuthAudit] event=email_verification_send|email_verification_verify`
+- `[AuthAudit] event=password_reset_request|password_reset_confirm`
+- `[AuthAudit] event=rate_limit outcome=exceeded`
+- `[AdminAudit] event=forced_logout outcome=accepted`
+- `[ApiRequest] errorCode=A006|A012|C003|R004`
+
 ## 다음 액션
 
 - `next_action=docs/auth/auth-session-revocation-current-state.md` 이면 현재 구현 계약을 다시 읽는 쪽이 우선입니다.

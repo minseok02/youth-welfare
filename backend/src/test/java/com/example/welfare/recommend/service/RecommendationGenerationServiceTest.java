@@ -46,6 +46,7 @@ class RecommendationGenerationServiceTest {
     @Mock private RecommendationResultReadService recommendationResultReadService;
     @Mock private UserRecommendationReadService userRecommendationReadService;
     @Mock private RecommendationExecutionGuard recommendationExecutionGuard;
+    @Mock private RecommendationRunLogService recommendationRunLogService;
 
     private RecommendationGenerationService recommendationGenerationService;
 
@@ -64,7 +65,8 @@ class RecommendationGenerationServiceTest {
                 recommendationRefreshRateLimitService,
                 recommendationResultReadService,
                 userRecommendationReadService,
-                recommendationExecutionGuard
+                recommendationExecutionGuard,
+                recommendationRunLogService
         );
     }
 

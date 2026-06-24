@@ -35,6 +35,7 @@ import com.example.welfare.admin.dashboard.service.AdminDashboardUserProfileServ
 import com.example.welfare.admin.dashboard.service.AdminDashboardWrapperObservationService;
 import com.example.welfare.admin.dashboard.service.AdminNotificationBacklogService;
 import com.example.welfare.admin.dashboard.service.AdminNotificationStaleTargetService;
+import com.example.welfare.admin.dashboard.service.AdminNotificationAttemptSummaryService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyErrorReportService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyFieldCorrectionService;
 import com.example.welfare.admin.dashboard.service.AdminPolicyDuplicateGroupService;
@@ -58,6 +59,7 @@ import com.example.welfare.global.config.SecurityConfig;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.util.JwtUtil;
+import com.example.welfare.global.web.ClientFingerprintService;
 import com.example.welfare.policy.controller.PolicyAdminController;
 import com.example.welfare.policy.dto.PolicyCategoryAuditResponse;
 import com.example.welfare.policy.dto.PolicyEmbeddingRefreshResponse;
@@ -162,6 +164,8 @@ class AdminSecurityWebMvcTest {
     @MockitoBean
     private UserSessionRevocationService userSessionRevocationService;
     @MockitoBean
+    private ClientFingerprintService clientFingerprintService;
+    @MockitoBean
     private UserKeyLookupService userKeyLookupService;
     @MockitoBean
     private AdminDashboardSummaryService adminDashboardSummaryService;
@@ -187,6 +191,8 @@ class AdminSecurityWebMvcTest {
     private AdminNotificationBacklogService adminNotificationBacklogService;
     @MockitoBean
     private AdminNotificationStaleTargetService adminNotificationStaleTargetService;
+    @MockitoBean
+    private AdminNotificationAttemptSummaryService adminNotificationAttemptSummaryService;
     @MockitoBean
     private AdminPolicyErrorReportService adminPolicyErrorReportService;
     @MockitoBean
@@ -2644,9 +2650,14 @@ class AdminSecurityWebMvcTest {
                 )
         ));
 
-        mockMvc.perform(get("/api/admin/dashboard/recommendation-diagnostics")
-                        .param("userKey", "user-key-1")
-                        .param("serviceId", "3686", "2736")
+        mockMvc.perform(post("/api/admin/dashboard/recommendation-diagnostics")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                  {
+                                    "userKey": "user-key-1",
+                                    "serviceIds": [3686, 2736]
+                                  }
+                                  """)
                         .header("Authorization", "Bearer admin-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
@@ -2690,9 +2701,14 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
 
-        mockMvc.perform(get("/api/admin/dashboard/recommendation-diagnostics")
-                        .param("userKey", "user-key-1\r\nx")
-                        .param("serviceId", "3686")
+        mockMvc.perform(post("/api/admin/dashboard/recommendation-diagnostics")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                  {
+                                    "userKey": "user-key-1\\r\\nx",
+                                    "serviceIds": [3686]
+                                  }
+                                  """)
                         .header("Authorization", "Bearer admin-token"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
@@ -3249,8 +3265,13 @@ class AdminSecurityWebMvcTest {
                 .willReturn(new UserPiiSyncReplayResponse(1, 1, 0, 0));
 
         mockMvc.perform(post("/api/admin/users/pii-sync-replay")
-                        .param("userKey", "user-key-1")
-                        .param("limit", "25")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                  {
+                                    "userKey": "user-key-1",
+                                    "limit": 25
+                                  }
+                                  """)
                         .header("Authorization", "Bearer admin-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
@@ -3299,7 +3320,12 @@ class AdminSecurityWebMvcTest {
         ));
 
         mockMvc.perform(post("/api/admin/users/pii-sync-replay")
-                        .param("limit", "0")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                  {
+                                    "limit": 0
+                                  }
+                                  """)
                         .header("Authorization", "Bearer admin-token"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
@@ -3423,6 +3449,30 @@ class AdminSecurityWebMvcTest {
                                   "kind": "DEADLINE_REMINDER",
                                   "title": "북마크한 정책 마감이 임박했어요",
                                   "deeplinkUrl": "https://evil.example/policies/2622",
+                                  "olderThanDays": 14
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+    }
+
+    @Test
+    @DisplayName("stale notification backlog hide API는 protocol-relative deeplinkUrl에 400을 반환한다")
+    void adminEndpointRejectsProtocolRelativeStaleNotificationHideDeeplink() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+
+        mockMvc.perform(post("/api/admin/dashboard/notification-backlog/hide-stale")
+                        .header("Authorization", "Bearer admin-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "kind": "DEADLINE_REMINDER",
+                                  "title": "북마크한 정책 마감이 임박했어요",
+                                  "deeplinkUrl": "//evil.example/policies/2622",
                                   "olderThanDays": 14
                                 }
                                 """))

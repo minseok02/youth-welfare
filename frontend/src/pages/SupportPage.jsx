@@ -6,6 +6,7 @@ import Header from "../components/Header";
 import FloatingNav from "../components/FloatingNav";
 import api from "../lib/axios";
 import { useAuthStore } from "../store/authStore";
+import { buildSafeReturnLocation, resolveSafeRouteTarget } from "../lib/safeNavigation";
 
 const BG = "#f7f8fc";
 const WHITE = "#ffffff";
@@ -83,14 +84,16 @@ export default function SupportPage() {
   const { isLoggedIn, user } = useAuthStore();
   const [category, setCategory] = useState("BUG_ERROR");
   const [contactEmail, setContactEmail] = useState(user?.email ?? "");
-  const [routePath, setRoutePath] = useState(matchRouteOption(location.state?.from?.pathname));
+  const safeFromTarget = resolveSafeRouteTarget(location.state?.from);
+  const [routePath, setRoutePath] = useState(matchRouteOption(safeFromTarget?.pathname));
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submittedEmail, setSubmittedEmail] = useState("");
   const [toast, setToast] = useState({ open: false, severity: "success", message: "" });
 
-  const authState = useMemo(() => ({ from: location }), [location]);
+  const returnLocation = buildSafeReturnLocation(location);
+  const authState = useMemo(() => ({ from: returnLocation }), [returnLocation]);
 
   const showToast = (severity, nextMessage) => {
     setToast({ open: true, severity, message: nextMessage });
@@ -177,8 +180,8 @@ export default function SupportPage() {
               </button>
               <button
                 onClick={() => {
-                  const from = location.state?.from;
-                  if (from?.pathname) navigate(`${from.pathname}${from.search ?? ""}`, { state: from.state });
+                  const from = resolveSafeRouteTarget(location.state?.from);
+                  if (from?.path) navigate(from.path, { state: from.state });
                   else navigate("/");
                 }}
                 style={{ padding: "12px 18px", borderRadius: 12, border: `1px solid ${LINE}`, background: WHITE, color: INK2, fontSize: 14, fontWeight: 700, cursor: "pointer" }}

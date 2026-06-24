@@ -1,6 +1,7 @@
 package com.example.welfare.admin.dashboard.service;
 
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
+import com.example.welfare.admin.dashboard.dto.AdminRecommendationRunSummaryResponse;
 import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRows;
 import com.example.welfare.admin.dashboard.repository.AdminDashboardRecommendationReadRepository;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +42,61 @@ public class AdminDashboardRecommendationService {
             "GOV24_USER_TYPE_TOKEN", "정부24 사용자 구분",
             "GOV24_BENEFIT_TYPE_TOKEN", "정부24 지원 유형"
     );
+
+    public AdminRecommendationRunSummaryResponse getRecommendationRunSummary(
+            Integer requestedSummaryWindowDays,
+            Integer requestedLimit
+    ) {
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        int summaryWindowDays = AdminDashboardQueryPolicy.resolveSummaryWindowDays(requestedSummaryWindowDays);
+        int sampleLimit = AdminDashboardQueryPolicy.resolveRecommendationBreakdownLimit(requestedLimit);
+        java.time.LocalDateTime summaryWindowAgo = now.minusDays(summaryWindowDays);
+
+        AdminDashboardReadRows.RecommendationRunSummaryRow summary =
+                adminDashboardRecommendationReadRepository.fetchRecommendationRunSummary(summaryWindowAgo);
+
+        return new AdminRecommendationRunSummaryResponse(
+                now,
+                summaryWindowDays,
+                summary.totalRuns(),
+                summary.successRuns(),
+                summary.errorRuns(),
+                summary.noCandidateRuns(),
+                summary.personalRuns(),
+                summary.savedCount(),
+                summary.averageDurationMs(),
+                summary.averageSavedCount(),
+                summary.latestRunAt(),
+                adminDashboardRecommendationReadRepository.fetchRecommendationRunOutcomeBreakdowns(summaryWindowAgo, sampleLimit)
+                        .stream()
+                        .map(row -> new AdminRecommendationRunSummaryResponse.OutcomeBreakdown(
+                                row.outcome(),
+                                row.runCount(),
+                                row.savedCount(),
+                                row.averageDurationMs(),
+                                row.latestRunAt()
+                        ))
+                        .toList(),
+                adminDashboardRecommendationReadRepository.fetchRecentRecommendationRuns(summaryWindowAgo, sampleLimit)
+                        .stream()
+                        .map(row -> new AdminRecommendationRunSummaryResponse.RecentRun(
+                                row.id(),
+                                row.userKey(),
+                                row.personal(),
+                                row.outcome(),
+                                row.clusterId(),
+                                row.retrievedCount(),
+                                row.ruleScoredCount(),
+                                row.postFilterCount(),
+                                row.rerankedCount(),
+                                row.savedCount(),
+                                row.aiStatusCountsJson(),
+                                row.durationMs(),
+                                row.createdAt()
+                        ))
+                        .toList()
+        );
+    }
 
     public AdminRecommendationBreakdownResponse getRecommendationBreakdowns(
             Integer requestedSummaryWindowDays,

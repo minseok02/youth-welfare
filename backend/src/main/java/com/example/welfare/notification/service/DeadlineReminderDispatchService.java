@@ -1,5 +1,6 @@
 package com.example.welfare.notification.service;
 
+import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.notification.dto.NotificationTarget;
 import com.example.welfare.notification.entity.Notification;
 import com.example.welfare.notification.entity.Notification.NotificationChannel;
@@ -20,6 +21,7 @@ import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -34,6 +36,7 @@ public class DeadlineReminderDispatchService {
     private final NotificationGateway notificationGateway;
     private final NotificationHistoryService notificationHistoryService;
     private final WebPushDispatchService webPushDispatchService;
+    private final NotificationAttemptLogService notificationAttemptLogService;
 
     public DeadlineReminderDispatchResult sendBookmarkedDeadlineReminder(NotificationTarget target, int days) {
         User user = activeUserReadService.getActiveUserByUserKey(target.userKey());
@@ -51,8 +54,8 @@ public class DeadlineReminderDispatchService {
                 DEADLINE_SUBJECT
         );
         if (reserved.isEmpty()) {
-            log.info("[DeadlineReminderDispatchService] dispatch reservation conflict userKey={} days={}",
-                    target.userKey(), days);
+            log.info("[DeadlineReminderDispatchService] dispatch reservation conflict userKeyHash={} days={}",
+                    RedisKeyHash.sha256Hex(target.userKey()), days);
             return DeadlineReminderDispatchResult.reservationConflict(services.size());
         }
 
@@ -67,7 +70,18 @@ public class DeadlineReminderDispatchService {
             );
 
             boolean emailEnabled = target.notificationEmailYn() && StringUtils.hasText(target.email());
+            long emailStartedNanos = System.nanoTime();
             boolean sent = !emailEnabled || notificationGateway.send(target.email(), DEADLINE_SUBJECT, messageText);
+            recordAttempt(
+                    "email",
+                    "deadline_reminder",
+                    emailEnabled ? (sent ? "sent" : "gateway_false") : "skipped_disabled",
+                    target.userKey(),
+                    services.size(),
+                    null,
+                    sent ? null : "gateway_false",
+                    elapsedMs(emailStartedNanos)
+            );
             NotificationStatus status = sent ? NotificationStatus.SENT : NotificationStatus.FAILED;
             String errorMessage = sent ? null : "notification gateway returned false";
 
@@ -82,11 +96,43 @@ public class DeadlineReminderDispatchService {
             );
             if (target.notificationWebPushYn()) {
                 try {
+                    long webPushStartedNanos = System.nanoTime();
                     webPushDispatchService.sendDeadlineReminder(target.userKey(), services, days);
+                    recordAttempt(
+                            "web_push",
+                            "deadline_reminder",
+                            "fanout_completed",
+                            target.userKey(),
+                            services.size(),
+                            null,
+                            null,
+                            elapsedMs(webPushStartedNanos)
+                    );
                 } catch (RuntimeException | LinkageError e) {
-                    log.warn("[DeadlineReminderDispatchService] deadline web push fan-out failed userId={}: {}",
-                            user.getId(), e.getMessage());
+                    log.warn("[DeadlineReminderDispatchService] deadline web push fan-out failed userId={} errorType={}",
+                            user.getId(), e.getClass().getSimpleName());
+                    recordAttempt(
+                            "web_push",
+                            "deadline_reminder",
+                            "fanout_failed",
+                            target.userKey(),
+                            services.size(),
+                            null,
+                            e.getClass().getSimpleName(),
+                            0
+                    );
                 }
+            } else {
+                recordAttempt(
+                        "web_push",
+                        "deadline_reminder",
+                        "skipped_disabled",
+                        target.userKey(),
+                        services.size(),
+                        null,
+                        null,
+                        0
+                );
             }
 
             if (!sent) {
@@ -102,17 +148,17 @@ public class DeadlineReminderDispatchService {
                         NotificationStatus.FAILED,
                         messageText,
                         services,
-                        e.getMessage(),
+                        "deadline reminder send failed (" + e.getClass().getSimpleName() + ")",
                         target.notificationInAppYn(),
                         days
                 );
             } catch (Exception historyException) {
-                log.error("[DeadlineReminderDispatchService] deadline reminder history save failed userId={}: {}",
-                        user.getId(), historyException.getMessage());
+                log.error("[DeadlineReminderDispatchService] deadline reminder history save failed userId={} errorType={}",
+                        user.getId(), historyException.getClass().getSimpleName());
             }
-            log.error("[DeadlineReminderDispatchService] deadline reminder send failed userId={}: {}",
-                    user.getId(), e.getMessage());
-            return DeadlineReminderDispatchResult.failed(services.size(), e.getMessage());
+            log.error("[DeadlineReminderDispatchService] deadline reminder send failed userId={} errorType={}",
+                    user.getId(), e.getClass().getSimpleName());
+            return DeadlineReminderDispatchResult.failed(services.size(), "deadline reminder send failed");
         }
     }
 
@@ -132,6 +178,38 @@ public class DeadlineReminderDispatchService {
 
     private String dispatchKey(String userKey, int days, LocalDate today) {
         return "deadline:%s:%s:%d".formatted(userKey, today, days);
+    }
+
+    private long elapsedMs(long startedNanos) {
+        return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedNanos);
+    }
+
+    private void recordAttempt(String channel,
+                               String kind,
+                               String outcome,
+                               String userKey,
+                               int itemCount,
+                               String endpointHost,
+                               String errorType,
+                               long durationMs) {
+        String userKeyHash = RedisKeyHash.sha256Hex(userKey);
+        if (errorType == null) {
+            log.info("[NotificationAttempt] channel={} kind={} outcome={} userKeyHash={} itemCount={} durationMs={}",
+                    channel, kind, outcome, userKeyHash, itemCount, durationMs);
+        } else {
+            log.warn("[NotificationAttempt] channel={} kind={} outcome={} userKeyHash={} itemCount={} errorType={} durationMs={}",
+                    channel, kind, outcome, userKeyHash, itemCount, errorType, durationMs);
+        }
+        notificationAttemptLogService.record(new NotificationAttemptLogCommand(
+                userKeyHash,
+                channel,
+                kind,
+                outcome,
+                itemCount,
+                endpointHost,
+                errorType,
+                durationMs
+        ));
     }
 
     public record DeadlineReminderDispatchResult(

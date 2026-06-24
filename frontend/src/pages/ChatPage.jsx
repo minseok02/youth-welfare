@@ -28,6 +28,7 @@ import SendRoundedIcon from "@mui/icons-material/SendRounded";
 import Header from "../components/Header";
 import FloatingNav from "../components/FloatingNav";
 import api from "../lib/axios";
+import { sanitizeTransientRouteState } from "../lib/safeNavigation";
 
 const SUGGESTED_PROMPTS = [
   "서울에서 월세 지원 받을 수 있는 청년 정책이 궁금해요.",
@@ -89,6 +90,26 @@ const formatMessageTime = (dateText) => {
   }).format(value);
 };
 
+const EXTERNAL_URL_PROTOCOLS = new Set(["http:", "https:"]);
+
+const normalizeSafeExternalUrl = (value) => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : trimmed.startsWith("www.") ? `https://${trimmed}` : trimmed;
+
+  try {
+    const parsed = new URL(candidate);
+    return EXTERNAL_URL_PROTOCOLS.has(parsed.protocol) ? parsed.toString() : null;
+  } catch {
+    return null;
+  }
+};
+
+const sanitizeChatRouteState = (state) => {
+  return sanitizeTransientRouteState(state) ?? {};
+};
+
 const mapSession = (session) => ({
   sessionId: session.sessionId,
   title: formatSessionTitle(session.title),
@@ -107,12 +128,14 @@ const mapReference = (reference) => ({
   title: reference.title,
   reason: reference.reason,
   evidence: reference.evidence,
-  actionLinks: (reference.actionLinks ?? []).map((link) => ({
-    type: link.type,
-    label: link.label,
-    url: link.url,
-    description: link.description,
-  })),
+  actionLinks: (reference.actionLinks ?? [])
+    .map((link) => ({
+      type: link.type,
+      label: link.label,
+      url: normalizeSafeExternalUrl(link.url),
+      description: link.description,
+    }))
+    .filter((link) => link.url),
 });
 
 const mapMessage = (message) => {
@@ -159,9 +182,11 @@ const extractLatestAnswerMeta = (messages) => {
 export default function ChatPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const querySessionId = searchParams.get("session");
   const queryCoachPolicyId = searchParams.get("coachPolicyId");
+  const stateSessionId = location.state?.activeChatSessionId ?? null;
+  const requestedCoachPolicyId = location.state?.coachPolicyId ?? queryCoachPolicyId;
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -178,6 +203,7 @@ export default function ChatPage() {
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
   const policyMetaRef = useRef({});
   const querySessionIdRef = useRef(querySessionId);
+  const stateSessionIdRef = useRef(stateSessionId);
   const coachingStartedRef = useRef(null);
   const invalidSessionQueryRef = useRef(null);
 
@@ -187,23 +213,37 @@ export default function ChatPage() {
 
   const chatReturnTarget = useMemo(() => ({
     pathname: location.pathname,
-    search: activeSessionId ? `?session=${activeSessionId}` : location.search,
-  }), [activeSessionId, location.pathname, location.search]);
+    search: "",
+    state: {
+      ...sanitizeChatRouteState(location.state),
+      ...(activeSessionId ? { activeChatSessionId: activeSessionId } : {}),
+    },
+  }), [activeSessionId, location.pathname, location.state]);
 
-  const replaceSessionQuery = useCallback((sessionId) => {
+  const replaceSessionState = useCallback((sessionId) => {
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete("coachPolicyId");
+    nextParams.delete("session");
+    const nextSearch = nextParams.toString();
+    const nextState = sanitizeChatRouteState(location.state);
     if (sessionId) {
-      nextParams.set("session", String(sessionId));
+      nextState.activeChatSessionId = sessionId;
     } else {
-      nextParams.delete("session");
+      delete nextState.activeChatSessionId;
     }
-    setSearchParams(nextParams, { replace: true, state: location.state });
-  }, [location.state, searchParams, setSearchParams]);
+    navigate(`${location.pathname}${nextSearch ? `?${nextSearch}` : ""}`, {
+      replace: true,
+      state: Object.keys(nextState).length ? nextState : undefined,
+    });
+  }, [location.pathname, location.state, navigate, searchParams]);
 
   useEffect(() => {
     querySessionIdRef.current = querySessionId;
   }, [querySessionId]);
+
+  useEffect(() => {
+    stateSessionIdRef.current = stateSessionId;
+  }, [stateSessionId]);
 
   useEffect(() => {
     if (!querySessionId) {
@@ -269,7 +309,7 @@ export default function ChatPage() {
       const nextSessions = (data?.data ?? []).map(mapSession);
       setSessions(nextSessions);
       setActiveSessionId((current) => {
-        const candidate = preferredSessionId ?? querySessionIdRef.current ?? current;
+        const candidate = preferredSessionId ?? stateSessionIdRef.current ?? querySessionIdRef.current ?? current;
         const matchedSession = candidate
           ? nextSessions.find((session) => String(session.sessionId) === String(candidate))
           : null;
@@ -357,18 +397,18 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!activeSessionId) {
-      if (querySessionId) {
-        replaceSessionQuery(null);
+      if (querySessionId || stateSessionId) {
+        replaceSessionState(null);
       }
       return;
     }
 
-    if (String(querySessionId) === String(activeSessionId)) {
+    if (!querySessionId && String(stateSessionId) === String(activeSessionId)) {
       return;
     }
 
-    replaceSessionQuery(activeSessionId);
-  }, [activeSessionId, querySessionId, replaceSessionQuery]);
+    replaceSessionState(activeSessionId);
+  }, [activeSessionId, querySessionId, replaceSessionState, stateSessionId]);
 
   useEffect(() => {
     if (!querySessionId || !sessions.length) {
@@ -423,15 +463,16 @@ export default function ChatPage() {
       if (!nextSessions.length) {
         setActiveSessionId(null);
         querySessionIdRef.current = null;
+        stateSessionIdRef.current = null;
         invalidSessionQueryRef.current = null;
-        replaceSessionQuery(null);
+        replaceSessionState(null);
         setMessages([]);
         setLatestAnswerMeta(null);
       } else if (sessionId === activeSessionId) {
         const fallbackSessionId = nextSessions[0].sessionId;
-        querySessionIdRef.current = String(fallbackSessionId);
+        stateSessionIdRef.current = fallbackSessionId;
         invalidSessionQueryRef.current = null;
-        replaceSessionQuery(fallbackSessionId);
+        replaceSessionState(fallbackSessionId);
         setActiveSessionId(fallbackSessionId);
       }
 
@@ -550,33 +591,29 @@ export default function ChatPage() {
   }, [activeSessionId, createSession, loadMessages, loadSessions, sending, showToast]);
 
   useEffect(() => {
-    if (!queryCoachPolicyId || loadingSessions || sending) {
+    if (!requestedCoachPolicyId || loadingSessions || sending) {
       return;
     }
 
-    const coachPolicyId = Number.parseInt(queryCoachPolicyId, 10);
+    const coachPolicyId = Number.parseInt(String(requestedCoachPolicyId), 10);
     if (!Number.isInteger(coachPolicyId) || coachPolicyId <= 0) {
-      const nextParams = new URLSearchParams(searchParams);
-      nextParams.delete("coachPolicyId");
-      setSearchParams(nextParams, { replace: true, state: location.state });
+      replaceSessionState(activeSessionId);
       return;
     }
 
-    if (coachingStartedRef.current === queryCoachPolicyId) {
+    if (coachingStartedRef.current === String(requestedCoachPolicyId)) {
       return;
     }
-    coachingStartedRef.current = queryCoachPolicyId;
+    coachingStartedRef.current = String(requestedCoachPolicyId);
 
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.delete("coachPolicyId");
-    setSearchParams(nextParams, { replace: true, state: location.state });
+    replaceSessionState(activeSessionId);
 
     void sendMessage(
       "이 정책 신청 준비를 단계별로 도와줘.",
       null,
       { coachPolicyId, forceNewSession: true }
     );
-  }, [loadingSessions, location.state, queryCoachPolicyId, searchParams, sendMessage, sending, setSearchParams]);
+  }, [activeSessionId, loadingSessions, replaceSessionState, requestedCoachPolicyId, sendMessage, sending]);
 
   const handleSend = async (event) => {
     event.preventDefault();
@@ -726,7 +763,7 @@ export default function ChatPage() {
                                   {formatRelativeTime(session.lastMessageAt || session.createdAt)}
                                 </Typography>
                                 <Typography variant="caption" color="text.secondary" noWrap>
-                                  세션 #{session.sessionId}
+                                  대화 기록
                                 </Typography>
                               </Stack>
                             }
@@ -785,7 +822,7 @@ export default function ChatPage() {
                   </Box>
                   <Chip
                     icon={<ForumOutlinedIcon />}
-                    label={activeSessionId ? `세션 #${activeSessionId}` : "새 대화 준비"}
+                    label={activeSessionId ? "대화 진행 중" : "새 대화 준비"}
                     color="secondary"
                     variant="outlined"
                   />
@@ -861,6 +898,7 @@ export default function ChatPage() {
                                             from: {
                                               pathname: chatReturnTarget.pathname,
                                               search: chatReturnTarget.search,
+                                              state: chatReturnTarget.state,
                                             },
                                             chatFrom: chatReturnTarget,
                                           },

@@ -62,6 +62,105 @@ class PolicySearchRegionQueryIntegrationTest {
     }
 
     @Test
+    @DisplayName("정책 목록은 단축 시도 요청으로 전체 시도명 저장 지역 정책을 찾는다")
+    void listWithShortSidoMatchesFullSidoNameRows() {
+        String token = "itsearch" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        WelfareService nationwide = saveSearchService("nationwide-short-sido-list", token);
+        WelfareService seoulLocal = saveSearchService("seoul-short-sido-list", token, WelfareService.SourceType.BOKJIRO_LOCAL);
+        WelfareService busanLocal = saveSearchService("busan-short-sido-list", token, WelfareService.SourceType.BOKJIRO_LOCAL);
+
+        serviceRegionRepository.saveAll(List.of(
+                ServiceRegion.builder()
+                        .service(seoulLocal)
+                        .sidoName("서울특별시")
+                        .sggName("강남구")
+                        .build(),
+                ServiceRegion.builder()
+                        .service(busanLocal)
+                        .sidoName("부산광역시")
+                        .sggName("해운대구")
+                        .build()
+        ));
+        serviceRegionRepository.flush();
+
+        Page<WelfareService> result = welfareServiceReadRepository.findList(
+                new com.example.welfare.policy.repository.PolicyListReadCondition(
+                        TEST_CATEGORY,
+                        null,
+                        null,
+                        "ACTIVE_ONLY",
+                        "서울",
+                        "강남구",
+                        null,
+                        "LATEST",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null
+                ),
+                PageRequest.of(0, 100)
+        );
+
+        assertThat(result.getContent())
+                .extracting(WelfareService::getId)
+                .contains(nationwide.getId(), seoulLocal.getId())
+                .doesNotContain(busanLocal.getId());
+    }
+
+    @Test
+    @DisplayName("정책 검색은 단축 시도 요청으로 전체명 row와 code-only row를 모두 지역 매칭한다")
+    void keywordSearchWithShortSidoMatchesFullNameAndRegionCodeRows() {
+        String token = "itsearch" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        WelfareService nationwide = saveSearchService("nationwide-short-sido-search", token);
+        WelfareService seoulLocal = saveSearchService("seoul-full-name-search", token, WelfareService.SourceType.BOKJIRO_LOCAL);
+        WelfareService seoulYouth = saveSearchService("seoul-code-only-search", token, WelfareService.SourceType.YOUTH);
+        WelfareService busanYouth = saveSearchService("busan-code-only-search", token, WelfareService.SourceType.YOUTH);
+
+        serviceRegionRepository.saveAll(List.of(
+                ServiceRegion.builder()
+                        .service(seoulLocal)
+                        .sidoName("서울특별시")
+                        .sggName("강남구")
+                        .build(),
+                ServiceRegion.builder()
+                        .service(seoulYouth)
+                        .regionCode("11680")
+                        .build(),
+                ServiceRegion.builder()
+                        .service(busanYouth)
+                        .regionCode("26350")
+                        .build()
+        ));
+        serviceRegionRepository.flush();
+
+        Page<WelfareService> result = welfareServiceReadRepository.search(
+                new PolicySearchReadCondition(
+                        token,
+                        null,
+                        "ACTIVE_ONLY",
+                        TEST_CATEGORY,
+                        null,
+                        null,
+                        "서울",
+                        "강남구",
+                        "LATEST",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null
+                ),
+                PageRequest.of(0, 100)
+        );
+
+        assertThat(result.getContent())
+                .extracting(WelfareService::getId)
+                .contains(nationwide.getId(), seoulLocal.getId(), seoulYouth.getId())
+                .doesNotContain(busanYouth.getId());
+    }
+
+    @Test
     @DisplayName("시도+시군구 지역 검색은 전국 정책과 매칭 지역 정책만 반환한다")
     void searchWithSidoAndSggReturnsOnlyMatchingPolicies() {
         String token = "itsearch" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);

@@ -199,7 +199,8 @@ class AdminSecurityIntegrationTest {
 
         mockMvc.perform(post("/api/auth/logout")
                         .header("Authorization", "Bearer " + adminAccessToken)
-                        .header("X-Refresh-Token", refreshToken))
+                        .header("Origin", "http://127.0.0.1:5173")
+                        .cookie(new jakarta.servlet.http.Cookie("refresh_token", refreshToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
@@ -278,7 +279,8 @@ class AdminSecurityIntegrationTest {
                 .andExpect(jsonPath("$.errorCode").value("A006"));
 
         mockMvc.perform(post("/api/auth/refresh")
-                        .header("X-Refresh-Token", oldRefreshToken))
+                        .header("Origin", "http://127.0.0.1:5173")
+                        .cookie(new jakarta.servlet.http.Cookie("refresh_token", oldRefreshToken)))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("A003"));
@@ -381,7 +383,8 @@ class AdminSecurityIntegrationTest {
 
     private String refreshAndExtractAccessToken(String refreshToken) throws Exception {
         String content = mockMvc.perform(post("/api/auth/refresh")
-                        .header("X-Refresh-Token", refreshToken))
+                        .header("Origin", "http://127.0.0.1:5173")
+                        .cookie(new jakarta.servlet.http.Cookie("refresh_token", refreshToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andReturn()

@@ -3,6 +3,7 @@ package com.example.welfare.admin.service;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.util.RedisKeyHash;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -11,6 +12,7 @@ import org.springframework.util.StringUtils;
 import java.time.Duration;
 
 @Service
+@Slf4j
 public class AdminOperationRateLimitService {
 
     private static final String MUTATION_PREFIX = "admin:rate-limit:mutation:";
@@ -54,6 +56,8 @@ public class AdminOperationRateLimitService {
             redisTemplate.expire(key, Duration.ofSeconds(windowSeconds));
         }
         if (count > maxRequests) {
+            log.warn("[AdminAudit] event=rate_limit outcome=exceeded operation={} actorHash={} count={} maxRequests={} windowSeconds={}",
+                    normalize(operation), RedisKeyHash.sha256Hex(actorKey), count, maxRequests, windowSeconds);
             throw new CustomException(ErrorCode.ADMIN_OPERATION_RATE_LIMIT_EXCEEDED);
         }
     }

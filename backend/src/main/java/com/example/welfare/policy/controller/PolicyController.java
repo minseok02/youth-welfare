@@ -2,13 +2,17 @@ package com.example.welfare.policy.controller;
 
 import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.response.ApiResponse;
+import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.global.web.ClientFingerprintService;
 import com.example.welfare.policy.dto.PolicyDetailResponse;
 import com.example.welfare.policy.dto.PolicyErrorReportCreateRequest;
 import com.example.welfare.policy.dto.PolicyErrorReportResponse;
 import com.example.welfare.policy.dto.PolicyRankingResponse;
+import com.example.welfare.policy.dto.PolicySearchRequest;
 import com.example.welfare.policy.dto.PolicySearchResponse;
+import com.example.welfare.policy.dto.PolicySearchSuggestionRequest;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
+import com.example.welfare.policy.dto.RecommendationClickRequest;
 import com.example.welfare.policy.service.PolicyBookmarkCommandService;
 import com.example.welfare.policy.service.PolicyDetailService;
 import com.example.welfare.policy.service.PolicyErrorReportCommandService;
@@ -25,9 +29,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -43,6 +47,7 @@ import java.util.List;
 @RequestMapping("/api/policies")
 @RequiredArgsConstructor
 @Validated
+@Slf4j
 public class PolicyController {
 
     private static final int MAX_PUBLIC_PAGE_NUMBER = 1000;
@@ -83,69 +88,72 @@ public class PolicyController {
         validatePublicPageable(pageable);
         String clientFingerprint = clientFingerprintService.build(request);
         policyTrafficRateLimitService.checkListLimit(resolveRateLimitActorKey(authenticatedUser, clientFingerprint));
-        return ResponseEntity.ok(ApiResponse.success(
-                policyListService.getList(resolveUserId(authenticatedUser), category, sourceType, status, statusFilter, sido, sgg, onlineApply, sort, incomeLevel, targetGroup, gov24ServiceField, gov24UserType, gov24BenefitType, pageable)
-        ));
+        Page<PolicySummaryResponse> response = policyListService.getList(resolveUserId(authenticatedUser), category, sourceType, status, statusFilter, sido, sgg, onlineApply, sort, incomeLevel, targetGroup, gov24ServiceField, gov24UserType, gov24BenefitType, pageable);
+        log.info("[UserAction] action=policy_list userKeyHash={} clientFingerprint={} total={} page={} size={} category={} sourceType={} statusFilter={} sidoPresent={} sggPresent={} sort={}",
+                actorHash(authenticatedUser),
+                clientFingerprint,
+                response.getTotalElements(),
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                normalizeLogValue(category),
+                normalizeLogValue(sourceType),
+                normalizeLogValue(statusFilter != null ? statusFilter : status),
+                hasText(sido),
+                hasText(sgg),
+                normalizeLogValue(sort));
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    // 정책 상세 조회 + 클릭 추적 (?log_id= 파라미터)
+    // 정책 상세 조회
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<PolicyDetailResponse>> getDetail(
             @PathVariable @Min(1) Long id,
-            @RequestParam(required = false) @Min(1) Long logId,
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             HttpServletRequest request) {
         Long userId = resolveUserId(authenticatedUser);
         String clientFingerprint = clientFingerprintService.build(request);
         policyTrafficRateLimitService.checkDetailLimit(resolveRateLimitActorKey(authenticatedUser, clientFingerprint), id);
-        if (logId != null) {
-            recommendationLogService.markClicked(logId, userId);
-        }
         boolean increaseViewCount = policyViewLogService.registerViewIfFirstInWindow(id, userId, clientFingerprint);
         return ResponseEntity.ok(ApiResponse.success(policyDetailService.getDetail(userId, id, increaseViewCount)));
     }
 
+    @PostMapping("/{id}/recommendation-click")
+    public ResponseEntity<ApiResponse<Void>> markRecommendationClick(
+            @PathVariable @Min(1) Long id,
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @Valid @RequestBody RecommendationClickRequest request) {
+        recommendationLogService.markClicked(request.logId(), resolveUserId(authenticatedUser), id);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
     // 정책 검색 (FULLTEXT)
-    @GetMapping("/search")
+    @PostMapping("/search")
     public ResponseEntity<ApiResponse<PolicySearchResponse>> search(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
-            @RequestParam @NotBlank @Size(max = 100) String keyword,
-            @RequestParam(required = false) @Size(max = 20) String status,
-            @RequestParam(required = false) @Size(max = 20) String statusFilter,
-            @RequestParam(required = false) @Size(max = 100) String category,
-            @RequestParam(required = false) @Size(max = 40) String sourceType,
-            @RequestParam(required = false) Boolean onlineApply,
-            @RequestParam(required = false) @Size(max = 100) String sido,
-            @RequestParam(required = false) @Size(max = 100) String sgg,
-            @RequestParam(required = false) @Size(max = 20) String sort,
-            @RequestParam(required = false) @Min(1) @Max(10) Integer incomeLevel,
-            @RequestParam(required = false) @Size(max = 100) String targetGroup,
-            @RequestParam(required = false) @Size(max = 100) String gov24ServiceField,
-            @RequestParam(required = false) @Size(max = 100) String gov24UserType,
-            @RequestParam(required = false) @Size(max = 100) String gov24BenefitType,
-            @RequestParam(defaultValue = "0") @Min(0) @Max(MAX_PUBLIC_PAGE_NUMBER) int page,
-            @RequestParam(defaultValue = "20") @Min(1) @Max(MAX_PUBLIC_PAGE_SIZE) int size,
+            @Valid @RequestBody PolicySearchRequest searchRequest,
             HttpServletRequest request) {
         Long userId = resolveUserId(authenticatedUser);
         String clientFingerprint = clientFingerprintService.build(request);
         policyTrafficRateLimitService.checkSearchLimit(resolveRateLimitActorKey(authenticatedUser, clientFingerprint));
-        String trimmedKeyword = keyword.trim();
+        String trimmedKeyword = searchRequest.keyword().trim();
+        int page = searchRequest.page() == null ? 0 : searchRequest.page();
+        int size = searchRequest.size() == null ? 20 : searchRequest.size();
         PolicySearchResponse response = policySearchService.search(
                 userId,
                 trimmedKeyword,
-                status,
-                statusFilter,
-                category,
-                sourceType,
-                onlineApply,
-                sido,
-                sgg,
-                sort,
-                incomeLevel,
-                targetGroup,
-                gov24ServiceField,
-                gov24UserType,
-                gov24BenefitType,
+                searchRequest.status(),
+                searchRequest.statusFilter(),
+                searchRequest.category(),
+                searchRequest.sourceType(),
+                searchRequest.onlineApply(),
+                searchRequest.sido(),
+                searchRequest.sgg(),
+                searchRequest.sort(),
+                searchRequest.incomeLevel(),
+                searchRequest.targetGroup(),
+                searchRequest.gov24ServiceField(),
+                searchRequest.gov24UserType(),
+                searchRequest.gov24BenefitType(),
                 page,
                 size
         );
@@ -154,14 +162,14 @@ public class PolicyController {
                 .clientFingerprint(clientFingerprint)
                 .keyword(trimmedKeyword)
                 .resultCount(response.getTotalElements())
-                .status(status)
-                .statusFilter(statusFilter)
-                .category(category)
-                .sourceType(sourceType)
-                .onlineApply(onlineApply)
-                .sido(sido)
-                .sgg(sgg)
-                .sort(sort)
+                .status(searchRequest.status())
+                .statusFilter(searchRequest.statusFilter())
+                .category(searchRequest.category())
+                .sourceType(searchRequest.sourceType())
+                .onlineApply(searchRequest.onlineApply())
+                .sido(searchRequest.sido())
+                .sgg(searchRequest.sgg())
+                .sort(searchRequest.sort())
                 .page(page)
                 .size(size)
                 .build());
@@ -175,18 +183,27 @@ public class PolicyController {
             HttpServletRequest request) {
         String clientFingerprint = clientFingerprintService.build(request);
         policyTrafficRateLimitService.checkTrendingLimit(resolveRateLimitActorKey(authenticatedUser, clientFingerprint));
-        return ResponseEntity.ok(ApiResponse.success(policySearchKeywordReadService.getTrendingKeywords(limit)));
+        List<String> response = policySearchKeywordReadService.getTrendingKeywords(limit);
+        log.info("[UserAction] action=search_trending userKeyHash={} clientFingerprint={} limit={} resultCount={}",
+                actorHash(authenticatedUser), clientFingerprint, limit, response.size());
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    @GetMapping("/search/suggestions")
+    @PostMapping("/search/suggestions")
     public ResponseEntity<ApiResponse<List<String>>> suggestions(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
-            @RequestParam @NotBlank @Size(max = 100) String keyword,
-            @RequestParam(required = false) @Min(1) @Max(10) Integer limit,
+            @Valid @RequestBody PolicySearchSuggestionRequest requestBody,
             HttpServletRequest request) {
         String clientFingerprint = clientFingerprintService.build(request);
         policyTrafficRateLimitService.checkSuggestionLimit(resolveRateLimitActorKey(authenticatedUser, clientFingerprint));
-        return ResponseEntity.ok(ApiResponse.success(policySearchKeywordReadService.getSuggestions(keyword, limit)));
+        List<String> response = policySearchKeywordReadService.getSuggestions(requestBody.keyword(), requestBody.limit());
+        log.info("[UserAction] action=search_suggestions userKeyHash={} clientFingerprint={} keywordLength={} limit={} resultCount={}",
+                actorHash(authenticatedUser),
+                clientFingerprint,
+                requestBody.keyword() == null ? 0 : requestBody.keyword().trim().length(),
+                requestBody.limit(),
+                response.size());
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     // 조회수 기반 랭킹 (내부 조회수 + 외부 조회수 보조 + 최신성)
@@ -197,7 +214,10 @@ public class PolicyController {
             HttpServletRequest request) {
         String clientFingerprint = clientFingerprintService.build(request);
         policyTrafficRateLimitService.checkRankingLimit(resolveRateLimitActorKey(authenticatedUser, clientFingerprint));
-        return ResponseEntity.ok(ApiResponse.success(policyRankingService.getRanking(size)));
+        List<PolicyRankingResponse> response = policyRankingService.getRanking(size);
+        log.info("[UserAction] action=policy_ranking userKeyHash={} clientFingerprint={} size={} resultCount={}",
+                actorHash(authenticatedUser), clientFingerprint, size, response.size());
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PostMapping("/{id}/bookmark")
@@ -205,6 +225,8 @@ public class PolicyController {
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @PathVariable @Min(1) Long id) {
         policyBookmarkCommandService.toggleBookmark(resolveUserId(authenticatedUser), id);
+        log.info("[UserAction] action=bookmark_toggle userKeyHash={} serviceId={}",
+                actorHash(authenticatedUser), id);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
@@ -214,18 +236,43 @@ public class PolicyController {
             @PathVariable @Min(1) Long id,
             @Valid @RequestBody(required = false) PolicyErrorReportCreateRequest request) {
         policyTrafficRateLimitService.checkErrorReportLimit(resolveErrorReportActorKey(authenticatedUser), id);
-        return ResponseEntity.ok(ApiResponse.success(
-                policyErrorReportCommandService.submit(
+        PolicyErrorReportResponse response = policyErrorReportCommandService.submit(
                         resolveUserId(authenticatedUser),
                         authenticatedUser != null ? authenticatedUser.userKey() : null,
                         id,
                         request
-                )
-        ));
+                );
+        log.info("[UserAction] action=policy_error_report userKeyHash={} serviceId={} reasonCode={} reportId={}",
+                actorHash(authenticatedUser),
+                id,
+                request != null && request.reasonCode() != null ? request.reasonCode() : "UNKNOWN",
+                response.reportId());
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     private Long resolveUserId(AuthenticatedUser authenticatedUser) {
         return authenticatedUser != null ? authenticatedUser.userId() : null;
+    }
+
+    private String actorHash(AuthenticatedUser authenticatedUser) {
+        if (authenticatedUser == null) {
+            return null;
+        }
+        if (authenticatedUser.hasUserKey()) {
+            return RedisKeyHash.sha256Hex(authenticatedUser.userKey());
+        }
+        return authenticatedUser.hasUserId() ? RedisKeyHash.sha256Hex(String.valueOf(authenticatedUser.userId())) : null;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
+    }
+
+    private String normalizeLogValue(String value) {
+        if (!hasText(value)) {
+            return null;
+        }
+        return value.trim().replaceAll("[^A-Za-z0-9._:-]", "_");
     }
 
     private String resolveRateLimitActorKey(AuthenticatedUser authenticatedUser, String clientFingerprint) {

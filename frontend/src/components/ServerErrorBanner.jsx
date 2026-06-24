@@ -12,7 +12,7 @@ export default function ServerErrorBanner() {
   const handleRetry = async () => {
     setRetrying(true);
     try {
-      await api.get("/api/policies?size=1");
+      await api.get("/api/policies", { params: { size: 1 } });
       setServerDown(false);
     } catch {
       // 여전히 실패면 배너 유지

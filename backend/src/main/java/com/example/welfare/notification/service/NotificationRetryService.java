@@ -80,7 +80,7 @@ public class NotificationRetryService {
             }
             return scheduleNextRetry(notification, "notification gateway returned false");
         } catch (Exception e) {
-            return scheduleNextRetry(notification, e.getMessage());
+            return scheduleNextRetry(notification, "notification retry failed (" + e.getClass().getSimpleName() + ")");
         }
     }
 

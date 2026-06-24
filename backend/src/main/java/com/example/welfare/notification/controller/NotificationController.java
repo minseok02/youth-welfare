@@ -1,7 +1,8 @@
 package com.example.welfare.notification.controller;
 
+import com.example.welfare.global.exception.CustomException;
+import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.response.ApiResponse;
-import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.notification.dto.UserAlertResponse;
 import com.example.welfare.notification.dto.UserAlertUnreadCountResponse;
@@ -44,7 +45,6 @@ import java.util.List;
 @Validated
 public class NotificationController {
 
-    private final JwtUtil jwtUtil;
     private final NotificationUnsubscribeTokenService notificationUnsubscribeTokenService;
     private final UserAccountCommandService userAccountCommandService;
     private final UserAlertReadService userAlertReadService;
@@ -56,12 +56,6 @@ public class NotificationController {
     private final WebPushDispatchService webPushDispatchService;
     private final ActiveUserReadService activeUserReadService;
     private final UserNotificationReadService userNotificationReadService;
-
-    @GetMapping("/unsubscribe")
-    public ResponseEntity<ApiResponse<Void>> unsubscribe(@RequestParam String token) {
-        unsubscribeByToken(token);
-        return ResponseEntity.ok(ApiResponse.success(null));
-    }
 
     @PostMapping("/unsubscribe")
     public ResponseEntity<ApiResponse<Void>> unsubscribeByPost(
@@ -212,10 +206,7 @@ public class NotificationController {
 
     private void unsubscribeByToken(String token) {
         String userKey = notificationUnsubscribeTokenService.consumeUserKey(token)
-                .orElseGet(() -> {
-                    jwtUtil.validate(token);
-                    return jwtUtil.getSubject(token);
-                });
+                .orElseThrow(() -> new CustomException(ErrorCode.INVALID_TOKEN));
         userAccountCommandService.unsubscribeNotificationsByUserKey(userKey);
     }
 }

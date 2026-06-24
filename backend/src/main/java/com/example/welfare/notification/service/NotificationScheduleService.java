@@ -1,5 +1,6 @@
 package com.example.welfare.notification.service;
 
+import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.notification.dto.NotificationTarget;
 import com.example.welfare.user.entity.User.NotificationPeriod;
 import com.example.welfare.user.service.UserNotificationReadService;
@@ -89,8 +90,8 @@ public class NotificationScheduleService {
                 }
             } catch (RuntimeException | LinkageError e) {
                 unexpectedFailures++;
-                log.error("[NotificationScheduleService] {} 알림 대상 처리 실패 userId={} userKey={}: {}",
-                        label, target.userId(), target.userKey(), e.getMessage());
+                log.error("[NotificationScheduleService] {} 알림 대상 처리 실패 userId={} userKeyHash={} errorType={}",
+                        label, target.userId(), RedisKeyHash.sha256Hex(target.userKey()), e.getClass().getSimpleName());
             }
         }
         log.info("[NotificationScheduleService] {} 알림 대상={} sent={} noRecommendations={} skippedWindow={} failed={} conflicts={} unexpectedFailures={}",
@@ -116,8 +117,8 @@ public class NotificationScheduleService {
                 }
             } catch (RuntimeException | LinkageError e) {
                 unexpectedFailures++;
-                log.error("[NotificationScheduleService] {} 알림 대상 처리 실패 userId={} userKey={}: {}",
-                        label, target.userId(), target.userKey(), e.getMessage());
+                log.error("[NotificationScheduleService] {} 알림 대상 처리 실패 userId={} userKeyHash={} errorType={}",
+                        label, target.userId(), RedisKeyHash.sha256Hex(target.userKey()), e.getClass().getSimpleName());
             }
         }
         log.info("[NotificationScheduleService] {} 알림 대상={} days={} sent={} noCandidates={} failed={} conflicts={} unexpectedFailures={}",

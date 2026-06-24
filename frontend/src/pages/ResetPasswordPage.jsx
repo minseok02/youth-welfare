@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Alert, CircularProgress, Snackbar } from "@mui/material";
 import HomeIcon from "@mui/icons-material/Home";
 import api from "../lib/axios";
+import { resolveSafeRouteTarget, sanitizePostLoginAction } from "../lib/safeNavigation";
 
 const A = "#2563eb", A7 = "#1d4ed8";
 const BG = "#f7f8fc", WHITE = "#fff";
@@ -27,9 +28,11 @@ const iCss = (err) => ({
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const nestedFromState = location.state?.from?.state ?? {};
-  const chatFrom = location.state?.chatFrom ?? nestedFromState.chatFrom;
-  const postLoginAction = location.state?.postLoginAction ?? nestedFromState.postLoginAction;
+  const safeFromTarget = resolveSafeRouteTarget(location.state?.from);
+  const safeChatFromStateTarget = resolveSafeRouteTarget(location.state?.chatFrom);
+  const nestedFromState = safeFromTarget?.state ?? {};
+  const chatFrom = safeChatFromStateTarget ?? nestedFromState.chatFrom;
+  const postLoginAction = sanitizePostLoginAction(location.state?.postLoginAction) ?? nestedFromState.postLoginAction;
   const [searchParams] = useSearchParams();
   const [token, setToken] = useState(() => {
     const hashToken = readTokenFromHash(window.location.hash);
@@ -58,9 +61,8 @@ export default function ResetPasswordPage() {
       }
     }
 
-    if (queryToken && !hashToken) {
-      const nextHash = `#token=${encodeURIComponent(queryToken)}`;
-      window.history.replaceState(window.history.state, document.title, `${window.location.pathname}${nextHash}`);
+    if (hashToken || queryToken) {
+      window.history.replaceState(window.history.state, document.title, window.location.pathname);
     }
   }, [searchParams, token]);
 
@@ -95,7 +97,7 @@ export default function ResetPasswordPage() {
       showToast("비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해주세요.", "success");
       setTimeout(() => navigate("/login", {
         state: {
-          from: location.state?.from,
+          from: safeFromTarget ?? undefined,
           chatFrom,
           reason: "password-reset-complete",
           email: location.state?.email,
@@ -180,7 +182,7 @@ export default function ResetPasswordPage() {
           <div style={{ textAlign: "center", marginTop: 24 }}>
             <button onClick={() => navigate("/login", {
               state: {
-                from: location.state?.from,
+                from: safeFromTarget ?? undefined,
                 email,
                 chatFrom,
                 postLoginAction,

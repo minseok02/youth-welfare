@@ -17,7 +17,7 @@ public class WelfareServiceReadRepositoryImpl implements WelfareServiceReadRepos
 
     @Override
     public Page<WelfareService> findList(PolicyListReadCondition condition, Pageable pageable) {
-        String sido = condition.sido();
+        String sido = RegionCodeUtil.fullSidoName(condition.sido());
         String sidoCode = RegionCodeUtil.getSidoCode(sido);
         String regionCode = RegionCodeUtil.getRegionCode(sido, condition.sgg());
         Integer onlineApplyInt = condition.onlineApply() == null ? null : (condition.onlineApply() ? 1 : 0);

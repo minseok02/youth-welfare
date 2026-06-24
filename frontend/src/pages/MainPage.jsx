@@ -5,6 +5,7 @@ import Header from "../components/Header";
 import FloatingNav from "../components/FloatingNav";
 import api from "../lib/axios";
 import { useAuthStore } from "../store/authStore";
+import { buildSafeReturnLocation, sanitizeTransientRouteState } from "../lib/safeNavigation";
 
 // ── 헬퍼 ──────────────────────────────────────────────────────────────────────
 
@@ -1040,8 +1041,9 @@ export default function MainPage() {
 
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
   const showToast = useCallback((msg, severity = "info") => setToast({ open: true, msg, severity }), []);
+  const returnLocation = buildSafeReturnLocation(location);
   const authState = {
-    from: location,
+    from: returnLocation,
   };
   const standardCodeMissingCount = user?.standardCodeMissingCount ?? 0;
   const standardCodeFilledCount = user?.standardCodeFilledCount ?? Math.max(0, 4 - standardCodeMissingCount);
@@ -1067,7 +1069,7 @@ export default function MainPage() {
       showToast(`로그인되었습니다. 선택 프로필 ${nudge.filledCount}/4 입력 상태입니다. 필요한 정보를 더 보완하면 추천 정확도가 올라갑니다.`, "info");
     }
 
-    const nextState = { ...(location.state || {}) };
+    const nextState = { ...(sanitizeTransientRouteState(location.state) ?? {}) };
     delete nextState.postLoginRecommendationNudge;
     navigate(`${location.pathname}${location.search}`, {
       replace: true,
@@ -1092,7 +1094,7 @@ export default function MainPage() {
       window.localStorage.setItem(GUIDE_NUDGE_STORAGE_KEY, new Date().toISOString());
     }
 
-    const nextState = { ...(location.state || {}) };
+    const nextState = { ...(sanitizeTransientRouteState(location.state) ?? {}) };
     delete nextState.postLoginGuideNudge;
     navigate(`${location.pathname}${location.search}`, {
       replace: true,
@@ -1101,12 +1103,13 @@ export default function MainPage() {
   }, [location.pathname, location.search, location.state, navigate, showToast]);
 
   const navigateToPolicyDetail = useCallback((policyId, logId = null) => {
-    navigate(`/policies/${policyId}${logId ? `?log_id=${logId}` : ""}`, {
+    navigate(`/policies/${policyId}`, {
       state: {
-        from: location,
+        from: returnLocation,
+        ...(logId ? { recommendationLogId: logId } : {}),
       },
     });
-  }, [location, navigate]);
+  }, [navigate, returnLocation]);
 
   // ── AI 추천 fetch ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1275,7 +1278,7 @@ export default function MainPage() {
     }
     setPersonalRefreshing(true);
     try {
-      const { data } = await api.post("/api/recommendations/refresh?personal=true");
+      const { data } = await api.post("/api/recommendations/refresh", null, { params: { personal: true } });
       setRecommendations((data.data ?? []).map(mapRec));
       setRecError(false);
       if (standardCodeMissingCount > 0) {

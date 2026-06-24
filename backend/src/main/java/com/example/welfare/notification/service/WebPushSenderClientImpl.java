@@ -94,17 +94,17 @@ public class WebPushSenderClientImpl implements WebPushSenderClient {
             }
             return WebPushSendResult.failure("web push send failed with status " + statusCode);
         } catch (GeneralSecurityException | JoseException | IOException | ExecutionException e) {
-            log.warn("[WebPushSenderClient] web push send failed endpointHost={}: {}",
+            log.warn("[WebPushSenderClient] web push send failed endpointHost={} errorType={}",
                     webPushEndpointPolicyService.describeEndpointForLog(subscription.getEndpoint()),
-                    e.getMessage());
+                    e.getClass().getSimpleName());
             return WebPushSendResult.failure("web push send failed");
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return WebPushSendResult.failure("web push send interrupted");
         } catch (RuntimeException | LinkageError e) {
-            log.warn("[WebPushSenderClient] web push sender initialization failed endpointHost={}: {}",
+            log.warn("[WebPushSenderClient] web push sender initialization failed endpointHost={} errorType={}",
                     webPushEndpointPolicyService.describeEndpointForLog(subscription.getEndpoint()),
-                    e.getMessage());
+                    e.getClass().getSimpleName());
             return WebPushSendResult.failure("web push sender initialization failed");
         }
     }

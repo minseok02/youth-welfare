@@ -50,4 +50,15 @@ class RecommendationLogCommandRepositoryImplTest {
 
         assertThat(recommendationLogCommandRepository.findById(1L)).contains(log);
     }
+
+    @Test
+    @DisplayName("recommendation log command repository는 사용자와 정책 기준 로그 조회를 위임한다")
+    void findByIdAndUserKeyAndServiceIdDelegates() {
+        RecommendationLog log = RecommendationLog.builder().id(1L).build();
+        given(recommendationLogRepository.findByIdAndUserKeyAndService_Id(1L, "user-key-1", 10L))
+                .willReturn(Optional.of(log));
+
+        assertThat(recommendationLogCommandRepository.findByIdAndUserKeyAndServiceId(1L, "user-key-1", 10L))
+                .contains(log);
+    }
 }

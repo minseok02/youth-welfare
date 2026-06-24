@@ -2,6 +2,7 @@ package com.example.welfare.user.service;
 
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.user.dto.request.LoginRequest;
 import com.example.welfare.user.dto.response.TokenResponse;
 import com.example.welfare.user.entity.AuthUser;
@@ -34,16 +35,24 @@ public class AuthLoginService {
     @Transactional
     public TokenResponse login(LoginRequest request) {
         String normalizedEmail = EmailLookupKeyGenerator.normalize(request.getEmail());
+        String emailHash = EmailLookupKeyGenerator.hash(normalizedEmail);
         AuthUser authUser = authIdentityReadService.findByEmail(normalizedEmail)
-                .orElseThrow(() -> new CustomException(ErrorCode.INVALID_CREDENTIALS));
+                .orElseThrow(() -> {
+                    log.warn("[AuthAudit] event=login outcome=invalid_credentials emailHash={}", emailHash);
+                    return new CustomException(ErrorCode.INVALID_CREDENTIALS);
+                });
 
         if (!authUser.isActive()) {
+            log.warn("[AuthAudit] event=login outcome=withdrawn userKeyHash={}",
+                    RedisKeyHash.sha256Hex(authUser.getUserKey()));
             throw new CustomException(ErrorCode.WITHDRAWN_USER);
         }
 
         User user = activeUserReadService.getActiveUserByUserKey(authUser.getUserKey());
 
         if (authUser.getLockedUntil() != null && LocalDateTime.now().isBefore(authUser.getLockedUntil())) {
+            log.warn("[AuthAudit] event=login outcome=account_locked userKeyHash={} lockedUntil={}",
+                    RedisKeyHash.sha256Hex(authUser.getUserKey()), authUser.getLockedUntil());
             throw new CustomException(ErrorCode.ACCOUNT_LOCKED);
         }
 
@@ -54,7 +63,11 @@ public class AuthLoginService {
                     LOCK_MINUTES
             );
             if (locked) {
-                log.warn("Account locked: userId={}", user.getId());
+                log.warn("[AuthAudit] event=login outcome=locked_after_failure userKeyHash={} maxLoginFail={}",
+                        RedisKeyHash.sha256Hex(user.getUserKey()), MAX_LOGIN_FAIL);
+            } else {
+                log.warn("[AuthAudit] event=login outcome=invalid_credentials userKeyHash={}",
+                        RedisKeyHash.sha256Hex(user.getUserKey()));
             }
             throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
         }
@@ -62,10 +75,13 @@ public class AuthLoginService {
         user.resetLoginFail();
         userCoreSyncService.syncFromUser(user);
 
-        return authTokenService.issueTokens(
+        TokenResponse tokenResponse = authTokenService.issueTokens(
                 authUser.getUserKey(),
                 user.getId(),
                 authAdminRoleService.resolveRoles(normalizedEmail)
         );
+        log.info("[AuthAudit] event=login outcome=success userKeyHash={}",
+                RedisKeyHash.sha256Hex(authUser.getUserKey()));
+        return tokenResponse;
     }
 }

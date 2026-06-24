@@ -39,7 +39,9 @@ public class PolicySearchKeywordReadService {
                 LocalDateTime.now().minusDays(TRENDING_WINDOW_DAYS),
                 MIN_STORED_KEYWORD_LENGTH,
                 normalizeTrendingLimit(limit)
-        );
+        ).stream()
+                .filter(this::isPublicKeywordCandidate)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -55,7 +57,7 @@ public class PolicySearchKeywordReadService {
                         MIN_STORED_KEYWORD_LENGTH,
                         normalizedLimit
                 ).stream()
-                .filter(value -> value != null && !value.isBlank())
+                .filter(this::isPublicKeywordCandidate)
                 .map(String::trim)
                 .toList();
 
@@ -161,6 +163,12 @@ public class PolicySearchKeywordReadService {
 
     private String compact(String text) {
         return text.replace(" ", "").toLowerCase(Locale.ROOT);
+    }
+
+    private boolean isPublicKeywordCandidate(String value) {
+        return value != null
+                && !value.isBlank()
+                && !PolicySearchKeywordPrivacy.containsSensitiveIdentifier(value);
     }
 
     private int normalizeTrendingLimit(Integer limit) {

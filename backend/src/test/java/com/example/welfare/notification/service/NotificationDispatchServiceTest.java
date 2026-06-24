@@ -47,6 +47,8 @@ class NotificationDispatchServiceTest {
     private NotificationHistoryService notificationHistoryService;
     @Mock
     private WebPushDispatchService webPushDispatchService;
+    @Mock
+    private NotificationAttemptLogService notificationAttemptLogService;
 
     @InjectMocks
     private NotificationDispatchService notificationDispatchService;

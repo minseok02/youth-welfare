@@ -2,10 +2,12 @@ package com.example.welfare.user.service;
 
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.notification.gateway.EmailClient;
 import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.util.EmailLookupKeyGenerator;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -20,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PasswordResetService {
 
     private static final String PASSWORD_RESET_TOKEN_PREFIX = "password-reset:";
@@ -46,12 +49,14 @@ public class PasswordResetService {
 
     public void requestPasswordReset(String rawEmail) {
         String email = EmailLookupKeyGenerator.normalize(rawEmail);
+        String emailHash = EmailLookupKeyGenerator.hash(email);
         authIdentityReadService.findByEmail(email)
                 .filter(AuthUser::isActive)
                 .flatMap(authUser -> activeUserReadService.findOptionalActiveUserByUserKey(authUser.getUserKey())
                         .map(user -> authUser.getUserKey()))
                 .ifPresent(userKey -> {
                     if (!acquireResetRequestCooldown(email)) {
+                        log.warn("[AuthAudit] event=password_reset_request outcome=cooldown_limited emailHash={}", emailHash);
                         return;
                     }
 
@@ -67,8 +72,12 @@ public class PasswordResetService {
                     if (!sent) {
                         clearPasswordResetToken(userKey, token);
                         clearResetRequestCooldown(email);
+                        log.warn("[AuthAudit] event=password_reset_request outcome=send_failed emailHash={} userKeyHash={}",
+                                emailHash, RedisKeyHash.sha256Hex(userKey));
                         throw new CustomException(ErrorCode.PASSWORD_RESET_EMAIL_SEND_FAILED);
                     }
+                    log.info("[AuthAudit] event=password_reset_request outcome=sent emailHash={} userKeyHash={}",
+                            emailHash, RedisKeyHash.sha256Hex(userKey));
                 });
     }
 
@@ -101,6 +110,8 @@ public class PasswordResetService {
         userCoreSyncService.syncFromUser(user);
         clearPasswordResetToken(userKey, resetToken);
         userSessionRevocationService.revokeUserSessions(userKey, System.currentTimeMillis());
+        log.info("[AuthAudit] event=password_reset_confirm outcome=success userKeyHash={}",
+                RedisKeyHash.sha256Hex(userKey));
     }
 
     private void savePasswordResetToken(String userKey, String token) {

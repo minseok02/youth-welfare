@@ -23,6 +23,8 @@ public interface RecommendationLogRepository extends JpaRepository<Recommendatio
     // 클릭 처리용
     Optional<RecommendationLog> findByIdAndUserKey(Long id, String userKey);
 
+    Optional<RecommendationLog> findByIdAndUserKeyAndService_Id(Long id, String userKey, Long serviceId);
+
     // CTR 분석: 사용자별 클릭률 조회
     @Query("""
             SELECT COUNT(rl) FROM RecommendationLog rl

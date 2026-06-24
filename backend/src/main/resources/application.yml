@@ -51,6 +51,12 @@ openai:
     timeout: ${OPENAI_EMBEDDING_TIMEOUT:30000}
     force-local-fallback: ${OPENAI_EMBEDDING_FORCE_LOCAL_FALLBACK:false}
 
+observability:
+  log-retention:
+    days: ${OBSERVABILITY_LOG_RETENTION_DAYS:90}
+    cron: "${OBSERVABILITY_LOG_RETENTION_CRON:0 40 3 * * *}"
+    zone: ${OBSERVABILITY_LOG_RETENTION_ZONE:Asia/Seoul}
+
 app:
   base-url: ${APP_BASE_URL:http://localhost:5173}
   mail:

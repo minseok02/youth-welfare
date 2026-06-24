@@ -7,6 +7,7 @@ import api from "../lib/axios";
 import PrivacyPolicyContent from "../components/PrivacyPolicyContent";
 import PrioritySortableList from "../components/PrioritySortableList";
 import { fetchProfileStandardCodebookOptions } from "../lib/officialCodebookOptions";
+import { resolveSafeRouteTarget, sanitizePostLoginAction } from "../lib/safeNavigation";
 import {
   REGIONS,
   REGION_TO_SIDO,
@@ -82,9 +83,11 @@ export default function SignupPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useMediaQuery("(max-width: 600px)");
-  const nestedFromState = location.state?.from?.state ?? {};
-  const chatFrom = location.state?.chatFrom ?? nestedFromState.chatFrom;
-  const postLoginAction = location.state?.postLoginAction ?? nestedFromState.postLoginAction;
+  const safeFromTarget = resolveSafeRouteTarget(location.state?.from);
+  const safeChatFromStateTarget = resolveSafeRouteTarget(location.state?.chatFrom);
+  const nestedFromState = safeFromTarget?.state ?? {};
+  const chatFrom = safeChatFromStateTarget ?? nestedFromState.chatFrom;
+  const postLoginAction = sanitizePostLoginAction(location.state?.postLoginAction) ?? nestedFromState.postLoginAction;
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
@@ -215,7 +218,7 @@ export default function SignupPage() {
     setEmail(normalizedEmail);
     setSendingCode(true);
     try {
-      await api.post("/api/auth/email-verification/send", null, { params: { email: normalizedEmail } });
+      await api.post("/api/auth/email-verification/send", { email: normalizedEmail });
       setCodeSent(true);
       setCodeMsg("인증코드를 발송했습니다. 이메일을 확인해주세요.");
     } catch (e) {
@@ -231,7 +234,7 @@ export default function SignupPage() {
     const normalizedEmail = normalizeEmailInput(email);
     setVerifyingCode(true);
     try {
-      await api.post("/api/auth/email-verification/verify", null, { params: { email: normalizedEmail, code: codeInput.trim() } });
+      await api.post("/api/auth/email-verification/verify", { email: normalizedEmail, code: codeInput.trim() });
       setEmailVerified(true);
       setEmail(normalizedEmail);
       setCodeMsg("이메일 인증이 완료되었습니다.");
@@ -245,6 +248,12 @@ export default function SignupPage() {
   const handleSignup = async () => {
     setLoading(true);
     try {
+      if (priorities.length > 0 && !optionalProfileConsentAgreed) {
+        setStep2Attempted(true);
+        setStep(1);
+        showToast("우선순위를 저장하려면 선택 개인정보 수집 및 이용에 동의해 주세요.", "warning");
+        return;
+      }
       const submittedSgg = resolveSubmittedSgg(region, subRegion, ward);
       const normalizedEmail = normalizeEmailInput(email);
       const payload = {
@@ -262,6 +271,7 @@ export default function SignupPage() {
         ...(optionalProfileConsentAgreed && housingTypeCode && { housingTypeCode }),
         ...(optionalProfileConsentAgreed && basicLivingRecipientTypeCode && { basicLivingRecipientTypeCode }),
         ...(sensitiveInfoConsentAgreed && disabilityGradeCode && { disabilityGradeCode }),
+        ...(optionalProfileConsentAgreed && priorities.length > 0 && { priorityCodes: priorities }),
       };
       await api.post("/api/auth/signup", payload);
       navigate("/login", {
@@ -270,7 +280,7 @@ export default function SignupPage() {
           reason: "signup-complete",
           email: normalizedEmail,
           signupPriorities: priorities,
-          from: location.state?.from,
+          from: safeFromTarget ?? undefined,
           chatFrom,
           postLoginAction,
         },
@@ -437,7 +447,7 @@ export default function SignupPage() {
               <div style={{ textAlign: "center" }}>
                 <button onClick={() => navigate("/login", {
                   state: {
-                    from: location.state?.from,
+                    from: safeFromTarget ?? undefined,
                     email,
                     chatFrom,
                     postLoginAction,

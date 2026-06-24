@@ -42,6 +42,7 @@ bash deploy/smoke/run-local-recommendation-observation-suite.sh
 - `tmp/recommendation-observation/latest-recommendation-observation-summary.txt`
 - `tmp/recommendation-observation/latest-recommendation-observation.json`
 - `tmp/recommendation-observation/latest-recommendation-observation-note.md`
+- `tmp/performance/app-log-observability/latest-app-log-observability-summary.txt`
 - `tmp/recommendation-observation/latest/housing-standard-code-effect.out`
 - `tmp/recommendation-observation/latest/welfare-standard-code-matrix.out`
 - `tmp/recommendation-observation/latest/recommendation-standard-code-adoption.out`
@@ -66,6 +67,25 @@ bash deploy/smoke/run-local-recommendation-observation-suite.sh
 - `recommendation_standard_code_adoption_status`
 - `recommendation_standard_code_adoption_latest_batch_users_with_any_standard_code_share_pct`
 - `recommendation_standard_code_adoption_latest_batch_users_missing_all_standard_codes`
+
+## app log / DB run log에서 먼저 볼 값
+
+추천 생성이 느리거나 결과가 비어 보이면 observation suite보다 먼저 튜닝하지 말고 run summary를 봅니다.
+
+```bash
+bash deploy/performance/run-local-app-log-observability-baseline.sh
+```
+
+먼저 볼 prefix/key:
+
+- `[RecommendationRun] outcome=cache_hit|no_candidates|post_filter_empty|save_empty|saved`
+- `retrieved`, `ruleScored`, `postFilter`, `reranked`, `saved`
+- `aiStatusCounts`
+- `durationMs`
+
+장기 집계는 `recommendation_run_logs` 테이블의 `outcome`, `created_at`, `duration_ms`, `ai_status_counts_json` 기준으로 봅니다.
+관리자 API에서는 `GET /api/admin/dashboard/recommendation-run-summary?summaryWindowDays=1` 로 같은 내용을 요약해서 봅니다.
+기본 보존 기간은 90일이며 `OBSERVABILITY_LOG_RETENTION_DAYS` 로 조정합니다.
 
 ## 상태 해석
 

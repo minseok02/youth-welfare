@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Snackbar, Alert, useMediaQuery } from "@mui/material";
 import Header from "../components/Header";
 import FloatingNav from "../components/FloatingNav";
 import api from "../lib/axios";
 import { useAuthStore } from "../store/authStore";
+import { resolveSafeRouteTarget, sanitizePostLoginAction, sanitizeTransientRouteState } from "../lib/safeNavigation";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
 import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
@@ -73,6 +74,10 @@ const POLICY_ERROR_REPORT_REASONS = [
   { value: "DUPLICATE_POLICY", label: "중복 정책 같습니다" },
   { value: "OTHER", label: "기타" },
 ];
+
+const sanitizePolicyReturnState = (state) => {
+  return sanitizeTransientRouteState(state);
+};
 
 const decodeHtml = (text) => {
   if (!text) return text;
@@ -352,7 +357,6 @@ export default function PolicyDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
-  const [searchParams] = useSearchParams();
   const { isLoggedIn } = useAuthStore();
 
   const isMobile = useMediaQuery("(max-width: 1199px)");
@@ -367,15 +371,14 @@ export default function PolicyDetailPage() {
   const [reportNote, setReportNote] = useState("");
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const bookmarkActionKeyRef = useRef(null);
+  const recommendationClickKeyRef = useRef(null);
 
   useEffect(() => {
     const controller = new AbortController();
     const fetchPolicy = async () => {
       setLoading(true);
       try {
-        const logId = searchParams.get("log_id");
         const { data } = await api.get(`/api/policies/${id}`, {
-          params: { logId: logId || undefined },
           signal: controller.signal,
         });
         setPolicy(data.data);
@@ -389,7 +392,40 @@ export default function PolicyDetailPage() {
     };
     fetchPolicy();
     return () => controller.abort();
-  }, [id, isLoggedIn, searchParams]);
+  }, [id, isLoggedIn]);
+
+  useEffect(() => {
+    if (location.search) {
+      const params = new URLSearchParams(location.search);
+      if (params.has("log_id")) {
+        params.delete("log_id");
+        const nextSearch = params.toString();
+        navigate(`${location.pathname}${nextSearch ? `?${nextSearch}` : ""}`, {
+          replace: true,
+          state: sanitizePolicyReturnState(location.state),
+        });
+      }
+    }
+  }, [location.pathname, location.search, location.state, navigate]);
+
+  useEffect(() => {
+    const logId = location.state?.recommendationLogId;
+    if (!isLoggedIn || !logId) {
+      return;
+    }
+    const clickKey = `${id}:${logId}`;
+    if (recommendationClickKeyRef.current === clickKey) {
+      return;
+    }
+    recommendationClickKeyRef.current = clickKey;
+    api.post(`/api/policies/${id}/recommendation-click`, { logId }).finally(() => {
+      const nextState = sanitizePolicyReturnState(location.state);
+      navigate(`${location.pathname}${location.search}`, {
+        replace: true,
+        state: nextState,
+      });
+    });
+  }, [id, isLoggedIn, location.pathname, location.search, location.state, navigate]);
 
   useEffect(() => {
     if (!policy) {
@@ -672,7 +708,7 @@ export default function PolicyDetailPage() {
           from: {
             pathname: location.pathname,
             search: location.search,
-            state: location.state,
+            state: sanitizePolicyReturnState(location.state),
           },
           reason: "login-required",
           postLoginAction: {
@@ -701,7 +737,7 @@ export default function PolicyDetailPage() {
           from: {
             pathname: location.pathname,
             search: location.search,
-            state: location.state,
+            state: sanitizePolicyReturnState(location.state),
           },
           reason: "login-required",
         },
@@ -712,13 +748,15 @@ export default function PolicyDetailPage() {
   };
 
   const handleStartApplicationCoaching = () => {
-    navigate(`/chat?coachPolicyId=${encodeURIComponent(policy?.id ?? id)}`, {
+    const returnState = sanitizePolicyReturnState(location.state);
+    navigate("/chat", {
       state: {
         from: {
           pathname: location.pathname,
           search: location.search,
-          state: location.state,
+          ...(returnState ? { state: returnState } : {}),
         },
+        coachPolicyId: policy?.id ?? id,
       },
     });
   };
@@ -748,11 +786,11 @@ export default function PolicyDetailPage() {
       if (error?.response?.status === 401) {
         navigate("/login", {
           state: {
-            from: {
-              pathname: location.pathname,
-              search: location.search,
-              state: location.state,
-            },
+          from: {
+            pathname: location.pathname,
+            search: location.search,
+            state: sanitizePolicyReturnState(location.state),
+          },
             reason: "login-required",
           },
         });
@@ -773,9 +811,10 @@ export default function PolicyDetailPage() {
     }
   };
 
-  const backTarget = location.state?.from;
-  const chatFromTarget = location.state?.chatFrom?.pathname === "/chat"
-    ? location.state.chatFrom
+  const backTarget = resolveSafeRouteTarget(location.state?.from);
+  const safeChatFromStateTarget = resolveSafeRouteTarget(location.state?.chatFrom);
+  const chatFromTarget = safeChatFromStateTarget?.pathname === "/chat"
+    ? safeChatFromStateTarget
     : backTarget?.pathname === "/chat"
       ? backTarget
       : undefined;
@@ -844,18 +883,19 @@ export default function PolicyDetailPage() {
 
   const handleBack = () => {
     if (backTarget?.pathname) {
-      navigate(`${backTarget.pathname}${backTarget.search ?? ""}`, {
+      navigate(backTarget.path, {
         state: backTarget.state,
       });
       return;
     }
-    navigate(`${listBackTarget.pathname}${listBackTarget.search ?? ""}`, {
-      state: listBackTarget.state,
+    const safeListBackTarget = resolveSafeRouteTarget(listBackTarget);
+    navigate(safeListBackTarget?.path ?? "/policies", {
+      state: safeListBackTarget?.state,
     });
   };
 
   useEffect(() => {
-    const postLoginAction = location.state?.postLoginAction;
+    const postLoginAction = sanitizePostLoginAction(location.state?.postLoginAction);
     if (!isLoggedIn || loading || postLoginAction?.type !== "toggle-bookmark" || String(postLoginAction.policyId) !== String(id)) {
       if (!postLoginAction) {
         bookmarkActionKeyRef.current = null;
@@ -864,7 +904,7 @@ export default function PolicyDetailPage() {
     }
 
     const clearPostLoginAction = () => {
-      const nextState = { ...(location.state ?? {}) };
+      const nextState = { ...(sanitizePolicyReturnState(location.state) ?? {}) };
       delete nextState.postLoginAction;
       navigate(`${location.pathname}${location.search}`, {
         replace: true,
@@ -1461,7 +1501,7 @@ export default function PolicyDetailPage() {
                 <div style={{ fontSize: 11, fontWeight: 700, color: INK3, marginBottom: 8 }}>공유하기</div>
                 <button
                   onClick={() => {
-                    navigator.clipboard.writeText(window.location.href);
+                    navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}`);
                     setToast({ open: true, msg: "링크를 복사했어요", severity: "success" });
                   }}
                   style={{ width: "100%", padding: "10px 0", borderRadius: 10, background: LINE2, color: INK2, fontSize: 12, fontWeight: 700, border: 0, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}

@@ -48,6 +48,8 @@ class DeadlineReminderDispatchServiceTest {
     private NotificationHistoryService notificationHistoryService;
     @Mock
     private WebPushDispatchService webPushDispatchService;
+    @Mock
+    private NotificationAttemptLogService notificationAttemptLogService;
 
     @InjectMocks
     private DeadlineReminderDispatchService deadlineReminderDispatchService;

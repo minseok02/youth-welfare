@@ -4,12 +4,15 @@ import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.response.ApiResponse;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.global.web.ClientFingerprintService;
 import com.example.welfare.user.dto.request.LoginRequest;
 import com.example.welfare.user.dto.request.PasswordResetConfirmRequest;
 import com.example.welfare.user.dto.request.PasswordResetRequest;
 import com.example.welfare.user.dto.request.SignupRequest;
-import com.example.welfare.user.dto.request.AuthInputPolicy;
+import com.example.welfare.user.dto.request.EmailAvailabilityRequest;
+import com.example.welfare.user.dto.request.EmailVerificationSendRequest;
+import com.example.welfare.user.dto.request.EmailVerificationVerifyRequest;
 import com.example.welfare.user.dto.response.EmailAvailabilityResponse;
 import com.example.welfare.user.dto.response.TokenResponse;
 import com.example.welfare.user.service.AuthAvailabilityService;
@@ -20,12 +23,9 @@ import com.example.welfare.user.service.AuthSignupService;
 import com.example.welfare.user.service.EmailVerificationService;
 import com.example.welfare.user.service.PasswordResetService;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
@@ -39,6 +39,7 @@ import org.springframework.web.bind.annotation.*;
 @Validated
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@Slf4j
 public class AuthController {
 
     private static final String REFRESH_COOKIE_NAME = "refresh_token";
@@ -54,31 +55,27 @@ public class AuthController {
     @Value("${auth.refresh.cookie-secure:true}")
     private boolean cookieSecure;
 
-    @GetMapping("/check-email")
+    @PostMapping("/check-email")
     public ResponseEntity<ApiResponse<EmailAvailabilityResponse>> checkEmailAvailability(
-            @RequestParam @NotBlank @Email @Size(max = 254)
-            @Pattern(regexp = AuthInputPolicy.EMAIL_REGEXP, message = AuthInputPolicy.EMAIL_MESSAGE) String email,
+            @Valid @RequestBody EmailAvailabilityRequest emailRequest,
             HttpServletRequest request) {
         authRateLimitService.checkEmailCheckLimit(clientFingerprintService.build(request));
-        return ResponseEntity.ok(ApiResponse.success(authAvailabilityService.checkEmailAvailability(email)));
+        return ResponseEntity.ok(ApiResponse.success(authAvailabilityService.checkEmailAvailability(emailRequest.getEmail())));
     }
 
     @PostMapping("/email-verification/send")
     public ResponseEntity<ApiResponse<Void>> sendEmailVerificationCode(
-            @RequestParam @NotBlank @Email @Size(max = 254)
-            @Pattern(regexp = AuthInputPolicy.EMAIL_REGEXP, message = AuthInputPolicy.EMAIL_MESSAGE) String email,
+            @Valid @RequestBody EmailVerificationSendRequest emailRequest,
             HttpServletRequest request) {
         authRateLimitService.checkEmailVerificationSendLimit(clientFingerprintService.build(request));
-        emailVerificationService.sendCode(email);
+        emailVerificationService.sendCode(emailRequest.getEmail());
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
     @PostMapping("/email-verification/verify")
     public ResponseEntity<ApiResponse<Void>> verifyEmailCode(
-            @RequestParam @NotBlank @Email @Size(max = 254)
-            @Pattern(regexp = AuthInputPolicy.EMAIL_REGEXP, message = AuthInputPolicy.EMAIL_MESSAGE) String email,
-            @RequestParam @NotBlank @Pattern(regexp = "\\d{6}") String code) {
-        emailVerificationService.verifyCode(email, code);
+            @Valid @RequestBody EmailVerificationVerifyRequest verificationRequest) {
+        emailVerificationService.verifyCode(verificationRequest.getEmail(), verificationRequest.getCode());
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
@@ -121,15 +118,13 @@ public class AuthController {
 
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<TokenResponse>> refresh(
-            @RequestHeader(value = "X-Refresh-Token", required = false) String refreshTokenHeader,
             @CookieValue(value = REFRESH_COOKIE_NAME, required = false) String refreshTokenCookie) {
 
-        String refreshToken = StringUtils.hasText(refreshTokenHeader) ? refreshTokenHeader : refreshTokenCookie;
-        if (!StringUtils.hasText(refreshToken)) {
+        if (!StringUtils.hasText(refreshTokenCookie)) {
             throw new CustomException(ErrorCode.INVALID_TOKEN);
         }
 
-        TokenResponse token = authSessionService.refresh(refreshToken);
+        TokenResponse token = authSessionService.refresh(refreshTokenCookie);
 
         ResponseCookie refreshCookie = buildRefreshCookie(token.getRefreshToken(), 7 * 24 * 60 * 60L);
         TokenResponse body = TokenResponse.of(token.getAccessToken(), null);
@@ -143,17 +138,25 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Void>> logout(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader,
-            @RequestHeader(value = "X-Refresh-Token", required = false) String refreshTokenHeader,
             @CookieValue(value = REFRESH_COOKIE_NAME, required = false) String refreshTokenCookie) {
-        String refreshToken = StringUtils.hasText(refreshTokenHeader) ? refreshTokenHeader : refreshTokenCookie;
         String accessToken = extractBearerToken(authorizationHeader);
 
-        if (StringUtils.hasText(refreshToken)) {
-            authSessionService.logoutByRefreshToken(refreshToken, accessToken);
+        if (StringUtils.hasText(refreshTokenCookie)) {
+            authSessionService.logoutByRefreshToken(refreshTokenCookie, accessToken);
+            log.info("[AuthAudit] event=logout outcome=success boundary=refresh_cookie userKeyHash={}",
+                    authenticatedUser != null && authenticatedUser.hasUserKey()
+                            ? RedisKeyHash.sha256Hex(authenticatedUser.userKey())
+                            : null);
         } else if (authenticatedUser != null && authenticatedUser.hasUserKey()) {
             authSessionService.logoutByUserKey(authenticatedUser.userKey(), accessToken);
+            log.info("[AuthAudit] event=logout outcome=success boundary=user_key userKeyHash={}",
+                    RedisKeyHash.sha256Hex(authenticatedUser.userKey()));
         } else if (authenticatedUser != null && authenticatedUser.hasUserId()) {
             authSessionService.logout(authenticatedUser.userId(), accessToken);
+            log.info("[AuthAudit] event=logout outcome=success boundary=user_id userKeyHash={}",
+                    RedisKeyHash.sha256Hex(String.valueOf(authenticatedUser.userId())));
+        } else {
+            log.info("[AuthAudit] event=logout outcome=noop boundary=anonymous userKeyHash=null");
         }
 
         ResponseCookie clearCookie = buildRefreshCookie("", 0);

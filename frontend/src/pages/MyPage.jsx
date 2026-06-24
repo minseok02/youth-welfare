@@ -8,7 +8,7 @@ import Header from "../components/Header";
 import FloatingNav from "../components/FloatingNav";
 import IncomeCalculatorModal from "../components/IncomeCalculatorModal";
 import api from "../lib/axios";
-import { resolveSafeInternalPath } from "../lib/safeNavigation";
+import { buildSafeReturnLocation, resolveSafeInternalPath } from "../lib/safeNavigation";
 import {
   deletePushSubscription,
   fetchMyPushSubscriptions,
@@ -626,6 +626,7 @@ export default function MyPage() {
   const isMobile = useMediaQuery("(max-width: 1199px)");
 
   const activeTab = resolveTabId(searchParams.get("tab"));
+  const returnLocation = buildSafeReturnLocation(location);
   const [toast, setToast] = useState({ open: false, msg: "", severity: "success" });
   const showToast = useCallback((msg, severity = "success") => setToast({ open: true, msg, severity }), []);
 
@@ -662,12 +663,12 @@ export default function MyPage() {
       navigate("/login", {
         replace: true,
         state: {
-          from: location,
+          from: returnLocation,
           reason: "login-required",
         },
       });
     }
-  }, [isLoggedIn, location, navigate]);
+  }, [isLoggedIn, navigate, returnLocation]);
 
   // expose logout to sidebar
   useEffect(() => {
@@ -678,10 +679,10 @@ export default function MyPage() {
   const navigateToPolicyDetail = useCallback((policyId) => {
     navigate(`/policies/${policyId}`, {
       state: {
-        from: location,
+        from: returnLocation,
       },
     });
-  }, [location, navigate]);
+  }, [navigate, returnLocation]);
 
   // ── State ────────────────────────────────────────────────────────────────
   const [myInfo, setMyInfo] = useState({
@@ -1400,7 +1401,7 @@ export default function MyPage() {
       if (safePath) {
         navigate(safePath, {
           state: {
-            from: location,
+            from: returnLocation,
           },
         });
       } else {
@@ -1409,7 +1410,7 @@ export default function MyPage() {
     } catch {
       // markAlertRead already surfaced the error.
     }
-  }, [location, markAlertRead, navigate, showToast]);
+  }, [markAlertRead, navigate, returnLocation, showToast]);
 
   const browserPushConnected = currentPushEndpoint
     && pushSubscriptions.some((subscription) => subscription.endpoint === currentPushEndpoint);
@@ -2200,7 +2201,7 @@ export default function MyPage() {
                       </div>
                       <div style={{ display: "flex", gap: 8 }}>
                         <button
-                          onClick={() => navigate("/alerts", { state: { from: location } })}
+                          onClick={() => navigate("/alerts", { state: { from: returnLocation } })}
                           style={{ padding: "8px 12px", borderRadius: 10, border: `1px solid ${LINE}`, background: WHITE, color: INK2, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
                         >
                           전용 페이지

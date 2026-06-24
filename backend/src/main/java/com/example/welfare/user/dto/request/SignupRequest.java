@@ -5,6 +5,7 @@ import lombok.Getter;
 
 import java.time.LocalDate;
 import java.time.Period;
+import java.util.List;
 
 @Getter
 public class SignupRequest {
@@ -60,6 +61,13 @@ public class SignupRequest {
 
     private String disabilityGradeCode;
 
+    @Size(max = 5, message = "우선순위는 5개 이하로 설정 가능합니다.")
+    private List<
+            @NotBlank(message = "우선순위 코드는 비어 있을 수 없습니다.")
+            @Size(max = 40, message = "우선순위 코드는 40자 이하여야 합니다.")
+            @Pattern(regexp = "^[A-Z0-9_:-]+$", message = "우선순위 코드 형식이 올바르지 않습니다.")
+            String> priorityCodes;
+
     @AssertTrue(message = "만 14세 이상만 가입할 수 있습니다.")
     public boolean isAtLeastFourteen() {
         if (birthDate == null) {
@@ -80,7 +88,8 @@ public class SignupRequest {
                 && !hasText(householdType)
                 && !hasText(houseTenureCode)
                 && !hasText(housingTypeCode)
-                && !hasText(basicLivingRecipientTypeCode);
+                && !hasText(basicLivingRecipientTypeCode)
+                && !hasAnyText(priorityCodes);
     }
 
     @AssertTrue(message = "민감정보 수집·이용 동의가 필요합니다.")
@@ -90,5 +99,9 @@ public class SignupRequest {
 
     private boolean hasText(String value) {
         return value != null && !value.trim().isEmpty();
+    }
+
+    private boolean hasAnyText(List<String> values) {
+        return values != null && values.stream().anyMatch(this::hasText);
     }
 }

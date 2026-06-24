@@ -126,7 +126,8 @@ class UserCoreDualWriteIntegrationTest {
                                   "houseTenureCode": "3",
                                   "housingTypeCode": "4",
                                   "basicLivingRecipientTypeCode": "1",
-                                  "disabilityGradeCode": "011"
+                                  "disabilityGradeCode": "011",
+                                  "priorityCodes": ["HOUSING", "JOB"]
                                 }
                                 """.formatted(email)))
                 .andExpect(status().isOk())
@@ -149,10 +150,26 @@ class UserCoreDualWriteIntegrationTest {
         assertThat(userProfile.getHousingTypeCode()).isEqualTo("4");
         assertThat(userProfile.getBasicLivingRecipientTypeCode()).isEqualTo("1");
         assertThat(userProfile.getDisabilityGradeCode()).isEqualTo("011");
+        assertThat(userProfile.getProfileCompleteness()).isEqualTo(100);
         assertThat(userProfile.getAgeBand()).isEqualTo(expectedAgeBand(LocalDate.parse("1998-01-10")));
         assertThat(userProfile.isHasName()).isTrue();
         assertThat(userProfile.isHasBirthDate()).isTrue();
         assertThat(userProfile.isHasPhone()).isFalse();
+        assertThat(jdbcTemplate.queryForList("""
+                        select po.code
+                        from user_priorities up
+                        join priority_options po on po.id = up.priority_option_id
+                        where up.user_key = ?
+                        order by up.priority_rank
+                        """, String.class, userKey))
+                .containsExactly("HOUSING", "JOB");
+        assertThat(jdbcTemplate.queryForList("""
+                        select attr_value
+                        from user_attributes
+                        where user_key = ? and attr_type = 'INTEREST_FIELD'
+                        order by id
+                        """, String.class, userKey))
+                .containsExactly("주거", "취업");
         assertThat(aesEncryptUtil.decrypt(userPii.emailEnc())).isEqualTo(email);
         assertThat(aesEncryptUtil.decrypt(userPii.nameEnc())).isEqualTo("홍길동");
         assertThat(aesEncryptUtil.decrypt(userPii.birthDateEnc())).isEqualTo("1998-01-10");

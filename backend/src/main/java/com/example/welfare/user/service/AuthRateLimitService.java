@@ -3,6 +3,7 @@ package com.example.welfare.user.service;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.util.RedisKeyHash;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 
 @Service
+@Slf4j
 public class AuthRateLimitService {
 
     private static final String EMAIL_CHECK_PREFIX = "auth:rate-limit:email-check:";
@@ -49,26 +51,28 @@ public class AuthRateLimitService {
     }
 
     public void checkEmailCheckLimit(String fingerprint) {
-        checkLimit(EMAIL_CHECK_PREFIX + fingerprintHash(fingerprint), emailCheckMaxRequests, emailCheckWindowSeconds);
+        checkLimit("email_check", EMAIL_CHECK_PREFIX + fingerprintHash(fingerprint), emailCheckMaxRequests, emailCheckWindowSeconds);
     }
 
     public void checkEmailVerificationSendLimit(String fingerprint) {
-        checkLimit(EMAIL_VERIFICATION_SEND_PREFIX + fingerprintHash(fingerprint),
+        checkLimit("email_verification_send",
+                EMAIL_VERIFICATION_SEND_PREFIX + fingerprintHash(fingerprint),
                 emailVerificationSendMaxRequests,
                 emailVerificationSendWindowSeconds);
     }
 
     public void checkLoginLimit(String fingerprint) {
-        checkLimit(LOGIN_PREFIX + fingerprintHash(fingerprint), loginMaxRequests, loginWindowSeconds);
+        checkLimit("login", LOGIN_PREFIX + fingerprintHash(fingerprint), loginMaxRequests, loginWindowSeconds);
     }
 
     public void checkPasswordResetRequestLimit(String fingerprint) {
-        checkLimit(PASSWORD_RESET_REQUEST_PREFIX + fingerprintHash(fingerprint),
+        checkLimit("password_reset_request",
+                PASSWORD_RESET_REQUEST_PREFIX + fingerprintHash(fingerprint),
                 passwordResetRequestMaxRequests,
                 passwordResetRequestWindowSeconds);
     }
 
-    private void checkLimit(String key, int maxRequests, long windowSeconds) {
+    private void checkLimit(String operation, String key, int maxRequests, long windowSeconds) {
         Long count = redisTemplate.opsForValue().increment(key);
         if (count == null) {
             throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
@@ -77,6 +81,8 @@ public class AuthRateLimitService {
             redisTemplate.expire(key, Duration.ofSeconds(windowSeconds));
         }
         if (count > maxRequests) {
+            log.warn("[AuthAudit] event=rate_limit outcome=exceeded operation={} actorHash={} count={} maxRequests={} windowSeconds={}",
+                    operation, RedisKeyHash.sha256Hex(key), count, maxRequests, windowSeconds);
             throw new CustomException(ErrorCode.AUTH_RATE_LIMIT_EXCEEDED);
         }
     }
