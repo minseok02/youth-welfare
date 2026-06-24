@@ -102,13 +102,21 @@ smoke_require_command docker
 
 write_forced_logout_log_evidence() {
   local user_key="$1"
+  local user_key_hash
+
+  user_key_hash="$(smoke_sha256_hex "${user_key}")"
 
   if [[ -n "${APP_LOG_FILE}" ]]; then
-    grep -F "forced logout 트리거 userKey=${user_key}" "${APP_LOG_FILE}" | tail -n 1 > "${ADMIN_LOG_MATCH_FILE}" || true
+    grep -F "[AdminAudit] event=forced_logout outcome=accepted" "${APP_LOG_FILE}" \
+      | grep -F "targetUserKeyHash=${user_key_hash}" \
+      | tail -n 1 > "${ADMIN_LOG_MATCH_FILE}" || true
     return
   fi
 
-  docker logs "${APP_CONTAINER_NAME}" 2>&1 | grep -F "forced logout 트리거 userKey=${user_key}" | tail -n 1 > "${ADMIN_LOG_MATCH_FILE}" || true
+  docker logs "${APP_CONTAINER_NAME}" 2>&1 \
+    | grep -F "[AdminAudit] event=forced_logout outcome=accepted" \
+    | grep -F "targetUserKeyHash=${user_key_hash}" \
+    | tail -n 1 > "${ADMIN_LOG_MATCH_FILE}" || true
 }
 
 SMOKE_EMAIL="$(smoke_build_email "${SMOKE_EMAIL_PREFIX}")"
@@ -169,6 +177,7 @@ if [[ -z "${USER_KEY}" ]]; then
   echo "failed to resolve userKey for ${SMOKE_EMAIL}" >&2
   exit 1
 fi
+USER_KEY_HASH="$(smoke_sha256_hex "${USER_KEY}")"
 
 if [[ -n "${ADMIN_ACCESS_TOKEN:-}" ]]; then
   smoke_print_step "admin access token reuse (${ADMIN_EMAIL})"
@@ -254,7 +263,7 @@ smoke_assert_status 200 "${RELOGIN_BOOKMARKS_STATUS}" "relogin protected api" "$
 smoke_print_step "forced logout log evidence"
 write_forced_logout_log_evidence "${USER_KEY}"
 if [[ ! -s "${ADMIN_LOG_MATCH_FILE}" ]]; then
-  echo "forced logout log line not found for userKey=${USER_KEY}" >&2
+  echo "forced logout log line not found for targetUserKeyHash=${USER_KEY_HASH}" >&2
   if [[ -n "${APP_LOG_FILE}" ]]; then
     echo "checked APP_LOG_FILE=${APP_LOG_FILE}" >&2
   else
@@ -270,6 +279,7 @@ echo "smoke_trusted_origin=${SMOKE_TRUSTED_ORIGIN}"
 echo "admin_email=${ADMIN_EMAIL}"
 echo "smoke_email=${SMOKE_EMAIL}"
 echo "user_key=${USER_KEY}"
+echo "target_user_key_hash=${USER_KEY_HASH}"
 echo "old_access_after_forced_logout=401/${OLD_ACCESS_ERROR}"
 echo "old_refresh_after_forced_logout=401/${OLD_REFRESH_ERROR}"
 echo "relogin_after_forced_logout=200"
