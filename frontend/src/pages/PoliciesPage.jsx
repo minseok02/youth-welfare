@@ -13,6 +13,7 @@ import FloatingNav from "../components/FloatingNav";
 import IncomeCalculatorModal from "../components/IncomeCalculatorModal";
 import api from "../lib/axios";
 import { useAuthStore } from "../store/authStore";
+import { resolveStandardProfileCodeCompletion } from "../lib/profileStandardCodes";
 import {
   buildSafeReturnLocation,
   resolveSafeRouteTarget,
@@ -119,13 +120,6 @@ const GOV24_BENEFIT_TYPES = [
 const GOV24_BADGE_LIMIT = 4;
 const MAX_POLICY_SEARCH_STATE_KEYWORD_LENGTH = 100;
 const POLICY_SOURCE_NOTICE = "정책 정보는 온통청년·복지로·정부24와 각 운영기관 공고를 기준으로 수집한 내용입니다. 신청 전 상세 페이지의 원문 안내를 확인하세요.";
-const STANDARD_CODE_ENTRIES = [
-  { key: "houseTenureCode", label: "주거형태" },
-  { key: "housingTypeCode", label: "주택유형" },
-  { key: "basicLivingRecipientTypeCode", label: "복지 수급 정보" },
-  { key: "disabilityGradeCode", label: "장애 관련 지원 정보" },
-];
-
 const SORT_MAP = { relevance: "RELEVANCE", views: "VIEWS", latest: "LATEST", deadline: "DEADLINE" };
 const STATUS_FILTER_MAP = { "신청가능": "ACTIVE_ONLY", "마감": "EXPIRED_ONLY", "전부표기": "ALL" };
 const STATUS_FILTER_LABEL_BY_API = Object.fromEntries(
@@ -368,6 +362,7 @@ function RadioItem({ label, checked, onChange }) {
 function StandardCodePolicyPrompt({
   missingCount,
   filledCount,
+  totalCount,
   onNavigate,
 }) {
   if (!missingCount) return null;
@@ -389,7 +384,7 @@ function StandardCodePolicyPrompt({
           추천 정확도 보강
         </div>
         <div style={{ fontSize: 17, fontWeight: 800, color: INK, marginTop: 6, letterSpacing: "-0.02em" }}>
-          선택 프로필 {filledCount}/4개 입력됨
+          선택 프로필 {filledCount}/{totalCount}개 입력됨
         </div>
         <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.6 }}>
           선택 프로필 {missingCount}개를 보완하면 주거·복지 자격조건 매칭이 더 정확해집니다.
@@ -620,7 +615,8 @@ export default function PoliciesPage() {
   const districtOptions = getDistrictOptions(region, { includeAll: true });
   const wardOptions = getWardOptions(region, subRegion, { includeAll: true });
   const standardCodeMissingCount = user?.standardCodeMissingCount ?? 0;
-  const standardCodeFilledCount = user?.standardCodeFilledCount ?? Math.max(0, STANDARD_CODE_ENTRIES.length - standardCodeMissingCount);
+  const standardCodeTotalCount = user?.standardCodeTotalCount ?? 4;
+  const standardCodeFilledCount = user?.standardCodeFilledCount ?? Math.max(0, standardCodeTotalCount - standardCodeMissingCount);
 
   // ── URL 파라미터 동기화 ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -730,15 +726,14 @@ export default function PoliciesPage() {
         if (!profile) {
           return;
         }
-        const missingCount = STANDARD_CODE_ENTRIES
-          .filter((entry) => !profile[entry.key])
-          .length;
+        const standardCodeCompletion = resolveStandardProfileCodeCompletion(profile);
         setUser({
           ...(profile.name ? { name: profile.name } : {}),
           ...(profile.email ? { email: profile.email } : {}),
           hasPriorities: Array.isArray(profile.priorities) && profile.priorities.length > 0,
-          standardCodeFilledCount: STANDARD_CODE_ENTRIES.length - missingCount,
-          standardCodeMissingCount: missingCount,
+          standardCodeFilledCount: standardCodeCompletion.filledCount,
+          standardCodeMissingCount: standardCodeCompletion.missingCount,
+          standardCodeTotalCount: standardCodeCompletion.totalCount,
         });
       })
       .catch((error) => {
@@ -1366,6 +1361,7 @@ export default function PoliciesPage() {
             <StandardCodePolicyPrompt
               missingCount={standardCodeMissingCount}
               filledCount={standardCodeFilledCount}
+              totalCount={standardCodeTotalCount}
               onNavigate={() => navigate("/mypage?tab=0")}
             />
           )}

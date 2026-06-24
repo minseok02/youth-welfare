@@ -21,6 +21,7 @@ import {
 import { performServerLogout } from "../lib/session";
 import { useAuthStore } from "../store/authStore";
 import { fetchProfileStandardCodebookOptions } from "../lib/officialCodebookOptions";
+import { resolveStandardProfileCodeCompletion } from "../lib/profileStandardCodes";
 import {
   REGIONS,
   REGION_TO_SIDO,
@@ -59,7 +60,8 @@ const PRIORITY_OPTIONS = [
   { value: "DEADLINE",      label: "마감임박",        bg: "#fee2e2" },
 ];
 
-const HOUSEHOLD_TYPES = ["1인가구", "한부모", "다자녀", "조손", "기타"];
+const EMPLOYMENT_STATUS_OPTIONS = ["재직중", "구직중", "학생", "해당 없음", "기타"];
+const HOUSEHOLD_TYPES = ["해당 없음", "1인가구", "한부모", "다자녀", "조손", "기타"];
 const TARGET_TYPE_OPTIONS = ["농어촌", "자립준비청년", "가족돌봄", "다문화", "북한이탈", "한부모", "조손", "보훈", "장애", "병역"];
 const NOTIFICATION_SCORE_OPTIONS = [
   { value: 0.3, label: "낮음 이상" },
@@ -288,9 +290,10 @@ function Toggle({ on, onChange }) {
   );
 }
 
-function ProfileBanner({ pct, missing, onComplete }) {
+function ProfileBanner({ pct, requiredMissing, recommendedMissing, onComplete, onRecommendedComplete }) {
   const r = 38, circumference = 2 * Math.PI * r;
-  const complete = pct >= 100;
+  const complete = requiredMissing.length === 0;
+  const hasRecommendedMissing = recommendedMissing.length > 0;
   return (
     <div style={{
       background: WHITE, border: `1px solid ${LINE}`, borderRadius: 18, padding: 24,
@@ -311,32 +314,41 @@ function ProfileBanner({ pct, missing, onComplete }) {
       </div>
       <div>
         <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6, color: INK }}>
-          {complete ? "프로필 완성도 100%예요" : "프로필을 완성하면 더 정확한 추천을 받을 수 있어요"}
+          {complete ? "기본 프로필이 준비되어 있어요" : "회원 기본정보를 확인해주세요"}
         </div>
         {complete ? (
-          <div style={{ fontSize: 12, color: INK3 }}>
-            기본 추천 정보가 모두 입력되어 있어요.
-          </div>
-        ) : missing.length > 0 && (
+          hasRecommendedMissing ? (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+              <span style={{ fontSize: 12, color: INK3 }}>추천 보강 가능:</span>
+              {recommendedMissing.map(m => (
+                <span key={m} style={{ fontSize: 12, color: INK2, background: BG, padding: "2px 10px", borderRadius: 99, fontWeight: 600 }}>{m}</span>
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize: 12, color: INK3 }}>
+              필수 기본정보가 입력되어 있어요.
+            </div>
+          )
+        ) : requiredMissing.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
-            <span style={{ fontSize: 12, color: INK3 }}>아직 입력하지 않은 항목:</span>
-            {missing.map(m => (
+            <span style={{ fontSize: 12, color: INK3 }}>아직 필요한 기본정보:</span>
+            {requiredMissing.map(m => (
               <span key={m} style={{ fontSize: 12, color: INK2, background: BG, padding: "2px 10px", borderRadius: 99, fontWeight: 600 }}>{m}</span>
             ))}
           </div>
         )}
       </div>
-      <button onClick={onComplete} style={{ padding: "12px 20px", borderRadius: 10, background: A, color: WHITE, border: 0, fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}
+      <button onClick={complete ? (hasRecommendedMissing ? onRecommendedComplete : onComplete) : onComplete} style={{ padding: "12px 20px", borderRadius: 10, background: A, color: WHITE, border: 0, fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}
         onMouseEnter={e => { e.currentTarget.style.background = A7; }}
         onMouseLeave={e => { e.currentTarget.style.background = A; }}
       >
-        {complete ? "프로필 수정" : "지금 완성하기 →"}
+        {complete ? (hasRecommendedMissing ? "선택정보 보완" : "프로필 수정") : "기본정보 입력 →"}
       </button>
     </div>
   );
 }
 
-function StandardCodePromptCard({ missingCount, filledCount, onComplete }) {
+function StandardCodePromptCard({ missingCount, filledCount, totalCount, onComplete }) {
   if (missingCount === 0) {
     return null;
   }
@@ -358,7 +370,7 @@ function StandardCodePromptCard({ missingCount, filledCount, onComplete }) {
           주거·복지 맞춤 정보를 더 채우면 추천 정확도가 올라갑니다
         </div>
         <div style={{ fontSize: 13, color: INK2, marginBottom: 10 }}>
-          현재 {filledCount}/4개 입력됨. 선택 프로필을 보완하면 자격조건 매칭과 점수 보정이 더 정확해집니다.
+          현재 {filledCount}/{totalCount}개 입력됨. 선택 프로필을 보완하면 자격조건 매칭과 점수 보정이 더 정확해집니다.
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
           <span
@@ -394,6 +406,7 @@ function StandardCodeSaveReminder({
   visible,
   missingCount,
   filledCount,
+  totalCount,
   hasPriorities,
   onComplete,
   onGoPriority,
@@ -426,8 +439,8 @@ function StandardCodeSaveReminder({
         </div>
         <div style={{ fontSize: 16, fontWeight: 800, color: INK, marginTop: 6 }}>
           {complete
-            ? "선택 프로필 4/4개가 추천에 반영됩니다"
-            : `선택 프로필 ${filledCount}/4개 입력됨`}
+            ? `선택 프로필 ${totalCount}/${totalCount}개가 추천에 반영됩니다`
+            : `선택 프로필 ${filledCount}/${totalCount}개 입력됨`}
         </div>
         <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.6 }}>
           {complete
@@ -495,7 +508,7 @@ function StandardCodeSaveReminder({
   );
 }
 
-function NotificationStandardCodePrompt({ missingCount, filledCount, onComplete }) {
+function NotificationStandardCodePrompt({ missingCount, filledCount, totalCount, onComplete }) {
   if (missingCount === 0) {
     return null;
   }
@@ -518,7 +531,7 @@ function NotificationStandardCodePrompt({ missingCount, filledCount, onComplete 
           알림 추천 기준 보강
         </div>
         <div style={{ fontSize: 16, fontWeight: 800, color: INK, marginTop: 6 }}>
-          선택 프로필 {filledCount}/4개 입력됨
+          선택 프로필 {filledCount}/{totalCount}개 입력됨
         </div>
         <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.6 }}>
           선택 프로필 {missingCount}개를 보완하면 마감 알림과 추천 요약에서 주거·복지 조건 매칭이 더 안정됩니다.
@@ -693,7 +706,6 @@ export default function MyPage() {
     basicLivingRecipientTypeCode: "", disabilityGradeCode: "",
   });
   const [profileCodeOptions, setProfileCodeOptions] = useState(EMPTY_PROFILE_CODE_OPTIONS);
-  const [profileCompleteness, setProfileCompleteness] = useState(null);
   const [profileAgeBand, setProfileAgeBand] = useState("");
   const [hasPhone, setHasPhone] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -757,15 +769,18 @@ export default function MyPage() {
   const districtOptions = getDistrictOptions(myInfo.region);
   const wardOptions = getWardOptions(myInfo.region, myInfo.subRegion);
   const isWardRequired = requiresWardSelection(myInfo.region, myInfo.subRegion);
-  const standardCodeMissingLabels = [
-    !myInfo.houseTenureCode && "주거형태",
-    !myInfo.housingTypeCode && "주택유형",
-    !myInfo.basicLivingRecipientTypeCode && "복지 수급 정보",
-    !myInfo.disabilityGradeCode && "장애 관련 지원 정보",
-  ].filter(Boolean);
-  const standardCodeFilledCount = 4 - standardCodeMissingLabels.length;
+  const standardCodeCompletion = resolveStandardProfileCodeCompletion({
+    houseTenureCode: myInfo.houseTenureCode,
+    housingTypeCode: myInfo.housingTypeCode,
+    basicLivingRecipientTypeCode: myInfo.basicLivingRecipientTypeCode,
+    disabilityGradeCode: myInfo.disabilityGradeCode,
+    sensitiveInfoConsentAgreed,
+  });
+  const standardCodeMissingLabels = standardCodeCompletion.missingLabels;
+  const standardCodeFilledCount = standardCodeCompletion.filledCount;
+  const standardCodeTotalCount = standardCodeCompletion.totalCount;
   const standardCodeBannerLabel = standardCodeMissingLabels.length > 0
-    ? `선택 프로필 ${standardCodeFilledCount}/4`
+    ? `선택 프로필 ${standardCodeFilledCount}/${standardCodeTotalCount}`
     : null;
   const hasOptionalProfileInput = Boolean(
     myInfo.region
@@ -781,6 +796,7 @@ export default function MyPage() {
     || targetTypes.length > 0
   );
   const hasSensitiveInfoInput = Boolean(myInfo.disabilityGradeCode);
+  const optionalProfileFieldDisabled = !editing || !optionalProfileConsentAgreed;
 
   // completion
   const hasCompleteAddress = Boolean(
@@ -788,34 +804,25 @@ export default function MyPage() {
     && myInfo.subRegion
     && (!isWardRequired || myInfo.ward)
   );
-  const localCompletionScore = [
-    myInfo.name ? 20 : 0,
-    myInfo.birthYear ? 20 : 0,
-    hasCompleteAddress ? 10 : 0,
-    myInfo.income ? 10 : 0,
-    myInfo.employ ? 10 : 0,
-    myInfo.householdType ? 10 : 0,
-    priorities.length > 0 ? 20 : 0,
-  ].reduce((sum, score) => sum + score, 0);
-  const localCompletionPct = Math.min(localCompletionScore, 100);
-  const completionPct = Math.max(profileCompleteness ?? 0, localCompletionPct);
-  const missingLabels = [
+  const requiredMissingLabels = [
     !myInfo.name && "이름",
     !myInfo.birthYear && "생년월일",
-    !hasCompleteAddress && "주소",
+  ].filter(Boolean);
+  const recommendedMissingLabels = [
+    !hasCompleteAddress && "거주지",
     !myInfo.income && "소득수준",
     !myInfo.employ && "취업상태",
     !myInfo.householdType && "가구 형태",
     standardCodeBannerLabel,
     priorities.length === 0 && "추천 우선순위",
   ].filter(Boolean);
-  const nextCompletionTab = (
-    !myInfo.name
-    || !myInfo.birthYear
-    || !hasCompleteAddress
+  const completionPct = Math.round(((2 - requiredMissingLabels.length) / 2) * 100);
+  const nextRecommendedCompletionTab = (
+    !hasCompleteAddress
     || !myInfo.income
     || !myInfo.employ
     || !myInfo.householdType
+    || standardCodeBannerLabel
   ) ? "info" : "pref";
 
   const focusStandardCodeSection = useCallback(() => {
@@ -873,7 +880,6 @@ export default function MyPage() {
           basicLivingRecipientTypeCode: p.basicLivingRecipientTypeCode ?? "",
           disabilityGradeCode: p.disabilityGradeCode ?? "",
         });
-        setProfileCompleteness(Number.isFinite(p.profileCompleteness) ? p.profileCompleteness : null);
         setProfileAgeBand(p.ageBand ?? "");
         setHasPhone(Boolean(p.hasPhone));
         setNotifOn(p.notificationYn ?? false);
@@ -994,13 +1000,13 @@ export default function MyPage() {
         optionalProfileConsentAgreed: hasOptionalProfileInput ? optionalProfileConsentAgreed : undefined,
         sensitiveInfoConsentAgreed: hasSensitiveInfoInput ? sensitiveInfoConsentAgreed : undefined,
       });
-      setProfileCompleteness(localCompletionPct);
       setUser({
         ...(myInfo.name ? { name: myInfo.name } : {}),
         hasPriorities: priorities.length > 0,
-          standardCodeFilledCount,
-          standardCodeMissingCount: standardCodeMissingLabels.length,
-        });
+        standardCodeFilledCount,
+        standardCodeMissingCount: standardCodeMissingLabels.length,
+        standardCodeTotalCount,
+      });
       setEditing(false);
       setStandardCodeSaveReminderOpen(true);
       if (standardCodeMissingLabels.length === 0 && priorities.length > 0) {
@@ -1008,9 +1014,9 @@ export default function MyPage() {
       } else if (standardCodeMissingLabels.length === 0) {
         showToast("저장되었습니다. 다음으로 우선순위를 설정하면 추천 결과가 더 안정적입니다");
       } else if (priorities.length > 0) {
-        showToast(`저장되었습니다. 선택 프로필 ${standardCodeFilledCount}/4개 입력됨 · 필요한 정보를 더 보완하면 추천이 더 정확해집니다`);
+        showToast(`저장되었습니다. 선택 프로필 ${standardCodeFilledCount}/${standardCodeTotalCount}개 입력됨 · 필요한 정보를 더 보완하면 추천이 더 정확해집니다`);
       } else {
-        showToast(`저장되었습니다. 선택 프로필 ${standardCodeFilledCount}/4개 입력됨 · 다음으로 우선순위를 설정하면 추천이 더 안정적입니다`);
+        showToast(`저장되었습니다. 선택 프로필 ${standardCodeFilledCount}/${standardCodeTotalCount}개 입력됨 · 다음으로 우선순위를 설정하면 추천이 더 안정적입니다`);
       }
     } catch (err) {
       const code = err?.response?.data?.errorCode;
@@ -1060,7 +1066,6 @@ export default function MyPage() {
         optionalProfileConsentAgreed,
       });
       setUser({ hasPriorities: true });
-      setProfileCompleteness(Math.max(profileCompleteness ?? 0, localCompletionPct));
       setStandardCodeSaveReminderOpen(true);
       if (standardCodeMissingLabels.length === 0) {
         showToast("우선순위와 특화 대상이 저장되었습니다. 현재 선택 프로필도 함께 추천에 반영됩니다");
@@ -1133,7 +1138,6 @@ export default function MyPage() {
         }));
         setPriorities([]);
         setTargetTypes([]);
-        setProfileCompleteness(null);
         showToast("추천용 선택정보 동의를 철회했습니다");
       } else if (consentType === "SENSITIVE_INFO") {
         setSensitiveInfoConsentAgreed(false);
@@ -1533,8 +1537,10 @@ export default function MyPage() {
 
         <ProfileBanner
           pct={completionPct}
-          missing={missingLabels}
-          onComplete={() => handleTabChange(nextCompletionTab)}
+          requiredMissing={requiredMissingLabels}
+          recommendedMissing={recommendedMissingLabels}
+          onComplete={() => handleTabChange("info")}
+          onRecommendedComplete={() => handleTabChange(nextRecommendedCompletionTab)}
         />
 
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "260px 1fr", gap: isMobile ? 16 : 28, alignItems: "flex-start" }}>
@@ -1602,18 +1608,31 @@ export default function MyPage() {
                   )}
                 </SectionCard>
 
+                <ConsentNotice
+                  checked={optionalProfileConsentAgreed}
+                  onChange={setOptionalProfileConsentAgreed}
+                  disabled={!editing}
+                  title="추천용 선택 개인정보 수집·이용 동의"
+                  description="지역, 소득수준, 취업상태, 가구형태, 주거 및 수급 관련 정보가 맞춤 추천에 사용됩니다."
+                  warning={hasOptionalProfileInput ? "이 정보를 저장하려면 동의가 필요합니다." : ""}
+                  withdrawLabel="선택정보 동의 철회"
+                  onWithdraw={() => setConsentWithdrawTarget("OPTIONAL_PROFILE")}
+                  withdrawDisabled={consentActionLoading !== ""}
+                  stacked={isMobile}
+                />
+
                 <SectionCard title="거주지" desc="지자체별 정책 추천에 사용돼요">
                   <div style={{ display: "grid", gridTemplateColumns: wardOptions.length > 0 ? "1fr 1fr 1fr" : "1fr 1fr", gap: 12 }}>
-                    <select style={selCss(!editing)} disabled={!editing} value={myInfo.region} onChange={e => setMyInfo({ ...myInfo, region: e.target.value, subRegion: "", ward: "" })}>
+                    <select style={selCss(optionalProfileFieldDisabled)} disabled={optionalProfileFieldDisabled} value={myInfo.region} onChange={e => setMyInfo({ ...myInfo, region: e.target.value, subRegion: "", ward: "" })}>
                       <option value="">시/도 선택</option>
                       {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
                     </select>
-                    <select style={selCss(!editing || districtOptions.length === 0)} disabled={!editing || districtOptions.length === 0} value={myInfo.subRegion} onChange={e => setMyInfo({ ...myInfo, subRegion: e.target.value, ward: "" })}>
+                    <select style={selCss(optionalProfileFieldDisabled || districtOptions.length === 0)} disabled={optionalProfileFieldDisabled || districtOptions.length === 0} value={myInfo.subRegion} onChange={e => setMyInfo({ ...myInfo, subRegion: e.target.value, ward: "" })}>
                       <option value="">시/군/구 선택</option>
                       {districtOptions.map(d => <option key={d} value={d}>{d}</option>)}
                     </select>
                     {wardOptions.length > 0 && (
-                      <select style={selCss(!editing)} disabled={!editing} value={myInfo.ward} onChange={e => setMyInfo({ ...myInfo, ward: e.target.value })}>
+                      <select style={selCss(optionalProfileFieldDisabled)} disabled={optionalProfileFieldDisabled} value={myInfo.ward} onChange={e => setMyInfo({ ...myInfo, ward: e.target.value })}>
                         <option value="">구 선택</option>
                         {wardOptions.map((value) => <option key={value} value={value}>{value}</option>)}
                       </select>
@@ -1622,15 +1641,15 @@ export default function MyPage() {
                 </SectionCard>
 
                 <SectionCard title="소득수준" desc="소득 기준이 있는 정책을 찾는 데 사용돼요. 두 기준 중 하나만 선택하면 돼요.">
-                  <div style={{ border: `1px solid ${LINE}`, borderRadius: 14, overflow: "hidden", opacity: editing ? 1 : 0.65, pointerEvents: editing ? "auto" : "none" }}>
+                  <div style={{ border: `1px solid ${LINE}`, borderRadius: 14, overflow: "hidden", opacity: optionalProfileFieldDisabled ? 0.65 : 1, pointerEvents: optionalProfileFieldDisabled ? "none" : "auto" }}>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", background: BG, padding: "12px 18px", fontSize: 12, fontWeight: 700, color: INK2, borderBottom: `1px solid ${LINE}` }}>
                       <div>분위 기준</div>
                       <div style={{ borderLeft: `1px solid ${LINE}`, paddingLeft: 18 }}>보기 쉬운 기준</div>
                     </div>
                     {INCOME_ROWS.map(row => (
-                      <label key={row.value} onClick={() => editing && setMyInfo({ ...myInfo, income: String(row.value) })} style={{
+                      <label key={row.value} onClick={() => !optionalProfileFieldDisabled && setMyInfo({ ...myInfo, income: String(row.value) })} style={{
                         display: "grid", gridTemplateColumns: "1fr 1fr", padding: "14px 18px",
-                        borderBottom: `1px solid ${LINE2}`, cursor: editing ? "pointer" : "default", alignItems: "center",
+                        borderBottom: `1px solid ${LINE2}`, cursor: optionalProfileFieldDisabled ? "default" : "pointer", alignItems: "center",
                         background: myInfo.income === String(row.value) ? AS : WHITE,
                       }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14 }}>
@@ -1649,18 +1668,18 @@ export default function MyPage() {
                   </button>
                 </SectionCard>
 
-                <SectionCard title="취업상태">
-                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 10 }}>
-                    {["재직중", "구직중", "학생", "기타"].map(v => {
+                <SectionCard title="취업상태" desc="'해당 없음'은 현재 해당되는 상태가 없다는 뜻이고, '기타'는 위 분류 밖의 다른 상태가 있다는 뜻입니다.">
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(5, 1fr)", gap: 10 }}>
+                    {EMPLOYMENT_STATUS_OPTIONS.map(v => {
                       const active = myInfo.employ === v;
                       return (
-                        <button key={v} onClick={() => editing && setMyInfo({ ...myInfo, employ: v })} style={{
+                        <button key={v} disabled={optionalProfileFieldDisabled} onClick={() => setMyInfo({ ...myInfo, employ: v })} style={{
                           padding: "14px 12px", borderRadius: 12,
                           border: `1.5px solid ${active ? A : LINE}`,
                           background: active ? AS : WHITE,
                           color: active ? AI : INK2,
-                          fontSize: 14, fontWeight: 700, textAlign: "center", cursor: editing ? "pointer" : "default",
-                          opacity: editing ? 1 : 0.65,
+                          fontSize: 14, fontWeight: 700, textAlign: "center", cursor: optionalProfileFieldDisabled ? "not-allowed" : "pointer",
+                          opacity: optionalProfileFieldDisabled ? 0.65 : 1,
                         }}>
                           {v}
                         </button>
@@ -1669,18 +1688,18 @@ export default function MyPage() {
                   </div>
                 </SectionCard>
 
-                <SectionCard title="가구 형태" desc="특화 대상 정책 매칭에 활용돼요">
-                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : "repeat(5, 1fr)", gap: 10 }}>
+                <SectionCard title="가구 형태" desc="'해당 없음'은 특화 가구 조건이 없다는 뜻이고, '기타'는 별도 특화 가구 조건이 있다는 뜻입니다.">
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(6, 1fr)", gap: 10 }}>
                     {HOUSEHOLD_TYPES.map(v => {
                       const active = myInfo.householdType === v;
                       return (
-                        <button key={v} onClick={() => editing && setMyInfo({ ...myInfo, householdType: v })} style={{
+                        <button key={v} disabled={optionalProfileFieldDisabled} onClick={() => setMyInfo({ ...myInfo, householdType: v })} style={{
                           padding: "14px 12px", borderRadius: 12,
                           border: `1.5px solid ${active ? A : LINE}`,
                           background: active ? AS : WHITE,
                           color: active ? AI : INK2,
-                          fontSize: 14, fontWeight: 700, textAlign: "center", cursor: editing ? "pointer" : "default",
-                          opacity: editing ? 1 : 0.65,
+                          fontSize: 14, fontWeight: 700, textAlign: "center", cursor: optionalProfileFieldDisabled ? "not-allowed" : "pointer",
+                          opacity: optionalProfileFieldDisabled ? 0.65 : 1,
                         }}>
                           {v}
                         </button>
@@ -1692,6 +1711,7 @@ export default function MyPage() {
                 <StandardCodePromptCard
                   missingCount={standardCodeMissingLabels.length}
                   filledCount={standardCodeFilledCount}
+                  totalCount={standardCodeTotalCount}
                   onComplete={focusStandardCodeSection}
                 />
 
@@ -1699,6 +1719,7 @@ export default function MyPage() {
                   visible={standardCodeSaveReminderOpen}
                   missingCount={standardCodeMissingLabels.length}
                   filledCount={standardCodeFilledCount}
+                  totalCount={standardCodeTotalCount}
                   hasPriorities={priorities.length > 0}
                   onComplete={focusStandardCodeSection}
                   onGoPriority={goToPrioritySettings}
@@ -1709,18 +1730,6 @@ export default function MyPage() {
                 <div id="profile-standard-code-section">
                 <SectionCard title="주거 및 생활 여건" desc="공식 코드북 기준으로 저장되어 주거·복지 자격조건 매칭 정확도를 높여요">
                   <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
-                    <ConsentNotice
-                      checked={optionalProfileConsentAgreed}
-                      onChange={setOptionalProfileConsentAgreed}
-                      disabled={!editing}
-                      title="추천용 선택 개인정보 수집·이용 동의"
-                      description="지역, 소득수준, 취업상태, 가구형태, 주거 및 수급 관련 정보가 맞춤 추천에 사용됩니다."
-                      warning={hasOptionalProfileInput ? "이 정보를 저장하려면 동의가 필요합니다." : ""}
-                      withdrawLabel="선택정보 동의 철회"
-                      onWithdraw={() => setConsentWithdrawTarget("OPTIONAL_PROFILE")}
-                      withdrawDisabled={consentActionLoading !== ""}
-                      stacked={isMobile}
-                    />
                     <ConsentNotice
                       checked={sensitiveInfoConsentAgreed}
                       onChange={setSensitiveInfoConsentAgreed}
@@ -1737,8 +1746,8 @@ export default function MyPage() {
                   <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
                     <Field label="주거형태">
                       <select
-                        style={selCss(!editing)}
-                        disabled={!editing}
+                        style={selCss(optionalProfileFieldDisabled)}
+                        disabled={optionalProfileFieldDisabled}
                         value={myInfo.houseTenureCode}
                         onChange={e => setMyInfo({ ...myInfo, houseTenureCode: e.target.value })}
                       >
@@ -1750,8 +1759,8 @@ export default function MyPage() {
                     </Field>
                     <Field label="주택유형">
                       <select
-                        style={selCss(!editing)}
-                        disabled={!editing}
+                        style={selCss(optionalProfileFieldDisabled)}
+                        disabled={optionalProfileFieldDisabled}
                         value={myInfo.housingTypeCode}
                         onChange={e => setMyInfo({ ...myInfo, housingTypeCode: e.target.value })}
                       >
@@ -1761,10 +1770,10 @@ export default function MyPage() {
                         ))}
                       </select>
                     </Field>
-                    <Field label="복지 수급 정보">
+                    <Field label="복지 수급 정보" hint="수급 대상이 아니면 '해당 없음'을 선택하세요. '선택 안 함'은 아직 답하지 않은 상태입니다.">
                       <select
-                        style={selCss(!editing)}
-                        disabled={!editing}
+                        style={selCss(optionalProfileFieldDisabled)}
+                        disabled={optionalProfileFieldDisabled}
                         value={myInfo.basicLivingRecipientTypeCode}
                         onChange={e => setMyInfo({ ...myInfo, basicLivingRecipientTypeCode: e.target.value })}
                       >
@@ -1774,7 +1783,7 @@ export default function MyPage() {
                         ))}
                       </select>
                     </Field>
-                    <Field label="장애 관련 지원 정보">
+                    <Field label="장애 관련 지원 정보" hint="장애 관련 지원 대상이 아니면 '해당 없음'을 선택하세요. 저장하려면 민감정보 동의가 필요합니다.">
                       <select
                         style={selCss(!editing || !sensitiveInfoConsentAgreed)}
                         disabled={!editing || !sensitiveInfoConsentAgreed}
@@ -1816,20 +1825,31 @@ export default function MyPage() {
             {/* ── 우선순위 ── */}
             {activeTab === "pref" && (
               <>
+                <ConsentNotice
+                  checked={optionalProfileConsentAgreed}
+                  onChange={setOptionalProfileConsentAgreed}
+                  disabled={priorityLoading}
+                  title="추천용 선택 개인정보 수집·이용 동의"
+                  description="우선순위와 특화 대상은 맞춤 추천 품질을 높이는 선택정보로 사용됩니다."
+                  warning={(priorities.length > 0 || targetTypes.length > 0) ? "우선순위와 특화 대상을 저장하려면 동의가 필요합니다." : ""}
+                  stacked={isMobile}
+                />
+
                 <SectionCard title="추천 우선순위" desc="최대 5개까지 선택할 수 있어요 · 순서가 곧 추천 우선순위예요">
                   <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 12 }}>
                     {PRIORITY_OPTIONS.map(c => {
                       const idx = priorities.indexOf(c.value);
                       const active = idx >= 0;
+                      const disabled = !optionalProfileConsentAgreed || (!active && priorities.length >= 5);
                       return (
                         <button key={c.value} onClick={() => togglePriority(c.value)}
-                          disabled={!active && priorities.length >= 5}
+                          disabled={disabled}
                           style={{
                             position: "relative", padding: "24px 14px 18px", borderRadius: 16,
                             border: `2px solid ${active ? A : LINE}`,
                             background: active ? AS : WHITE,
-                            textAlign: "center", cursor: (!active && priorities.length >= 5) ? "not-allowed" : "pointer",
-                            opacity: (!active && priorities.length >= 5) ? 0.5 : 1,
+                            textAlign: "center", cursor: disabled ? "not-allowed" : "pointer",
+                            opacity: disabled ? 0.5 : 1,
                           }}>
                           {active && (
                             <span style={{ position: "absolute", top: 8, right: 8, width: 22, height: 22, borderRadius: "50%", background: A, color: WHITE, fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1875,12 +1895,13 @@ export default function MyPage() {
                     {TARGET_TYPE_OPTIONS.map((value) => {
                       const active = targetTypes.includes(value);
                       return (
-                        <button key={value} onClick={() => toggleTargetType(value)} style={{
+                        <button key={value} disabled={!optionalProfileConsentAgreed} onClick={() => toggleTargetType(value)} style={{
                           padding: "12px 10px", borderRadius: 12,
                           border: `1.5px solid ${active ? A : LINE}`,
                           background: active ? AS : WHITE,
                           color: active ? AI : INK2,
-                          fontSize: 13, fontWeight: 700, cursor: "pointer",
+                          fontSize: 13, fontWeight: 700, cursor: optionalProfileConsentAgreed ? "pointer" : "not-allowed",
+                          opacity: optionalProfileConsentAgreed ? 1 : 0.5,
                         }}>
                           {value}
                         </button>
@@ -1888,16 +1909,6 @@ export default function MyPage() {
                     })}
                   </div>
                 </SectionCard>
-
-                <ConsentNotice
-                  checked={optionalProfileConsentAgreed}
-                  onChange={setOptionalProfileConsentAgreed}
-                  disabled={priorityLoading}
-                  title="추천용 선택 개인정보 수집·이용 동의"
-                  description="우선순위와 특화 대상은 맞춤 추천 품질을 높이는 선택정보로 사용됩니다."
-                  warning={(priorities.length > 0 || targetTypes.length > 0) ? "우선순위와 특화 대상을 저장하려면 동의가 필요합니다." : ""}
-                  stacked={isMobile}
-                />
 
                 <SaveBar onSave={handleSavePriorities} loading={priorityLoading} />
               </>
@@ -2191,6 +2202,7 @@ export default function MyPage() {
                   <NotificationStandardCodePrompt
                     missingCount={standardCodeMissingLabels.length}
                     filledCount={standardCodeFilledCount}
+                    totalCount={standardCodeTotalCount}
                     onComplete={focusStandardCodeSection}
                   />
 

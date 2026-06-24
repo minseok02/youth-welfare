@@ -5,6 +5,7 @@ import Header from "../components/Header";
 import FloatingNav from "../components/FloatingNav";
 import api from "../lib/axios";
 import { useAuthStore } from "../store/authStore";
+import { resolveStandardProfileCodeCompletion } from "../lib/profileStandardCodes";
 import { buildSafeReturnLocation, sanitizeTransientRouteState } from "../lib/safeNavigation";
 
 // ── 헬퍼 ──────────────────────────────────────────────────────────────────────
@@ -285,6 +286,8 @@ function HeroLoggedIn({
   secondDeadlinePolicy,
   hasPriorities,
   standardCodeMissingCount,
+  standardCodeFilledCount,
+  standardCodeTotalCount,
 }) {
   const isMobile = useMediaQuery("(max-width: 1199px)");
   return (
@@ -387,7 +390,7 @@ function HeroLoggedIn({
                 추천 정확도 보강
               </span>
               <span style={{ fontSize: 13, opacity: 0.9 }}>
-                선택 프로필 {4 - standardCodeMissingCount}/4 입력됨 · 더 정확한 추천을 위한 추가 정보가 있어요
+                선택 프로필 {standardCodeFilledCount}/{standardCodeTotalCount} 입력됨 · 더 정확한 추천을 위한 추가 정보가 있어요
               </span>
               <button
                 onClick={() => navigate("/mypage?tab=0")}
@@ -755,7 +758,7 @@ function CTASection({ navigate, teaserPolicies, onPolicyNavigate, authState }) {
   );
 }
 
-function StandardCodePromptBanner({ missingCount, filledCount, navigate }) {
+function StandardCodePromptBanner({ missingCount, filledCount, totalCount, navigate }) {
   if (!missingCount) return null;
   return (
     <section style={{
@@ -775,7 +778,7 @@ function StandardCodePromptBanner({ missingCount, filledCount, navigate }) {
           추천 정확도 보강
         </div>
         <div style={{ fontSize: 18, fontWeight: 800, color: INK, marginTop: 6, letterSpacing: "-0.02em" }}>
-          선택 프로필 {filledCount}/4개 입력됨
+          선택 프로필 {filledCount}/{totalCount}개 입력됨
         </div>
         <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.6 }}>
           선택 프로필 {missingCount}개를 더 보완하면 주거·복지 자격조건 매칭과 맞춤 추천이 더 정확해집니다.
@@ -806,6 +809,7 @@ function RecommendationRefreshStandardCodePrompt({
   mode,
   missingCount,
   filledCount,
+  totalCount,
   onComplete,
   onContinue,
   onDismiss,
@@ -833,7 +837,7 @@ function RecommendationRefreshStandardCodePrompt({
           추천 전 확인
         </div>
         <div style={{ fontSize: 17, fontWeight: 800, color: INK, marginTop: 6, letterSpacing: "-0.01em" }}>
-          선택 프로필 {filledCount}/4개 입력 상태입니다
+          선택 프로필 {filledCount}/{totalCount}개 입력 상태입니다
         </div>
         <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.6 }}>
           선택 프로필 {missingCount}개를 {actionLabel} 전에 보완하면 주거·복지 조건 매칭이 더 안정됩니다.
@@ -1046,7 +1050,8 @@ export default function MainPage() {
     from: returnLocation,
   };
   const standardCodeMissingCount = user?.standardCodeMissingCount ?? 0;
-  const standardCodeFilledCount = user?.standardCodeFilledCount ?? Math.max(0, 4 - standardCodeMissingCount);
+  const standardCodeTotalCount = user?.standardCodeTotalCount ?? 4;
+  const standardCodeFilledCount = user?.standardCodeFilledCount ?? Math.max(0, standardCodeTotalCount - standardCodeMissingCount);
   const shouldGateRecommendationRefresh = standardCodeMissingCount >= 3;
 
   useEffect(() => {
@@ -1062,11 +1067,11 @@ export default function MainPage() {
     }
 
     if (nudge.kind === "both") {
-      showToast(`로그인되었습니다. 우선순위와 선택 프로필 ${nudge.filledCount}/4 입력 상태를 함께 보완하면 추천 품질이 더 빨리 안정됩니다.`, "info");
+      showToast(`로그인되었습니다. 우선순위와 선택 프로필 ${nudge.filledCount}/${nudge.totalCount ?? 4} 입력 상태를 함께 보완하면 추천 품질이 더 빨리 안정됩니다.`, "info");
     } else if (nudge.kind === "priorities") {
       showToast("로그인되었습니다. 다음으로 우선순위를 설정하면 추천 품질이 더 안정됩니다.", "info");
     } else if (nudge.kind === "standardCodes") {
-      showToast(`로그인되었습니다. 선택 프로필 ${nudge.filledCount}/4 입력 상태입니다. 필요한 정보를 더 보완하면 추천 정확도가 올라갑니다.`, "info");
+      showToast(`로그인되었습니다. 선택 프로필 ${nudge.filledCount}/${nudge.totalCount ?? 4} 입력 상태입니다. 필요한 정보를 더 보완하면 추천 정확도가 올라갑니다.`, "info");
     }
 
     const nextState = { ...(sanitizeTransientRouteState(location.state) ?? {}) };
@@ -1121,19 +1126,14 @@ export default function MainPage() {
         if (!profile) {
           return;
         }
-        const standardCodeKeys = [
-          "houseTenureCode",
-          "housingTypeCode",
-          "basicLivingRecipientTypeCode",
-          "disabilityGradeCode",
-        ];
-        const missingCount = standardCodeKeys.filter((key) => !profile[key]).length;
+        const standardCodeCompletion = resolveStandardProfileCodeCompletion(profile);
         setUser({
           ...(profile.name ? { name: profile.name } : {}),
           ...(profile.email ? { email: profile.email } : {}),
           hasPriorities: Array.isArray(profile.priorities) && profile.priorities.length > 0,
-          standardCodeFilledCount: standardCodeKeys.length - missingCount,
-          standardCodeMissingCount: missingCount,
+          standardCodeFilledCount: standardCodeCompletion.filledCount,
+          standardCodeMissingCount: standardCodeCompletion.missingCount,
+          standardCodeTotalCount: standardCodeCompletion.totalCount,
         });
       })
       .catch((err) => {
@@ -1247,7 +1247,7 @@ export default function MainPage() {
       return;
     }
     if (standardCodeMissingCount > 0) {
-      showToast(`선택 프로필 ${standardCodeFilledCount}/4 입력 상태로 추천을 새로 불러옵니다. 필요한 정보를 더 보완하면 추천이 더 정확해집니다.`, "info");
+      showToast(`선택 프로필 ${standardCodeFilledCount}/${standardCodeTotalCount} 입력 상태로 추천을 새로 불러옵니다. 필요한 정보를 더 보완하면 추천이 더 정확해집니다.`, "info");
     }
     setRefreshingRec(true);
     try {
@@ -1274,7 +1274,7 @@ export default function MainPage() {
       return;
     }
     if (standardCodeMissingCount > 0) {
-      showToast(`선택 프로필 ${standardCodeFilledCount}/4 입력 상태로 개인 맞춤 재추천을 진행합니다. 필요한 정보를 더 보완하면 추천이 더 정교해집니다.`, "info");
+      showToast(`선택 프로필 ${standardCodeFilledCount}/${standardCodeTotalCount} 입력 상태로 개인 맞춤 재추천을 진행합니다. 필요한 정보를 더 보완하면 추천이 더 정교해집니다.`, "info");
     }
     setPersonalRefreshing(true);
     try {
@@ -1325,6 +1325,8 @@ export default function MainPage() {
             secondDeadlinePolicy={deadlinePolicies[1]}
             hasPriorities={Boolean(user?.hasPriorities)}
             standardCodeMissingCount={standardCodeMissingCount}
+            standardCodeFilledCount={standardCodeFilledCount}
+            standardCodeTotalCount={standardCodeTotalCount}
           />
         ) : (
           <HeroNonLogin
@@ -1341,6 +1343,7 @@ export default function MainPage() {
           <StandardCodePromptBanner
             missingCount={standardCodeMissingCount}
             filledCount={standardCodeFilledCount}
+            totalCount={standardCodeTotalCount}
             navigate={navigate}
           />
         )}
@@ -1349,6 +1352,7 @@ export default function MainPage() {
             mode={standardCodeRefreshPrompt}
             missingCount={standardCodeMissingCount}
             filledCount={standardCodeFilledCount}
+            totalCount={standardCodeTotalCount}
             onComplete={redirectToProfileInfo}
             onContinue={() => {
               const mode = standardCodeRefreshPrompt;

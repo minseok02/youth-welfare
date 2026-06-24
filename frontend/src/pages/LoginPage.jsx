@@ -4,6 +4,7 @@ import { Snackbar, Alert, CircularProgress } from "@mui/material";
 import HomeIcon from "@mui/icons-material/Home";
 import { useAuthStore } from "../store/authStore";
 import api from "../lib/axios";
+import { resolveStandardProfileCodeCompletion } from "../lib/profileStandardCodes";
 import { resolveSafeRouteTarget, sanitizePostLoginAction } from "../lib/safeNavigation";
 
 const A = "#2563eb", A7 = "#1d4ed8";
@@ -35,13 +36,8 @@ export default function LoginPage() {
   const [toast, setToast] = useState({ open: false, msg: "" });
 
   const buildPostLoginRecommendationNudge = (profile, effectiveHasPriorities) => {
-    const standardCodeKeys = [
-      "houseTenureCode",
-      "housingTypeCode",
-      "basicLivingRecipientTypeCode",
-      "disabilityGradeCode",
-    ];
-    const missingCount = standardCodeKeys.filter((key) => !profile?.[key]).length;
+    const standardCodeCompletion = resolveStandardProfileCodeCompletion(profile);
+    const missingCount = standardCodeCompletion.missingCount;
 
     if (effectiveHasPriorities && missingCount === 0) {
       return null;
@@ -53,7 +49,8 @@ export default function LoginPage() {
         : !effectiveHasPriorities
           ? "priorities"
           : "standardCodes",
-      filledCount: standardCodeKeys.length - missingCount,
+      filledCount: standardCodeCompletion.filledCount,
+      totalCount: standardCodeCompletion.totalCount,
     };
   };
 
