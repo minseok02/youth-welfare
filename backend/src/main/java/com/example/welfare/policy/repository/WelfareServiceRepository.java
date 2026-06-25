@@ -958,6 +958,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                    ws.lastModifiedAt as lastModifiedAt
             FROM WelfareService ws
             WHERE ws.status IN :statuses
+              AND (ws.applyEndDate IS NULL OR ws.applyEndDate >= CURRENT_DATE)
             """)
     List<PolicyRankingReadRepository.RankableServiceSnapshot> findRankableSnapshotsByStatusIn(
             @Param("statuses") List<WelfareService.ServiceStatus> statuses

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { subscribeAuthExpired } from "../lib/authSessionEvents";
 import { useAuthStore } from "../store/authStore";
 import { buildSafeReturnLocation } from "../lib/safeNavigation";
 
@@ -11,9 +12,6 @@ export default function AuthExpiryHandler({ children }) {
 
   useEffect(() => {
     if (!isLoggedIn) {
-      if (window.__authExpired) {
-        delete window.__authExpired;
-      }
       return undefined;
     }
 
@@ -28,13 +26,7 @@ export default function AuthExpiryHandler({ children }) {
       });
     };
 
-    window.__authExpired = handleAuthExpired;
-
-    return () => {
-      if (window.__authExpired === handleAuthExpired) {
-        delete window.__authExpired;
-      }
-    };
+    return subscribeAuthExpired(handleAuthExpired);
   }, [clearSession, isLoggedIn, navigate, returnLocation]);
 
   return children;

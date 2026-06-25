@@ -1,5 +1,6 @@
 package com.example.welfare.integration;
 
+import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.user.dto.response.UserPiiSyncStatusResponse;
 import com.example.welfare.user.entity.UserPiiSyncQueue;
 import com.example.welfare.user.entity.UserPiiSyncQueueStatus;
@@ -80,13 +81,13 @@ class UserPiiSyncStatusIntegrationTest {
         assertThat(response.pendingCount()).isEqualTo(baseline.pendingCount() + 1);
         assertThat(response.failedCount()).isEqualTo(baseline.failedCount() + 2);
         assertThat(response.syncedCount()).isEqualTo(baseline.syncedCount() + 1);
-        assertThat(response.oldestPendingUserKey()).isEqualTo(pendingKey);
+        assertThat(response.oldestPendingUserKeyHash()).isEqualTo(RedisKeyHash.sha256Hex(pendingKey));
         assertThat(response.oldestPendingEnqueuedAt()).isEqualTo(baseTime);
-        assertThat(response.oldestFailedUserKey()).isEqualTo(failedHighAttemptKey);
+        assertThat(response.oldestFailedUserKeyHash()).isEqualTo(RedisKeyHash.sha256Hex(failedHighAttemptKey));
         assertThat(response.oldestFailedAttemptAt()).isEqualTo(baseTime.plusMinutes(5));
         assertThat(response.latestSyncedAt()).isEqualTo(LocalDateTime.of(2099, 1, 1, 0, 0, 0));
         assertThat(response.failedSamples()).hasSize(1);
-        assertThat(response.failedSamples().get(0).userKey()).isEqualTo(failedHighAttemptKey);
+        assertThat(response.failedSamples().get(0).userKeyHash()).isEqualTo(RedisKeyHash.sha256Hex(failedHighAttemptKey));
         assertThat(response.failedSamples().get(0).attemptCount()).isEqualTo(999);
         assertThat(response.failedSamples().get(0).lastError()).isEqualTo("app_pii timeout");
     }

@@ -53,6 +53,7 @@ public interface ServiceViewLogRepository extends JpaRepository<ServiceViewLog, 
             JOIN svl.service ws
             WHERE svl.viewedAt >= :cutoff
               AND ws.status IN :statuses
+              AND (ws.applyEndDate IS NULL OR ws.applyEndDate >= CURRENT_DATE)
             GROUP BY svl.service.id
             """)
     List<ServiceUniqueViewCount> findUniqueViewCountsSinceForStatuses(@Param("statuses") Collection<WelfareService.ServiceStatus> statuses,

@@ -6,6 +6,7 @@ COMPOSE_FILE="${COMPOSE_FILE:-${ROOT_DIR}/docker-compose.yml}"
 ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env}"
 SKIP_COMPOSE_CONFIG="${SKIP_COMPOSE_CONFIG:-false}"
 PRINT_SUMMARY="${PRINT_SUMMARY:-false}"
+ALLOW_SHARED_RUNTIME_DB_PASSWORDS="${ALLOW_SHARED_RUNTIME_DB_PASSWORDS:-false}"
 COMPOSE_CONFIG_STATUS="not-run"
 
 trim() {
@@ -222,6 +223,41 @@ password_state() {
   printf "missing\n"
 }
 
+assert_distinct_runtime_db_passwords() {
+  if [[ "${ALLOW_SHARED_RUNTIME_DB_PASSWORDS}" == "true" ]]; then
+    return 0
+  fi
+
+  local names=(
+    DB_PASSWORD
+    DB_MIGRATION_PASSWORD
+    DB_ADMIN_RO_PASSWORD
+    DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD
+    DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD
+    DB_CHAT_SESSION_CLEANUP_PASSWORD
+    DB_CLUSTER_AI_CLEANUP_PASSWORD
+    DB_RECOMMENDATION_RETENTION_CLEANUP_PASSWORD
+    DB_COLLECT_EXECUTION_LOCK_CLEANUP_PASSWORD
+    DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_PASSWORD
+    DB_APP_PII_PASSWORD
+    DB_NOTIFICATION_PII_RO_PASSWORD
+  )
+
+  local left_name right_name left_value right_value i j
+  for ((i = 0; i < ${#names[@]}; i++)); do
+    left_name="${names[$i]}"
+    left_value="${!left_name:-}"
+    for ((j = i + 1; j < ${#names[@]}; j++)); do
+      right_name="${names[$j]}"
+      right_value="${!right_name:-}"
+      if [[ -n "${left_value}" && "${left_value}" == "${right_value}" ]]; then
+        echo "runtime DB role passwords must be distinct: ${left_name} and ${right_name} are identical. Set ALLOW_SHARED_RUNTIME_DB_PASSWORDS=true only for non-production/local exceptions." >&2
+        exit 1
+      fi
+    done
+  done
+}
+
 validate_env() {
   require_non_empty DB_URL "${DB_URL:-}"
   require_non_empty DB_USERNAME "${DB_USERNAME:-}"
@@ -293,6 +329,8 @@ validate_env() {
     echo "secondary datasource URLs must not reuse DB_URL exactly; they must target the PII schema" >&2
     exit 1
   fi
+
+  assert_distinct_runtime_db_passwords
 }
 
 describe_runtime_target() {
@@ -375,6 +413,7 @@ runtime cutover env summary
 - DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_USERNAME: ${DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_USERNAME}
 - DB_APP_PII_USERNAME: ${DB_APP_PII_USERNAME}
 - DB_NOTIFICATION_PII_RO_USERNAME: ${DB_NOTIFICATION_PII_RO_USERNAME}
+- runtime DB password separation: $([[ "${ALLOW_SHARED_RUNTIME_DB_PASSWORDS}" == "true" ]] && printf "skipped (ALLOW_SHARED_RUNTIME_DB_PASSWORDS=true)" || printf "enforced")
 - DB_PASSWORD: $(password_state "${DB_PASSWORD:-}")
 - DB_MIGRATION_PASSWORD: $(password_state "${DB_MIGRATION_PASSWORD:-}")
 - DB_ADMIN_RO_PASSWORD: $(password_state "${DB_ADMIN_RO_PASSWORD:-}")

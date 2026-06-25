@@ -28,6 +28,14 @@ import SendRoundedIcon from "@mui/icons-material/SendRounded";
 import Header from "../components/Header";
 import FloatingNav from "../components/FloatingNav";
 import api from "../lib/axios";
+import {
+  extractLatestChatAnswerMeta,
+  formatChatMessageTime,
+  formatChatRelativeTime,
+  mapChatBranchSuggestion,
+  mapChatMessage,
+  mapChatSession,
+} from "../lib/chatDisplay";
 import { sanitizeTransientRouteState } from "../lib/safeNavigation";
 
 const SUGGESTED_PROMPTS = [
@@ -54,129 +62,8 @@ const isTimeoutError = (error) => (
   || /timeout|시간이 초과/i.test(error?.message ?? "")
 );
 
-const formatSessionTitle = (title) => title?.trim() || "새 대화";
-
-const formatRelativeTime = (dateText) => {
-  if (!dateText) {
-    return "";
-  }
-
-  const value = new Date(dateText);
-  if (Number.isNaN(value.getTime())) {
-    return "";
-  }
-
-  return new Intl.DateTimeFormat("ko-KR", {
-    month: "numeric",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(value);
-};
-
-const formatMessageTime = (dateText) => {
-  if (!dateText) {
-    return "방금 전";
-  }
-
-  const value = new Date(dateText);
-  if (Number.isNaN(value.getTime())) {
-    return "방금 전";
-  }
-
-  return new Intl.DateTimeFormat("ko-KR", {
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(value);
-};
-
-const EXTERNAL_URL_PROTOCOLS = new Set(["http:", "https:"]);
-
-const normalizeSafeExternalUrl = (value) => {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : trimmed.startsWith("www.") ? `https://${trimmed}` : trimmed;
-
-  try {
-    const parsed = new URL(candidate);
-    return EXTERNAL_URL_PROTOCOLS.has(parsed.protocol) ? parsed.toString() : null;
-  } catch {
-    return null;
-  }
-};
-
 const sanitizeChatRouteState = (state) => {
   return sanitizeTransientRouteState(state) ?? {};
-};
-
-const mapSession = (session) => ({
-  sessionId: session.sessionId,
-  title: formatSessionTitle(session.title),
-  lastMessageAt: session.lastMessageAt,
-  createdAt: session.createdAt,
-});
-
-const mapBranchSuggestion = (option) => ({
-  branchKey: option.branchKey,
-  label: option.label,
-  guideQuestion: option.guideQuestion,
-});
-
-const mapReference = (reference) => ({
-  serviceId: reference.serviceId,
-  title: reference.title,
-  reason: reference.reason,
-  evidence: reference.evidence,
-  actionLinks: (reference.actionLinks ?? [])
-    .map((link) => ({
-      type: link.type,
-      label: link.label,
-      url: normalizeSafeExternalUrl(link.url),
-      description: link.description,
-    }))
-    .filter((link) => link.url),
-});
-
-const mapMessage = (message) => {
-  const references = (message.references ?? []).map(mapReference);
-  const referencedServiceIds = (message.referencedServiceIds?.length
-    ? message.referencedServiceIds
-    : references.map((reference) => reference.serviceId)
-  ).filter(Boolean);
-
-  return {
-    messageId: message.messageId,
-    role: message.role,
-    content: message.content,
-    referencedServiceIds,
-    references,
-    answerMode: message.answerMode ?? null,
-    needsClarification: Boolean(message.needsClarification),
-    branchSuggestions: (message.branchSuggestions ?? []).map(mapBranchSuggestion),
-    createdAt: message.createdAt,
-  };
-};
-
-const extractLatestAnswerMeta = (messages) => {
-  const latestAssistant = [...messages].reverse().find((message) => message.role === "ASSISTANT");
-  if (!latestAssistant) {
-    return null;
-  }
-
-  const hasStructuredMeta = latestAssistant.answerMode
-    || latestAssistant.needsClarification
-    || latestAssistant.branchSuggestions.length > 0;
-  if (!hasStructuredMeta) {
-    return null;
-  }
-
-  return {
-    answer: latestAssistant.content ?? "",
-    answerMode: latestAssistant.answerMode ?? null,
-    needsClarification: Boolean(latestAssistant.needsClarification),
-    branchSuggestions: latestAssistant.branchSuggestions,
-  };
 };
 
 export default function ChatPage() {
@@ -306,7 +193,7 @@ export default function ChatPage() {
     setLoadingSessions(true);
     try {
       const { data } = await api.get("/api/chat/sessions");
-      const nextSessions = (data?.data ?? []).map(mapSession);
+      const nextSessions = (data?.data ?? []).map(mapChatSession);
       setSessions(nextSessions);
       setActiveSessionId((current) => {
         const candidate = preferredSessionId ?? stateSessionIdRef.current ?? querySessionIdRef.current ?? current;
@@ -342,9 +229,9 @@ export default function ChatPage() {
     setLoadingMessages(true);
     try {
       const { data } = await api.get(`/api/chat/sessions/${sessionId}/messages`);
-      const nextMessages = (data?.data ?? []).map(mapMessage);
+      const nextMessages = (data?.data ?? []).map(mapChatMessage);
       setMessages(nextMessages);
-      setLatestAnswerMeta(extractLatestAnswerMeta(nextMessages));
+      setLatestAnswerMeta(extractLatestChatAnswerMeta(nextMessages));
       const referenceMeta = Object.fromEntries(
         nextMessages
           .flatMap((message) => message.references ?? [])
@@ -439,7 +326,7 @@ export default function ChatPage() {
     setCreatingSession(true);
     try {
       const { data } = await api.post("/api/chat/sessions");
-      const createdSession = mapSession(data?.data ?? {});
+      const createdSession = mapChatSession(data?.data ?? {});
       setSessions((prev) => [createdSession, ...prev.filter((session) => session.sessionId !== createdSession.sessionId)]);
       setActiveSessionId(createdSession.sessionId);
       setMessages([]);
@@ -562,7 +449,7 @@ export default function ChatPage() {
         answer: payload?.answer ?? "",
         answerMode: payload?.answerMode ?? null,
         needsClarification: Boolean(payload?.needsClarification),
-        branchSuggestions: (payload?.branchSuggestions ?? []).map(mapBranchSuggestion),
+        branchSuggestions: (payload?.branchSuggestions ?? []).map(mapChatBranchSuggestion),
       });
 
       await Promise.all([loadSessions(sessionId), loadMessages(sessionId)]);
@@ -760,7 +647,7 @@ export default function ChatPage() {
                             secondary={
                               <Stack spacing={0.5} sx={{ mt: 0.5 }}>
                                 <Typography variant="caption" color="text.secondary" noWrap>
-                                  {formatRelativeTime(session.lastMessageAt || session.createdAt)}
+                                  {formatChatRelativeTime(session.lastMessageAt || session.createdAt)}
                                 </Typography>
                                 <Typography variant="caption" color="text.secondary" noWrap>
                                   대화 기록
@@ -873,7 +760,7 @@ export default function ChatPage() {
                                   {message.role === "USER" ? "나" : "정책 상담"}
                                 </Typography>
                                 <Typography variant="caption" color="text.secondary">
-                                  {formatMessageTime(message.createdAt)}
+                                  {formatChatMessageTime(message.createdAt)}
                                 </Typography>
                               </Stack>
 

@@ -6,7 +6,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -91,5 +95,95 @@ class CollectBatchServiceTest {
 
         assertThat(result.completedWithFailures()).isFalse();
         verify(collectListDiffService, never()).recordSnapshot(any(), any());
+    }
+
+    @Test
+    @DisplayName("collectAllNow 는 list source 완료 후 forced detail 을 실행하고 그 뒤 rotation detail 을 실행한다")
+    void collectAllRunsForcedDetailsAfterAllListSourcesAndBeforeRotation() {
+        List<String> calls = new ArrayList<>();
+
+        ReflectionTestUtils.setField(
+                collectBatchService,
+                "clock",
+                Clock.fixed(Instant.parse("2026-06-22T17:00:00Z"), ZoneId.of(CollectBatchService.SCHEDULE_ZONE))
+        );
+        ReflectionTestUtils.setField(collectBatchService, "rotationEnabled", true);
+        ReflectionTestUtils.setField(collectBatchService, "gov24DetailRotationMaxCalls", 50);
+
+        doAnswer(invocation -> {
+            Runnable task = invocation.getArgument(1);
+            task.run();
+            return null;
+        }).when(collectExecutionGuard).runExclusive(eq("collect-all"), any(Runnable.class));
+        doAnswer(invocation -> {
+            CollectSource source = invocation.getArgument(0);
+            calls.add("list:" + source.name());
+            return CollectResult.of(10, 10, 0, 0, 0);
+        }).when(collectSourceExecutionService).collectSource(any());
+        when(collectListDiffService.recordSnapshot(any(), any())).thenAnswer(invocation -> {
+            CollectSource source = invocation.getArgument(0);
+            return new CollectListDiffService.CollectListDiff(
+                    source,
+                    100L + source.ordinal(),
+                    99L,
+                    false,
+                    100,
+                    source == CollectSource.GOV24 ? 2 : 0,
+                    0,
+                    0,
+                    source == CollectSource.GOV24 ? List.of("GOV-A", "GOV-B") : List.of(),
+                    List.of(),
+                    List.of()
+            );
+        });
+        when(collectListChangePolicy.decide(any())).thenAnswer(invocation -> {
+            CollectListDiffService.CollectListDiff diff = invocation.getArgument(0);
+            if (diff.source() == CollectSource.GOV24) {
+                return new CollectListChangePolicy.Decision(
+                        true,
+                        false,
+                        "FORCE_DETAIL test",
+                        List.of("GOV-A", "GOV-B")
+                );
+            }
+            return new CollectListChangePolicy.Decision(false, false, "BELOW_THRESHOLD test", List.of());
+        });
+        doAnswer(invocation -> {
+            calls.add("forced:gov24-detail:" + invocation.getArgument(0));
+            return CollectResult.of(1, 1, 0, 0, 0);
+        }).when(collectSourceExecutionService).collectGov24DetailsForSourceId(any());
+        doAnswer(invocation -> {
+            calls.add("forced:gov24-support:" + invocation.getArgument(0));
+            return CollectResult.of(1, 1, 0, 0, 0);
+        }).when(collectSourceExecutionService).collectGov24SupportConditionsForSourceId(any());
+        doAnswer(invocation -> {
+            calls.add("rotation:gov24-detail:" + invocation.getArgument(0));
+            return CollectResult.of(50, 10, 40, 0, 0);
+        }).when(collectSourceExecutionService).collectGov24Details(50);
+
+        CollectBatchRunResult result = collectBatchService.collectAllNow();
+
+        assertThat(calls).containsExactly(
+                "list:YOUTH",
+                "list:BOKJIRO_CENTRAL",
+                "list:BOKJIRO_LOCAL",
+                "list:GOV24",
+                "forced:gov24-detail:GOV-A",
+                "forced:gov24-detail:GOV-B",
+                "forced:gov24-support:GOV-A",
+                "forced:gov24-support:GOV-B",
+                "rotation:gov24-detail:50"
+        );
+        assertThat(result.sourceResults())
+                .extracting(sourceResult -> sourceResult.source().name())
+                .containsExactly(
+                        "YOUTH",
+                        "BOKJIRO_CENTRAL",
+                        "BOKJIRO_LOCAL",
+                        "GOV24",
+                        "GOV24_DETAIL",
+                        "GOV24_SUPPORT_CONDITIONS",
+                        "GOV24_DETAIL"
+                );
     }
 }

@@ -35,7 +35,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * 수집 배치 수동 트리거 — 로컬/개발 환경 전용 (prod 프로파일에서 비활성화)
+ * 수집 배치 수동 트리거 — 관리자 권한과 운영 rate limit으로 보호한다.
  */
 @Slf4j
 @RestController

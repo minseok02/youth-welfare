@@ -207,6 +207,20 @@ check_login pii_rw "${DB_APP_PII_USERNAME}" "${DB_APP_PII_PASSWORD}"
 check_login notification_pii_ro "${DB_NOTIFICATION_PII_RO_USERNAME}" "${DB_NOTIFICATION_PII_RO_PASSWORD}"
 check_login migration "${DB_MIGRATION_USERNAME}" "${DB_MIGRATION_PASSWORD}"
 
+expect_master_bool admin_ro_policy_error_reports_select t \
+  "select has_table_privilege('${DB_ADMIN_RO_USERNAME}', 'public.policy_error_reports', 'SELECT')"
+expect_master_bool admin_ro_support_inquiries_select t \
+  "select has_table_privilege('${DB_ADMIN_RO_USERNAME}', 'public.support_inquiries', 'SELECT')"
+expect_master_bool admin_ro_policy_duplicate_review_records_select t \
+  "select has_table_privilege('${DB_ADMIN_RO_USERNAME}', 'public.policy_duplicate_review_records', 'SELECT')"
+expect_master_bool admin_ro_notification_attempt_logs_select t \
+  "select has_table_privilege('${DB_ADMIN_RO_USERNAME}', 'public.notification_attempt_logs', 'SELECT')"
+expect_master_bool admin_ro_support_inquiries_insert f \
+  "select has_table_privilege('${DB_ADMIN_RO_USERNAME}', 'public.support_inquiries', 'INSERT')"
+expect_master_bool admin_ro_support_inquiries_update f \
+  "select has_table_privilege('${DB_ADMIN_RO_USERNAME}', 'public.support_inquiries', 'UPDATE')"
+expect_master_bool admin_ro_support_inquiries_delete f \
+  "select has_table_privilege('${DB_ADMIN_RO_USERNAME}', 'public.support_inquiries', 'DELETE')"
 expect_master_bool app_core_rw_chat_sessions_delete f \
   "select has_table_privilege('${DB_USERNAME}', 'public.chat_sessions', 'DELETE')"
 expect_master_bool app_core_rw_cluster_ai_results_delete f \
@@ -289,6 +303,12 @@ expect_master_bool notification_pii_ro_user_pii_select_user_key t \
   "select has_column_privilege('${DB_NOTIFICATION_PII_RO_USERNAME}', 'youth_welfare_pii.user_pii', 'user_key', 'SELECT')"
 expect_master_bool notification_pii_ro_user_pii_select_email_enc t \
   "select has_column_privilege('${DB_NOTIFICATION_PII_RO_USERNAME}', 'youth_welfare_pii.user_pii', 'email_enc', 'SELECT')"
+expect_master_bool notification_pii_ro_user_pii_select_name_enc f \
+  "select has_column_privilege('${DB_NOTIFICATION_PII_RO_USERNAME}', 'youth_welfare_pii.user_pii', 'name_enc', 'SELECT')"
+expect_master_bool notification_pii_ro_user_pii_select_birth_date_enc f \
+  "select has_column_privilege('${DB_NOTIFICATION_PII_RO_USERNAME}', 'youth_welfare_pii.user_pii', 'birth_date_enc', 'SELECT')"
+expect_master_bool notification_pii_ro_user_pii_insert f \
+  "select has_table_privilege('${DB_NOTIFICATION_PII_RO_USERNAME}', 'youth_welfare_pii.user_pii', 'INSERT')"
 
 if [[ "${PRINT_SUMMARY}" == "true" ]]; then
   echo "rds runtime privilege verification passed"

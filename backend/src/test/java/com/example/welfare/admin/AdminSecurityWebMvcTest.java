@@ -3359,8 +3359,10 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.pendingCount").value(2))
                 .andExpect(jsonPath("$.data.failedCount").value(1))
-                .andExpect(jsonPath("$.data.oldestPendingUserKey").value("pending-user"))
-                .andExpect(jsonPath("$.data.oldestFailedUserKey").value("failed-user"))
+                .andExpect(jsonPath("$.data.oldestPendingUserKeyHash").value("pending-user"))
+                .andExpect(jsonPath("$.data.oldestFailedUserKeyHash").value("failed-user"))
+                .andExpect(jsonPath("$.data.oldestPendingUserKey").doesNotExist())
+                .andExpect(jsonPath("$.data.oldestFailedUserKey").doesNotExist())
                 .andExpect(jsonPath("$.data.failedSamples").isArray());
 
         then(userPiiSyncStatusService).should().getStatus(3);

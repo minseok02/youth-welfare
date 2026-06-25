@@ -78,6 +78,8 @@
 - `api_sync_logs` latest row
 - requested / saved / failed count
 - list run이면 `collect_list_snapshots` latest row의 `new_count / changed_count / missing_count`
+- 외부 API 재호출 없이 DB 이력만 먼저 볼 때는 `bash deploy/smoke/run-local-collect-external-api-smoke.sh`
+- 앱이 RDS-backed prod profile이면 `ENV_FILE=.env.production SMOKE_DB_MODE=postgres` 로 앱 DB와 smoke DB를 맞춘다.
 
 ### 필요 시 추가 확인
 
@@ -112,6 +114,9 @@
 - `api_sync_logs` row 없음
 - list snapshot의 `missing_count` 가 대량으로 증가했는데 upstream 장애/필터 변경 설명이 없는 경우
 - forced detail 후보가 반복적으로 실패해 같은 sourceId가 계속 남는 경우
+
+`api_sync_logs`와 `raw_api_payloads`가 모두 비어 있으면 `NO_COLLECT_HISTORY`로 분리합니다. 이는 실패가 아니라 source 품질을 결론 낼 수 없는 로컬 DB 상태입니다.
+단, 앱 화면/로그에는 정책 데이터가 많은데 smoke가 `NO_COLLECT_HISTORY`를 내면 먼저 smoke가 로컬 Docker DB를 보고 있는지 확인합니다.
 
 ## 5. collect 후 downstream 확인 여부
 

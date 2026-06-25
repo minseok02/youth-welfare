@@ -37,7 +37,15 @@ function FullScreenSpinner() {
 }
 
 export default function AuthBootstrap({ children }) {
-  const { authReady, login, clearSession, setUser } = useAuthStore();
+  const {
+    authReady,
+    login,
+    clearSession,
+    setUser,
+    markProfileHydrationStarted,
+    markProfileHydrationSucceeded,
+    markProfileHydrationFailed,
+  } = useAuthStore();
   const [bootstrapping, setBootstrapping] = useState(!authReady);
 
   useEffect(() => {
@@ -58,19 +66,26 @@ export default function AuthBootstrap({ children }) {
         }
 
         login(accessToken);
+        markProfileHydrationStarted();
 
         try {
           const profileResponse = await api.get("/api/users/me");
           const profile = profileResponse?.data?.data;
-          if (!cancelled && profile) {
+          if (!profile) {
+            throw new Error("profile hydration response missing data");
+          }
+          if (!cancelled) {
             setUser({
               ...(profile.name ? { name: profile.name } : {}),
               ...(profile.email ? { email: profile.email } : {}),
               hasPriorities: Array.isArray(profile.priorities) && profile.priorities.length > 0,
             });
+            markProfileHydrationSucceeded();
           }
-        } catch {
-          // Profile hydration is best-effort after token restoration.
+        } catch (profileError) {
+          if (!cancelled) {
+            markProfileHydrationFailed(profileError);
+          }
         }
       } catch {
         if (!cancelled) {
@@ -88,7 +103,15 @@ export default function AuthBootstrap({ children }) {
     return () => {
       cancelled = true;
     };
-  }, [authReady, clearSession, login, setUser]);
+  }, [
+    authReady,
+    clearSession,
+    login,
+    markProfileHydrationFailed,
+    markProfileHydrationStarted,
+    markProfileHydrationSucceeded,
+    setUser,
+  ]);
 
   if (!authReady || bootstrapping) {
     return <FullScreenSpinner />;

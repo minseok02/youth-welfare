@@ -13,6 +13,25 @@ import FloatingNav from "../components/FloatingNav";
 import IncomeCalculatorModal from "../components/IncomeCalculatorModal";
 import api from "../lib/axios";
 import { useAuthStore } from "../store/authStore";
+import {
+  GOV24_BENEFIT_TYPES,
+  GOV24_SERVICE_FIELDS,
+  GOV24_SOURCE_LABEL,
+  GOV24_USER_TYPES,
+  POLICY_CATEGORIES,
+  POLICY_INCOME_ROWS,
+  POLICY_SORT_MAP,
+  POLICY_SOURCE_OPTIONS,
+  POLICY_SOURCE_TYPE_MAP,
+  POLICY_STATUS_FILTER_MAP,
+  POLICY_TARGET_GROUPS,
+} from "../lib/policyFilterOptions";
+import {
+  formatPolicyDday,
+  formatPolicyListStatusLabel,
+  splitGov24MultiLabel,
+  uniqueNonBlank,
+} from "../lib/policyDisplay";
 import { resolveStandardProfileCodeCompletion } from "../lib/profileStandardCodes";
 import {
   buildSafeReturnLocation,
@@ -31,99 +50,14 @@ import {
 
 // ── 상수 ──────────────────────────────────────────────────────────────────────
 
-const CATEGORIES = [
-  { label: "전체", value: "" },
-  { label: "주거", value: "주거" },
-  { label: "일자리", value: "일자리" },
-  { label: "교육·직업훈련", value: "교육·직업훈련" },
-  { label: "금융·생활지원", value: "금융·생활지원" },
-  { label: "문화·여가", value: "문화·여가" },
-  { label: "건강·의료", value: "건강·의료" },
-  { label: "가족·돌봄", value: "가족·돌봄" },
-  { label: "안전·위기", value: "안전·위기" },
-  { label: "참여·기회", value: "참여·기회" },
-  { label: "분류없음", value: "기타" },
-];
-
-const INCOME_ROWS = [
-  { value: "1", label: "1~2분위 (하위 20%)" },
-  { value: "3", label: "3~4분위 (하위 40%)" },
-  { value: "5", label: "5~6분위 (중간 40%)" },
-  { value: "7", label: "7~8분위 (상위 40%)" },
-  { value: "9", label: "9~10분위 (상위 20%)" },
-];
-
-const TARGET_GROUPS = [
-  { label: "장애인", value: "장애인" },
-  { label: "한부모·조손", value: "한부모·조손" },
-  { label: "다문화·탈북민", value: "다문화·탈북민" },
-  { label: "보훈대상자", value: "보훈대상자" },
-  { label: "다자녀", value: "다자녀" },
-];
-
-const GOV24_SOURCE_LABEL = "정부24";
-const SOURCE_OPTIONS = ["전체", "온통청년", "복지로 중앙", "복지로 지자체", GOV24_SOURCE_LABEL];
-const SOURCE_TYPE_MAP = {
-  "온통청년": "YOUTH",
-  "복지로 중앙": "BOKJIRO_CENTRAL",
-  "복지로 지자체": "BOKJIRO_LOCAL",
-  [GOV24_SOURCE_LABEL]: "GOV24",
-};
 const SOURCE_LABEL_BY_TYPE = Object.fromEntries(
-  Object.entries(SOURCE_TYPE_MAP).map(([label, type]) => [type, label])
+  Object.entries(POLICY_SOURCE_TYPE_MAP).map(([label, type]) => [type, label])
 );
-const GOV24_SERVICE_FIELDS = [
-  "전체",
-  "생활안정",
-  "농림축산어업",
-  "보육·교육",
-  "보건·의료",
-  "임신·출산",
-  "고용·창업",
-  "문화·환경",
-  "보호·돌봄",
-  "행정·안전",
-  "주거·자립",
-];
-
-const GOV24_USER_TYPES = [
-  "전체",
-  "개인",
-  "가구",
-  "법인/시설/단체",
-  "소상공인",
-];
-
-const GOV24_BENEFIT_TYPES = [
-  "전체",
-  "현금",
-  "현물",
-  "기타",
-  "현금(감면)",
-  "이용권",
-  "서비스(의료)",
-  "시설이용",
-  "기타(교육)",
-  "현금(보험)",
-  "현금(장학금)",
-  "현금(융자)",
-  "기타(상담)",
-  "서비스(돌봄)",
-  "서비스(일자리)",
-  "의료지원",
-  "상담/법률지원",
-  "기술지원",
-  "문화/여가지원",
-  "민원",
-  "봉사/기부",
-];
 const GOV24_BADGE_LIMIT = 4;
 const MAX_POLICY_SEARCH_STATE_KEYWORD_LENGTH = 100;
 const POLICY_SOURCE_NOTICE = "정책 정보는 온통청년·복지로·정부24와 각 운영기관 공고를 기준으로 수집한 내용입니다. 신청 전 상세 페이지의 원문 안내를 확인하세요.";
-const SORT_MAP = { relevance: "RELEVANCE", views: "VIEWS", latest: "LATEST", deadline: "DEADLINE" };
-const STATUS_FILTER_MAP = { "신청가능": "ACTIVE_ONLY", "마감": "EXPIRED_ONLY", "전부표기": "ALL" };
 const STATUS_FILTER_LABEL_BY_API = Object.fromEntries(
-  Object.entries(STATUS_FILTER_MAP).map(([label, apiValue]) => [apiValue, label])
+  Object.entries(POLICY_STATUS_FILTER_MAP).map(([label, apiValue]) => [apiValue, label])
 );
 
 const FALLBACK_TRENDING = ["월세 지원", "국민취업제도", "도약계좌", "창업캠프", "자격증 응시료", "대학생 생활안정"];
@@ -146,34 +80,14 @@ const OK_BG = "#ecfdf5";
 
 // ── 헬퍼 ──────────────────────────────────────────────────────────────────────
 
-const statusLabel = (status) => {
-  if (status === "ACTIVE") return "진행중";
-  if (status === "UPCOMING") return "예정";
-  if (status === "CLOSED") return "종료";
-  return "상시";
-};
-
-const formatDday = (dateText, status) => {
-  if (status === "CLOSED") return "종료";
-  if (!dateText) return status === "UPCOMING" ? "예정" : "상시/문의";
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const endDate = new Date(`${dateText}T00:00:00`);
-  if (Number.isNaN(endDate.getTime())) return "상시/문의";
-  const diff = Math.ceil((endDate - today) / 86400000);
-  if (diff < 0) return "종료";
-  if (diff === 0) return "D-Day";
-  return `D-${diff}`;
-};
-
 const mapPolicySummary = (policy) => ({
   id: policy.id,
   title: policy.title,
   category: policy.unifiedCategory || "기타",
-  dday: formatDday(policy.applyEndDate, policy.status) || statusLabel(policy.status),
+  dday: formatPolicyDday(policy.applyEndDate, policy.status) || formatPolicyListStatusLabel(policy.status),
   sourceType: policy.sourceType || "",
   sourceTypeLabel: SOURCE_LABEL_BY_TYPE[policy.sourceType] || "",
-  source: policy.hostOrg || policy.sido || policy.applyMethodName || statusLabel(policy.status),
+  source: policy.hostOrg || policy.sido || policy.applyMethodName || formatPolicyListStatusLabel(policy.status),
   orgName: policy.hostOrg || policy.operatingOrg || "",
   regionText: policy.sido || "",
   summary: policy.description || "정책 설명 정보가 없습니다.",
@@ -188,21 +102,6 @@ const mapPolicySummary = (policy) => ({
 });
 
 const YOUTH_OFFICIAL_SUPPRESSED = new Set(["제한없음", "무관"]);
-
-const uniqueNonBlank = (values) => {
-  const seen = new Set();
-  return (values ?? [])
-    .map((value) => (typeof value === "string" ? value.trim() : ""))
-    .filter((value) => {
-      if (!value || seen.has(value)) return false;
-      seen.add(value);
-      return true;
-    });
-};
-
-const splitGov24MultiLabel = (label) => uniqueNonBlank(
-  typeof label === "string" ? label.split("||") : []
-);
 
 const normalizeGov24OptionParam = (value, options) => {
   if (!value) return "전체";
@@ -294,20 +193,20 @@ const resolveInitialSort = (paramsSearch, paramsSort) => {
 const normalizeSourceTypeParam = (rawSourceType) => {
   if (!rawSourceType?.trim()) return "전체";
   const trimmed = rawSourceType.trim();
-  if (SOURCE_TYPE_MAP[trimmed]) return trimmed;
+  if (POLICY_SOURCE_TYPE_MAP[trimmed]) return trimmed;
   const normalized = trimmed.toUpperCase();
   return SOURCE_LABEL_BY_TYPE[normalized] || "전체";
 };
 
 const serializeSourceTypeParam = (sourceLabel) => {
   if (!sourceLabel || sourceLabel === "전체") return null;
-  return SOURCE_TYPE_MAP[sourceLabel] ?? null;
+  return POLICY_SOURCE_TYPE_MAP[sourceLabel] ?? null;
 };
 
 const normalizeStatusFilterParam = (rawStatusFilter, fallback) => {
   if (!rawStatusFilter?.trim()) return fallback;
   const trimmed = rawStatusFilter.trim();
-  return STATUS_FILTER_MAP[trimmed] ? trimmed : (STATUS_FILTER_LABEL_BY_API[trimmed] ?? fallback);
+  return POLICY_STATUS_FILTER_MAP[trimmed] ? trimmed : (STATUS_FILTER_LABEL_BY_API[trimmed] ?? fallback);
 };
 
 const normalizePolicySearchStateKeyword = (value) => {
@@ -829,17 +728,17 @@ export default function PoliciesPage() {
           category: selectedCat || undefined,
           sido: region === "전체" ? undefined : region,
           sgg: selectedSgg,
-          sourceType: sourceType === "전체" ? undefined : SOURCE_TYPE_MAP[sourceType],
+          sourceType: sourceType === "전체" ? undefined : POLICY_SOURCE_TYPE_MAP[sourceType],
           gov24ServiceField: sourceType === GOV24_SOURCE_LABEL && gov24ServiceField !== "전체" ? gov24ServiceField : undefined,
           gov24UserType: sourceType === GOV24_SOURCE_LABEL && gov24UserType !== "전체" ? gov24UserType : undefined,
           gov24BenefitType: sourceType === GOV24_SOURCE_LABEL && gov24BenefitType !== "전체" ? gov24BenefitType : undefined,
-          sort: appliedSearch.trim() ? (SORT_MAP[sort] ?? "RELEVANCE") : (sort === "relevance" ? "LATEST" : (SORT_MAP[sort] ?? "LATEST")),
+          sort: appliedSearch.trim() ? (POLICY_SORT_MAP[sort] ?? "RELEVANCE") : (sort === "relevance" ? "LATEST" : (POLICY_SORT_MAP[sort] ?? "LATEST")),
           incomeLevel: income === "전체" ? undefined : Number(income),
           targetGroup: targetGroup || undefined,
           page: page - 1,
           size: pageSize,
         };
-        const apiStatusFilter = STATUS_FILTER_MAP[statusFilter] ?? "ACTIVE_ONLY";
+        const apiStatusFilter = POLICY_STATUS_FILTER_MAP[statusFilter] ?? "ACTIVE_ONLY";
 
         const searchKeyword = appliedSearch.trim();
         const { data } = searchKeyword
@@ -967,9 +866,9 @@ export default function PoliciesPage() {
   // ── 활성 필터 칩 목록 ────────────────────────────────────────────────────────
   const activeFilters = [
     appliedSearch.trim() && { key: "search", label: `검색어 ${appliedSearch.trim()}`, clear: handleClearSearch },
-    selectedCat && { key: "cat", label: CATEGORIES.find(c => c.value === selectedCat)?.label || selectedCat, clear: () => setSelectedCat("") },
+    selectedCat && { key: "cat", label: POLICY_CATEGORIES.find(c => c.value === selectedCat)?.label || selectedCat, clear: () => setSelectedCat("") },
     region !== "전체" && { key: "region", label: formatRegionSelectionLabel(region, subRegion, ward), clear: () => { setRegion("전체"); setSubRegion("전체"); setWard("전체"); } },
-    income !== "전체" && { key: "income", label: INCOME_ROWS.find(r => r.value === income)?.label, clear: () => setIncome("전체") },
+    income !== "전체" && { key: "income", label: POLICY_INCOME_ROWS.find(r => r.value === income)?.label, clear: () => setIncome("전체") },
     targetGroup && { key: "tg", label: targetGroup, clear: () => setTargetGroup("") },
     sourceType !== "전체" && { key: "src", label: sourceType, clear: () => setSourceType("전체") },
     sourceType === GOV24_SOURCE_LABEL && gov24ServiceField !== "전체" && { key: "gov24sf", label: `정부24 서비스분야 ${gov24ServiceField}`, clear: () => setGov24ServiceField("전체") },
@@ -1190,7 +1089,7 @@ export default function PoliciesPage() {
           {/* 카테고리 */}
           <FilterSection title="카테고리">
             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              {CATEGORIES.map((c) => (
+              {POLICY_CATEGORIES.map((c) => (
                 <RadioItem
                   key={c.value}
                   label={c.label}
@@ -1236,7 +1135,7 @@ export default function PoliciesPage() {
           <FilterSection title="소득수준" defaultOpen={false}>
             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
               <RadioItem label="전체" checked={income === "전체"} onChange={() => setIncome("전체")} />
-              {INCOME_ROWS.map((r) => (
+              {POLICY_INCOME_ROWS.map((r) => (
                 <RadioItem key={r.value} label={r.label} checked={income === r.value} onChange={() => setIncome(r.value)} />
               ))}
             </div>
@@ -1251,7 +1150,7 @@ export default function PoliciesPage() {
           {/* 특화조건 */}
           <FilterSection title="특화조건" defaultOpen={false}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {TARGET_GROUPS.map((tg) => {
+              {POLICY_TARGET_GROUPS.map((tg) => {
                 const active = targetGroup === tg.value;
                 return (
                   <button
@@ -1268,7 +1167,7 @@ export default function PoliciesPage() {
 
           <FilterSection title="출처" defaultOpen={false}>
             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              {SOURCE_OPTIONS.map((source) => (
+              {POLICY_SOURCE_OPTIONS.map((source) => (
                 <RadioItem
                   key={source}
                   label={source}

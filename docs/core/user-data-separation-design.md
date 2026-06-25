@@ -246,6 +246,7 @@
 - 이메일도 여기서는 암호화 원문으로만 둔다.
 - 회원가입 중복 체크용 해시는 `youth_welfare.auth_users` 에, 실제 연락처 원문은 `youth_welfare_pii.user_pii` 에 둔다.
 - `AesEncryptUtil` 수준에서 끝내지 말고 가능하면 키는 DB 밖 KMS/Vault 또는 최소한 별도 키 관리 정책으로 분리한다.
+- 현재 키 교체 운영 경계는 [pii-key-rotation-runbook.md](./pii-key-rotation-runbook.md)를 따른다. `/api/admin/users/pii-encryption-rotation` 은 legacy CBC 암호문을 현재 키의 `v2:` GCM 포맷으로 재저장하는 경로이며, 직접 `AES_SECRET_KEY` 교체 경로가 아니다.
 - 현재 1차 core table migration에서는 `user_pii` 테이블과 `phone_enc` seed만 먼저 만들고, `email_enc/name_enc/birth_date_enc` 백필은 앱 레벨 암호화 dual-write 단계에서 채운다.
 
 ## 현재 프로젝트 기준 테이블 재배치

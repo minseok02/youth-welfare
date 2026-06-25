@@ -11,7 +11,28 @@
 - app log artifact: `tmp/performance/app-log-observability/latest-app-log-observability-summary.txt`
 - nginx artifact: `tmp/performance/nginx-log-observability/latest-nginx-log-observability-summary.txt`
 - threshold tuning artifact: `tmp/performance/log-alert-threshold-tuning/latest-log-alert-threshold-tuning-summary.txt`
+- ops observation artifact: `tmp/ops-observation/latest-ops-observation-summary.txt`
+- notification backlog artifact: `tmp/notification-backlog-audit/latest-notification-backlog-summary.txt`
 - DB tables: `recommendation_run_logs`, `notification_attempt_logs`
+- DB read models: `web_push_subscriptions`, `chat_retrieval_snapshots`
+
+## 운영 dashboard alert 기준
+
+아래 `alert_id`는 운영 dashboard, nightly handoff, smoke artifact에서 같은 기준으로 읽습니다.
+문서 누락은 `bash deploy/smoke/verify-operational-alert-thresholds.sh` 와 `OperationalAlertThresholdContractTest`가 잡습니다.
+실제 artifact 평가는 `bash deploy/smoke/evaluate-operational-alert-thresholds.sh` 로 실행합니다.
+dashboard raw triage surface와 evaluator 판정 권위의 경계는 [admin-dashboard-alert-surface-contract.md](./admin-dashboard-alert-surface-contract.md)에 고정합니다.
+
+| alert_id | source | primary metric | warning | critical | first action |
+| --- | --- | --- | --- | --- | --- |
+| `COLLECT_FAILED_JOB_RATE` | `run-local-ops-observation-suite.sh`, admin collect failures | `collect_failed_jobs_in_window`, `collect_partial_success_jobs_in_window`, `open_collect_circuits`, `collect_lane_count` | warning: failed/partial job이 1개 이상이거나 failed job rate가 5% 이상 | critical: `open_collect_circuits > 0`, failed jobs가 3개 이상, 또는 failed job rate가 20% 이상 | collect failures child artifact를 먼저 열고 lane/source별 최근 실패 원인을 확인 |
+| `SEARCH_ZERO_RESULT_RATE` | `run-local-chat-observability-audit.sh`, app log `policy_search` action | `chat_observability_window_7d_zero_result_rate_pct`, `chat_observability_window_7d_zero_result_non_branch_rate_pct` | warning: 7일 zero-result rate가 20% 이상이거나 non-branch zero-result rate가 15% 이상 | critical: 7일 zero-result rate가 40% 이상이거나 non-branch zero-result rate가 25% 이상 | 최근 sample과 retrieval snapshot을 열어 지역/키워드/branch fallback 누락을 확인 |
+| `RECOMMENDATION_RUN_FAILURE_RATE` | `recommendation_run_logs`, admin recommendation run summary | `outcome`, `duration_ms`, `saved_count` | warning: 30분 창 `ERROR` 또는 `NO_CANDIDATES`가 1건 이상, 실패율 5% 이상, 또는 평균 `duration_ms >= 5000` | critical: 10분 창 `ERROR >= 3`, 30분 실패율 20% 이상, 또는 traffic이 있는데 1시간 동안 `SUCCESS`가 없음 | run log의 error prefix와 추천 후보/AI/cache 경계를 분리해서 확인 |
+| `NOTIFICATION_RETRY_BACKLOG` | `run-local-notification-backlog-audit.sh`, `notification_attempt_logs` | `retryable_failed_total`, `retryable_failed_due_now`, `terminal_failed_total`, `earliest_retry_at` | warning: `retryable_failed_due_now > 0`, `retryable_failed_total >= 10`, 또는 earliest retry가 30분 이상 지연 | critical: `terminal_failed_total > 0`, `retryable_failed_total >= 100`, `retryable_failed_due_now >= 10`, 또는 earliest retry가 2시간 이상 지연 | retry runner, SMTP/Kakao provider, terminal failure reason을 순서대로 확인 |
+| `WEB_PUSH_DISABLED_RATIO` | `web_push_subscriptions`, `notification_attempt_logs` | disabled subscription ratio, `notification_attempt_logs.outcome='disabled'`, endpoint host failure count | warning: subscription total이 20개 이상이고 disabled ratio가 10% 이상, 또는 disabled outcome이 직전 24시간 평균의 3배 이상 | critical: subscription total이 20개 이상이고 disabled ratio가 25% 이상, 또는 15분 창 disabled/gateway failure가 10건 이상 | VAPID key, `/sw.js` MIME, endpoint host별 만료/거부 응답을 확인 |
+
+비율 계산은 분모가 0이면 `0%`로 읽고, 표본이 너무 작으면 count 조건을 우선합니다.
+warning은 운영자가 같은 날 확인할 신호이고, critical은 배포/스케줄/외부 provider 상태를 즉시 확인할 신호입니다.
 
 ## 보존 정책
 
@@ -92,10 +113,25 @@ bash deploy/performance/tune-log-alert-thresholds.sh
 1. `bash deploy/performance/run-local-app-log-observability-baseline.sh`
 2. `bash deploy/performance/run-local-nginx-log-observability-baseline.sh`
 3. `bash deploy/performance/evaluate-log-alert-thresholds.sh`
-4. `ALERT_WEBHOOK_URL` 을 설정한 서버에서는 `bash deploy/ops/send-log-alert.sh` 로 webhook 전송까지 닫습니다.
-5. 관리자 API에서 추천 run summary 확인
-6. DB 또는 관리자 API에서 `notification_attempt_logs` 최근 실패 outcome 확인
-7. 원인이 배포/DB migration drift이면 [server-runtime-drift-checklist.md](./server-runtime-drift-checklist.md)를 먼저 적용
+4. `bash deploy/smoke/run-local-ops-observation-suite.sh`
+5. `bash deploy/smoke/run-local-notification-backlog-audit.sh`
+6. `bash deploy/smoke/evaluate-operational-alert-thresholds.sh`
+7. `ALERT_WEBHOOK_URL` 을 설정한 서버에서는 `bash deploy/ops/send-log-alert.sh` 로 webhook 전송까지 닫습니다.
+8. 관리자 API에서 추천 run summary 확인
+9. DB 또는 관리자 API에서 `notification_attempt_logs` 최근 실패 outcome 확인
+10. 원인이 배포/DB migration drift이면 [server-runtime-drift-checklist.md](./server-runtime-drift-checklist.md)를 먼저 적용
+
+운영 dashboard evaluator 기본 입력:
+
+```bash
+OPS_SUMMARY=tmp/ops-observation/latest-ops-observation-summary.txt \
+NOTIFICATION_BACKLOG_SUMMARY=tmp/notification-backlog-audit/latest-notification-backlog-summary.txt \
+CHAT_OBSERVABILITY_SUMMARY=tmp/chat-observability-audit/latest-chat-observability-summary.txt \
+bash deploy/smoke/evaluate-operational-alert-thresholds.sh
+```
+
+`RECOMMENDATION_RUN_FAILURE_RATE` 와 `WEB_PUSH_DISABLED_RATIO` 는 DB/API 요약 artifact가 있을 때만 평가합니다.
+없으면 `skipped=...` 로 출력하고 `warning` 으로 승격하지 않습니다.
 
 cron 예시:
 
@@ -126,3 +162,18 @@ tail -n 20 /var/log/youth-welfare/ops/log-alert.cron.log
 - 관리자 dashboard에는 DB 기반 운영 로그인 `recommendation_run_logs`, `notification_attempt_logs` 요약을 노출합니다.
 - app/nginx 파일 artifact는 host filesystem 산출물이고, 운영 app 컨테이너는 read-only이며 해당 path를 mount하지 않습니다.
 - 따라서 파일 기반 alert/latency artifact는 dashboard API가 직접 읽지 않고 ops script/webhook과 runbook으로 운영합니다.
+- dashboard는 threshold 판정 엔진이 아니라 triage surface입니다. alert status source of truth는 `evaluate-operational-alert-thresholds.sh` 입니다.
+
+## Evaluator DB summary helper
+
+`RECOMMENDATION_RUN_FAILURE_RATE`와 `WEB_PUSH_DISABLED_RATIO`를 파일 artifact 없이 평가하려면 먼저 아래 helper를 실행합니다.
+
+```bash
+bash deploy/smoke/generate-operational-alert-db-summaries.sh
+RECOMMENDATION_RUN_SUMMARY=tmp/operational-alert-db-summaries/latest-recommendation-run-summary.txt \
+WEB_PUSH_SUMMARY=tmp/operational-alert-db-summaries/latest-web-push-summary.txt \
+  bash deploy/smoke/evaluate-operational-alert-thresholds.sh
+```
+
+이 helper는 `recommendation_run_logs`, `web_push_subscriptions`, `notification_attempt_logs`를 읽어 evaluator가 요구하는 key-value summary를 생성합니다.
+기존 로컬 PostgreSQL volume에서 `operational_alert_source_available=false` 또는 `source_missing=...` 이 나오면 volume 삭제보다 먼저 `bash deploy/postgres/apply-local-runtime-schema-patch.sh` 로 runtime drift patch를 적용합니다.

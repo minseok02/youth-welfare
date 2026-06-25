@@ -9,8 +9,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.web.util.UriComponentsBuilder;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +27,8 @@ public class YouthApiClient {
 
     @Value("${youth-api.api-key}")
     private String apiKey;
+    @Value("${youth-api.base-url:https://www.youthcenter.go.kr/go/ythip/getPlcy}")
+    private String baseUrl;
     @Value("${collect.list.retry.max-attempts:3}")
     private int retryMaxAttempts;
     @Value("${collect.list.retry.base-backoff-ms:1000}")
@@ -78,15 +82,7 @@ public class YouthApiClient {
                 retryBaseBackoffMs,
                 status -> isRetryableStatus(status) ? HttpFailureAction.RETRYABLE : HttpFailureAction.FAIL_FAST,
                 () -> webClient.get()
-                        .uri(uriBuilder -> uriBuilder
-                                .scheme("https")
-                                .host("www.youthcenter.go.kr")
-                                .path("/go/ythip/getPlcy")
-                                .queryParam("apiKeyNm", apiKey)
-                                .queryParam("pageType", "2")
-                                .queryParam("plcyNo", plcyNo)
-                                .queryParam("rtnType", "json")
-                                .build())
+                        .uri(buildDetailUri(plcyNo))
                         .retrieve()
                         .bodyToMono(YouthApiDto.class)
                         .block(Duration.ofSeconds(20))
@@ -109,14 +105,7 @@ public class YouthApiClient {
                 retryBaseBackoffMs,
                 status -> isRetryableStatus(status) ? HttpFailureAction.RETRYABLE : HttpFailureAction.FAIL_FAST,
                 () -> webClient.get()
-                        .uri(uriBuilder -> uriBuilder
-                                .scheme("https")
-                                .host("www.youthcenter.go.kr")
-                                .path("/go/ythip/getPlcy")
-                                .queryParam("apiKeyNm", apiKey)
-                                .queryParam("pageNum", pageNum)
-                                .queryParam("pageSize", pageSize)
-                                .build())
+                        .uri(buildPageUri(pageNum, pageSize))
                         .retrieve()
                         .bodyToMono(YouthApiDto.class)
                         .block(Duration.ofSeconds(20))
@@ -125,6 +114,31 @@ public class YouthApiClient {
             throw new CustomException(ErrorCode.COLLECT_API_FAILED);
         }
         return result.payload();
+    }
+
+    URI buildPageUri(int pageNum, int pageSize) {
+        return baseUriBuilder()
+                .queryParam("apiKeyNm", apiKey)
+                .queryParam("pageNum", pageNum)
+                .queryParam("pageSize", pageSize)
+                .build()
+                .encode()
+                .toUri();
+    }
+
+    URI buildDetailUri(String plcyNo) {
+        return baseUriBuilder()
+                .queryParam("apiKeyNm", apiKey)
+                .queryParam("pageType", "2")
+                .queryParam("plcyNo", plcyNo)
+                .queryParam("rtnType", "json")
+                .build()
+                .encode()
+                .toUri();
+    }
+
+    private UriComponentsBuilder baseUriBuilder() {
+        return UriComponentsBuilder.fromUriString(baseUrl);
     }
 
     private boolean isRetryableStatus(int status) {

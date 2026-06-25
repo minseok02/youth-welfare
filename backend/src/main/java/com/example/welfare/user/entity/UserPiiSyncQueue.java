@@ -9,7 +9,8 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "user_pii_sync_queue",
         indexes = {
-                @Index(name = "idx_upsq_status_enqueued", columnList = "status,last_enqueued_at")
+                @Index(name = "idx_upsq_status_enqueued", columnList = "status,last_enqueued_at"),
+                @Index(name = "idx_upsq_status_synced", columnList = "status,last_synced_at")
         })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

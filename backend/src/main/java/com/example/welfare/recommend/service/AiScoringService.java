@@ -44,9 +44,10 @@ public class AiScoringService {
                 .filter(c -> cacheMap.containsKey(c.getService().getId()))
                 .count();
         double hitRate = (double) cacheHitCount / candidates.size();
+        long hitRatePercent = Math.round(hitRate * 100);
 
-        log.info("[AiScoringService] clusterId={} cacheHit={}/{} hitRate={:.0f}%",
-                clusterId, cacheHitCount, candidates.size(), hitRate * 100);
+        log.info("[AiScoringService] clusterId={} cacheHit={}/{} hitRate={}%",
+                clusterId, cacheHitCount, candidates.size(), hitRatePercent);
 
         // 캐시 히트율 50% 이상이면 캐시 사용
         if (hitRate >= 0.5) {

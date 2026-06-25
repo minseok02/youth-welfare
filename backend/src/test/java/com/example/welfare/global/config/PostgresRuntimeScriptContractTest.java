@@ -13,6 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PostgresRuntimeScriptContractTest {
 
     private static final Path RDS_BOOTSTRAP = Path.of("../deploy/postgres/bootstrap-rds-runtime.sh");
+    private static final Path RUNTIME_CUTOVER_PREFLIGHT = Path.of("../deploy/smoke/preflight-runtime-cutover-env.sh");
 
     @Test
     @DisplayName("RDS bootstrap은 앱에서 쓰는 PostgreSQL runtime role을 fresh DB에도 모두 생성한다")
@@ -57,6 +58,41 @@ class PostgresRuntimeScriptContractTest {
     }
 
     @Test
+    @DisplayName("runtime cutover preflight는 운영 DB role password 재사용을 기본 차단한다")
+    void runtimeCutoverPreflightEnforcesDistinctRuntimeDbPasswords() throws IOException {
+        String script = Files.readString(RUNTIME_CUTOVER_PREFLIGHT);
+
+        assertThat(script)
+                .contains("ALLOW_SHARED_RUNTIME_DB_PASSWORDS")
+                .contains("assert_distinct_runtime_db_passwords")
+                .contains("runtime DB role passwords must be distinct")
+                .contains("DB_APP_PII_PASSWORD")
+                .contains("DB_NOTIFICATION_PII_RO_PASSWORD")
+                .contains("DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD")
+                .contains("runtime DB password separation: ");
+    }
+
+    @Test
+    @DisplayName("RDS privilege verify는 admin read-only와 notification PII 최소권한을 확인한다")
+    void rdsPrivilegeVerifyChecksReadOnlyAndPiiBoundaries() throws IOException {
+        String script = Files.readString(Path.of("../deploy/postgres/verify-rds-runtime-privileges.sh"));
+
+        assertThat(script)
+                .contains("admin_ro_policy_error_reports_select")
+                .contains("admin_ro_support_inquiries_select")
+                .contains("admin_ro_policy_duplicate_review_records_select")
+                .contains("admin_ro_notification_attempt_logs_select")
+                .contains("admin_ro_support_inquiries_insert f")
+                .contains("admin_ro_support_inquiries_update f")
+                .contains("admin_ro_support_inquiries_delete f")
+                .contains("notification_pii_ro_user_pii_select_user_key t")
+                .contains("notification_pii_ro_user_pii_select_email_enc t")
+                .contains("notification_pii_ro_user_pii_select_name_enc f")
+                .contains("notification_pii_ro_user_pii_select_birth_date_enc f")
+                .contains("notification_pii_ro_user_pii_insert f");
+    }
+
+    @Test
     @DisplayName("fresh schema는 관리자 정책 검수 read model 테이블을 포함한다")
     void schemaSqlContainsAdminPolicyReviewTables() throws IOException {
         String schema = Files.readString(Path.of("src/main/resources/db/schema.sql"));
@@ -87,5 +123,35 @@ class PostgresRuntimeScriptContractTest {
                 .contains("DELETE FROM chat_retrieval_snapshots crs")
                 .contains("ADD CONSTRAINT fk_crs_session")
                 .contains("ON DELETE CASCADE");
+    }
+
+    @Test
+    @DisplayName("local runtime patch는 운영 alert DB source 테이블 drift를 복구한다")
+    void localRuntimePatchContainsOperationalAlertSources() throws IOException {
+        String script = Files.readString(Path.of("../deploy/postgres/apply-local-runtime-schema-patch.sh"));
+        String webPushPatch = Files.readString(Path.of(
+                "../deploy/postgres/patches/V2026_05_15_03__add_web_push_subscriptions.sql"));
+        String recommendationPatch = Files.readString(Path.of(
+                "../deploy/postgres/patches/V2026_06_23_01__add_recommendation_run_logs.sql"));
+        String notificationPatch = Files.readString(Path.of(
+                "../deploy/postgres/patches/V2026_06_23_02__add_notification_attempt_logs.sql"));
+
+        assertThat(script)
+                .contains("patches=(\"${PATCH_DIR}\"/*.sql)")
+                .contains("web_push_subscription_cleanup_username")
+                .contains("recommendation_persistence_command_username")
+                .contains("admin_ro_username")
+                .contains("migration_username");
+        assertThat(webPushPatch)
+                .contains("CREATE TABLE IF NOT EXISTS web_push_subscriptions")
+                .contains("CREATE INDEX IF NOT EXISTS idx_wps_user_key_enabled_created");
+        assertThat(recommendationPatch)
+                .contains("CREATE TABLE IF NOT EXISTS recommendation_run_logs")
+                .contains("GRANT SELECT ON TABLE recommendation_run_logs TO admin_dashboard_ro")
+                .contains("GRANT USAGE, SELECT ON SEQUENCE recommendation_run_logs_id_seq TO app_core_rw");
+        assertThat(notificationPatch)
+                .contains("CREATE TABLE IF NOT EXISTS notification_attempt_logs")
+                .contains("GRANT SELECT ON TABLE notification_attempt_logs TO admin_dashboard_ro")
+                .contains("GRANT USAGE, SELECT ON SEQUENCE notification_attempt_logs_id_seq TO app_core_rw");
     }
 }

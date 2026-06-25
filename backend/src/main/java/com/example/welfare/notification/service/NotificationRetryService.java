@@ -1,5 +1,6 @@
 package com.example.welfare.notification.service;
 
+import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.notification.entity.Notification;
 import com.example.welfare.notification.gateway.NotificationGateway;
 import com.example.welfare.user.service.UserNotificationReadService;
@@ -7,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -20,6 +22,7 @@ public class NotificationRetryService {
     private final NotificationRetryCommandService notificationRetryCommandService;
     private final UserNotificationReadService userNotificationReadService;
     private final NotificationGateway notificationGateway;
+    private final NotificationAttemptLogService notificationAttemptLogService;
 
     public RetryRunResult retryFailedNotifications() {
         LocalDateTime now = LocalDateTime.now();
@@ -67,6 +70,7 @@ public class NotificationRetryService {
     }
 
     private RetryOutcome retryNotification(Notification notification) {
+        long startedNanos = System.nanoTime();
         try {
             boolean sent = notificationGateway.send(
                     resolveNotificationEmail(notification),
@@ -76,22 +80,33 @@ public class NotificationRetryService {
             if (sent) {
                 notification.markSent();
                 notificationRetryCommandService.save(notification);
+                recordRetryAttempt(notification, "sent", null, elapsedMs(startedNanos));
                 return RetryOutcome.SENT;
             }
-            return scheduleNextRetry(notification, "notification gateway returned false");
+            return scheduleNextRetry(notification, "notification gateway returned false", "gateway_false", startedNanos);
         } catch (Exception e) {
-            return scheduleNextRetry(notification, "notification retry failed (" + e.getClass().getSimpleName() + ")");
+            return scheduleNextRetry(
+                    notification,
+                    "notification retry failed (" + e.getClass().getSimpleName() + ")",
+                    e.getClass().getSimpleName(),
+                    startedNanos
+            );
         }
     }
 
-    private RetryOutcome scheduleNextRetry(Notification notification, String errorMessage) {
+    private RetryOutcome scheduleNextRetry(Notification notification,
+                                           String errorMessage,
+                                           String errorType,
+                                           long startedNanos) {
         if (notification.getRetryCount() + 1 >= MAX_RETRY_COUNT) {
             notification.scheduleRetry(null, errorMessage);
             notificationRetryCommandService.save(notification);
+            recordRetryAttempt(notification, "terminal_failed", errorType, elapsedMs(startedNanos));
             return RetryOutcome.TERMINAL_FAILED;
         }
         notification.scheduleRetry(LocalDateTime.now().plusMinutes(RETRY_DELAY_MINUTES), errorMessage);
         notificationRetryCommandService.save(notification);
+        recordRetryAttempt(notification, "rescheduled", errorType, elapsedMs(startedNanos));
         return RetryOutcome.RESCHEDULED;
     }
 
@@ -100,6 +115,23 @@ public class NotificationRetryService {
             throw new IllegalStateException("Notification user_key is required for retry");
         }
         return userNotificationReadService.getNotificationEmailByUserKey(notification.getUserKey());
+    }
+
+    private void recordRetryAttempt(Notification notification, String outcome, String errorType, long durationMs) {
+        notificationAttemptLogService.record(new NotificationAttemptLogCommand(
+                RedisKeyHash.sha256Hex(notification.getUserKey()),
+                notification.getChannel().name(),
+                "notification_retry",
+                outcome,
+                notification.getTotalServices() == null ? 0 : notification.getTotalServices(),
+                null,
+                errorType,
+                durationMs
+        ));
+    }
+
+    private long elapsedMs(long startedNanos) {
+        return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedNanos);
     }
 
     enum RetryOutcome {

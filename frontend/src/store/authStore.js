@@ -3,6 +3,13 @@ import { persist } from "zustand/middleware";
 
 const LEGACY_TOKEN_STORAGE_KEY = "token";
 const LEGACY_AUTH_STORE_KEY = "auth-store";
+const PROFILE_HYDRATION_ERROR_MESSAGE_MAX = 160;
+
+const idleProfileHydration = () => ({
+  status: "idle",
+  lastError: null,
+  lastFailedAt: null,
+});
 
 if (typeof window !== "undefined") {
   window.localStorage.removeItem(LEGACY_TOKEN_STORAGE_KEY);
@@ -25,6 +32,18 @@ const readTokenRoles = (token) => {
   }
 };
 
+const sanitizeProfileHydrationError = (error) => {
+  const rawMessage = typeof error?.message === "string" && error.message.trim()
+    ? error.message.trim()
+    : "profile hydration failed";
+
+  return {
+    status: Number.isInteger(error?.response?.status) ? error.response.status : null,
+    code: typeof error?.code === "string" && error.code.trim() ? error.code.trim().slice(0, 64) : null,
+    message: rawMessage.slice(0, PROFILE_HYDRATION_ERROR_MESSAGE_MAX),
+  };
+};
+
 export const useAuthStore = create(
   persist(
     (set) => ({
@@ -32,6 +51,7 @@ export const useAuthStore = create(
       user: null,
       isLoggedIn: false,
       authReady: false,
+      profileHydration: idleProfileHydration(),
       filterSettings: {
         includeExpired: false,
       },
@@ -62,12 +82,40 @@ export const useAuthStore = create(
               : Boolean(nextUser?.isAdmin ?? state.user?.isAdmin),
           },
         })),
+      markProfileHydrationStarted: () => {
+        set({
+          profileHydration: {
+            status: "loading",
+            lastError: null,
+            lastFailedAt: null,
+          },
+        });
+      },
+      markProfileHydrationSucceeded: () => {
+        set({
+          profileHydration: {
+            status: "succeeded",
+            lastError: null,
+            lastFailedAt: null,
+          },
+        });
+      },
+      markProfileHydrationFailed: (error) => {
+        set({
+          profileHydration: {
+            status: "failed",
+            lastError: sanitizeProfileHydrationError(error),
+            lastFailedAt: new Date().toISOString(),
+          },
+        });
+      },
       clearSession: () => {
         set({
           accessToken: null,
           user: null,
           isLoggedIn: false,
           authReady: true,
+          profileHydration: idleProfileHydration(),
         });
       },
       logout: () => {
@@ -76,6 +124,7 @@ export const useAuthStore = create(
           user: null,
           isLoggedIn: false,
           authReady: true,
+          profileHydration: idleProfileHydration(),
           filterSettings: { includeExpired: false },
         });
       },

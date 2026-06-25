@@ -146,6 +146,7 @@ bash deploy/smoke/preflight-runtime-cutover-env.sh
 - `DB_URL` 이 `youth_welfare` 를 가리키는지
 - `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 이 `currentSchema=youth_welfare_pii` 인지
 - split-account username 이 기대값과 맞는지
+- runtime DB role password가 서로 다른지. 운영 기본값은 password 재사용 시 실패하며, 로컬/예외 상황에서만 `ALLOW_SHARED_RUNTIME_DB_PASSWORDS=true`로 우회한다.
 
 ## 6-1. 운영 DB privilege verify
 
@@ -159,9 +160,11 @@ bash deploy/postgres/verify-rds-runtime-privileges.sh
 이 스크립트는:
 
 - primary/admin-ro/chat-session-cleanup/cluster-ai-cleanup/recommendation-retention-cleanup/collect-execution-lock-cleanup/web-push-subscription-cleanup/pii-rw/notification-pii-ro/migration role login
+- `admin_dashboard_ro` 의 대표 운영 대시보드 테이블 `SELECT` 및 write 권한 차단
 - `app_core_rw` 의 `chat_sessions`, `cluster_ai_results`, `collect_execution_locks`, `web_push_subscriptions` `DELETE` revoke
 - 각 cleanup role의 대응 `DELETE` 및 column `SELECT`
 - `app_core_rw` 의 `youth_welfare_pii.user_pii` 직접 접근 차단
+- `notification_pii_ro` 의 `user_key`, `email_enc` column read만 허용하고 `name_enc`, `birth_date_enc`, write 권한은 차단
 
 를 한 번에 검증합니다.
 
@@ -228,11 +231,67 @@ bash deploy/nginx/verify-edge-baseline.sh
 
 ## 9. 운영 smoke 최소 순서
 
-app가 올라오면 최소한 이 순서로 확인한다.
+운영 cutover는 아래 순서로 고정한다.
+
+1. runtime env 렌더링
 
 ```bash
-curl -fsS http://127.0.0.1:8082/actuator/health
+SOURCE_ENV_FILE=.env.production \
+TARGET_ENV_FILE=.env.runtime.production \
+bash deploy/env/render-app-runtime-env.sh
+```
 
+2. env preflight
+
+```bash
+ENV_FILE=.env.production \
+COMPOSE_FILE=docker-compose.prod.yml \
+PRINT_SUMMARY=true \
+bash deploy/smoke/preflight-runtime-cutover-env.sh
+```
+
+3. RDS runtime privilege verify
+
+```bash
+ENV_FILE=.env.production \
+PRINT_SUMMARY=true \
+bash deploy/postgres/verify-rds-runtime-privileges.sh
+```
+
+4. app/redis 기동과 health 확인
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d redis app
+curl -fsS http://127.0.0.1:8082/actuator/health
+```
+
+5. nginx edge baseline
+
+```bash
+PUBLIC_BASE_URL='https://youthmoa.kr' \
+bash deploy/nginx/verify-edge-baseline.sh
+```
+
+`run-prod-cutover-verification.sh` 는 2, 3, 5번을 한 번에 묶는 wrapper다. app/redis 재기동과 runtime API smoke는 포함하지 않으므로 별도로 실행한다.
+
+```bash
+ENV_FILE=.env.production \
+PUBLIC_BASE_URL='https://youthmoa.kr' \
+KEEP_ARTIFACTS=true \
+bash deploy/smoke/run-prod-cutover-verification.sh
+```
+
+6. runtime API smoke
+
+```bash
+ENV_FILE=.env.production \
+APP_BASE_URL='http://127.0.0.1:8082' \
+bash deploy/smoke/run-local-runtime-api-smoke.sh
+```
+
+7. 관리자/운영 smoke
+
+```bash
 ENV_FILE=.env.production \
 ADMIN_EMAIL='<admin email>' \
 ADMIN_PASSWORD='<admin password>' \
@@ -262,13 +321,11 @@ bash deploy/smoke/run-local-admin-forced-logout-smoke.sh
 3. `ENV_FILE` 또는 기본 `.env` 안의 `ADMIN_EMAIL`, `ADMIN_PASSWORD`
 4. `SECURITY_ADMIN_EMAILS` 의 첫 이메일
 
-운영 직전에는 필요 시:
+운영 직전 추가 관측은 필요 시 아래를 더 태운다.
 
-- `bash deploy/smoke/run-local-runtime-api-smoke.sh`
 - `bash deploy/smoke/run-local-ops-baseline-suite.sh`
-- `ENV_FILE=.env.production PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-prod-cutover-verification.sh`
 
-까지 다시 확인한다.
+이 순서에서 실패하면 뒤 단계를 진행하지 않고, 실패 단계의 artifact/log를 먼저 남긴다.
 
 ## 10. 로컬과 운영을 섞지 않는 원칙
 

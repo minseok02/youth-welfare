@@ -46,7 +46,7 @@ class WebPushDispatchServiceTest {
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(webPushDispatchService, "appBaseUrl", "https://youth-welfare.kr");
+        ReflectionTestUtils.setField(webPushDispatchService, "appBaseUrl", "https://youthmoa.kr");
     }
 
     @Test
@@ -186,7 +186,7 @@ class WebPushDispatchServiceTest {
         ArgumentCaptor<NotificationContent> contentCaptor = ArgumentCaptor.forClass(NotificationContent.class);
         verify(webPushSenderClient).send(org.mockito.ArgumentMatchers.eq(success), contentCaptor.capture());
         assertThat(contentCaptor.getValue().deeplinkUrl()).isEqualTo("/policies/99?from=push");
-        assertThat(contentCaptor.getValue().absoluteUrl()).isEqualTo("https://youth-welfare.kr/policies/99?from=push");
+        assertThat(contentCaptor.getValue().absoluteUrl()).isEqualTo("https://youthmoa.kr/policies/99?from=push");
     }
 
     @Test
@@ -199,14 +199,14 @@ class WebPushDispatchServiceTest {
         given(webPushSenderClient.send(org.mockito.ArgumentMatchers.eq(success), org.mockito.ArgumentMatchers.any()))
                 .willReturn(WebPushSendResult.sent());
         var request = request();
-        request.setUrl("https://youth-welfare.kr/mypage?tab=3");
+        request.setUrl("https://youthmoa.kr/mypage?tab=3");
 
         webPushDispatchService.sendTestMessage("user-key-1", request);
 
         ArgumentCaptor<NotificationContent> contentCaptor = ArgumentCaptor.forClass(NotificationContent.class);
         verify(webPushSenderClient).send(org.mockito.ArgumentMatchers.eq(success), contentCaptor.capture());
         assertThat(contentCaptor.getValue().deeplinkUrl()).isEqualTo("/mypage?tab=3");
-        assertThat(contentCaptor.getValue().absoluteUrl()).isEqualTo("https://youth-welfare.kr/mypage?tab=3");
+        assertThat(contentCaptor.getValue().absoluteUrl()).isEqualTo("https://youthmoa.kr/mypage?tab=3");
     }
 
     @Test
