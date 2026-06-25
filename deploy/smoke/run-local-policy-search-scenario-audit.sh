@@ -41,7 +41,6 @@ smoke_assert_status 200 "${HEALTH_STATUS}" "health check" "${HEALTH_RESPONSE}"
 python3 - "${APP_BASE_URL}" "${SUMMARY_OUT}" "${JSON_OUT}" "${NOTE_OUT}" <<'PY'
 import json
 import sys
-import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -67,16 +66,28 @@ def get_json(url: str):
         return json.load(response)
 
 
+def post_json(url: str, payload: dict):
+    data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    request = urllib.request.Request(
+        url,
+        data=data,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request) as response:
+        return json.load(response)
+
+
 def search(keyword: str, size: int = 3, sido: str | None = None):
-    query = {
+    payload = {
         "keyword": keyword,
-        "page": "0",
-        "size": str(size),
+        "page": 0,
+        "size": size,
     }
     if sido:
-        query["sido"] = sido
-    url = f"{base_url}/api/policies/search?{urllib.parse.urlencode(query)}"
-    return get_json(url)["data"]["content"]
+        payload["sido"] = sido
+    url = f"{base_url}/api/policies/search"
+    return post_json(url, payload)["data"]["content"]
 
 
 def detail(policy_id: int):

@@ -138,8 +138,8 @@ public class WelfareServiceMapper {
                 ))
                 .hostOrg(RawFieldValidator.normalize(item.getSprvsnInstCdNm()))
                 .operatingOrg(RawFieldValidator.normalize(item.getOperInstCdNm()))
-                .minAge(item.getSprtTrgtMinAge())
-                .maxAge(item.getSprtTrgtMaxAge())
+                .minAge(normalizePositiveAge(item.getSprtTrgtMinAge()))
+                .maxAge(normalizePositiveAge(item.getSprtTrgtMaxAge()))
                 .minIncome(item.getEarnMinAmt())
                 .maxIncome(item.getEarnMaxAmt())
                 .startDate(parseDate(item.getBizPrdBgngYmd()))
@@ -175,6 +175,10 @@ public class WelfareServiceMapper {
                 .taxonomyTerms(YouthNormalizationSupport.taxonomyTerms(item, youthMidPartition))
                 .facts(YouthNormalizationSupport.facts(service, item))
                 .build();
+    }
+
+    private Integer normalizePositiveAge(Integer age) {
+        return age != null && age > 0 ? age : null;
     }
 
     public List<ServiceTag> tagsFromYouth(YouthApiDto.Item item, WelfareService service) {

@@ -136,6 +136,29 @@ assert_int_delta() {
 login_admin() {
   smoke_resolve_admin_credentials "${ROOT_DIR}"
   : "${ADMIN_EMAIL:?ADMIN_EMAIL is empty; export ADMIN_EMAIL or set /tmp/youth-welfare-admin-smoke-email}"
+
+  smoke_resolve_admin_access_token "${ROOT_DIR}"
+  if [[ -n "${ADMIN_ACCESS_TOKEN:-}" ]]; then
+    local admin_email_hash
+    admin_email_hash="$(smoke_sha256_hex "${ADMIN_EMAIL}")"
+    ADMIN_USER_KEY="$(
+      smoke_db_query "
+        SELECT u.user_key
+        FROM auth_users au
+        JOIN users u ON u.user_key = au.user_key
+        WHERE au.email_lookup_hash = $(smoke_sql_quote "${admin_email_hash}")
+          AND COALESCE(au.is_active, true) = true
+          AND COALESCE(u.is_active, true) = true
+        LIMIT 1;
+      "
+    )"
+    if [[ -z "${ADMIN_USER_KEY}" ]]; then
+      echo "failed to resolve admin user_key for ${ADMIN_EMAIL}" >&2
+      exit 1
+    fi
+    return 0
+  fi
+
   : "${ADMIN_PASSWORD:?ADMIN_PASSWORD is empty; export ADMIN_PASSWORD or set /tmp/youth-welfare-admin-smoke-password}"
 
   smoke_print_step "admin login (${ADMIN_EMAIL})"

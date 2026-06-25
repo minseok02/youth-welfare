@@ -105,6 +105,36 @@ class WelfareServiceMapperTest {
     }
 
     @Test
+    void fromYouth_normalizesNonPositiveMaxAgeToOpenUpperBound() throws Exception {
+        YouthApiDto.Item item = new YouthApiDto.Item();
+        setField(item, "plcyNo", "Y005-B");
+        setField(item, "plcyNm", "청년 연령 제한 정책");
+        setField(item, "lclsfNm", "복지문화");
+        setField(item, "sprtTrgtMinAge", 19);
+        setField(item, "sprtTrgtMaxAge", 0);
+
+        WelfareService service = mapper.fromYouth(item);
+
+        assertThat(service.getMinAge()).isEqualTo(19);
+        assertThat(service.getMaxAge()).isNull();
+    }
+
+    @Test
+    void fromYouth_normalizesNonPositiveMinAgeToOpenLowerBound() throws Exception {
+        YouthApiDto.Item item = new YouthApiDto.Item();
+        setField(item, "plcyNo", "Y005-C");
+        setField(item, "plcyNm", "청년 연령 제한 정책");
+        setField(item, "lclsfNm", "복지문화");
+        setField(item, "sprtTrgtMinAge", 0);
+        setField(item, "sprtTrgtMaxAge", 39);
+
+        WelfareService service = mapper.fromYouth(item);
+
+        assertThat(service.getMinAge()).isNull();
+        assertThat(service.getMaxAge()).isEqualTo(39);
+    }
+
+    @Test
     void youthDto_deserializesReferenceUrls() throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
 
