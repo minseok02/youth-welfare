@@ -199,6 +199,8 @@ class PostgresRuntimeScriptContractTest {
                 .contains("AUDIT_OPERATIONAL_DB_STATE")
                 .contains("auth_without_users")
                 .contains("profiles_without_users")
+                .contains("active_users_without_pii")
+                .contains("withdrawn_or_inactive_users_without_pii")
                 .contains("chat_snapshots_nonnull_orphan_session")
                 .contains("notification_failed_like")
                 .contains("active_queries_over_5m")

@@ -82,6 +82,14 @@ union all
 select 'db_integrity', 'users_without_pii', count(*)::text
 from users u left join youth_welfare_pii.user_pii p on p.user_key=u.user_key where p.user_key is null
 union all
+select 'db_integrity', 'active_users_without_pii', count(*)::text
+from users u left join youth_welfare_pii.user_pii p on p.user_key=u.user_key
+where p.user_key is null and u.is_active = true and u.withdrawn_at is null
+union all
+select 'db_integrity', 'withdrawn_or_inactive_users_without_pii', count(*)::text
+from users u left join youth_welfare_pii.user_pii p on p.user_key=u.user_key
+where p.user_key is null and (u.is_active = false or u.withdrawn_at is not null)
+union all
 select 'db_integrity', 'chat_snapshots_nonnull_orphan_session', count(*)::text
 from chat_retrieval_snapshots crs left join chat_sessions cs on cs.id=crs.session_id
 where crs.session_id is not null and cs.id is null

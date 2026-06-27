@@ -80,7 +80,9 @@ ENV_FILE=.env.restore deploy/postgres/audit-operational-db-state.sh
 알려진 관찰 항목:
 
 - `auth_without_users`, `profiles_without_users`, `pii_without_users` 가 0이 아니면 사용자 core projection 불일치 정리 전까지 FK 추가를 보류한다.
-- `users_without_pii` 는 PII backfill/withdrawn 계정 정책과 함께 판단한다.
+- `active_users_without_pii` 는 0이어야 한다. 0이 아니면 PII sync/backfill 누락으로 보고 복구한다.
+- `withdrawn_or_inactive_users_without_pii` 는 탈퇴/비활성 계정에서 PII 삭제가 완료된 상태일 수 있으므로 별도 경고로 보지 않는다.
+- `users_without_pii` 는 위 두 값을 합친 총량으로만 본다.
 
 ## 5. 앱 연결 리허설
 
