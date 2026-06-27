@@ -8,6 +8,21 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE EXTENSION IF NOT EXISTS vector;
 CREATE SCHEMA IF NOT EXISTS youth_welfare_pii;
 
+CREATE TABLE IF NOT EXISTS schema_migration_history (
+    id            BIGSERIAL PRIMARY KEY,
+    version       VARCHAR(64) NOT NULL,
+    description   VARCHAR(255) NOT NULL,
+    script_name   VARCHAR(255) NOT NULL,
+    script_sha256 VARCHAR(64) NOT NULL,
+    applied_by    VARCHAR(128) NOT NULL DEFAULT CURRENT_USER,
+    applied_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    note          TEXT,
+    CONSTRAINT uq_smh_script_name UNIQUE (script_name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_smh_applied_at
+    ON schema_migration_history (applied_at DESC);
+
 CREATE TABLE IF NOT EXISTS priority_options (
     id          SMALLSERIAL PRIMARY KEY,
     code        VARCHAR(30) NOT NULL,
