@@ -15,7 +15,7 @@ public class NotificationMessageService {
 
     private final NotificationUnsubscribeTokenService notificationUnsubscribeTokenService;
 
-    @Value("${app.base-url:https://youth-welfare.kr}")
+    @Value("${app.base-url:https://youthmoa.kr}")
     private String appBaseUrl;
 
     public String buildRecommendationMessage(

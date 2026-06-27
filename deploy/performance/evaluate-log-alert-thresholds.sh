@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
 APP_JSON="${APP_JSON:-${ROOT_DIR}/tmp/performance/app-log-observability/latest-app-log-observability-summary.json}"
 NGINX_JSON="${NGINX_JSON:-${ROOT_DIR}/tmp/performance/nginx-log-observability/latest-nginx-log-observability-summary.json}"
 WARN_5XX="${LOG_ALERT_WARN_5XX:-1}"
@@ -25,7 +26,7 @@ python3 - \
   "${EXCLUDED_API_P95_PATHS}" \
   "${WARN_NGINX_P95_SECONDS}" \
   "${CRIT_NGINX_P95_SECONDS}" \
-  "${WARN_RAW_ERRORS}" <<'PY'
+  "${WARN_RAW_ERRORS}" <<'PY' | smoke_redact_stream_for_log
 import json
 import sys
 from pathlib import Path

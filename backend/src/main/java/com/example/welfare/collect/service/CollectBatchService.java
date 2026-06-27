@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -37,6 +38,7 @@ public class CollectBatchService {
     private int gov24SupportConditionsRotationMaxCalls;
     @Value("${collect.list.rotation.enabled:true}")
     private boolean rotationEnabled;
+    private Clock clock = Clock.system(ZoneId.of(SCHEDULE_ZONE));
 
     @Scheduled(cron = SCHEDULE_CRON, zone = SCHEDULE_ZONE)
     public void collectAll() {
@@ -162,7 +164,7 @@ public class CollectBatchService {
         if (!rotationEnabled) {
             return List.of();
         }
-        DayOfWeek dayOfWeek = LocalDate.now(ZoneId.of(SCHEDULE_ZONE)).getDayOfWeek();
+        DayOfWeek dayOfWeek = LocalDate.now(clock).getDayOfWeek();
         try {
             return switch (dayOfWeek) {
                 case MONDAY -> List.of(CollectBatchRunResult.SourceRunResult.success(

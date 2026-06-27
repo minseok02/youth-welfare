@@ -8,6 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test:unit": "node --test \"src/**/*.test.js\"",
     "test:e2e": "bash ./scripts/run-playwright-smoke.sh",
     "test:e2e:headed": "bash ./scripts/run-playwright-smoke.sh --headed"
   },

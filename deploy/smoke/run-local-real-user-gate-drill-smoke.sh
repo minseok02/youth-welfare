@@ -27,6 +27,7 @@ PROMOTION_ACTIVE="false"
 
 cleanup() {
   restore_promoted_users || true
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   rm -rf "${ARTIFACT_DIR}"
 }
 trap cleanup EXIT

@@ -18,6 +18,7 @@ SMOKE_EMPLOYMENT_STATUS="${SMOKE_EMPLOYMENT_STATUS:-미취업}"
 SMOKE_HOUSEHOLD_TYPE="${SMOKE_HOUSEHOLD_TYPE:-1인 가구}"
 HEALTH_RETRY_COUNT="${HEALTH_RETRY_COUNT:-15}"
 HEALTH_RETRY_DELAY_SECONDS="${HEALTH_RETRY_DELAY_SECONDS:-1}"
+KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
 SMOKE_TRUSTED_ORIGIN="${SMOKE_TRUSTED_ORIGIN:-${PLAYWRIGHT_BASE_URL:-http://127.0.0.1:5173}}"
 SMOKE_TRUSTED_REFERER="${SMOKE_TRUSTED_REFERER:-${SMOKE_TRUSTED_ORIGIN}/}"
 TRUSTED_ORIGIN_HEADERS=(-H "Origin: ${SMOKE_TRUSTED_ORIGIN}" -H "Referer: ${SMOKE_TRUSTED_REFERER}")
@@ -32,6 +33,10 @@ SUCCESS_LOGIN_RESPONSE="${ARTIFACT_DIR}/success-login.json"
 LOGOUT_RESPONSE="${ARTIFACT_DIR}/logout.json"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
+  if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
+    return 0
+  fi
   rm -rf "${ARTIFACT_DIR}"
 }
 trap cleanup EXIT
@@ -118,6 +123,8 @@ assert_login_failure_state() {
 
 smoke_require_command curl
 smoke_require_command python3
+KEEP_ARTIFACTS="$(smoke_normalize_bool "${KEEP_ARTIFACTS}")"
+mkdir -p "${ARTIFACT_DIR}"
 
 SMOKE_EMAIL="$(smoke_build_email "${SMOKE_EMAIL_PREFIX}")"
 

@@ -62,6 +62,7 @@ fi
 mkdir -p "${ARTIFACT_DIR}"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   if [[ "${KEEP_ARTIFACTS}" != "true" ]]; then
     rm -rf "${ARTIFACT_DIR}"
   fi
@@ -171,6 +172,7 @@ print(f"summary_output={summary_output}")
 PY
 
 mkdir -p "${DRIFT_CHECK_ROOT}"
+smoke_sanitize_artifacts "${ARTIFACT_DIR}"
 smoke_update_links \
   "${ARTIFACT_DIR}" "${LATEST_ARTIFACT_LINK}" \
   "${COMPARE_STDOUT}" "${LATEST_COMPARE_LINK}" \

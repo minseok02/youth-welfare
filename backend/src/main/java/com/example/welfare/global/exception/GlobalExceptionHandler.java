@@ -1,6 +1,7 @@
 package com.example.welfare.global.exception;
 
 import com.example.welfare.global.response.ApiResponse;
+import com.example.welfare.global.util.LogSanitizer;
 import com.example.welfare.global.web.ObservabilityAttributes;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
@@ -89,7 +90,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleException(Exception e,
                                                             HttpServletRequest request) {
-        log.error("Unhandled exception", e);
+        log.error("Unhandled exception errorType={} message={}",
+                e.getClass().getSimpleName(),
+                LogSanitizer.sanitizeSingleLine(e.getMessage(), 300));
         ErrorCode errorCode = ErrorCode.INTERNAL_SERVER_ERROR;
         ObservabilityAttributes.setErrorCode(request, errorCode.getCode());
         return ResponseEntity

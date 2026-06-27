@@ -34,6 +34,7 @@ LOGIN_RESPONSE="${ARTIFACT_DIR}/login.json"
 REFRESH_RESPONSE="${ARTIFACT_DIR}/recommend-refresh.json"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   rm -rf "${ARTIFACT_DIR}"
 }
 trap cleanup EXIT

@@ -256,6 +256,161 @@ class RuleScoringServiceTest {
     }
 
     @Test
+    @DisplayName("주거형태 해당 없음은 기존 주택유형 값이 있어도 housing profile bonus를 주지 않는다")
+    void housingProfileNotApplicableDoesNotAddBonus() {
+        RecommendationUserSnapshot user = snapshotWithStandardHousingCodes(
+                List.of(),
+                List.of(),
+                (byte) 5,
+                null,
+                null,
+                "NONE",
+                "4"
+        );
+
+        WelfareService baseline = welfareService(80_3L, "기본 지원");
+        WelfareService projected = welfareService(80_4L, "아파트 주거 지원");
+
+        when(recommendationCandidateReadRepository.findTagsByServiceIds(anyList())).thenReturn(Map.of());
+
+        List<ScoredCandidate> scored = ruleScoringService.score(
+                new RetrievedRecommendationCandidates(
+                        List.of(baseline, projected),
+                        Map.of(
+                                projected.getId(),
+                                RecommendationCandidateProjection.builder()
+                                        .serviceId(projected.getId())
+                                        .keywordTags(Set.of("아파트"))
+                                        .build()
+                        )
+                ),
+                user
+        );
+
+        assertThat(findByServiceId(scored, 80_4L).getRuleBaseScore())
+                .isEqualTo(findByServiceId(scored, 80_3L).getRuleBaseScore());
+    }
+
+    @Test
+    @DisplayName("기초생활수급 해당 없음은 beneficiary target group bonus를 주지 않는다")
+    void basicLivingNotApplicableDoesNotAddBeneficiaryBonus() {
+        RecommendationUserSnapshot applicable = snapshotWithStandardCodes(
+                (byte) 5,
+                null,
+                null,
+                null,
+                null,
+                "1",
+                null
+        );
+        RecommendationUserSnapshot notApplicable = snapshotWithStandardCodes(
+                (byte) 5,
+                null,
+                null,
+                null,
+                null,
+                "NONE",
+                null
+        );
+
+        WelfareService baseline = welfareService(80_5L, "기초생활 청년 지원");
+        WelfareService projected = welfareService(80_6L, "기초생활 청년 지원");
+        RetrievedRecommendationCandidates candidates = new RetrievedRecommendationCandidates(
+                List.of(baseline, projected),
+                Map.of(
+                        projected.getId(),
+                        RecommendationCandidateProjection.builder()
+                                .serviceId(projected.getId())
+                                .targetGroupsRaw(Set.of("기초생활수급자"))
+                                .build()
+                )
+        );
+
+        when(recommendationCandidateReadRepository.findTagsByServiceIds(anyList())).thenReturn(Map.of());
+
+        List<ScoredCandidate> applicableScored = ruleScoringService.score(candidates, applicable);
+        List<ScoredCandidate> notApplicableScored = ruleScoringService.score(candidates, notApplicable);
+
+        assertThat(findByServiceId(applicableScored, 80_6L).getRuleBaseScore())
+                .isEqualTo(findByServiceId(applicableScored, 80_5L).getRuleBaseScore() + 10.0);
+        assertThat(findByServiceId(notApplicableScored, 80_6L).getRuleBaseScore())
+                .isEqualTo(findByServiceId(notApplicableScored, 80_5L).getRuleBaseScore());
+    }
+
+    @Test
+    @DisplayName("취업상태와 가구형태 해당 없음은 대상군 bonus를 만들지 않는다")
+    void notApplicableEmploymentAndHouseholdDoNotAddTargetGroupBonus() {
+        RecommendationUserSnapshot applicable = snapshot(List.of(), List.of(), (byte) 5, "1인가구", "미취업");
+        RecommendationUserSnapshot notApplicable = snapshot(List.of(), List.of(), (byte) 5, "해당 없음", "해당 없음");
+
+        WelfareService baseline = welfareService(80_7L, "기본 지원");
+        WelfareService projected = welfareService(80_8L, "미취업 1인가구 지원");
+        RetrievedRecommendationCandidates candidates = new RetrievedRecommendationCandidates(
+                List.of(baseline, projected),
+                Map.of(
+                        projected.getId(),
+                        RecommendationCandidateProjection.builder()
+                                .serviceId(projected.getId())
+                                .targetGroupsRaw(Set.of("미취업", "1인가구"))
+                                .build()
+                )
+        );
+
+        when(recommendationCandidateReadRepository.findTagsByServiceIds(anyList())).thenReturn(Map.of());
+
+        List<ScoredCandidate> applicableScored = ruleScoringService.score(candidates, applicable);
+        List<ScoredCandidate> notApplicableScored = ruleScoringService.score(candidates, notApplicable);
+
+        assertThat(findByServiceId(applicableScored, 80_8L).getRuleBaseScore())
+                .isEqualTo(findByServiceId(applicableScored, 80_7L).getRuleBaseScore() + 10.0);
+        assertThat(findByServiceId(notApplicableScored, 80_8L).getRuleBaseScore())
+                .isEqualTo(findByServiceId(notApplicableScored, 80_7L).getRuleBaseScore());
+    }
+
+    @Test
+    @DisplayName("장애 해당 없음은 장애 특수대상 match가 아니라 mismatch penalty로 처리된다")
+    void disabilityNotApplicableAppliesSpecialTargetMismatchPenalty() {
+        RecommendationUserSnapshot notApplicable = snapshotWithStandardCodes(
+                (byte) 5,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "NONE"
+        );
+
+        WelfareService baseline = welfareService(80_9L, "일반 지원");
+        WelfareService projected = welfareService(80_10L, "일반 지원");
+
+        when(recommendationCandidateReadRepository.findTagsByServiceIds(anyList())).thenReturn(Map.of());
+
+        List<ScoredCandidate> scored = ruleScoringService.score(
+                new RetrievedRecommendationCandidates(
+                        List.of(baseline, projected),
+                        Map.of(
+                                baseline.getId(),
+                                RecommendationCandidateProjection.builder()
+                                        .serviceId(baseline.getId())
+                                        .title("장애 청년 지원")
+                                        .build(),
+                                projected.getId(),
+                                RecommendationCandidateProjection.builder()
+                                        .serviceId(projected.getId())
+                                        .title("장애 청년 지원")
+                                        .specialTargetBuckets(Set.of(RecommendationProjectionHeuristicSupport.SPECIAL_TARGET_DISABILITY))
+                                        .build()
+                        )
+                ),
+                notApplicable
+        );
+
+        assertThat(findByServiceId(scored, 80_10L).getRuleBaseScore())
+                .isEqualTo(findByServiceId(scored, 80_9L).getRuleBaseScore() - 8.0);
+        assertThat(findByServiceId(scored, 80_10L).isHasSpecialTargetMismatch()).isTrue();
+    }
+
+    @Test
     @DisplayName("projection 관심사 신호가 있는데 사용자 관심분야와 어긋나면 mismatch penalty를 준다")
     void projectionInterestSignalAppliesMismatchPenalty() {
         RecommendationUserSnapshot user = snapshot(List.of("주거"), List.of(), (byte) 5, null, null);
@@ -819,6 +974,36 @@ class RuleScoringServiceTest {
                 0.5,
                 interestFields,
                 targetTypes,
+                List.of()
+        );
+    }
+
+    private RecommendationUserSnapshot snapshotWithStandardCodes(Byte incomeLevel,
+                                                                 String householdType,
+                                                                 String employmentStatus,
+                                                                 String houseTenureCode,
+                                                                 String housingTypeCode,
+                                                                 String basicLivingRecipientTypeCode,
+                                                                 String disabilityGradeCode) {
+        return new RecommendationUserSnapshot(
+                1L,
+                "user-key-1",
+                25,
+                "25_29",
+                "서울특별시",
+                "강남구",
+                "11680",
+                incomeLevel,
+                householdType,
+                employmentStatus,
+                houseTenureCode,
+                housingTypeCode,
+                basicLivingRecipientTypeCode,
+                disabilityGradeCode,
+                10,
+                0.5,
+                List.of(),
+                List.of(),
                 List.of()
         );
     }

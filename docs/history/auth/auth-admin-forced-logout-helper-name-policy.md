@@ -45,7 +45,7 @@ future `admin forced logout` helper/service의 1차 이름은 **`UserSessionRevo
 
 ### 2. 기존 `AccessTokenRevocationService` 와 역할이 더 잘 갈린다
 
-현재 이미 있는 [AccessTokenRevocationService.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AccessTokenRevocationService.java) 는:
+현재 이미 있는 [AccessTokenRevocationService.java](../../../backend/src/main/java/com/example/welfare/user/service/AccessTokenRevocationService.java) 는:
 
 - presented bearer access token 1개 revoke
 - exact token blacklist

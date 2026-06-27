@@ -105,7 +105,38 @@ open_link_reviews as (
       and ws.status in ('ACTIVE', 'UPCOMING')
       and (ws.apply_end_date is null or ws.apply_end_date >= current_date)
       and plrr.id is null
+),
+open_policy_error_reports as (
+    select id, reason_code, created_at
+    from policy_error_reports
+    where status = 'OPEN'
 )
+select 'policy_error_open_reports', count(*)::text from open_policy_error_reports
+union all
+select 'policy_error_recent_open_reports_24h',
+       count(*) filter (where created_at >= now() - interval '24 hours')::text
+from open_policy_error_reports
+union all
+select 'policy_error_open_broken_link_reports',
+       count(*) filter (where reason_code = 'BROKEN_LINK')::text
+from open_policy_error_reports
+union all
+select 'policy_error_open_region_reports',
+       count(*) filter (where reason_code = 'REGION_MISMATCH')::text
+from open_policy_error_reports
+union all
+select 'policy_error_open_period_reports',
+       count(*) filter (where reason_code = 'PERIOD_MISMATCH')::text
+from open_policy_error_reports
+union all
+select 'policy_error_open_eligibility_reports',
+       count(*) filter (where reason_code = 'ELIGIBILITY_MISMATCH')::text
+from open_policy_error_reports
+union all
+select 'policy_error_open_duplicate_reports',
+       count(*) filter (where reason_code = 'DUPLICATE_POLICY')::text
+from open_policy_error_reports
+union all
 select 'policy_duplicate_open_groups', count(*)::text from open_duplicate_groups
 union all
 select 'policy_duplicate_open_rows', coalesce(sum(duplicate_count), 0)::text from open_duplicate_groups
@@ -181,8 +212,22 @@ policy_duplicate_open_mirror_groups = as_int(queue_metrics, "policy_duplicate_op
 policy_duplicate_open_drift_groups = as_int(queue_metrics, "policy_duplicate_open_drift_groups")
 policy_duplicate_open_title_only_groups = as_int(queue_metrics, "policy_duplicate_open_title_only_groups")
 policy_link_open_reviews = as_int(queue_metrics, "policy_link_open_reviews")
+policy_error_open_reports = as_int(queue_metrics, "policy_error_open_reports")
+policy_error_recent_open_reports_24h = as_int(queue_metrics, "policy_error_recent_open_reports_24h")
+policy_error_open_broken_link_reports = as_int(queue_metrics, "policy_error_open_broken_link_reports")
+policy_error_open_region_reports = as_int(queue_metrics, "policy_error_open_region_reports")
+policy_error_open_period_reports = as_int(queue_metrics, "policy_error_open_period_reports")
+policy_error_open_eligibility_reports = as_int(queue_metrics, "policy_error_open_eligibility_reports")
+policy_error_open_duplicate_reports = as_int(queue_metrics, "policy_error_open_duplicate_reports")
 
-if policy_duplicate_open_exact_groups > 0 or policy_duplicate_open_mirror_groups > 0:
+if policy_error_open_reports > 0:
+    decision_class = "POLICY_ERROR_REPORT_PRIORITY"
+    operator_reading = (
+        "사용자가 남긴 정책 오류 제보 OPEN queue가 있습니다. "
+        "정책 데이터 triage는 duplicate/link raw 후보보다 제보 정책 원문과 보정 가능 여부를 먼저 확인해야 합니다."
+    )
+    next_action = "docs/policy/policy-data-quality-triage-runbook.md"
+elif policy_duplicate_open_exact_groups > 0 or policy_duplicate_open_mirror_groups > 0:
     decision_class = "DUPLICATE_THEN_LINK_PRIORITY"
     operator_reading = (
         "현재 정책 운영 queue에는 YOUTH exact/mirror duplicate 후보가 열려 있습니다. "
@@ -226,6 +271,13 @@ summary_lines = [
     f"announcement_recruitment_count={announcement_recruitment_count}",
     f"program_event_count={program_event_count}",
     f"other_count={other_count}",
+    f"policy_error_open_reports={policy_error_open_reports}",
+    f"policy_error_recent_open_reports_24h={policy_error_recent_open_reports_24h}",
+    f"policy_error_open_broken_link_reports={policy_error_open_broken_link_reports}",
+    f"policy_error_open_region_reports={policy_error_open_region_reports}",
+    f"policy_error_open_period_reports={policy_error_open_period_reports}",
+    f"policy_error_open_eligibility_reports={policy_error_open_eligibility_reports}",
+    f"policy_error_open_duplicate_reports={policy_error_open_duplicate_reports}",
     f"policy_duplicate_open_groups={policy_duplicate_open_groups}",
     f"policy_duplicate_open_rows={policy_duplicate_open_rows}",
     f"policy_duplicate_open_exact_groups={policy_duplicate_open_exact_groups}",
@@ -248,6 +300,8 @@ json_out.write_text(json.dumps({
     "link_sample": link_sample,
     "duplicate_candidate": duplicate,
     "queue_metrics": queue_metrics,
+    "policy_error_open_reports": policy_error_open_reports,
+    "policy_error_recent_open_reports_24h": policy_error_recent_open_reports_24h,
     "decision_class": decision_class,
     "operator_reading": operator_reading,
     "next_action": next_action,
@@ -267,6 +321,13 @@ note_lines = [
     f"- `announcement_recruitment_count`: `{announcement_recruitment_count}`",
     f"- `program_event_count`: `{program_event_count}`",
     f"- `other_count`: `{other_count}`",
+    f"- `policy_error_open_reports`: `{policy_error_open_reports}`",
+    f"- `policy_error_recent_open_reports_24h`: `{policy_error_recent_open_reports_24h}`",
+    f"- `policy_error_open_broken_link_reports`: `{policy_error_open_broken_link_reports}`",
+    f"- `policy_error_open_region_reports`: `{policy_error_open_region_reports}`",
+    f"- `policy_error_open_period_reports`: `{policy_error_open_period_reports}`",
+    f"- `policy_error_open_eligibility_reports`: `{policy_error_open_eligibility_reports}`",
+    f"- `policy_error_open_duplicate_reports`: `{policy_error_open_duplicate_reports}`",
     f"- `policy_duplicate_open_groups`: `{policy_duplicate_open_groups}`",
     f"- `policy_duplicate_open_exact_groups`: `{policy_duplicate_open_exact_groups}`",
     f"- `policy_duplicate_open_mirror_groups`: `{policy_duplicate_open_mirror_groups}`",
@@ -279,10 +340,11 @@ note_lines = [
     "",
     "## Backlog Order",
     "",
-    "1. 열린 `YOUTH exact duplicate` 운영 queue",
-    "2. 열린 `YOUTH mirror/channel variant` 운영 queue",
-    "3. 열린 `YOUTH/BOKJIRO_LOCAL` 링크 review bucket",
-    "4. raw audit duplicate/link 잔량 관찰",
+    "1. 열린 `정책 오류 제보` 운영 queue",
+    "2. 열린 `YOUTH exact duplicate` 운영 queue",
+    "3. 열린 `YOUTH mirror/channel variant` 운영 queue",
+    "4. 열린 `YOUTH/BOKJIRO_LOCAL` 링크 review bucket",
+    "5. raw audit duplicate/link 잔량 관찰",
 ]
 note_out.write_text("\n".join(note_lines) + "\n", encoding="utf-8")
 PY

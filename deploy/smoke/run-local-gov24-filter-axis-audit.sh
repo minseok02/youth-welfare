@@ -14,6 +14,7 @@ KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
 HEALTH_RESPONSE="${ARTIFACT_DIR}/health.json"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   if [[ "${KEEP_ARTIFACTS}" != "true" ]]; then
     rm -rf "${ARTIFACT_DIR}"
   fi

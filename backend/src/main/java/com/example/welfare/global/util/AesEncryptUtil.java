@@ -47,7 +47,7 @@ public class AesEncryptUtil {
             System.arraycopy(encrypted, 0, payload, GCM_NONCE_LENGTH, encrypted.length);
             return VERSION_PREFIX + Base64.getEncoder().encodeToString(payload);
         } catch (Exception e) {
-            log.error("AES encrypt failed", e);
+            log.error("AES encrypt failed errorType={}", e.getClass().getSimpleName());
             throw new RuntimeException("암호화 처리 중 오류가 발생했습니다.");
         }
     }
@@ -79,7 +79,7 @@ public class AesEncryptUtil {
             cipher.init(Cipher.DECRYPT_MODE, keySpec, parameterSpec);
             return new String(cipher.doFinal(encrypted), StandardCharsets.UTF_8);
         } catch (Exception e) {
-            log.error("AES decrypt failed", e);
+            log.error("AES decrypt failed errorType={}", e.getClass().getSimpleName());
             throw new RuntimeException("복호화 처리 중 오류가 발생했습니다.");
         }
     }
@@ -99,7 +99,7 @@ public class AesEncryptUtil {
             cipher.init(Cipher.DECRYPT_MODE, keySpec, ivSpec);
             return new String(cipher.doFinal(encrypted), StandardCharsets.UTF_8);
         } catch (Exception e) {
-            log.error("AES decrypt failed", e);
+            log.error("AES decrypt failed errorType={}", e.getClass().getSimpleName());
             throw new RuntimeException("복호화 처리 중 오류가 발생했습니다.");
         }
     }

@@ -138,7 +138,8 @@ public class ChatSessionContextStateService {
         try {
             return objectMapper.readValue(rawState, ChatSessionContextState.class);
         } catch (Exception e) {
-            log.warn("[ChatSessionContextStateService] context state parse failed, reset state", e);
+            log.warn("[ChatSessionContextStateService] context state parse failed, reset state errorType={}",
+                    e.getClass().getSimpleName());
             return new ChatSessionContextState();
         }
     }

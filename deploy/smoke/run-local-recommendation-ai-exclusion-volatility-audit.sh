@@ -59,6 +59,7 @@ fi
 mkdir -p "${ARTIFACT_DIR}"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   if [[ "${KEEP_ARTIFACTS}" != "true" ]]; then
     rm -rf "${ARTIFACT_DIR}"
   fi

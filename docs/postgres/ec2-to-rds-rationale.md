@@ -1429,6 +1429,12 @@ AWS RDS for PostgreSQL은 pgvector를 지원한다. AWS 공지 기준으로 pgve
 ```bash
 DB_ADMIN_RO_USERNAME=admin_dashboard_ro
 DB_ADMIN_RO_PASSWORD=<password>
+RECOMMENDATION_REVIEW_GATE_COMMAND_DB_URL=jdbc:postgresql://<host>:5432/youth_welfare?sslmode=require
+DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME=recommendation_review_gate_command_rw
+DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD=<password>
+RECOMMENDATION_PERSISTENCE_COMMAND_DB_URL=jdbc:postgresql://<host>:5432/youth_welfare?sslmode=require
+DB_RECOMMENDATION_PERSISTENCE_COMMAND_USERNAME=recommendation_persistence_command_rw
+DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD=<password>
 DB_CLUSTER_AI_CLEANUP_USERNAME=cluster_ai_cleanup_rw
 DB_CLUSTER_AI_CLEANUP_PASSWORD=<password>
 DB_RECOMMENDATION_RETENTION_CLEANUP_USERNAME=recommendation_retention_cleanup_rw
@@ -1439,7 +1445,7 @@ DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_USERNAME=web_push_subscription_cleanup_rw
 DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_PASSWORD=<password>
 ```
 
-만약 이 password들을 명시하지 않으면 일부 설정은 `DB_PASSWORD`로 fallback될 수 있다. 운영 보안 관점에서는 role별 password를 명시하는 편이 낫다.
+운영 profile, RDS bootstrap/verify, runtime cutover preflight는 recommendation command role env 누락을 `DB_URL`/`DB_PASSWORD`로 fallback하지 않는다. role별 password를 명시하지 않으면 운영 preflight 또는 bootstrap이 먼저 실패해야 한다.
 
 ### 17.6 connection pool 설정은 수정하는 것이 좋다
 

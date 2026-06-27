@@ -1,15 +1,17 @@
 import axios from "axios";
-import { useAuthStore } from "../store/authStore";
-import { useNetworkStore } from "../store/networkStore";
+import { notifyAuthExpired } from "./authSessionEvents.js";
+import { useAuthStore } from "../store/authStore.js";
+import { useNetworkStore } from "../store/networkStore.js";
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim() || "";
+const viteEnv = import.meta.env ?? {};
+const apiBaseUrl = viteEnv.VITE_API_BASE_URL?.trim() || "";
 const DEFAULT_API_TIMEOUT_MS = 45000;
 const REFRESH_PATH = "/api/auth/refresh";
 const AUTH_PATH_PREFIX = "/api/auth/";
 const API_PATH_PREFIX = "/api/";
 
 const resolveTimeoutMillis = () => {
-  const rawValue = import.meta.env.VITE_API_TIMEOUT_MS?.trim();
+  const rawValue = viteEnv.VITE_API_TIMEOUT_MS?.trim();
   const parsedValue = Number.parseInt(rawValue ?? "", 10);
   return Number.isFinite(parsedValue) && parsedValue > 0
     ? parsedValue
@@ -131,7 +133,7 @@ api.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null);
         useAuthStore.getState().clearSession();
-        window.__authExpired?.();
+        notifyAuthExpired({ reason: "expired" });
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

@@ -18,6 +18,7 @@ SMOKE_HOUSEHOLD_TYPE="${SMOKE_HOUSEHOLD_TYPE:-1인 가구}"
 COACH_POLICY_ID="${COACH_POLICY_ID:-}"
 HEALTH_RETRY_COUNT="${HEALTH_RETRY_COUNT:-15}"
 HEALTH_RETRY_DELAY_SECONDS="${HEALTH_RETRY_DELAY_SECONDS:-1}"
+CHAT_CONTINUITY_COACHING_MIN_POLICY_ROWS="${CHAT_CONTINUITY_COACHING_MIN_POLICY_ROWS:-10}"
 RUN_TS_UTC="${RUN_TS_UTC:-$(smoke_now_ts_utc)}"
 ARTIFACT_ROOT="${ARTIFACT_ROOT:-${ROOT_DIR}/tmp/chat-continuity-coaching-smoke}"
 ARTIFACT_DIR="${ARTIFACT_DIR:-${ARTIFACT_ROOT}/${RUN_TS_UTC}}"
@@ -27,6 +28,11 @@ COOKIE_JAR="${ARTIFACT_DIR}/user.cookie"
 HEALTH_RESPONSE="${ARTIFACT_DIR}/health.json"
 SUMMARY_JSON="${ARTIFACT_DIR}/chat-continuity-coaching-summary.json"
 SUMMARY_TXT="${ARTIFACT_DIR}/chat-continuity-coaching-summary.txt"
+NOTE_OUT="${ARTIFACT_DIR}/chat-continuity-coaching-note.md"
+LATEST_ARTIFACT_LINK="${ARTIFACT_ROOT}/latest"
+LATEST_SUMMARY_LINK="${ARTIFACT_ROOT}/latest-chat-continuity-coaching-summary.txt"
+LATEST_JSON_LINK="${ARTIFACT_ROOT}/latest-chat-continuity-coaching-summary.json"
+LATEST_NOTE_LINK="${ARTIFACT_ROOT}/latest-chat-continuity-coaching-note.md"
 ACCESS_TOKEN=""
 CONTINUITY_SESSION_ID=""
 COACHING_SESSION_ID=""
@@ -34,6 +40,7 @@ COACHING_SESSION_ID=""
 mkdir -p "${ARTIFACT_DIR}"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   if [[ -n "${ACCESS_TOKEN}" && -n "${CONTINUITY_SESSION_ID}" ]]; then
     curl -sS -o /dev/null -X DELETE "${APP_BASE_URL}/api/chat/sessions/${CONTINUITY_SESSION_ID}" \
       -H "Authorization: Bearer ${ACCESS_TOKEN}" || true
@@ -129,6 +136,55 @@ smoke_require_command python3
 smoke_print_step "health check"
 HEALTH_STATUS="$(smoke_wait_for_health "${HEALTH_RETRY_COUNT}" "${HEALTH_RETRY_DELAY_SECONDS}" "${APP_HEALTH_URL}" "${HEALTH_RESPONSE}" "${ARTIFACT_DIR}/health.stderr")"
 smoke_assert_status 200 "${HEALTH_STATUS}" "health check" "${HEALTH_RESPONSE}"
+
+smoke_print_step "policy corpus precheck"
+POLICY_ROW_COUNT="$(smoke_db_query "select count(*) from welfare_services;" | head -n 1)"
+POLICY_ROW_COUNT="${POLICY_ROW_COUNT//[^0-9]/}"
+POLICY_ROW_COUNT="${POLICY_ROW_COUNT:-0}"
+if (( POLICY_ROW_COUNT < CHAT_CONTINUITY_COACHING_MIN_POLICY_ROWS )); then
+  cat > "${SUMMARY_TXT}" <<EOF
+chat continuity/coaching smoke skipped
+skip_reason=INSUFFICIENT_POLICY_CORPUS
+policy_row_count=${POLICY_ROW_COUNT}
+min_policy_rows=${CHAT_CONTINUITY_COACHING_MIN_POLICY_ROWS}
+artifact_dir=${ARTIFACT_DIR}
+EOF
+  python3 - "${SUMMARY_JSON}" "${ARTIFACT_DIR}" "${POLICY_ROW_COUNT}" "${CHAT_CONTINUITY_COACHING_MIN_POLICY_ROWS}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+summary_json = Path(sys.argv[1])
+summary_json.write_text(json.dumps({
+    "chatContinuityCoachingSmoke": "skipped",
+    "skipReason": "INSUFFICIENT_POLICY_CORPUS",
+    "artifactDir": sys.argv[2],
+    "policyRowCount": int(sys.argv[3]),
+    "minPolicyRows": int(sys.argv[4]),
+}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+  cat > "${NOTE_OUT}" <<EOF
+# Chat Continuity Coaching Smoke
+
+- status: \`skipped\`
+- skip_reason: \`INSUFFICIENT_POLICY_CORPUS\`
+- policy_row_count: \`${POLICY_ROW_COUNT}\`
+- min_policy_rows: \`${CHAT_CONTINUITY_COACHING_MIN_POLICY_ROWS}\`
+
+Fresh local databases do not contain the representative policy corpus required by the continuity/coaching smoke.
+EOF
+smoke_sanitize_artifacts "${ARTIFACT_DIR}"
+  smoke_publish_dir_snapshot "${ARTIFACT_DIR}" "${LATEST_ARTIFACT_LINK}"
+  smoke_publish_file "${SUMMARY_TXT}" "${LATEST_SUMMARY_LINK}"
+  smoke_publish_file "${SUMMARY_JSON}" "${LATEST_JSON_LINK}"
+  smoke_publish_file "${NOTE_OUT}" "${LATEST_NOTE_LINK}"
+  cat "${SUMMARY_TXT}"
+  echo "latest_artifact_link=${LATEST_ARTIFACT_LINK}"
+  echo "latest_summary_link=${LATEST_SUMMARY_LINK}"
+  echo "latest_json_link=${LATEST_JSON_LINK}"
+  echo "latest_note_link=${LATEST_NOTE_LINK}"
+  exit 0
+fi
 
 smoke_print_step "resolve coach policy"
 RESOLVED_COACH_POLICY_ID="$(resolve_coach_policy_id)"
@@ -278,6 +334,7 @@ python3 - \
   "${ARTIFACT_DIR}" \
   "${SUMMARY_JSON}" \
   "${SUMMARY_TXT}" \
+  "${NOTE_OUT}" \
   "${RESOLVED_COACH_POLICY_ID}" <<'PY'
 import json
 import pathlib
@@ -286,7 +343,8 @@ import sys
 artifact_dir = pathlib.Path(sys.argv[1])
 summary_json = pathlib.Path(sys.argv[2])
 summary_txt = pathlib.Path(sys.argv[3])
-coach_policy_id = int(sys.argv[4])
+note_out = pathlib.Path(sys.argv[4])
+coach_policy_id = int(sys.argv[5])
 
 continuity_turns = []
 for index in range(1, 4):
@@ -371,6 +429,27 @@ summary_lines = [
     f"summary_json={summary_json}",
 ]
 summary_txt.write_text("\n".join(summary_lines) + "\n", encoding="utf-8")
+
+note_lines = [
+    "# Chat Continuity Coaching Smoke",
+    "",
+    f"- status: `{'passed' if not failed else 'failed'}`",
+    f"- coach_policy_id: `{coach_policy_id}`",
+    f"- continuity_message_count: `{len(continuity_messages)}`",
+    f"- continuity_snapshot_count: `{len(snapshot_rows)}`",
+    f"- coaching_answer_mode: `{coaching_payload.get('answerMode')}`",
+    f"- coaching_action_link_types: `{', '.join(action_link_types)}`",
+    f"- failed_checks: `{', '.join(failed)}`",
+    "",
+    "## Continuity Turns",
+]
+for turn in continuity_turns:
+    note_lines.append(
+        f"- turn `{turn['turn']}` mode=`{turn['answerMode']}` refs=`{turn['referenceCount']}` "
+        f"titles=`{', '.join(title or '' for title in turn['referenceTitles'])}`"
+    )
+note_out.write_text("\n".join(note_lines) + "\n", encoding="utf-8")
+
 if failed:
     raise SystemExit("\n".join(summary_lines))
 PY
@@ -401,6 +480,13 @@ PRINT_CONTINUITY_SESSION_ID="${CONTINUITY_SESSION_ID}"
 PRINT_COACHING_SESSION_ID="${COACHING_SESSION_ID}"
 CONTINUITY_SESSION_ID=""
 COACHING_SESSION_ID=""
+smoke_sanitize_artifacts "${ARTIFACT_DIR}"
+
+smoke_sanitize_artifacts "${ARTIFACT_DIR}"
+smoke_publish_dir_snapshot "${ARTIFACT_DIR}" "${LATEST_ARTIFACT_LINK}"
+smoke_publish_file "${SUMMARY_TXT}" "${LATEST_SUMMARY_LINK}"
+smoke_publish_file "${SUMMARY_JSON}" "${LATEST_JSON_LINK}"
+smoke_publish_file "${NOTE_OUT}" "${LATEST_NOTE_LINK}"
 
 cat "${SUMMARY_TXT}"
 echo "artifact_dir=${ARTIFACT_DIR}"
@@ -408,3 +494,7 @@ echo "smoke_email=${SMOKE_EMAIL}"
 echo "continuity_session_id=${PRINT_CONTINUITY_SESSION_ID}"
 echo "coaching_session_id=${PRINT_COACHING_SESSION_ID}"
 echo "post_delete_snapshot_count=${POST_DELETE_SNAPSHOT_COUNT}"
+echo "latest_artifact_link=${LATEST_ARTIFACT_LINK}"
+echo "latest_summary_link=${LATEST_SUMMARY_LINK}"
+echo "latest_json_link=${LATEST_JSON_LINK}"
+echo "latest_note_link=${LATEST_NOTE_LINK}"

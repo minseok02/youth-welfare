@@ -196,10 +196,15 @@ user:
       batch-size: ${USER_PII_SYNC_RETRY_BATCH_SIZE:100}
       fixed-delay-ms: ${USER_PII_SYNC_RETRY_FIXED_DELAY_MS:300000}
       initial-delay-ms: ${USER_PII_SYNC_RETRY_INITIAL_DELAY_MS:60000}
+    retention:
+      enabled: ${USER_PII_SYNC_RETENTION_ENABLED:true}
+      synced-days: ${USER_PII_SYNC_RETENTION_SYNCED_DAYS:30}
+      cron: "${USER_PII_SYNC_RETENTION_CRON:0 25 3 * * *}"
+      zone: ${USER_PII_SYNC_RETENTION_ZONE:Asia/Seoul}
 
 youth-api:
   api-key: ${YOUTH_API_KEY:${PUBLIC_DATA_PORTAL_API_KEY:}}
-  base-url: https://www.youthcenter.go.kr/go/ythAct/getPlcyList.do
+  base-url: https://www.youthcenter.go.kr/go/ythip/getPlcy
 
 bokjiro:
   api-key: ${PUBLIC_DATA_PORTAL_API_KEY:}

@@ -5,6 +5,7 @@
 관련 문서:
 
 - [collect-ops.md](./collect-ops.md)
+- [collect-detail-execution-contract.md](./collect-detail-execution-contract.md)
 - [collect-governance-observation-runbook.md](./collect-governance-observation-runbook.md)
 - [collect-source-resilience-audit-runbook.md](./collect-source-resilience-audit-runbook.md)
 - [youth-regionless-audit-runbook.md](./youth-regionless-audit-runbook.md)
@@ -21,7 +22,12 @@
 
 daily operator entrypoint는 [collect-governance-observation-runbook.md](./collect-governance-observation-runbook.md) 와 `bash deploy/smoke/run-local-collect-governance-observation-suite.sh` 입니다. 이 wrapper는 `collect-failures` 전체 contract 대신 `scheduled/rotation/manual lane count`, `latest failed/partial lane`, `open circuit`, `next_action` 을 compact하게 요약하고 `latest-collect-governance-observation-note.md` 사람용 artifact도 남깁니다.
 
+외부 API 수집 DB 이력은 [collect-external-api-smoke-runbook.md](./collect-external-api-smoke-runbook.md) 와 `bash deploy/smoke/run-local-collect-external-api-smoke.sh` 로 먼저 봅니다. 이 smoke는 외부 API를 재호출하지 않고 `api_sync_logs`, `raw_api_payloads`, `welfare_services`, `welfare_service_details`, canonical sidecar(`service_taxonomies`, `service_taxonomy_terms`, `service_taxonomy_summary_slots`, `service_facts`), `collect_runtime_statuses`, `collect_execution_locks` 를 읽어 `NO_COLLECT_HISTORY`, source별 수집 성공/저장 정합성(`STORAGE_PARITY_REVIEW`), 저장 이후 sidecar 정합성(`SIDECAR_PARITY_REVIEW`), detail/support coverage 정합성(`DETAIL_SUPPORT_COVERAGE_REVIEW`), 실제 실패/open circuit/active lock을 분리합니다.
+서버/RDS-backed 앱을 확인할 때는 `ENV_FILE=.env.production SMOKE_DB_MODE=postgres` 를 명시해 앱 runtime DB와 smoke DB를 맞춥니다. Docker DB auto mode는 로컬 volume만 읽으므로 prod profile 앱의 수집 상태와 다를 수 있습니다.
+
 source별 retry/rate-limit/duplicate-run guard inventory를 다시 볼 때는 [collect-source-resilience-audit-runbook.md](./collect-source-resilience-audit-runbook.md) 와 `bash deploy/smoke/run-local-collect-source-resilience-audit.sh` 를 먼저 씁니다. 이 audit는 `collectSourceLanes.configEntries` 를 재사용해 lane별 resilience metadata drift를 compact하게 다시 읽습니다.
+
+scheduled `collect/all` 의 list snapshot, forced detail, 요일별 rotation detail 순서와 호출량 경계는 [collect-detail-execution-contract.md](./collect-detail-execution-contract.md) 를 기준으로 봅니다.
 
 ## 현재 collect entry
 
@@ -54,6 +60,14 @@ source별 retry/rate-limit/duplicate-run guard inventory를 다시 볼 때는 [c
 3. 이전 정상 snapshot 대비 `new / changed / missing` diff 계산
 4. 신규/변경 임계치 초과 시 sourceId 후보만 forced detail 우선 처리
 5. 남은 기본 경로로 요일별 detail rotation 실행
+
+세부 계약:
+
+- list phase는 `YOUTH -> BOKJIRO_CENTRAL -> BOKJIRO_LOCAL -> GOV24` 순서입니다.
+- forced detail은 모든 list source가 끝난 뒤에만 실행합니다.
+- rotation detail은 forced detail이 모두 끝난 뒤 마지막에 실행합니다.
+- 같은 detail lane이 forced phase와 rotation phase에서 각각 한 번씩 결과에 나타날 수 있습니다.
+- 이 경우 중복 버그가 아니라 list diff 대응과 backlog rotation이 같은 날 겹친 상태로 읽습니다.
 
 주의:
 

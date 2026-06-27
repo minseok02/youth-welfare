@@ -12,7 +12,7 @@ local 환경에서 `flag off` / `flag on` 결과를 같은 조건으로 비교�
 
 자동 replay 초안:
 
-- [deploy/smoke/run-local-education-priority-replay.sh](/home/ubuntu/youth-welfare/deploy/smoke/run-local-education-priority-replay.sh)
+- [deploy/smoke/run-local-education-priority-replay.sh](../../../deploy/smoke/run-local-education-priority-replay.sh)
 
 ## 전제
 

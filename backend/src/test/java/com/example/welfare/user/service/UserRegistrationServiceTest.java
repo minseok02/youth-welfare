@@ -95,6 +95,28 @@ class UserRegistrationServiceTest {
     }
 
     @Test
+    @DisplayName("회원가입 저장은 주거형태가 해당 없음이면 주택유형도 해당 없음으로 정규화한다")
+    void registerNormalizesHousingTypeWhenHouseTenureIsNotApplicable() {
+        SignupRequest request = new SignupRequest();
+        ReflectionTestUtils.setField(request, "email", "user@example.com");
+        ReflectionTestUtils.setField(request, "name", "홍길동");
+        ReflectionTestUtils.setField(request, "birthDate", java.time.LocalDate.of(2000, 1, 10));
+        ReflectionTestUtils.setField(request, "houseTenureCode", "NONE");
+        ReflectionTestUtils.setField(request, "housingTypeCode", "4");
+        ReflectionTestUtils.setField(request, "optionalProfileConsentAgreed", true);
+        when(userAccountOriginResolver.resolve("user@example.com")).thenReturn(User.AccountOrigin.REAL_USER);
+        when(userKeyLookupService.findRequired(null)).thenReturn("user-key-1");
+
+        userRegistrationService.register(request, "encoded-password");
+
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(userProfileStandardCodeValidator).validateProfileCodes("NONE", "NONE", null, null);
+        verify(userRegistrationCommandRepository).save(userCaptor.capture());
+        assertThat(userCaptor.getValue().getHouseTenureCode()).isEqualTo("NONE");
+        assertThat(userCaptor.getValue().getHousingTypeCode()).isEqualTo("NONE");
+    }
+
+    @Test
     @DisplayName("회원가입 우선순위는 가입 트랜잭션에서 user_priorities와 관심분야로 저장한다")
     void registerStoresSignupPriorities() {
         SignupRequest request = new SignupRequest();

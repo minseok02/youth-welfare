@@ -1,5 +1,6 @@
 package com.example.welfare.user.service;
 
+import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.user.dto.response.UserPiiSyncFailedSampleResponse;
 import com.example.welfare.user.dto.response.UserPiiSyncStatusResponse;
 import com.example.welfare.user.entity.UserPiiSyncQueue;
@@ -40,12 +41,16 @@ public class UserPiiSyncStatusService {
                 pendingCount,
                 failedCount,
                 syncedCount,
-                oldestPending != null ? oldestPending.getUserKey() : null,
+                userKeyHash(oldestPending),
                 oldestPending != null ? oldestPending.getLastEnqueuedAt() : null,
-                oldestFailed != null ? oldestFailed.getUserKey() : null,
+                userKeyHash(oldestFailed),
                 oldestFailed != null ? oldestFailed.getLastAttemptAt() : null,
                 latestSynced != null ? latestSynced.getLastSyncedAt() : null,
                 failedSamples
         );
+    }
+
+    private String userKeyHash(UserPiiSyncQueue queue) {
+        return queue != null ? RedisKeyHash.sha256Hex(queue.getUserKey()) : null;
     }
 }

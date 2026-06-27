@@ -2,12 +2,14 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
 
 ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
 HOUSING_ARTIFACT_DIR="${ARTIFACT_DIR}/housing"
 EDUCATION_ARTIFACT_DIR="${ARTIFACT_DIR}/education"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   rm -rf "${ARTIFACT_DIR}"
 }
 

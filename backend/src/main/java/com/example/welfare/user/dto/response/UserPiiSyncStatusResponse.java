@@ -7,9 +7,9 @@ public record UserPiiSyncStatusResponse(
         long pendingCount,
         long failedCount,
         long syncedCount,
-        String oldestPendingUserKey,
+        String oldestPendingUserKeyHash,
         LocalDateTime oldestPendingEnqueuedAt,
-        String oldestFailedUserKey,
+        String oldestFailedUserKeyHash,
         LocalDateTime oldestFailedAttemptAt,
         LocalDateTime latestSyncedAt,
         List<UserPiiSyncFailedSampleResponse> failedSamples

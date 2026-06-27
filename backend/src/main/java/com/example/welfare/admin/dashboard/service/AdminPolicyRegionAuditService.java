@@ -43,7 +43,7 @@ public class AdminPolicyRegionAuditService {
                     response.skippedExistingReportCount());
         } catch (Exception e) {
             log.warn("[PolicyRegionAudit] scheduled failed errorType={}",
-                    e.getClass().getSimpleName(), e);
+                    e.getClass().getSimpleName());
         }
     }
 

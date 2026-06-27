@@ -179,6 +179,7 @@ json_out.write_text(
 )
 PY
 
+smoke_sanitize_artifacts "${ARTIFACT_DIR}"
 smoke_update_links \
   "${ARTIFACT_DIR}" "${LATEST_ARTIFACT_LINK}" \
   "${SUMMARY_OUT}" "${LATEST_SUMMARY_LINK}" \

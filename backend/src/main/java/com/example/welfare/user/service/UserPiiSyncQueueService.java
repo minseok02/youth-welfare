@@ -7,6 +7,7 @@ import com.example.welfare.user.repository.UserPiiSyncQueueReadRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -75,5 +76,12 @@ public class UserPiiSyncQueueService {
             return 0;
         }
         return userPiiSyncQueueCommandRepository.deleteByUserKey(userKey);
+    }
+
+    public long deleteSyncedBefore(LocalDateTime before) {
+        if (before == null) {
+            return 0;
+        }
+        return userPiiSyncQueueCommandRepository.deleteSyncedBefore(before);
     }
 }

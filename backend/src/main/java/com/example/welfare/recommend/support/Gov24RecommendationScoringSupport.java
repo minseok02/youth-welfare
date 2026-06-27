@@ -17,6 +17,7 @@ public final class Gov24RecommendationScoringSupport {
     private static final double INDIVIDUAL_USER_TYPE_BONUS = 3.0;
     private static final double HOUSEHOLD_USER_TYPE_BONUS = 2.0;
     private static final double MAX_TOTAL_BONUS = 10.0;
+    private static final Set<String> NOT_APPLICABLE_PROFILE_VALUES = Set.of("해당 없음", "해당없음", "NONE");
 
     private static final Set<String> CATEGORY_PRIORITY_CODES = Set.of(
             "HOUSING",
@@ -104,9 +105,13 @@ public final class Gov24RecommendationScoringSupport {
         if (userTypeTokens.contains("개인")) {
             return INDIVIDUAL_USER_TYPE_BONUS;
         }
-        if (userTypeTokens.contains("가구") && user.householdType() != null && !user.householdType().isBlank()) {
+        if (userTypeTokens.contains("가구") && hasApplicableProfileValue(user.householdType())) {
             return HOUSEHOLD_USER_TYPE_BONUS;
         }
         return 0.0;
+    }
+
+    private static boolean hasApplicableProfileValue(String value) {
+        return value != null && !value.isBlank() && !NOT_APPLICABLE_PROFILE_VALUES.contains(value.trim());
     }
 }

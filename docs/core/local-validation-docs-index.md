@@ -124,6 +124,8 @@
 - 실사용자 샘플 관측: `deploy/smoke/run-local-chat-real-user-quality-sample-audit.sh`
 - 운영 관측 지표: `deploy/smoke/run-local-chat-observability-audit.sh`
 
+follow-up / coaching 계열 smoke는 대표 정책 corpus가 필요한 데이터 의존 검증입니다. fresh local DB처럼 정책 row가 최소 기준 미만이면 `INSUFFICIENT_POLICY_CORPUS` 로 skip하고, read-only 관측 스크립트는 현재 traffic 지표만 남깁니다. `chat-continuity-coaching-smoke` 는 latest summary/json/note artifact를 함께 남깁니다.
+
 ## 읽는 순서
 
 ### 빠르게 빌드/테스트만 확인할 때

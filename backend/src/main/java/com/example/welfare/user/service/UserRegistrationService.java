@@ -40,9 +40,13 @@ public class UserRegistrationService {
     public void register(SignupRequest request, String encodedPassword) {
         String normalizedEmail = EmailLookupKeyGenerator.normalize(request.getEmail());
         List<String> priorityCodes = normalizePriorityCodes(request.getPriorityCodes());
+        String normalizedHousingTypeCode = UserProfileStandardCodeValidator.normalizeHousingTypeCode(
+                request.getHouseTenureCode(),
+                request.getHousingTypeCode()
+        );
         userProfileStandardCodeValidator.validateProfileCodes(
                 request.getHouseTenureCode(),
-                request.getHousingTypeCode(),
+                normalizedHousingTypeCode,
                 request.getBasicLivingRecipientTypeCode(),
                 request.getDisabilityGradeCode()
         );
@@ -58,7 +62,7 @@ public class UserRegistrationService {
                 .employmentStatus(request.getEmploymentStatus())
                 .householdType(request.getHouseholdType())
                 .houseTenureCode(request.getHouseTenureCode())
-                .housingTypeCode(request.getHousingTypeCode())
+                .housingTypeCode(normalizedHousingTypeCode)
                 .basicLivingRecipientTypeCode(request.getBasicLivingRecipientTypeCode())
                 .disabilityGradeCode(request.getDisabilityGradeCode())
                 .profileCompleteness(calculateCompleteness(request, priorityCodes))

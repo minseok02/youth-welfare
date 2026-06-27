@@ -4,14 +4,14 @@
 
 관련 코드:
 
-- [AuthSessionService.java](../backend/src/main/java/com/example/welfare/user/service/AuthSessionService.java)
-- [AuthAdminRoleService.java](../backend/src/main/java/com/example/welfare/user/service/AuthAdminRoleService.java)
-- [UserAccountCommandService.java](../backend/src/main/java/com/example/welfare/user/service/UserAccountCommandService.java)
-- [AccessTokenRevocationService.java](../backend/src/main/java/com/example/welfare/user/service/AccessTokenRevocationService.java)
-- [UserSessionRevocationService.java](../backend/src/main/java/com/example/welfare/user/service/UserSessionRevocationService.java)
-- [JwtAuthenticationFilter.java](../backend/src/main/java/com/example/welfare/global/config/JwtAuthenticationFilter.java)
-- [JwtUtil.java](../backend/src/main/java/com/example/welfare/global/util/JwtUtil.java)
-- [UserAdminController.java](../backend/src/main/java/com/example/welfare/user/controller/UserAdminController.java)
+- [AuthSessionService.java](../../backend/src/main/java/com/example/welfare/user/service/AuthSessionService.java)
+- [AuthAdminRoleService.java](../../backend/src/main/java/com/example/welfare/user/service/AuthAdminRoleService.java)
+- [UserAccountCommandService.java](../../backend/src/main/java/com/example/welfare/user/service/UserAccountCommandService.java)
+- [AccessTokenRevocationService.java](../../backend/src/main/java/com/example/welfare/user/service/AccessTokenRevocationService.java)
+- [UserSessionRevocationService.java](../../backend/src/main/java/com/example/welfare/user/service/UserSessionRevocationService.java)
+- [JwtAuthenticationFilter.java](../../backend/src/main/java/com/example/welfare/global/config/JwtAuthenticationFilter.java)
+- [JwtUtil.java](../../backend/src/main/java/com/example/welfare/global/util/JwtUtil.java)
+- [UserAdminController.java](../../backend/src/main/java/com/example/welfare/user/controller/UserAdminController.java)
 
 관련 문서:
 

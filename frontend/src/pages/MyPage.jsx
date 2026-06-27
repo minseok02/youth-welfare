@@ -20,7 +20,11 @@ import {
 } from "../lib/webPush";
 import { performServerLogout } from "../lib/session";
 import { useAuthStore } from "../store/authStore";
-import { fetchProfileStandardCodebookOptions } from "../lib/officialCodebookOptions";
+import {
+  PROFILE_NOT_APPLICABLE_CODE,
+  fetchProfileStandardCodebookOptions,
+  normalizeHousingProfileCodes,
+} from "../lib/officialCodebookOptions";
 import { resolveStandardProfileCodeCompletion } from "../lib/profileStandardCodes";
 import {
   REGIONS,
@@ -797,6 +801,7 @@ export default function MyPage() {
   );
   const hasSensitiveInfoInput = Boolean(myInfo.disabilityGradeCode);
   const optionalProfileFieldDisabled = !editing || !optionalProfileConsentAgreed;
+  const housingTypeFieldDisabled = optionalProfileFieldDisabled || myInfo.houseTenureCode === PROFILE_NOT_APPLICABLE_CODE;
 
   // completion
   const hasCompleteAddress = Boolean(
@@ -863,6 +868,10 @@ export default function MyPage() {
         const bd = p.birthDate ? p.birthDate.split("-") : ["", "", ""];
         const region = SIDO_TO_REGION[p.sido] ?? p.sido ?? "";
         const { subRegion, ward } = resolveRegionSelection(region, p.sgg ?? "");
+        const normalizedHousingProfileCodes = normalizeHousingProfileCodes({
+          houseTenureCode: p.houseTenureCode ?? "",
+          housingTypeCode: p.housingTypeCode ?? "",
+        });
         setMyInfo({
           name: p.name ?? "",
           email: p.email ?? "",
@@ -875,8 +884,8 @@ export default function MyPage() {
           income:     p.incomeLevel != null ? String(p.incomeLevel) : "",
           employ:     p.employmentStatus ?? "",
           householdType: p.householdType ?? "",
-          houseTenureCode: p.houseTenureCode ?? "",
-          housingTypeCode: p.housingTypeCode ?? "",
+          houseTenureCode: normalizedHousingProfileCodes.houseTenureCode,
+          housingTypeCode: normalizedHousingProfileCodes.housingTypeCode,
           basicLivingRecipientTypeCode: p.basicLivingRecipientTypeCode ?? "",
           disabilityGradeCode: p.disabilityGradeCode ?? "",
         });
@@ -985,6 +994,7 @@ export default function MyPage() {
         ? `${myInfo.birthYear}-${String(myInfo.birthMonth).padStart(2,"0")}-${String(myInfo.birthDay).padStart(2,"0")}`
         : undefined;
       const submittedSgg = resolveSubmittedSgg(myInfo.region, myInfo.subRegion, myInfo.ward);
+      const normalizedHousingProfileCodes = normalizeHousingProfileCodes(myInfo);
       await api.put("/api/users/me", {
         name:             myInfo.name || undefined,
         birthDate,
@@ -993,8 +1003,8 @@ export default function MyPage() {
         incomeLevel:      myInfo.income ? parseInt(myInfo.income) : undefined,
         householdType:    myInfo.householdType || undefined,
         employmentStatus: myInfo.employ || undefined,
-        houseTenureCode:  myInfo.houseTenureCode || undefined,
-        housingTypeCode:  myInfo.housingTypeCode || undefined,
+        houseTenureCode:  normalizedHousingProfileCodes.houseTenureCode || undefined,
+        housingTypeCode:  normalizedHousingProfileCodes.housingTypeCode || undefined,
         basicLivingRecipientTypeCode: myInfo.basicLivingRecipientTypeCode || undefined,
         disabilityGradeCode: myInfo.disabilityGradeCode || undefined,
         optionalProfileConsentAgreed: hasOptionalProfileInput ? optionalProfileConsentAgreed : undefined,
@@ -1023,6 +1033,46 @@ export default function MyPage() {
       showToast(code === "U004" ? consentRequiredMessage : "저장에 실패했습니다", "error");
     } finally {
       setInfoLoading(false);
+    }
+  };
+
+  const handleHouseTenureCodeChange = (value) => {
+    setMyInfo((current) => ({
+      ...current,
+      ...normalizeHousingProfileCodes({
+        houseTenureCode: value,
+        housingTypeCode: current.housingTypeCode,
+      }),
+    }));
+  };
+
+  const handleOptionalProfileConsentChange = (checked) => {
+    setOptionalProfileConsentAgreed(checked);
+    if (!checked) {
+      setMyInfo((current) => ({
+        ...current,
+        region: "",
+        subRegion: "",
+        ward: "",
+        income: "",
+        employ: "",
+        householdType: "",
+        houseTenureCode: "",
+        housingTypeCode: "",
+        basicLivingRecipientTypeCode: "",
+      }));
+      setPriorities([]);
+      setTargetTypes([]);
+    }
+  };
+
+  const handleSensitiveInfoConsentChange = (checked) => {
+    setSensitiveInfoConsentAgreed(checked);
+    if (!checked) {
+      setMyInfo((current) => ({
+        ...current,
+        disabilityGradeCode: "",
+      }));
     }
   };
 
@@ -1610,7 +1660,7 @@ export default function MyPage() {
 
                 <ConsentNotice
                   checked={optionalProfileConsentAgreed}
-                  onChange={setOptionalProfileConsentAgreed}
+                  onChange={handleOptionalProfileConsentChange}
                   disabled={!editing}
                   title="추천용 선택 개인정보 수집·이용 동의"
                   description="지역, 소득수준, 취업상태, 가구형태, 주거 및 수급 관련 정보가 맞춤 추천에 사용됩니다."
@@ -1732,7 +1782,7 @@ export default function MyPage() {
                   <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
                     <ConsentNotice
                       checked={sensitiveInfoConsentAgreed}
-                      onChange={setSensitiveInfoConsentAgreed}
+                      onChange={handleSensitiveInfoConsentChange}
                       disabled={!editing}
                       title="민감정보 수집·이용 별도 동의"
                       description="장애 관련 정보는 동의한 경우에만 저장하고 맞춤 추천에 사용합니다."
@@ -1749,7 +1799,7 @@ export default function MyPage() {
                         style={selCss(optionalProfileFieldDisabled)}
                         disabled={optionalProfileFieldDisabled}
                         value={myInfo.houseTenureCode}
-                        onChange={e => setMyInfo({ ...myInfo, houseTenureCode: e.target.value })}
+                        onChange={e => handleHouseTenureCodeChange(e.target.value)}
                       >
                         <option value="">선택 안 함</option>
                         {profileCodeOptions.houseTenure.map((option) => (
@@ -1759,8 +1809,8 @@ export default function MyPage() {
                     </Field>
                     <Field label="주택유형">
                       <select
-                        style={selCss(optionalProfileFieldDisabled)}
-                        disabled={optionalProfileFieldDisabled}
+                        style={selCss(housingTypeFieldDisabled)}
+                        disabled={housingTypeFieldDisabled}
                         value={myInfo.housingTypeCode}
                         onChange={e => setMyInfo({ ...myInfo, housingTypeCode: e.target.value })}
                       >
@@ -1827,7 +1877,7 @@ export default function MyPage() {
               <>
                 <ConsentNotice
                   checked={optionalProfileConsentAgreed}
-                  onChange={setOptionalProfileConsentAgreed}
+                  onChange={handleOptionalProfileConsentChange}
                   disabled={priorityLoading}
                   title="추천용 선택 개인정보 수집·이용 동의"
                   description="우선순위와 특화 대상은 맞춤 추천 품질을 높이는 선택정보로 사용됩니다."

@@ -355,7 +355,7 @@ current runtime token inventory는 이미 충분히 좁다.
 - sample: `1111000000 서울특별시 종로구 존재`
 
 이 파일은 region 보강 source로는 쓸 수 있다.
-다만 현재 시스템은 [RegionCodeUtil.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/global/util/RegionCodeUtil.java:1) 기준으로
+다만 현재 시스템은 [RegionCodeUtil.java](../../backend/src/main/java/com/example/welfare/global/util/RegionCodeUtil.java) 기준으로
 `5자리 시군구 코드`와 수기 alias map을 사용한다.
 
 따라서 이 파일을 바로 꽂으려면 적어도 아래 중 하나가 필요하다.

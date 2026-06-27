@@ -835,7 +835,8 @@ class AdminSecurityWebMvcTest {
                                         "수집 drift 확인",
                                         "실패 2건, 부분 성공 1건, 열린 회로 1개",
                                         "admin-collect-triage",
-                                        "collect"
+                                        "collect",
+                                        "수집 실패 샘플과 열린 circuit을 확인합니다."
                                 ),
                                 new AdminDashboardAttentionResponse.AttentionItem(
                                         "standard-code-backlog",
@@ -843,7 +844,8 @@ class AdminSecurityWebMvcTest {
                                         "표준코드 입력 backlog",
                                         "793명이 주거·복지 표준코드 4개를 모두 비워둔 상태입니다.",
                                         "admin-standard-code-coverage",
-                                        "user-profile-standard-codes"
+                                        "user-profile-standard-codes",
+                                        "자동 보정 후보와 충돌 gap을 먼저 검토합니다."
                                 )
                         )
                 ));
@@ -854,6 +856,7 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.itemCount").value(2))
                 .andExpect(jsonPath("$.data.items[0].key").value("collect-drift"))
+                .andExpect(jsonPath("$.data.items[0].nextAction").value("수집 실패 샘플과 열린 circuit을 확인합니다."))
                 .andExpect(jsonPath("$.data.items[1].key").value("standard-code-backlog"));
 
         then(adminDashboardAttentionService).should().getAttentionFeed();
@@ -3359,8 +3362,10 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.pendingCount").value(2))
                 .andExpect(jsonPath("$.data.failedCount").value(1))
-                .andExpect(jsonPath("$.data.oldestPendingUserKey").value("pending-user"))
-                .andExpect(jsonPath("$.data.oldestFailedUserKey").value("failed-user"))
+                .andExpect(jsonPath("$.data.oldestPendingUserKeyHash").value("pending-user"))
+                .andExpect(jsonPath("$.data.oldestFailedUserKeyHash").value("failed-user"))
+                .andExpect(jsonPath("$.data.oldestPendingUserKey").doesNotExist())
+                .andExpect(jsonPath("$.data.oldestFailedUserKey").doesNotExist())
                 .andExpect(jsonPath("$.data.failedSamples").isArray());
 
         then(userPiiSyncStatusService).should().getStatus(3);

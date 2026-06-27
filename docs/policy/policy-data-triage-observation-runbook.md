@@ -14,7 +14,7 @@ bash deploy/smoke/run-local-policy-data-triage-observation-suite.sh
 server/RDS에서는 아래를 사용합니다.
 
 ```bash
-ENV_FILE=.env.production SMOKE_DB_MODE=postgres \
+ENV_FILE=.env.runtime.production SMOKE_DB_MODE=postgres \
 bash deploy/smoke/run-local-policy-data-triage-observation-suite.sh
 ```
 
@@ -30,6 +30,14 @@ bash deploy/smoke/run-local-policy-data-triage-observation-suite.sh
 - `announcement_recruitment_count`
 - `program_event_count`
 - `other_count`
+- `link_sample_decision_class`
+- `policy_error_open_reports`
+- `policy_error_recent_open_reports_24h`
+- `policy_error_open_broken_link_reports`
+- `policy_error_open_region_reports`
+- `policy_error_open_period_reports`
+- `policy_error_open_eligibility_reports`
+- `policy_error_open_duplicate_reports`
 - `policy_duplicate_open_groups`
 - `policy_duplicate_open_rows`
 - `policy_link_open_reviews`
@@ -37,6 +45,9 @@ bash deploy/smoke/run-local-policy-data-triage-observation-suite.sh
 
 ## 해석
 
+- `POLICY_ERROR_REPORT_PRIORITY`
+  - 사용자 정책 오류 제보 `OPEN` queue가 남아 있습니다.
+  - 이 경우 raw duplicate/link 후보보다 제보 정책 원문, 링크/기간/지역/자격 불일치, 보정 가능 여부를 먼저 확인합니다.
 - `REVIEW_QUEUE_CLOSED_RAW_BACKLOG_REMAINS`
   - raw audit에는 duplicate/link 후보가 계속 보이지만 실제 운영 `OPEN` queue는 닫힌 상태입니다.
   - 이 경우 raw 후보는 source/data 품질 잔량으로 관찰하고, 새 `OPEN` queue가 생길 때만 review를 재개합니다.
@@ -47,6 +58,9 @@ bash deploy/smoke/run-local-policy-data-triage-observation-suite.sh
   - duplicate exact 후보는 잔량이 작고, 현재는 link review backlog를 먼저 줄이는 편이 맞습니다.
 - `BACKLOG_STABLE`
   - 큰 drift는 없고 현재 cadence만 유지하면 됩니다.
+- `link_sample_decision_class=NO_ACTIVE_VISIBLE_LINK_REVIEW_CANDIDATES`
+  - link sample 하위 audit에서 현재 노출 가능한 링크 공백 후보가 0건입니다.
+  - 이 경우 `benefit_support_count=0` 이어도 급부형 우선순위를 열지 않고 관찰로 둡니다.
 
 ## 현재 server/RDS 기준
 
@@ -62,13 +76,15 @@ bash deploy/smoke/run-local-policy-data-triage-observation-suite.sh
 - `announcement_recruitment_count=13`
 - `program_event_count=10`
 - `other_count=111`
+- `policy_error_open_reports=0`
+- `policy_error_recent_open_reports_24h=0`
 - `policy_duplicate_open_groups=0`
 - `policy_duplicate_open_rows=0`
 - `policy_link_open_reviews=0`
 - `decision_class=REVIEW_QUEUE_CLOSED_RAW_BACKLOG_REMAINS`
 
 따라서 현재 정책 데이터 backlog는 raw 후보 숫자가 남아도 운영자가 처리할 열린 queue가 없는 상태다.
-새 중복/링크 review 작업은 `policy_duplicate_open_groups > 0` 또는 `policy_link_open_reviews > 0` 로 바뀔 때만 다시 연다.
+새 정책 오류/중복/링크 review 작업은 `policy_error_open_reports > 0`, `policy_duplicate_open_groups > 0`, `policy_link_open_reviews > 0` 중 하나로 바뀔 때만 다시 연다.
 
 ## 다음 액션
 

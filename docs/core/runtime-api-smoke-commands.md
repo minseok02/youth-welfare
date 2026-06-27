@@ -40,7 +40,7 @@ deploy/smoke/run-local-similar-users-viewed-smoke.sh
 deploy/smoke/run-local-similar-users-viewed-audit.sh
 ```
 
-서버/RDS에서는 `ENV_FILE=.env.production SMOKE_DB_MODE=postgres KEEP_ARTIFACTS=true` 를 붙입니다.
+서버/RDS에서는 `ENV_FILE=.env.runtime.production SMOKE_DB_MODE=postgres KEEP_ARTIFACTS=true` 를 붙입니다.
 해석 기준은 [recommendation-similar-users-viewed-audit-runbook.md](../recommendation/recommendation-similar-users-viewed-audit-runbook.md) 를 봅니다.
 
 `@example.com` 이 아닌 bounded local seed를 하나 만들어 `BOUNDED_LOCAL` cohort가 비지 않는지 같이 보고 싶으면 아래 스크립트를 사용합니다.
@@ -72,7 +72,7 @@ deploy/smoke/run-local-admin-authorization-smoke.sh
 알림 채널 설정과 dispatch 경계는 아래 스크립트를 우선 사용합니다.
 
 ```bash
-ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' \
+ENV_FILE=.env.runtime.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' \
 deploy/smoke/run-local-notification-channel-smoke.sh
 ```
 
@@ -145,7 +145,7 @@ explicit promotion approval record의 실제 write/clear path를 검증할 때�
 
 ```bash
 ADMIN_EMAIL='<local admin email>' ADMIN_PASSWORD='<local admin password>' \
-deploy/smoke/run-local-admin-recommendation-review-gate-promotion-approval-record-smoke.sh
+bash deploy/smoke/run-local-admin-recommendation-review-gate-promotion-approval-record-smoke.sh
 ```
 
 이 smoke는 `baseline pending tuple -> explicit approval record write -> approved tuple -> explicit approval record clear -> baseline tuple 복귀` 를 한 번에 확인합니다. 기존 로컬 PostgreSQL volume에서 relation missing 또는 permission denied가 보이면 먼저 아래 runtime patch를 적용합니다.

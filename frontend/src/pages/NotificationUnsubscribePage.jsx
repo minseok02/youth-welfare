@@ -1,35 +1,29 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Alert, Box, Button, CircularProgress, Paper, Typography } from "@mui/material";
 import api from "../lib/axios";
-
-const readTokenFromHash = (hash) => {
-  if (!hash) return "";
-  const normalizedHash = hash.startsWith("#") ? hash.slice(1) : hash;
-  const params = new URLSearchParams(normalizedHash);
-  return params.get("token")?.trim() ?? "";
-};
+import {
+  hasNotificationUnsubscribeTokenInUrl,
+  readNotificationUnsubscribeTokenFromHash,
+} from "../lib/notificationUnsubscribeToken";
 
 export default function NotificationUnsubscribePage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const [status, setStatus] = useState("loading");
   const [message, setMessage] = useState("");
   const token = useMemo(() => {
-    const hashToken = readTokenFromHash(window.location.hash);
-    const queryToken = searchParams.get("token")?.trim() ?? "";
-    return hashToken || queryToken;
-  }, [searchParams]);
+    return readNotificationUnsubscribeTokenFromHash(window.location.hash);
+  }, []);
   const effectiveStatus = token ? status : "error";
   const effectiveMessage = token ? message : "수신 거부 링크가 올바르지 않습니다.";
 
   useEffect(() => {
-    if (!token) {
-      return;
+    if (hasNotificationUnsubscribeTokenInUrl(window.location)) {
+      window.history.replaceState(window.history.state, document.title, window.location.pathname);
     }
 
-    if (searchParams.get("token") || readTokenFromHash(window.location.hash)) {
-      window.history.replaceState(window.history.state, document.title, window.location.pathname);
+    if (!token) {
+      return;
     }
 
     let mounted = true;
@@ -48,7 +42,7 @@ export default function NotificationUnsubscribePage() {
     return () => {
       mounted = false;
     };
-  }, [searchParams, token]);
+  }, [token]);
 
   return (
     <Box

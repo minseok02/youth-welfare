@@ -8,7 +8,7 @@
 ## 현재 상태
 
 - 백엔드는 `policy`, `user`, `recommend`, `notification` 모듈까지 구현되어 있습니다.
-- OpenAI 호출은 추천 모듈의 [`RealtimeAiGateway`](../backend/src/main/java/com/example/welfare/recommend/gateway/RealtimeAiGateway.java)에서 이미 사용 중입니다.
+- OpenAI 호출은 추천 모듈의 [`RealtimeAiGateway`](../../backend/src/main/java/com/example/welfare/recommend/gateway/RealtimeAiGateway.java)에서 이미 사용 중입니다.
 - 인증은 JWT + HttpOnly refresh cookie 구조이며, 정책 조회 API는 비로그인 허용, 추천/마이페이지는 로그인 필수입니다.
 - 현재는 `/chat` 화면, `chat_sessions/chat_messages` 저장, branch suggestion, retrieval snapshot, grounding evidence, OpenAI JSON 응답 파싱까지 구현돼 있습니다.
 - 챗봇은 로그인 전용이며, 로그아웃/회원탈퇴 시 세션 cleanup 경로도 따로 있습니다.
@@ -16,8 +16,9 @@
 - 2026-06-03 기준 branch suggestion 다음의 자유 입력(`월세 쪽으로`, `청약으로`)도 최근 `branchSuggestionKeysJson` 안에서 leaf branch를 다시 해석해 retrieval branch로 계승합니다.
 - 2026-06-03 기준 prompt에는 `최근 질문 흐름`, `최근 탐색 흐름`, `최근 제안 갈래`, `최근 추천 정책`을 묶은 bounded session summary memory도 같이 실립니다.
 - 2026-06-03 기준 `chat_sessions.context_state_json` 에 주거 도메인 한정 구조화 세션 상태를 저장합니다. 현재 저장 범위는 `activeBranchKey`, `anchorQuestion`, `recentTopics`, `recentPolicyTitles/Ids`, `suggestedBranchKeys` 이고, 긴 자연어 요약 전체를 DB에 저장하는 방식은 아직 열지 않았습니다.
-- 로컬 follow-up runtime QA는 [run-local-chat-followup-smoke.sh](/home/ubuntu/youth-welfare/deploy/smoke/run-local-chat-followup-smoke.sh:1) 로 `첫 질문 -> 후속 질문 -> messages 확인` 경로를 bounded 하게 재검증합니다.
-- 실사용 판단용 follow-up 시나리오 QA는 [run-local-chat-followup-scenario-audit.sh](/home/ubuntu/youth-welfare/deploy/smoke/run-local-chat-followup-scenario-audit.sh:1) 로 `주거 follow-up`, `branch suggestion 자유 입력`, `혼합 주제`, `일자리 자유 입력`을 묶어 확인합니다.
+- 로컬 follow-up runtime QA는 [run-local-chat-followup-smoke.sh](../../deploy/smoke/run-local-chat-followup-smoke.sh) 로 `첫 질문 -> 후속 질문 -> messages 확인` 경로를 bounded 하게 재검증합니다.
+- 실사용 판단용 follow-up 시나리오 QA는 [run-local-chat-followup-scenario-audit.sh](../../deploy/smoke/run-local-chat-followup-scenario-audit.sh) 로 `주거 follow-up`, `branch suggestion 자유 입력`, `혼합 주제`, `일자리 자유 입력`을 묶어 확인합니다.
+- 위 챗봇 runtime QA 중 follow-up smoke, strict scenario audit, continuity/coaching smoke, application coaching matrix는 대표 정책 corpus가 필요한 데이터 의존 smoke입니다. fresh local DB처럼 `welfare_services` row가 최소 기준 미만이면 제품 회귀로 보지 않고 `INSUFFICIENT_POLICY_CORPUS` 로 skip하며, 운영/RDS처럼 corpus가 충분한 환경에서는 기존 strict 검증을 유지합니다. continuity/coaching smoke는 `tmp/chat-continuity-coaching-smoke/latest-chat-continuity-coaching-summary.txt`, `.json`, `.md` latest artifact도 남깁니다.
 - 같은 시나리오 audit 기준으로 주거 한정 구조화 memory 도입 전 결과는 `POLICY_GROUNDED 1 / CLARIFICATION 3 / decision=CONSIDER_LONG_TERM_MEMORY` 였고, 1차 도입 후에는 `POLICY_GROUNDED 3 / CLARIFICATION 1 / decision=HOLD_LONG_TERM_MEMORY` 로 개선됐습니다.
 - 마지막 남은 `서울 월세 지원 알려줘 -> 그럼 전세는?` 케이스는
   - `전세는` 같은 조사 결합 토큰도 housing branch match에 걸리게 하고,
@@ -38,8 +39,8 @@
 - 프론트 신청 코칭 진입은 정책 상세의 `AI와 신청 준비하기` 에서 `/chat?coachPolicyId={id}` 로 이동한 뒤, `ChatPage` 가 새 세션 자동 생성과 신청 준비 질문 전송을 1회 수행하고 `coachPolicyId` query를 제거하는 방식입니다. 2026-06-21 기준 Playwright는 action link 표시뿐 아니라 새로고침/뒤로가기/앞으로가기 후 중복 자동 전송이 없는지도 검증합니다.
 - 후속 품질 audit는 2026-06-21 기준 10개 시나리오로 확장했습니다. 주거/전세/월세/인턴 외에 면접비, 자격증 응시료, 교통비, 창업 사업화자금, 청년수당, 문화 활동비 축을 포함합니다. 최신 artifact `tmp/chat-followup-scenario-audit/20260621T132519Z` 는 `scenario_count=10`, `policy_grounded_last_turn_scenarios=9`, `profile_check_last_turn_scenarios=1`, `branch_suggestion_last_turn=0`, `HOLD_LONG_TERM_MEMORY` 로 통과했습니다. 서울/마포 smoke 사용자와 지역 자격이 충돌할 수 있는 정책은 근거 정책을 찾은 뒤 `profile_check` 축으로 분리하고, 근거 없는 clarification은 계속 실패 처리합니다.
 - 운영 관측은 `run-local-chat-observability-audit.sh` 로 분리했습니다. 1/7/30일 assistant reference/action link 비율과 retrieval snapshot clarification/zero-result/result_count/fallback strategy를 집계하고, ops observation suite가 이 값을 함께 싣습니다. 2026-06-21 최신 단독 artifact `tmp/chat-observability-audit/20260621T132648Z` 기준 7일 창은 assistant `7`, reference rate `71.43%`, clarification `0.00%`, 전체 zero-result `23.08%`, non-branch zero-result `0.00%`, `CHAT_BASELINE_HEALTHY` 입니다. branch suggestion snapshot의 설계상 0-result는 실제 검색 실패 경보에서 분리합니다.
-- 실사용자 샘플은 [run-local-chat-real-user-quality-sample-audit.sh](/home/ubuntu/youth-welfare/deploy/smoke/run-local-chat-real-user-quality-sample-audit.sh:1) 로 별도 관측합니다. 원문 질문은 artifact에 남기지 않고, smoke/seed/test domain을 제외한 사용자 hash와 reference/action link/mode 추정만 남깁니다. 최신 운영 RDS artifact `tmp/chat-real-user-quality-sample-audit/20260621T135216Z` 는 real user `2`, assistant messages `5`, reference rate `100.00%`, clarification rate `40.00%`, `REAL_USER_CHAT_SAMPLE_THIN` 입니다.
-- 신청 코칭은 [run-local-chat-application-coaching-matrix-audit.sh](/home/ubuntu/youth-welfare/deploy/smoke/run-local-chat-application-coaching-matrix-audit.sh:1) 로 링크가 많은 정책, 링크가 없는 정책, 종료됐지만 공고/참고 링크가 있는 정책, 종료됐지만 공식 신청 링크가 있는 정책을 나눠 확인합니다. 최신 artifact `tmp/chat-application-coaching-matrix-audit/20260621T135516Z` 는 4개 scenario 모두 `APPLICATION_COACHING`, 지정 정책 reference, 기대 action link type/개수, 신청·자격·서류 안내 조건을 통과했습니다.
+- 실사용자 샘플은 [run-local-chat-real-user-quality-sample-audit.sh](../../deploy/smoke/run-local-chat-real-user-quality-sample-audit.sh) 로 별도 관측합니다. 원문 질문은 artifact에 남기지 않고, smoke/seed/test domain을 제외한 사용자 hash와 reference/action link/mode 추정만 남깁니다. 최신 운영 RDS artifact `tmp/chat-real-user-quality-sample-audit/20260621T135216Z` 는 real user `2`, assistant messages `5`, reference rate `100.00%`, clarification rate `40.00%`, `REAL_USER_CHAT_SAMPLE_THIN` 입니다.
+- 신청 코칭은 [run-local-chat-application-coaching-matrix-audit.sh](../../deploy/smoke/run-local-chat-application-coaching-matrix-audit.sh) 로 링크가 많은 정책, 링크가 없는 정책, 종료됐지만 공고/참고 링크가 있는 정책, 종료됐지만 공식 신청 링크가 있는 정책을 나눠 확인합니다. 최신 artifact `tmp/chat-application-coaching-matrix-audit/20260621T135516Z` 는 4개 scenario 모두 `APPLICATION_COACHING`, 지정 정책 reference, 기대 action link type/개수, 신청·자격·서류 안내 조건을 통과했습니다.
 
 ## 왜 주거만 먼저 붙였는가
 

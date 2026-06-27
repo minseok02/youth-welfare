@@ -499,6 +499,7 @@ PY
 } > "${SUMMARY_OUTPUT}.tmp"
 mv "${SUMMARY_OUTPUT}.tmp" "${SUMMARY_OUTPUT}"
 
+smoke_sanitize_artifacts "${ARTIFACT_DIR}"
 smoke_update_links \
   "${ARTIFACT_DIR}" "${ARTIFACT_ROOT}/latest" \
   "${SUMMARY_OUTPUT}" "${ARTIFACT_ROOT}/latest-same-profile-path-differential-summary.txt" \

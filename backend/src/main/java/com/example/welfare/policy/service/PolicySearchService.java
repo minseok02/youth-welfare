@@ -371,7 +371,8 @@ public class PolicySearchService {
         return switch (statusFilter.trim().toUpperCase()) {
             case "ALL" -> "ALL";
             case "EXPIRED_ONLY" -> "EXPIRED_ONLY";
-            default -> "ACTIVE_ONLY";
+            case "ACTIVE_ONLY" -> "ACTIVE_ONLY";
+            default -> throw new CustomException(ErrorCode.INVALID_INPUT);
         };
     }
 

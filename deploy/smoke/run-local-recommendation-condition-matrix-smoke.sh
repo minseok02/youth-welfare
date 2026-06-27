@@ -20,6 +20,7 @@ COOKIE_DIR="${ARTIFACT_DIR}/cookies"
 mkdir -p "${COOKIE_DIR}"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   if [[ "${KEEP_ARTIFACTS:-false}" == "true" ]]; then
     echo "artifacts kept: ${ARTIFACT_DIR}" >&2
     return 0

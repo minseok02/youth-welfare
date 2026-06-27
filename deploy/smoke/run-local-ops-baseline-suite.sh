@@ -15,6 +15,7 @@ ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
 SUITE_SUMMARY="${ARTIFACT_DIR}/ops-baseline-summary.txt"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
     return 0
   fi
@@ -44,6 +45,7 @@ run_step() {
   mkdir -p "${step_dir}"
   smoke_print_step "${label}"
   ARTIFACT_DIR="${step_dir}" \
+  KEEP_ARTIFACTS=true \
   APP_BASE_URL="${APP_BASE_URL}" \
   SUMMARY_WINDOW_DAYS="${SUMMARY_WINDOW_DAYS}" \
   TREND_WINDOW_DAYS_CSV="${TREND_WINDOW_DAYS_CSV}" \

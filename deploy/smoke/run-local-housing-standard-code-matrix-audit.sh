@@ -16,6 +16,7 @@ LATEST_SUMMARY_LINK="${MATRIX_ROOT}/latest-housing-standard-code-matrix-summary.
 LATEST_JSON_LINK="${MATRIX_ROOT}/latest-housing-standard-code-matrix-summary.json"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
     return 0
   fi
@@ -133,7 +134,9 @@ json_payload = {
 }
 json_out.write_text(json.dumps(json_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 PY
+smoke_sanitize_artifacts "${ARTIFACT_DIR}"
 
+smoke_sanitize_artifacts "${ARTIFACT_DIR}"
 smoke_publish_dir_snapshot "${ARTIFACT_DIR}" "${LATEST_ARTIFACT_LINK}"
 smoke_publish_file "${SUMMARY_OUT}" "${LATEST_SUMMARY_LINK}"
 smoke_publish_file "${JSON_OUT}" "${LATEST_JSON_LINK}"

@@ -36,6 +36,9 @@ bash deploy/smoke/run-local-policy-link-review-sample-audit.sh
 
 ## 해석
 
+- `NO_ACTIVE_VISIBLE_LINK_REVIEW_CANDIDATES`
+  - 현재 노출되는 `YOUTH` 링크 공백 후보가 없습니다.
+  - bucket 우선순위를 잡지 않고 review queue를 새로 열지 않습니다.
 - `BENEFIT_LINK_FIX_PRIORITY`
   - 현재 노출되는 링크 공백 후보에서 급부/지원형 비중이 가장 큽니다.
   - 실제 CTA 보완 review를 먼저 보는 편이 맞습니다.

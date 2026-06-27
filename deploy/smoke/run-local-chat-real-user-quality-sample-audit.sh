@@ -19,6 +19,7 @@ METRICS_ROWS="${ARTIFACT_DIR}/metrics.tsv"
 SAMPLE_ROWS="${ARTIFACT_DIR}/samples.tsv"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   if [[ "${KEEP_ARTIFACTS}" != "true" ]]; then
     rm -rf "${ARTIFACT_DIR}"
   fi
@@ -311,6 +312,7 @@ for row in samples:
 note_out.write_text("\n".join(note_lines) + "\n", encoding="utf-8")
 PY
 
+smoke_sanitize_artifacts "${ARTIFACT_DIR}"
 smoke_update_links \
   "${ARTIFACT_DIR}" "${ARTIFACT_ROOT}/latest" \
   "${SUMMARY_OUT}" "${ARTIFACT_ROOT}/latest-chat-real-user-quality-summary.txt" \

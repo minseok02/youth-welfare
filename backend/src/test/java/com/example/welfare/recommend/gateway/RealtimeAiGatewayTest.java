@@ -142,6 +142,35 @@ class RealtimeAiGatewayTest {
     }
 
     @Test
+    void buildUserPromptNormalizesNotApplicableEmploymentStatus() {
+        RealtimeAiGateway gateway = new RealtimeAiGateway(null, new ObjectMapper());
+        List<ScoredCandidate> candidates = List.of(scoredCandidate(403L, 30.0));
+        RecommendationUserSnapshot user = new RecommendationUserSnapshot(
+                1L,
+                "user-key-1",
+                27,
+                "25_29",
+                "인천광역시",
+                "중구",
+                "2811000000",
+                (byte) 5,
+                "1인 가구",
+                "해당 없음",
+                10,
+                0.5,
+                List.of(),
+                List.of(),
+                List.of()
+        );
+
+        String prompt = gateway.buildUserPrompt(candidates, user);
+
+        assertThat(prompt)
+                .contains("취업상태: 취업상태 조건 없음")
+                .doesNotContain("취업상태: 해당 없음");
+    }
+
+    @Test
     void buildUserPromptPinsJsonResultShapeAndAllCandidateCoverage() {
         RealtimeAiGateway gateway = new RealtimeAiGateway(null, new ObjectMapper());
         List<ScoredCandidate> candidates = List.of(

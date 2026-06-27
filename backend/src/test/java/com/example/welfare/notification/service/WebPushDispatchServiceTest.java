@@ -46,7 +46,7 @@ class WebPushDispatchServiceTest {
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(webPushDispatchService, "appBaseUrl", "https://youth-welfare.kr");
+        ReflectionTestUtils.setField(webPushDispatchService, "appBaseUrl", "https://youthmoa.kr");
     }
 
     @Test
@@ -186,7 +186,7 @@ class WebPushDispatchServiceTest {
         ArgumentCaptor<NotificationContent> contentCaptor = ArgumentCaptor.forClass(NotificationContent.class);
         verify(webPushSenderClient).send(org.mockito.ArgumentMatchers.eq(success), contentCaptor.capture());
         assertThat(contentCaptor.getValue().deeplinkUrl()).isEqualTo("/policies/99?from=push");
-        assertThat(contentCaptor.getValue().absoluteUrl()).isEqualTo("https://youth-welfare.kr/policies/99?from=push");
+        assertThat(contentCaptor.getValue().absoluteUrl()).isEqualTo("https://youthmoa.kr/policies/99?from=push");
     }
 
     @Test
@@ -199,14 +199,14 @@ class WebPushDispatchServiceTest {
         given(webPushSenderClient.send(org.mockito.ArgumentMatchers.eq(success), org.mockito.ArgumentMatchers.any()))
                 .willReturn(WebPushSendResult.sent());
         var request = request();
-        request.setUrl("https://youth-welfare.kr/mypage?tab=3");
+        request.setUrl("https://youthmoa.kr/mypage?tab=3");
 
         webPushDispatchService.sendTestMessage("user-key-1", request);
 
         ArgumentCaptor<NotificationContent> contentCaptor = ArgumentCaptor.forClass(NotificationContent.class);
         verify(webPushSenderClient).send(org.mockito.ArgumentMatchers.eq(success), contentCaptor.capture());
         assertThat(contentCaptor.getValue().deeplinkUrl()).isEqualTo("/mypage?tab=3");
-        assertThat(contentCaptor.getValue().absoluteUrl()).isEqualTo("https://youth-welfare.kr/mypage?tab=3");
+        assertThat(contentCaptor.getValue().absoluteUrl()).isEqualTo("https://youthmoa.kr/mypage?tab=3");
     }
 
     @Test
@@ -224,6 +224,37 @@ class WebPushDispatchServiceTest {
                 .isEqualTo(ErrorCode.INVALID_INPUT);
 
         verify(webPushSenderClient, never()).send(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("웹푸시 provider error message는 attempt log 저장 전에 민감값을 마스킹한다")
+    void sendRecommendationDigestSanitizesProviderErrorBeforeAttemptLog() {
+        WebPushSubscription subscription = sampleSubscription();
+        UserRecommendation recommendation = sampleRecommendation();
+        NotificationContent content = new NotificationContent(
+                "title",
+                "body",
+                "/policies/1",
+                "https://example.com/policies/1"
+        );
+        given(webPushSubscriptionRepository.findByUserKeyAndEnabledTrueOrderByCreatedAtDesc("user-key-1"))
+                .willReturn(List.of(subscription));
+        given(webPushSenderClient.isConfigured()).willReturn(true);
+        given(recommendationDigestContentService.build(List.of(recommendation))).willReturn(content);
+        given(webPushEndpointPolicyService.describeEndpointForLog(subscription.getEndpoint())).willReturn("push.example");
+        given(webPushSenderClient.send(subscription, content))
+                .willReturn(WebPushSendResult.failure("endpoint failed token=plain-token email=user@example.com https://push.example/send?code=oauth-code"));
+
+        webPushDispatchService.sendRecommendationDigest("user-key-1", List.of(recommendation));
+
+        ArgumentCaptor<NotificationAttemptLogCommand> captor =
+                ArgumentCaptor.forClass(NotificationAttemptLogCommand.class);
+        verify(notificationAttemptLogService).record(captor.capture());
+        assertThat(captor.getValue().errorType())
+                .contains("_redacted_")
+                .doesNotContain("plain-token")
+                .doesNotContain("user@example.com")
+                .doesNotContain("oauth-code");
     }
 
     private WebPushSubscription sampleSubscription() {

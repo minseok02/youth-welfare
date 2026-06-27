@@ -15,3 +15,4 @@ export const MyPage = lazy(() => import("../pages/MyPage.jsx"));
 export const ChatPage = lazy(() => import("../pages/ChatPage.jsx"));
 export const AdminDashboardPage = lazy(() => import("../pages/AdminDashboardPage.jsx"));
 export const NotificationUnsubscribePage = lazy(() => import("../pages/NotificationUnsubscribePage.jsx"));
+export const NotFoundPage = lazy(() => import("../pages/NotFoundPage.jsx"));

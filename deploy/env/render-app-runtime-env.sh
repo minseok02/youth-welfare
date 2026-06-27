@@ -6,6 +6,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SOURCE_ENV_FILE="${SOURCE_ENV_FILE:-${1:-${ROOT_DIR}/.env.production}}"
 TARGET_ENV_FILE="${TARGET_ENV_FILE:-${2:-${ROOT_DIR}/.env.runtime.production}}"
 TARGET_ENV_DIR="$(dirname "${TARGET_ENV_FILE}")"
+STRICT_REQUIRED_RUNTIME_ENV="${STRICT_REQUIRED_RUNTIME_ENV:-true}"
 
 if [[ ! -f "${SOURCE_ENV_FILE}" ]]; then
   echo "source env file not found: ${SOURCE_ENV_FILE}" >&2
@@ -116,11 +117,113 @@ allowlist=(
   YOUTH_API_KEY
 )
 
+required_keys=(
+  AES_SECRET_KEY
+  APP_BASE_URL
+  APP_PII_DB_URL
+  AUTH_REFRESH_COOKIE_SECURE
+  ADMIN_RO_DB_URL
+  CHAT_SESSION_CLEANUP_DB_URL
+  CLUSTER_AI_CLEANUP_DB_URL
+  COLLECT_EXECUTION_LOCK_CLEANUP_DB_URL
+  DB_ADMIN_RO_PASSWORD
+  DB_ADMIN_RO_USERNAME
+  DB_APP_PII_PASSWORD
+  DB_APP_PII_USERNAME
+  DB_CHAT_SESSION_CLEANUP_PASSWORD
+  DB_CHAT_SESSION_CLEANUP_USERNAME
+  DB_CLUSTER_AI_CLEANUP_PASSWORD
+  DB_CLUSTER_AI_CLEANUP_USERNAME
+  DB_COLLECT_EXECUTION_LOCK_CLEANUP_PASSWORD
+  DB_COLLECT_EXECUTION_LOCK_CLEANUP_USERNAME
+  DB_NOTIFICATION_PII_RO_PASSWORD
+  DB_NOTIFICATION_PII_RO_USERNAME
+  DB_PASSWORD
+  DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD
+  DB_RECOMMENDATION_PERSISTENCE_COMMAND_USERNAME
+  DB_RECOMMENDATION_RETENTION_CLEANUP_PASSWORD
+  DB_RECOMMENDATION_RETENTION_CLEANUP_USERNAME
+  DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD
+  DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME
+  DB_URL
+  DB_USERNAME
+  DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_PASSWORD
+  DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_USERNAME
+  JWT_SECRET
+  MAIL_FROM_ADDRESS
+  MAIL_PASSWORD
+  MAIL_USERNAME
+  NOTIFICATION_PII_DB_URL
+  OPENAI_API_KEY
+  PUBLIC_DATA_PORTAL_API_KEY
+  RECOMMENDATION_PERSISTENCE_COMMAND_DB_URL
+  RECOMMENDATION_RETENTION_CLEANUP_DB_URL
+  RECOMMENDATION_REVIEW_GATE_COMMAND_DB_URL
+  REDIS_HOST
+  REDIS_PORT
+  SECURITY_CORS_ALLOWED_ORIGINS
+  SPRING_PROFILES_ACTIVE
+  WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_URL
+  YOUTH_API_KEY
+)
+
+normalize_bool() {
+  local value="${1,,}"
+  case "${value}" in
+    true|false) printf "%s" "${value}" ;;
+    *)
+      echo "unsupported STRICT_REQUIRED_RUNTIME_ENV value: ${1}" >&2
+      exit 1
+      ;;
+  esac
+}
+
+source_env_line() {
+  local key="$1"
+  grep -E "^[[:space:]]*(export[[:space:]]+)?${key}=" "${SOURCE_ENV_FILE}" | tail -n 1 || true
+}
+
+source_env_value() {
+  local key="$1"
+  local line value
+  line="$(source_env_line "${key}")"
+  if [[ -z "${line}" ]]; then
+    printf "\n"
+    return 0
+  fi
+  line="${line#export }"
+  value="${line#*=}"
+  if [[ "${value}" == \"*\" && "${value}" == *\" ]]; then
+    value="${value:1:${#value}-2}"
+  elif [[ "${value}" == \'*\' && "${value}" == *\' ]]; then
+    value="${value:1:${#value}-2}"
+  fi
+  printf "%s" "${value}"
+}
+
+validate_required_keys() {
+  if [[ "${STRICT_REQUIRED_RUNTIME_ENV}" != "true" ]]; then
+    return 0
+  fi
+
+  local key value
+  for key in "${required_keys[@]}"; do
+    value="$(source_env_value "${key}")"
+    if [[ -z "${value}" ]]; then
+      echo "missing required runtime env key in source file: ${key}" >&2
+      exit 1
+    fi
+  done
+}
+
+STRICT_REQUIRED_RUNTIME_ENV="$(normalize_bool "${STRICT_REQUIRED_RUNTIME_ENV}")"
+validate_required_keys
+
 tmp_file="$(mktemp "${TARGET_ENV_DIR}/.runtime-env.XXXXXX")"
 trap 'rm -f "${tmp_file}"' EXIT
 
 for key in "${allowlist[@]}"; do
-  line="$(grep -E "^[[:space:]]*(export[[:space:]]+)?${key}=" "${SOURCE_ENV_FILE}" | tail -n 1 || true)"
+  line="$(source_env_line "${key}")"
   if [[ -n "${line}" ]]; then
     line="${line#export }"
     printf '%s\n' "${line}" >> "${tmp_file}"

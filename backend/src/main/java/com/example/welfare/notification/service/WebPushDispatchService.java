@@ -2,6 +2,7 @@ package com.example.welfare.notification.service;
 
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.global.util.LogSanitizer;
 import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.notification.dto.WebPushTestSendRequest;
 import com.example.welfare.notification.dto.WebPushTestSendResponse;
@@ -188,7 +189,8 @@ public class WebPushDispatchService {
         if (!StringUtils.hasText(errorMessage)) {
             return "unknown";
         }
-        return errorMessage.trim().replaceAll("[^A-Za-z0-9._:-]", "_");
+        return LogSanitizer.sanitizeSingleLine(errorMessage, 160)
+                .replaceAll("[^A-Za-z0-9._:-]", "_");
     }
 
     private String sanitizeTestPushUrl(String rawUrl) {

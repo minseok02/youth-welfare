@@ -346,6 +346,7 @@ export const adminDashboardFixtures = {
         message: "실패 2건, 부분 성공 1건, 열린 회로 0개",
         targetId: "admin-collect-triage",
         source: "collect",
+        nextAction: "수집 실패 샘플과 열린 circuit을 확인하고, 같은 source의 반복 실패면 source별 수동 재수집과 회로 상태를 점검합니다.",
       },
       {
         key: "standard-code-backlog",
@@ -354,6 +355,7 @@ export const adminDashboardFixtures = {
         message: "789명이 주거·복지 표준코드 4개를 모두 비워둔 상태입니다.",
         targetId: "admin-standard-code-coverage",
         source: "user-profile-standard-codes",
+        nextAction: "자동 보정 후보와 충돌 gap을 먼저 검토하고 안전 후보만 reconcile합니다.",
       },
       {
         key: "notification-backlog",
@@ -362,6 +364,7 @@ export const adminDashboardFixtures = {
         message: "안 읽은 알림 5건 · 재시도 대기 1건 · 종결 실패 0건",
         targetId: "admin-notification-summary",
         source: "notification",
+        nextAction: "attempt 실패 breakdown과 최근 실패 endpoint를 확인한 뒤 재시도/구독 비활성 원인을 분리합니다.",
       },
       {
         key: "notification-stale-backlog",
@@ -370,6 +373,7 @@ export const adminDashboardFixtures = {
         message: "9건 stale unread · 3묶음 · 대표 target: /policies/2622",
         targetId: "admin-notification-stale-targets",
         source: "notification",
+        nextAction: "대표 deeplink target을 확인한 뒤 같은 cluster만 bounded hide 처리하고 unread 총량 변화를 재확인합니다.",
       },
       {
         key: "policy-duplicate-backlog",
@@ -378,6 +382,7 @@ export const adminDashboardFixtures = {
         message: "5묶음 열림 · 최근 24시간 2묶음 · 관련 row 17건 · 대표 정책: 청년문화예술패스",
         targetId: "admin-policy-duplicate-groups",
         source: "policy-duplicate-groups",
+        nextAction: "duplicate count가 큰 묶음부터 false positive 여부를 판단해 duplicate/link 우선순위를 기록합니다.",
       },
     ],
   },

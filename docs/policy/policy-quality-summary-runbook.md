@@ -21,6 +21,10 @@ daily operator가 full retrieval/category baseline 숫자를 다시 읽기보다
 bash deploy/smoke/run-local-policy-quality-observation-suite.sh
 ```
 
+이 observation wrapper는 대표 정책 corpus가 필요한 데이터 의존 검증입니다.
+fresh local DB처럼 `welfare_services` row가 최소 기준 미만이면 `INSUFFICIENT_POLICY_CORPUS` 로 skip하고,
+retrieval drift로 해석하지 않습니다. raw 숫자를 직접 확인해야 할 때만 `run-local-policy-quality-summary.sh` 를 실행합니다.
+
 server/RDS에서 compact 결과를 nightly 로그로만 적재하려면 아래 wrapper를 씁니다.
 
 ```bash
@@ -51,6 +55,7 @@ bash deploy/smoke/run-local-policy-quality-summary.sh
 
 를 현재 local smoke baseline 방식으로 한 번에 묶습니다.
 가능하면 개별 admin endpoint를 수동으로 다시 치기 전에 이 wrapper 출력부터 기록합니다.
+`ARTIFACT_DIR` 를 직접 넘겨도 wrapper가 디렉터리를 생성하며, category에 youth broad bucket이 없는 작은 corpus에서도 빈 값을 출력하고 종료합니다.
 
 ## 포함 범위
 

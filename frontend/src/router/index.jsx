@@ -12,6 +12,7 @@ import {
   LoginPage,
   MainPage,
   MyPage,
+  NotFoundPage,
   NotificationUnsubscribePage,
   PoliciesPage,
   PolicyDetailPage,
@@ -90,6 +91,7 @@ const router = createBrowserRouter([
       </AuthExpiryHandler>
     ),
   },
+  { path: "*", element: <AuthExpiryHandler><LazyRoute><NavLayout><NotFoundPage /></NavLayout></LazyRoute></AuthExpiryHandler> },
 ]);
 
 export default router;

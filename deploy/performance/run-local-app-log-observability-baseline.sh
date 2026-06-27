@@ -22,15 +22,16 @@ LATEST_SUMMARY_JSON="${APP_LOG_ROOT}/latest-app-log-observability-summary.json"
 
 perf_require_python
 mkdir -p "${ARTIFACT_DIR}"
+perf_sanitize_artifacts_on_exit "${ARTIFACT_DIR}"
 perf_write_run_context "${CONTEXT_TXT}"
 
 if [[ -n "${APP_LOG_FILE}" && -r "${APP_LOG_FILE}" ]]; then
-  tail -n "${APP_LOG_TAIL_LINES}" "${APP_LOG_FILE}" > "${LOG_SAMPLE}" || true
+  tail -n "${APP_LOG_TAIL_LINES}" "${APP_LOG_FILE}" 2>/dev/null | smoke_redact_stream_for_log > "${LOG_SAMPLE}" || true
 elif command -v docker >/dev/null 2>&1; then
   if [[ -n "${APP_LOG_SINCE}" ]]; then
-    docker compose -f "${APP_LOG_COMPOSE_FILE}" logs --no-color --since="${APP_LOG_SINCE}" "${APP_LOG_COMPOSE_SERVICE}" > "${LOG_SAMPLE}" 2>/dev/null || true
+    docker compose -f "${APP_LOG_COMPOSE_FILE}" logs --no-color --since="${APP_LOG_SINCE}" "${APP_LOG_COMPOSE_SERVICE}" 2>/dev/null | smoke_redact_stream_for_log > "${LOG_SAMPLE}" || true
   else
-    docker compose -f "${APP_LOG_COMPOSE_FILE}" logs --no-color --tail="${APP_LOG_TAIL_LINES}" "${APP_LOG_COMPOSE_SERVICE}" > "${LOG_SAMPLE}" 2>/dev/null || true
+    docker compose -f "${APP_LOG_COMPOSE_FILE}" logs --no-color --tail="${APP_LOG_TAIL_LINES}" "${APP_LOG_COMPOSE_SERVICE}" 2>/dev/null | smoke_redact_stream_for_log > "${LOG_SAMPLE}" || true
   fi
 else
   : > "${LOG_SAMPLE}"

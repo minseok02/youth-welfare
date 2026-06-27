@@ -34,6 +34,12 @@ public class UserProfileStandardCodeValidator {
         validateCode(DISABILITY_GRADE_CODE_SET, disabilityGradeCode);
     }
 
+    public static String normalizeHousingTypeCode(String houseTenureCode, String housingTypeCode) {
+        return NOT_APPLICABLE_CODE.equals(houseTenureCode)
+                ? NOT_APPLICABLE_CODE
+                : housingTypeCode;
+    }
+
     private void validateCode(String codeSetKey, String code) {
         if (code == null || code.isBlank()) {
             return;

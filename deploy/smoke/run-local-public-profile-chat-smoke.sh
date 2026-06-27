@@ -37,6 +37,7 @@ CHAT_MESSAGES_RESPONSE="${ARTIFACT_DIR}/chat-messages.json"
 DELETE_CHAT_RESPONSE="${ARTIFACT_DIR}/delete-chat.json"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   rm -rf "${ARTIFACT_DIR}"
 }
 trap cleanup EXIT

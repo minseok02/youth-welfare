@@ -17,7 +17,14 @@ cross-cutting 문서가 흩어져 있어도
 
 - [stabilization-checklist.md](./stabilization-checklist.md)
 - [final-ops-closeout-checklist.md](./final-ops-closeout-checklist.md)
+- [security-hardening-current-state.md](./security-hardening-current-state.md)
+- [local-validation-docs-index.md](./local-validation-docs-index.md)
+- [testing.md](./testing.md)
+- [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)
+- [server-runtime-drift-checklist.md](./server-runtime-drift-checklist.md)
 - [uptime-monitoring-runbook.md](./uptime-monitoring-runbook.md)
+- [log-alert-thresholds.md](./log-alert-thresholds.md)
+- [admin-dashboard-alert-surface-contract.md](./admin-dashboard-alert-surface-contract.md)
 - [project-spec.md](../project-spec.md)
 - [architecture.md](../architecture.md)
 - [api-mapping.md](./api-mapping.md)
@@ -26,11 +33,15 @@ cross-cutting 문서가 흩어져 있어도
 
 - [db-migration.md](./db-migration.md)
 - [user-data-separation-design.md](./user-data-separation-design.md)
+- [pii-key-rotation-runbook.md](./pii-key-rotation-runbook.md)
 
 ### 후속 확장 메모
 
 - [chatbot-plan.md](./chatbot-plan.md)
 - [openai-runtime-contract.md](./openai-runtime-contract.md)
+- [ops-observation-runbook.md](./ops-observation-runbook.md)
+- [ops-baseline-runbook.md](./ops-baseline-runbook.md)
+- [nightly-ops-handoff-cron-runbook.md](./nightly-ops-handoff-cron-runbook.md)
 - [notification-channel-expansion-plan.md](./notification-channel-expansion-plan.md)
 - [notification-channel-expansion-checklist.md](./notification-channel-expansion-checklist.md)
 - [notification-backlog-audit-runbook.md](./notification-backlog-audit-runbook.md)
@@ -44,6 +55,8 @@ cross-cutting 문서가 흩어져 있어도
 
 - [stabilization-checklist.md](./stabilization-checklist.md)
 - [final-ops-closeout-checklist.md](./final-ops-closeout-checklist.md)
+- [security-hardening-current-state.md](./security-hardening-current-state.md)
+- [local-validation-docs-index.md](./local-validation-docs-index.md)
 - [project-spec.md](../project-spec.md)
 
 `stabilization-checklist.md` 는 기능 freeze 이후 CI/nightly/attention 실패만 처리하는 안정화 기준입니다.
@@ -51,6 +64,10 @@ cross-cutting 문서가 흩어져 있어도
 `final-ops-closeout-checklist.md` 는 안정화 작업을 PR/배포/운영 handoff 전에 어떤 명령 순서로 닫을지 고정합니다.
 
 `uptime-monitoring-runbook.md` 는 Healthchecks.io ping, 서버 내부 watchdog, AWS Route53/CloudWatch 알람을 운영 서버에 붙이는 순서를 정리합니다.
+
+`log-alert-thresholds.md` 는 app/nginx 로그와 운영 dashboard 지표의 warning/critical 기준을 고정합니다.
+
+`admin-dashboard-alert-surface-contract.md` 는 운영 alert evaluator가 판정 권위이고 admin dashboard는 raw triage surface라는 경계를 고정합니다.
 
 `project-spec.md` 는
 
@@ -86,6 +103,10 @@ cross-cutting 문서가 흩어져 있어도
 
 이 문서는 `user_key`, `auth_users`, `user_profiles`, `user_pii`, `2 schema` 기준의 PII 분리 배경과 cut-over 원칙을 정리합니다.
 
+- [pii-key-rotation-runbook.md](./pii-key-rotation-runbook.md)
+
+이 문서는 현재 지원되는 legacy cipher rotation과 아직 금지된 직접 `AES_SECRET_KEY` 교체 경계를 정리합니다.
+
 ### 6. 챗봇 후속 설계
 
 - [chatbot-plan.md](./chatbot-plan.md)
@@ -111,15 +132,21 @@ cross-cutting 문서가 흩어져 있어도
 
 1. [stabilization-checklist.md](./stabilization-checklist.md)
 2. [final-ops-closeout-checklist.md](./final-ops-closeout-checklist.md)
-3. [uptime-monitoring-runbook.md](./uptime-monitoring-runbook.md)
-4. [project-spec.md](../project-spec.md)
-5. [architecture.md](../architecture.md)
-6. [api-mapping.md](./api-mapping.md)
+3. [security-hardening-current-state.md](./security-hardening-current-state.md)
+4. [local-validation-docs-index.md](./local-validation-docs-index.md)
+5. [testing.md](./testing.md)
+6. [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)
+7. [uptime-monitoring-runbook.md](./uptime-monitoring-runbook.md)
+8. [log-alert-thresholds.md](./log-alert-thresholds.md)
+9. [project-spec.md](../project-spec.md)
+10. [architecture.md](../architecture.md)
+11. [api-mapping.md](./api-mapping.md)
 
 ### DB/데이터 구조 판단이 필요할 때
 
 1. [db-migration.md](./db-migration.md)
 2. [user-data-separation-design.md](./user-data-separation-design.md)
+3. [pii-key-rotation-runbook.md](./pii-key-rotation-runbook.md)
 
 ### 후속 확장 메모를 볼 때
 
@@ -136,10 +163,14 @@ cross-cutting 문서가 흩어져 있어도
 
 1. 안정화 단계에서는 [stabilization-checklist.md](./stabilization-checklist.md) 를 먼저 봅니다.
 2. PR/배포/운영 handoff를 닫을 때는 [final-ops-closeout-checklist.md](./final-ops-closeout-checklist.md) 를 봅니다.
-3. 서버 다운 감지는 [uptime-monitoring-runbook.md](./uptime-monitoring-runbook.md) 를 봅니다.
-4. 구조와 contract는 [project-spec.md](../project-spec.md), [architecture.md](../architecture.md), [api-mapping.md](./api-mapping.md) 부터 봅니다.
-5. DB/schema 판단은 [db-migration.md](./db-migration.md) 과 [user-data-separation-design.md](./user-data-separation-design.md) 를 봅니다.
-6. 챗봇과 OpenAI 경계는 [chatbot-plan.md](./chatbot-plan.md), [openai-runtime-contract.md](./openai-runtime-contract.md) 를 같이 봅니다.
-7. 알림 채널 확장은 [notification-channel-expansion-plan.md](./notification-channel-expansion-plan.md) 부터 봅니다.
-8. backlog 운영 triage는 [notification-backlog-audit-runbook.md](./notification-backlog-audit-runbook.md) 를 봅니다.
-9. 실제 작업 범위는 [notification-channel-expansion-checklist.md](./notification-channel-expansion-checklist.md) 로 고정합니다.
+3. 보안 현재 상태는 [security-hardening-current-state.md](./security-hardening-current-state.md) 를 봅니다.
+4. 로컬/통합 검증 진입점은 [local-validation-docs-index.md](./local-validation-docs-index.md), [testing.md](./testing.md), [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md) 를 봅니다.
+5. 서버 다운 감지는 [uptime-monitoring-runbook.md](./uptime-monitoring-runbook.md) 를 봅니다.
+6. 운영 warning/critical 기준은 [log-alert-thresholds.md](./log-alert-thresholds.md) 를 보고, dashboard 화면에서 어떤 raw field로 확인하는지는 [admin-dashboard-alert-surface-contract.md](./admin-dashboard-alert-surface-contract.md) 를 봅니다.
+7. 구조와 contract는 [project-spec.md](../project-spec.md), [architecture.md](../architecture.md), [api-mapping.md](./api-mapping.md) 부터 봅니다.
+8. DB/schema 판단은 [db-migration.md](./db-migration.md), [user-data-separation-design.md](./user-data-separation-design.md), [pii-key-rotation-runbook.md](./pii-key-rotation-runbook.md) 를 봅니다.
+9. 챗봇과 OpenAI 경계는 [chatbot-plan.md](./chatbot-plan.md), [openai-runtime-contract.md](./openai-runtime-contract.md) 를 같이 봅니다.
+10. ops observation은 [ops-observation-runbook.md](./ops-observation-runbook.md) 를 봅니다.
+11. 알림 채널 확장은 [notification-channel-expansion-plan.md](./notification-channel-expansion-plan.md) 부터 봅니다.
+12. backlog 운영 triage는 [notification-backlog-audit-runbook.md](./notification-backlog-audit-runbook.md) 를 봅니다.
+13. 실제 작업 범위는 [notification-channel-expansion-checklist.md](./notification-channel-expansion-checklist.md) 로 고정합니다.

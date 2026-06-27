@@ -15,6 +15,7 @@ ACTIVE_BASELINE_ROOT="${ACTIVE_BASELINE_ROOT:-${ROOT_DIR}/tmp/active-baseline-su
 ACTIVE_BASELINE_RUN_BACKEND_TESTS="${ACTIVE_BASELINE_RUN_BACKEND_TESTS:-true}"
 ACTIVE_BASELINE_RUN_FRONTEND_BASELINE="${ACTIVE_BASELINE_RUN_FRONTEND_BASELINE:-true}"
 ACTIVE_BASELINE_RUN_FRONTEND_E2E="${ACTIVE_BASELINE_RUN_FRONTEND_E2E:-true}"
+ACTIVE_BASELINE_RUN_FRONTEND_ADMIN_E2E="${ACTIVE_BASELINE_RUN_FRONTEND_ADMIN_E2E:-false}"
 ACTIVE_BASELINE_RUN_OPS_BASELINE="${ACTIVE_BASELINE_RUN_OPS_BASELINE:-true}"
 ACTIVE_BASELINE_RUN_OPS_OBSERVATION="${ACTIVE_BASELINE_RUN_OPS_OBSERVATION:-true}"
 ACTIVE_BASELINE_RUN_COLLECT_LEGACY_REPAIR="${ACTIVE_BASELINE_RUN_COLLECT_LEGACY_REPAIR:-true}"
@@ -29,6 +30,7 @@ LATEST_SUMMARY_LINK="${CURRENT_PRIORITY_ROOT}/latest-current-priority-summary.tx
 LATEST_JSON_LINK="${CURRENT_PRIORITY_ROOT}/latest-current-priority-summary.json"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
     return 0
   fi
@@ -43,6 +45,7 @@ REUSE_RECENT_ACTIVE_BASELINE="$(smoke_normalize_bool "${REUSE_RECENT_ACTIVE_BASE
 ACTIVE_BASELINE_RUN_BACKEND_TESTS="$(smoke_normalize_bool "${ACTIVE_BASELINE_RUN_BACKEND_TESTS}")"
 ACTIVE_BASELINE_RUN_FRONTEND_BASELINE="$(smoke_normalize_bool "${ACTIVE_BASELINE_RUN_FRONTEND_BASELINE}")"
 ACTIVE_BASELINE_RUN_FRONTEND_E2E="$(smoke_normalize_bool "${ACTIVE_BASELINE_RUN_FRONTEND_E2E}")"
+ACTIVE_BASELINE_RUN_FRONTEND_ADMIN_E2E="$(smoke_normalize_bool "${ACTIVE_BASELINE_RUN_FRONTEND_ADMIN_E2E}")"
 ACTIVE_BASELINE_RUN_OPS_BASELINE="$(smoke_normalize_bool "${ACTIVE_BASELINE_RUN_OPS_BASELINE}")"
 ACTIVE_BASELINE_RUN_OPS_OBSERVATION="$(smoke_normalize_bool "${ACTIVE_BASELINE_RUN_OPS_OBSERVATION}")"
 ACTIVE_BASELINE_RUN_COLLECT_LEGACY_REPAIR="$(smoke_normalize_bool "${ACTIVE_BASELINE_RUN_COLLECT_LEGACY_REPAIR}")"
@@ -93,8 +96,11 @@ reuse_recent_active_baseline_if_possible() {
   [[ "$(read_summary_value "${latest_summary}" "run_backend_tests")" == "${ACTIVE_BASELINE_RUN_BACKEND_TESTS}" ]] || return 1
   [[ "$(read_summary_value "${latest_summary}" "run_frontend_baseline")" == "${ACTIVE_BASELINE_RUN_FRONTEND_BASELINE}" ]] || return 1
   [[ "$(read_summary_value "${latest_summary}" "run_frontend_e2e")" == "${ACTIVE_BASELINE_RUN_FRONTEND_E2E}" ]] || return 1
+  [[ "$(read_summary_value "${latest_summary}" "run_frontend_admin_e2e")" == "${ACTIVE_BASELINE_RUN_FRONTEND_ADMIN_E2E}" ]] || return 1
   [[ "$(read_summary_value "${latest_summary}" "frontend_e2e_mode")" == "${FRONTEND_E2E_MODE:-local-dev}" ]] || return 1
   [[ "$(read_summary_value "${latest_summary}" "frontend_public_base_url")" == "${FRONTEND_PUBLIC_BASE_URL:-${PUBLIC_BASE_URL:-}}" ]] || return 1
+  [[ "$(read_summary_value "${latest_summary}" "playwright_grep")" == "${PLAYWRIGHT_GREP:-}" ]] || return 1
+  [[ "$(read_summary_value "${latest_summary}" "playwright_grep_invert")" == "${PLAYWRIGHT_GREP_INVERT:-}" ]] || return 1
   [[ "$(read_summary_value "${latest_summary}" "run_ops_baseline")" == "${ACTIVE_BASELINE_RUN_OPS_BASELINE}" ]] || return 1
   [[ "$(read_summary_value "${latest_summary}" "run_ops_observation")" == "${ACTIVE_BASELINE_RUN_OPS_OBSERVATION}" ]] || return 1
   [[ "$(read_summary_value "${latest_summary}" "run_collect_legacy_repair")" == "${ACTIVE_BASELINE_RUN_COLLECT_LEGACY_REPAIR}" ]] || return 1
@@ -130,6 +136,7 @@ if [[ "${RUN_ACTIVE_BASELINE}" == "true" ]]; then
       RUN_BACKEND_TESTS="${ACTIVE_BASELINE_RUN_BACKEND_TESTS}" \
       RUN_FRONTEND_BASELINE="${ACTIVE_BASELINE_RUN_FRONTEND_BASELINE}" \
       RUN_FRONTEND_E2E="${ACTIVE_BASELINE_RUN_FRONTEND_E2E}" \
+      RUN_FRONTEND_ADMIN_E2E="${ACTIVE_BASELINE_RUN_FRONTEND_ADMIN_E2E}" \
       RUN_OPS_BASELINE="${ACTIVE_BASELINE_RUN_OPS_BASELINE}" \
       RUN_OPS_OBSERVATION="${ACTIVE_BASELINE_RUN_OPS_OBSERVATION}" \
       RUN_COLLECT_LEGACY_REPAIR="${ACTIVE_BASELINE_RUN_COLLECT_LEGACY_REPAIR}" \
@@ -151,7 +158,7 @@ if [[ "${RUN_RECOMMENDATION_OBSERVATION}" == "true" ]]; then
     bash "${ROOT_DIR}/deploy/smoke/run-local-recommendation-observation-suite.sh"
 fi
 
-python3 - "${DURATIONS_TSV}" "${SUMMARY_OUT}" "${JSON_OUT}" "${ARTIFACT_DIR}" "${APP_BASE_URL}" "${RUN_ACTIVE_BASELINE}" "${RUN_RECOMMENDATION_OBSERVATION}" "${REUSE_RECENT_ACTIVE_BASELINE}" "${ACTIVE_BASELINE_REUSE_TTL_SECONDS}" "${ACTIVE_BASELINE_RUN_BACKEND_TESTS}" "${ACTIVE_BASELINE_RUN_FRONTEND_BASELINE}" "${ACTIVE_BASELINE_RUN_FRONTEND_E2E}" "${ACTIVE_BASELINE_RUN_OPS_BASELINE}" "${ACTIVE_BASELINE_RUN_OPS_OBSERVATION}" "${ACTIVE_BASELINE_RUN_COLLECT_LEGACY_REPAIR}" <<'PY'
+python3 - "${DURATIONS_TSV}" "${SUMMARY_OUT}" "${JSON_OUT}" "${ARTIFACT_DIR}" "${APP_BASE_URL}" "${RUN_ACTIVE_BASELINE}" "${RUN_RECOMMENDATION_OBSERVATION}" "${REUSE_RECENT_ACTIVE_BASELINE}" "${ACTIVE_BASELINE_REUSE_TTL_SECONDS}" "${ACTIVE_BASELINE_RUN_BACKEND_TESTS}" "${ACTIVE_BASELINE_RUN_FRONTEND_BASELINE}" "${ACTIVE_BASELINE_RUN_FRONTEND_E2E}" "${ACTIVE_BASELINE_RUN_FRONTEND_ADMIN_E2E}" "${ACTIVE_BASELINE_RUN_OPS_BASELINE}" "${ACTIVE_BASELINE_RUN_OPS_OBSERVATION}" "${ACTIVE_BASELINE_RUN_COLLECT_LEGACY_REPAIR}" <<'PY'
 import csv
 import json
 import sys
@@ -169,9 +176,10 @@ active_baseline_reuse_ttl_seconds = sys.argv[9]
 active_baseline_run_backend_tests = sys.argv[10]
 active_baseline_run_frontend_baseline = sys.argv[11]
 active_baseline_run_frontend_e2e = sys.argv[12]
-active_baseline_run_ops_baseline = sys.argv[13]
-active_baseline_run_ops_observation = sys.argv[14]
-active_baseline_run_collect_legacy_repair = sys.argv[15]
+active_baseline_run_frontend_admin_e2e = sys.argv[13]
+active_baseline_run_ops_baseline = sys.argv[14]
+active_baseline_run_ops_observation = sys.argv[15]
+active_baseline_run_collect_legacy_repair = sys.argv[16]
 
 def read_key_values(path_str: str) -> dict[str, str]:
     path = Path(path_str)
@@ -205,6 +213,7 @@ lines = [
     f"active_baseline_run_backend_tests={active_baseline_run_backend_tests}",
     f"active_baseline_run_frontend_baseline={active_baseline_run_frontend_baseline}",
     f"active_baseline_run_frontend_e2e={active_baseline_run_frontend_e2e}",
+    f"active_baseline_run_frontend_admin_e2e={active_baseline_run_frontend_admin_e2e}",
     f"active_baseline_run_ops_baseline={active_baseline_run_ops_baseline}",
     f"active_baseline_run_ops_observation={active_baseline_run_ops_observation}",
     f"active_baseline_run_collect_legacy_repair={active_baseline_run_collect_legacy_repair}",
@@ -313,6 +322,7 @@ json_out.write_text(json.dumps({
     "active_baseline_run_backend_tests": active_baseline_run_backend_tests,
     "active_baseline_run_frontend_baseline": active_baseline_run_frontend_baseline,
     "active_baseline_run_frontend_e2e": active_baseline_run_frontend_e2e,
+    "active_baseline_run_frontend_admin_e2e": active_baseline_run_frontend_admin_e2e,
     "active_baseline_run_ops_baseline": active_baseline_run_ops_baseline,
     "active_baseline_run_ops_observation": active_baseline_run_ops_observation,
     "active_baseline_run_collect_legacy_repair": active_baseline_run_collect_legacy_repair,
@@ -346,6 +356,7 @@ values["artifact_dir"] = artifact_dir
 json_out.write_text(json.dumps(values, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 PY
 
+smoke_sanitize_artifacts "${ARTIFACT_DIR}"
 smoke_publish_dir_snapshot "${ARTIFACT_DIR}" "${LATEST_ARTIFACT_LINK}"
 smoke_publish_file "${SUMMARY_OUT}" "${LATEST_SUMMARY_LINK}"
 smoke_publish_file "${JSON_OUT}" "${LATEST_JSON_LINK}"

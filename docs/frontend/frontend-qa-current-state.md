@@ -13,17 +13,10 @@
 
 ## 현재 결론
 
+- 최신 로컬 재검증(2026-06-26): `npm audit --audit-level=moderate`, `npm run lint`, `npm run test:unit`, `npm run build` 통과. wrapper 기준 기본 local-dev artifact `tmp/frontend-observation/20260626T104138Z` 는 `RUN_FRONTEND_ADMIN_E2E=false` 로 `@admin-required` 를 제외하고 lint/build/browser smoke `33 passed`, `playwright_grep_invert=@admin-required`, `decision_class=BASELINE_HEALTHY` 입니다. 별도 local-only admin opt-in artifact `tmp/frontend-observation/20260626T103616Z` 는 `RUN_FRONTEND_ADMIN_E2E=true ALLOW_DEFAULT_ADMIN_CREDENTIALS=true PLAYWRIGHT_GREP='admin dashboard'` 로 admin dashboard smoke `24 passed`, `decision_class=BASELINE_HEALTHY` 입니다.
 - 현재 프론트엔드에는 repo-native `Playwright` browser smoke가 있습니다.
 - 따라서 프론트 QA는 현재 단계에서 `정적 검증(build/lint) + Playwright smoke + 수동 브라우저 시나리오 검증` 기준으로 봅니다.
-- 핵심 검증 축은 아래 네 가지입니다.
-- 핵심 검증 축은 아래 다섯 가지입니다.
-- 핵심 검증 축은 아래 여섯 가지입니다.
-- 핵심 검증 축은 아래 일곱 가지입니다.
-- 핵심 검증 축은 아래 여덟 가지입니다.
-- 핵심 검증 축은 아래 아홉 가지입니다.
-- 핵심 검증 축은 아래 열 가지입니다.
-- 핵심 검증 축은 아래 열한 가지입니다.
-- 핵심 검증 축은 아래 열두 가지입니다.
+- 핵심 검증 축은 아래입니다.
   - 라우팅/뒤로가기/재진입
   - 로그인 필요 경로와 로그인 후 복귀
   - 세션 만료 후 refresh 실패와 로그인 화면 복귀
@@ -42,23 +35,24 @@
 
 ### 1. 로그인 필요 경로
 
-- `/chat`, `/mypage` 는 [RequireLogin.jsx](../frontend/src/components/RequireLogin.jsx) 로 보호됩니다.
+- `/chat`, `/mypage` 는 [RequireLogin.jsx](../../frontend/src/components/RequireLogin.jsx) 로 보호됩니다.
 - 비로그인 접근 시 `/login` 으로 이동하며 `reason=login-required`, `from=원래 위치` 가 `location.state` 로 전달됩니다.
-- [LoginPage.jsx](../frontend/src/pages/LoginPage.jsx) 는 로그인 성공 후 `state.from` 으로 다시 복귀합니다.
+- [LoginPage.jsx](../../frontend/src/pages/LoginPage.jsx) 는 로그인 성공 후 `state.from` 으로 다시 복귀합니다.
 
 ### 2. 세션 만료 경로
 
-- [axios.js](../frontend/src/lib/axios.js) 는 `401` 수신 시 `/api/auth/refresh` 를 1회 시도합니다.
-- refresh 실패 시 local token 제거 후 `window.__authExpired` 를 호출합니다.
-- [RequireLogin.jsx](../frontend/src/components/RequireLogin.jsx) 는 이 callback에서 `logout()` 후 `/login` 으로 이동시키며 `reason=expired` 를 남깁니다.
-- [LoginPage.jsx](../frontend/src/pages/LoginPage.jsx) 는 이 reason을 감지해 “로그인 상태가 만료되어 다시 로그인해야 합니다.” toast를 띄웁니다.
+- [axios.js](../../frontend/src/lib/axios.js) 는 `401` 수신 시 `/api/auth/refresh` 를 1회 시도합니다.
+- refresh 실패 시 local token 제거 후 `notifyAuthExpired({ reason: "expired" })` 이벤트를 발행합니다.
+- [AuthExpiryHandler.jsx](../../frontend/src/components/AuthExpiryHandler.jsx) 는 이 이벤트를 받아 session을 지우고 `/login` 으로 이동시키며 `reason=expired` 를 남깁니다.
+- Playwright dev server에서는 로그인 상태일 때만 `window.__authExpired` 테스트 hook을 노출해 같은 이벤트 경로를 수동 트리거합니다. 운영 build에는 이 hook이 포함되지 않습니다.
+- [LoginPage.jsx](../../frontend/src/pages/LoginPage.jsx) 는 이 reason을 감지해 “로그인 상태가 만료되어 다시 로그인해야 합니다.” toast를 띄웁니다.
 
 ### 3. 뒤로가기 경계
 
-- [PolicyDetailPage.jsx](../frontend/src/pages/PolicyDetailPage.jsx) 는 `location.state.from` 과 목록 target fallback을 같이 사용해 `MainPage -> Detail`, `PoliciesPage -> Detail`, `MyPage bookmarks -> Detail` 복귀 문맥을 유지합니다.
-- [PoliciesPage.jsx](../frontend/src/pages/PoliciesPage.jsx) 는 검색어/필터/정렬/페이지를 `searchParams` 와 동기화하고, 같은 페이지 안의 브라우저 back/forward 에서도 다시 local state로 복원합니다.
-- [MyPage.jsx](../frontend/src/pages/MyPage.jsx) 는 활성 탭을 `?tab=` query와 동기화합니다.
-- [Header.jsx](../frontend/src/components/Header.jsx), [FloatingNav.jsx](../frontend/src/components/FloatingNav.jsx) 는 `chatFrom`, `from` 을 이용해 `/chat?session=...`, `/mypage?tab=...` 복귀 문맥을 재사용합니다.
+- [PolicyDetailPage.jsx](../../frontend/src/pages/PolicyDetailPage.jsx) 는 `location.state.from` 과 목록 target fallback을 같이 사용해 `MainPage -> Detail`, `PoliciesPage -> Detail`, `MyPage bookmarks -> Detail` 복귀 문맥을 유지합니다.
+- [PoliciesPage.jsx](../../frontend/src/pages/PoliciesPage.jsx) 는 검색어/필터/정렬/페이지를 `searchParams` 와 동기화하고, 같은 페이지 안의 브라우저 back/forward 에서도 다시 local state로 복원합니다.
+- [MyPage.jsx](../../frontend/src/pages/MyPage.jsx) 는 활성 탭을 `?tab=` query와 동기화합니다.
+- [Header.jsx](../../frontend/src/components/Header.jsx), [FloatingNav.jsx](../../frontend/src/components/FloatingNav.jsx) 는 `chatFrom`, `from` 을 이용해 `/chat?session=...`, `/mypage?tab=...` 복귀 문맥을 재사용합니다.
 
 ### 4. 정책 상세 태그 필터링 (PolicyDetailPage)
 
@@ -74,7 +68,7 @@
 
 ### 6. 분류없음 필터 (PoliciesPage) — 임시
 
-- [PoliciesPage.jsx](../frontend/src/pages/PoliciesPage.jsx) `CATEGORIES` 목록 맨 아래에 `{ label: "분류없음", value: "기타" }` 항목이 추가되어 있습니다.
+- [PoliciesPage.jsx](../../frontend/src/pages/PoliciesPage.jsx) `CATEGORIES` 목록 맨 아래에 `{ label: "분류없음", value: "기타" }` 항목이 추가되어 있습니다.
 - `unified_category = '기타'` 인 미분류 정책을 점검하기 위한 임시 항목입니다.
 - 현황 (2026-05-06 기준): 미분류 288건 — BOKJIRO_LOCAL 271건, BOKJIRO_CENTRAL 16건, YOUTH 1건.
   - BOKJIRO_LOCAL 기존 1,020건 중 794건은 `서민금융`(731건), `입양·위탁`(63건) 매핑 추가로 해소됨.
@@ -83,19 +77,19 @@
 
 ### 7. 북마크 경계
 
-- [MainPage.jsx](../frontend/src/pages/MainPage.jsx)
+- [MainPage.jsx](../../frontend/src/pages/MainPage.jsx)
   - 추천 카드: `/api/recommendations/{recommendationId}/bookmark`
   - 일반 정책 카드: `/api/policies/{id}/bookmark`
-- [PoliciesPage.jsx](../frontend/src/pages/PoliciesPage.jsx)
+- [PoliciesPage.jsx](../../frontend/src/pages/PoliciesPage.jsx)
   - 목록 카드 북마크 토글
-- [PolicyDetailPage.jsx](../frontend/src/pages/PolicyDetailPage.jsx)
+- [PolicyDetailPage.jsx](../../frontend/src/pages/PolicyDetailPage.jsx)
   - 상세 북마크 토글
-- [MyPage.jsx](../frontend/src/pages/MyPage.jsx)
+- [MyPage.jsx](../../frontend/src/pages/MyPage.jsx)
   - `/api/users/me/bookmarks` 로 최종 북마크 목록 확인
 
 ### 8. 마이페이지 경계
 
-- [MyPage.jsx](../frontend/src/pages/MyPage.jsx)
+- [MyPage.jsx](../../frontend/src/pages/MyPage.jsx)
   - 비로그인 시 `/login` 이동
   - 프로필 조회/저장
   - 우선순위 저장
@@ -126,9 +120,9 @@
 
 ### 10. 로그인 직후 메인 보강 흐름
 
-- [LoginPage.jsx](../frontend/src/pages/LoginPage.jsx)
+- [LoginPage.jsx](../../frontend/src/pages/LoginPage.jsx)
   - 로그인 성공 후 `postLoginRecommendationNudge`, `postLoginGuideNudge` 를 메인으로 넘깁니다.
-- [MainPage.jsx](../frontend/src/pages/MainPage.jsx)
+- [MainPage.jsx](../../frontend/src/pages/MainPage.jsx)
   - guide nudge가 오면 `처음 시작 가이드` 배너가 보여야 합니다.
   - 우선순위/표준코드 공백 상태에 따라 `추천 품질 우선 개선`, `추천 정확도 보강` CTA가 보여야 합니다.
   - `맞춤 재추천 →` 는
@@ -162,20 +156,20 @@
 
 ### 14. 알림 / 북마크 유지 흐름
 
-- [AlertsPage.jsx](../frontend/src/pages/AlertsPage.jsx)
+- [AlertsPage.jsx](../../frontend/src/pages/AlertsPage.jsx)
   - 빈 상태에서는 `정책 보러가기`, `알림 설정 열기` 가 보여야 합니다.
 - `알림 설정 열기` 는 `/mypage?tab=3` 으로 이어져야 합니다.
-- [MyPage.jsx](../frontend/src/pages/MyPage.jsx)
+- [MyPage.jsx](../../frontend/src/pages/MyPage.jsx)
   - `/mypage?tab=2` 에서 북마크 목록이 다시 보여야 합니다.
 - 즉 alerts -> mypage settings -> bookmark revisit 가 한 개인 유지 동선 안에서 끊기지 않아야 합니다.
 
 ### 15. 계정 라이프사이클
 
-- [SignupPage.jsx](../frontend/src/pages/SignupPage.jsx)
+- [SignupPage.jsx](../../frontend/src/pages/SignupPage.jsx)
   - 회원가입 완료 후 `signup-complete` reason 으로 로그인 화면 안내를 띄웁니다.
-- [LoginPage.jsx](../frontend/src/pages/LoginPage.jsx)
+- [LoginPage.jsx](../../frontend/src/pages/LoginPage.jsx)
   - `password-reset-complete`, `signup-complete` reason 을 받아 적절한 안내를 보여줍니다.
-- [MyPage.jsx](../frontend/src/pages/MyPage.jsx)
+- [MyPage.jsx](../../frontend/src/pages/MyPage.jsx)
   - 비밀번호 변경 성공 후 `/login` 으로 이동시키고, 재로그인 후 `?tab=5` 로 복귀해야 합니다.
 - 즉 계정 생성 후 비밀번호 변경/재설정이 로그인 복귀와 섞여도 흐름이 끊기지 않아야 합니다.
 

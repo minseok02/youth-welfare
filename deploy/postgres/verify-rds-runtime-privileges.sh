@@ -104,11 +104,6 @@ fi
 PRINT_SUMMARY="$(normalize_bool "${PRINT_SUMMARY}")"
 load_env_file
 
-DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME="${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME:-recommendation_review_gate_command_rw}"
-DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD="${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD:-${DB_PASSWORD:-}}"
-DB_RECOMMENDATION_PERSISTENCE_COMMAND_USERNAME="${DB_RECOMMENDATION_PERSISTENCE_COMMAND_USERNAME:-recommendation_persistence_command_rw}"
-DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD="${DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD:-${DB_PASSWORD:-}}"
-
 require_non_empty RDS_MASTER_USERNAME "${RDS_MASTER_USERNAME:-}"
 require_non_empty RDS_MASTER_PASSWORD "${RDS_MASTER_PASSWORD:-}"
 require_non_empty DB_URL "${DB_URL:-}"
@@ -116,10 +111,10 @@ require_non_empty DB_USERNAME "${DB_USERNAME:-}"
 require_non_empty DB_PASSWORD "${DB_PASSWORD:-}"
 require_non_empty DB_ADMIN_RO_USERNAME "${DB_ADMIN_RO_USERNAME:-}"
 require_non_empty DB_ADMIN_RO_PASSWORD "${DB_ADMIN_RO_PASSWORD:-}"
-require_non_empty DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME "${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME}"
-require_non_empty DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD "${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD}"
-require_non_empty DB_RECOMMENDATION_PERSISTENCE_COMMAND_USERNAME "${DB_RECOMMENDATION_PERSISTENCE_COMMAND_USERNAME}"
-require_non_empty DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD "${DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD}"
+require_non_empty DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME "${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME:-}"
+require_non_empty DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD "${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD:-}"
+require_non_empty DB_RECOMMENDATION_PERSISTENCE_COMMAND_USERNAME "${DB_RECOMMENDATION_PERSISTENCE_COMMAND_USERNAME:-}"
+require_non_empty DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD "${DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD:-}"
 require_non_empty DB_CHAT_SESSION_CLEANUP_USERNAME "${DB_CHAT_SESSION_CLEANUP_USERNAME:-}"
 require_non_empty DB_CHAT_SESSION_CLEANUP_PASSWORD "${DB_CHAT_SESSION_CLEANUP_PASSWORD:-}"
 require_non_empty DB_CLUSTER_AI_CLEANUP_USERNAME "${DB_CLUSTER_AI_CLEANUP_USERNAME:-}"
@@ -207,6 +202,20 @@ check_login pii_rw "${DB_APP_PII_USERNAME}" "${DB_APP_PII_PASSWORD}"
 check_login notification_pii_ro "${DB_NOTIFICATION_PII_RO_USERNAME}" "${DB_NOTIFICATION_PII_RO_PASSWORD}"
 check_login migration "${DB_MIGRATION_USERNAME}" "${DB_MIGRATION_PASSWORD}"
 
+expect_master_bool admin_ro_policy_error_reports_select t \
+  "select has_table_privilege('${DB_ADMIN_RO_USERNAME}', 'public.policy_error_reports', 'SELECT')"
+expect_master_bool admin_ro_support_inquiries_select t \
+  "select has_table_privilege('${DB_ADMIN_RO_USERNAME}', 'public.support_inquiries', 'SELECT')"
+expect_master_bool admin_ro_policy_duplicate_review_records_select t \
+  "select has_table_privilege('${DB_ADMIN_RO_USERNAME}', 'public.policy_duplicate_review_records', 'SELECT')"
+expect_master_bool admin_ro_notification_attempt_logs_select t \
+  "select has_table_privilege('${DB_ADMIN_RO_USERNAME}', 'public.notification_attempt_logs', 'SELECT')"
+expect_master_bool admin_ro_support_inquiries_insert f \
+  "select has_table_privilege('${DB_ADMIN_RO_USERNAME}', 'public.support_inquiries', 'INSERT')"
+expect_master_bool admin_ro_support_inquiries_update f \
+  "select has_table_privilege('${DB_ADMIN_RO_USERNAME}', 'public.support_inquiries', 'UPDATE')"
+expect_master_bool admin_ro_support_inquiries_delete f \
+  "select has_table_privilege('${DB_ADMIN_RO_USERNAME}', 'public.support_inquiries', 'DELETE')"
 expect_master_bool app_core_rw_chat_sessions_delete f \
   "select has_table_privilege('${DB_USERNAME}', 'public.chat_sessions', 'DELETE')"
 expect_master_bool app_core_rw_cluster_ai_results_delete f \
@@ -289,6 +298,12 @@ expect_master_bool notification_pii_ro_user_pii_select_user_key t \
   "select has_column_privilege('${DB_NOTIFICATION_PII_RO_USERNAME}', 'youth_welfare_pii.user_pii', 'user_key', 'SELECT')"
 expect_master_bool notification_pii_ro_user_pii_select_email_enc t \
   "select has_column_privilege('${DB_NOTIFICATION_PII_RO_USERNAME}', 'youth_welfare_pii.user_pii', 'email_enc', 'SELECT')"
+expect_master_bool notification_pii_ro_user_pii_select_name_enc f \
+  "select has_column_privilege('${DB_NOTIFICATION_PII_RO_USERNAME}', 'youth_welfare_pii.user_pii', 'name_enc', 'SELECT')"
+expect_master_bool notification_pii_ro_user_pii_select_birth_date_enc f \
+  "select has_column_privilege('${DB_NOTIFICATION_PII_RO_USERNAME}', 'youth_welfare_pii.user_pii', 'birth_date_enc', 'SELECT')"
+expect_master_bool notification_pii_ro_user_pii_insert f \
+  "select has_table_privilege('${DB_NOTIFICATION_PII_RO_USERNAME}', 'youth_welfare_pii.user_pii', 'INSERT')"
 
 if [[ "${PRINT_SUMMARY}" == "true" ]]; then
   echo "rds runtime privilege verification passed"

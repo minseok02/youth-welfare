@@ -339,6 +339,7 @@ for row in missing_rows:
 note_path.write_text("\n".join(note_lines) + "\n", encoding="utf-8")
 PY
 
+smoke_sanitize_artifacts "${ARTIFACT_DIR}"
 smoke_update_links \
   "${ARTIFACT_DIR}" "${ARTIFACT_ROOT}/latest" \
   "${SUMMARY_OUT}" "${ARTIFACT_ROOT}/latest-education-priority-gap-summary.txt" \

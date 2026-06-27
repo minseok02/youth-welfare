@@ -21,6 +21,7 @@ RUN_BASELINES="${LOG_ALERT_TUNE_RUN_BASELINES:-true}"
 NGINX_LOG_TAIL_LINES="${NGINX_LOG_TUNE_TAIL_LINES:-50000}"
 
 mkdir -p "${ARTIFACT_DIR}"
+perf_sanitize_artifacts_on_exit "${ARTIFACT_DIR}"
 perf_write_run_context "${CONTEXT_TXT}"
 
 if [[ "${RUN_BASELINES}" == "true" ]]; then
@@ -46,7 +47,7 @@ python3 - \
   "${SUMMARY_JSON}" \
   "${CONTEXT_TXT}" \
   "${TUNE_WINDOW}" \
-  "${EXCLUDED_API_P95_PATHS}" <<'PY'
+  "${EXCLUDED_API_P95_PATHS}" <<'PY' | smoke_redact_stream_for_log
 import json
 import math
 import sys

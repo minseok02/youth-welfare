@@ -18,8 +18,11 @@ daily operator가 auth/session smoke 묶음 전체를 다시 해석하지 않아
 - `tmp/auth-observation/latest-auth-observation-summary.txt`
 - `tmp/auth-observation/latest-auth-observation-note.md`
 - `tmp/auth-observation/latest-auth-observation.json`
+- `tmp/auth-observation/latest/`
 
 `KEEP_ARTIFACTS=false` 기본값에서도 stable snapshot은 남습니다.
+하위 auth/session 응답 JSON은 summary/json의 `auth_session_artifact_dir` 와
+활성 step별 `*_artifact_dir` 값을 따라가서 봅니다.
 
 ## 현재 해석
 
@@ -32,6 +35,7 @@ daily operator가 auth/session smoke 묶음 전체를 다시 해석하지 않아
 
 - `decision_class`
 - `enabled_smoke_steps`
+- `auth_session_artifact_dir`
 - `operator_reading`
 - `next_action`
 

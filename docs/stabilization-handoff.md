@@ -1,4 +1,4 @@
-# stabilization handoff
+# Stabilization Handoff
 
 ## 현재 모드
 
@@ -9,25 +9,25 @@
 
 ## 현재 기준선
 
-2026-06-10 server/RDS 기준:
+2026-06-24 server/RDS 문서 기준:
 
 - app health: `UP`
 - ops observation: `BASELINE_HEALTHY`
 - attention warning count: `0`
-- wrapper promoted alert: `info`
+- collect failed/partial/open circuit: `0`
+- policy duplicate/link/error/support `OPEN` queue: `0`
+- policy triage: `REVIEW_QUEUE_CLOSED_RAW_BACKLOG_REMAINS`
 - notification failed count: `0`
 - notification stale 14d target: `0`
-- notification unread: `14` (`RECOMMENDATION_DIGEST`), stale 7d `0`
-- standard-code missing all: total `299`, non-example `2`, EXAMPLE_SMOKE `297`
-- standard-code reconcile/conflict candidates: `0`
-- policy duplicate/link open queue: `0`
-- policy triage: `REVIEW_QUEUE_CLOSED_RAW_BACKLOG_REMAINS`
-- recommendation precheck: `KEEP_OBSERVING`
-- recommendation gate: `DEFERRED_REAL_USER_SAMPLE_THIN`
-- recommendation leader signal: `EXAMPLE_SMOKE_ONLY_LEADER`
-- DB runtime privilege verification: passed
-- DB migration resource versions: unique
-- frontend deployed-origin observation: lint/build/browser smoke green
+- notification unread: `26` (`RECOMMENDATION_DIGEST`), stale 7d `14`, stale 14d `0`
+- recommendation observation: `KEEP_OBSERVING`, `reopen_allowed=false`
+- recommendation decision class: `OBSERVE_REAL_USER_TRAFFIC`
+- chat observability: `CHAT_BASELINE_HEALTHY`
+- frontend deployed-origin observation: user Playwright smoke green, admin E2E는 명시 credential opt-in
+- privacy/consent drift: active user 기준 필수/선택/민감정보 동의 누락 `0`
+- web push: enabled subscription `1`, authenticated push public key 정상
+
+세부 최신값은 [current-state.md](./current-state.md) 와 `tmp/*/latest-*` stable artifact를 우선합니다.
 
 ## 먼저 볼 문서
 
@@ -46,6 +46,7 @@
 - raw audit 숫자와 운영 `OPEN` queue를 구분합니다.
 - recommendation은 `KEEP_OBSERVING` 동안 score/weight/prompt를 수정하지 않습니다.
 - 문서와 실제 관측값이 다르면 문서를 같은 작업 단위에서 고칩니다.
+- 수치가 자주 바뀌는 backlog는 이 문서에 장기 고정하지 않고 latest artifact와 current-state를 우선합니다.
 
 ## 반복 확인 명령
 

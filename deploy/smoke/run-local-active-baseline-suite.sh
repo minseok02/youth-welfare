@@ -12,6 +12,8 @@ RUN_FRONTEND_E2E="${RUN_FRONTEND_E2E:-true}"
 RUN_FRONTEND_ADMIN_E2E="${RUN_FRONTEND_ADMIN_E2E:-false}"
 FRONTEND_E2E_MODE="${FRONTEND_E2E_MODE:-local-dev}"
 FRONTEND_PUBLIC_BASE_URL="${FRONTEND_PUBLIC_BASE_URL:-${PUBLIC_BASE_URL:-}}"
+EFFECTIVE_PLAYWRIGHT_GREP="${PLAYWRIGHT_GREP:-}"
+EFFECTIVE_PLAYWRIGHT_GREP_INVERT="${PLAYWRIGHT_GREP_INVERT:-}"
 RUN_OPS_BASELINE="${RUN_OPS_BASELINE:-true}"
 RUN_OPS_OBSERVATION="${RUN_OPS_OBSERVATION:-true}"
 RUN_COLLECT_LEGACY_REPAIR="${RUN_COLLECT_LEGACY_REPAIR:-true}"
@@ -26,6 +28,7 @@ LATEST_SUMMARY_LINK="${ACTIVE_BASELINE_ROOT}/latest-active-baseline-summary.txt"
 LATEST_JSON_LINK="${ACTIVE_BASELINE_ROOT}/latest-active-baseline-summary.json"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
     return 0
   fi
@@ -100,10 +103,19 @@ if [[ "${RUN_FRONTEND_BASELINE}" == "true" ]]; then
   if [[ "${RUN_FRONTEND_E2E}" == "true" ]]; then
     case "${FRONTEND_E2E_MODE}" in
       local-dev)
+        LOCAL_PLAYWRIGHT_GREP_INVERT="${PLAYWRIGHT_GREP_INVERT:-}"
+        if [[ "${RUN_FRONTEND_ADMIN_E2E}" != "true" ]]; then
+          if [[ -n "${LOCAL_PLAYWRIGHT_GREP_INVERT}" ]]; then
+            LOCAL_PLAYWRIGHT_GREP_INVERT="${LOCAL_PLAYWRIGHT_GREP_INVERT}|@admin-required"
+          else
+            LOCAL_PLAYWRIGHT_GREP_INVERT="@admin-required"
+          fi
+        fi
+        EFFECTIVE_PLAYWRIGHT_GREP_INVERT="${LOCAL_PLAYWRIGHT_GREP_INVERT}"
         run_command_step \
           "frontend_e2e" \
           "${ARTIFACT_DIR}/frontend-e2e.txt" \
-          bash -lc "cd '${ROOT_DIR}/frontend' && npm run test:e2e"
+          bash -lc "cd '${ROOT_DIR}/frontend' && PLAYWRIGHT_GREP_INVERT='${LOCAL_PLAYWRIGHT_GREP_INVERT}' npm run test:e2e"
         ;;
       deployed-origin)
         if [[ -z "${FRONTEND_PUBLIC_BASE_URL}" ]]; then
@@ -117,9 +129,12 @@ if [[ "${RUN_FRONTEND_BASELINE}" == "true" ]]; then
         if [[ -z "${E2E_USER_PASSWORD:-}" ]]; then
           E2E_USER_PASSWORD="Password123!"
         fi
-        PLAYWRIGHT_GREP_INVERT="@dev-only"
+        DEPLOYED_PLAYWRIGHT_GREP_INVERT="@dev-only"
+        if [[ -n "${PLAYWRIGHT_GREP_INVERT:-}" ]]; then
+          DEPLOYED_PLAYWRIGHT_GREP_INVERT="${DEPLOYED_PLAYWRIGHT_GREP_INVERT}|${PLAYWRIGHT_GREP_INVERT}"
+        fi
         if [[ "${RUN_FRONTEND_ADMIN_E2E}" != "true" ]]; then
-          PLAYWRIGHT_GREP_INVERT="${PLAYWRIGHT_GREP_INVERT}|@admin-required"
+          DEPLOYED_PLAYWRIGHT_GREP_INVERT="${DEPLOYED_PLAYWRIGHT_GREP_INVERT}|@admin-required"
         else
           ADMIN_EMAIL="${E2E_ADMIN_EMAIL:-${ADMIN_EMAIL:-}}"
           ADMIN_PASSWORD="${E2E_ADMIN_PASSWORD:-${ADMIN_PASSWORD:-}}"
@@ -127,14 +142,35 @@ if [[ "${RUN_FRONTEND_BASELINE}" == "true" ]]; then
           : "${ADMIN_EMAIL:?ADMIN_EMAIL is required when RUN_FRONTEND_ADMIN_E2E=true; set ADMIN_EMAIL/E2E_ADMIN_EMAIL or SECURITY_ADMIN_EMAILS}"
           : "${ADMIN_PASSWORD:?ADMIN_PASSWORD is required when RUN_FRONTEND_ADMIN_E2E=true; set ADMIN_PASSWORD/E2E_ADMIN_PASSWORD}"
         fi
+        EFFECTIVE_PLAYWRIGHT_GREP_INVERT="${DEPLOYED_PLAYWRIGHT_GREP_INVERT}"
+        ROOT_DIR="${ROOT_DIR}" \
+        APP_BASE_URL="${APP_BASE_URL}" \
+        HEALTH_URL="${APP_BASE_URL}/actuator/health" \
+        RUN_ADMIN_SETUP="${RUN_FRONTEND_ADMIN_E2E}" \
+        E2E_ADMIN_EMAIL="${ADMIN_EMAIL:-}" \
+        E2E_ADMIN_PASSWORD="${ADMIN_PASSWORD:-}" \
+        E2E_USER_EMAIL="${E2E_USER_EMAIL}" \
+        E2E_USER_PASSWORD="${E2E_USER_PASSWORD}" \
+        ENV_FILE="${ENV_FILE:-}" \
+        DB_QUERY_USERNAME="${DB_QUERY_USERNAME:-}" \
+        DB_QUERY_PASSWORD="${DB_QUERY_PASSWORD:-}" \
         run_command_step \
           "frontend_e2e_bootstrap" \
           "${ARTIFACT_DIR}/frontend-e2e-bootstrap.txt" \
-          bash -lc "cd '${ROOT_DIR}/frontend' && APP_BASE_URL='${APP_BASE_URL}' HEALTH_URL='${APP_BASE_URL}/actuator/health' RUN_ADMIN_SETUP='${RUN_FRONTEND_ADMIN_E2E}' E2E_ADMIN_EMAIL='${ADMIN_EMAIL:-}' E2E_ADMIN_PASSWORD='${ADMIN_PASSWORD:-}' E2E_USER_EMAIL='${E2E_USER_EMAIL}' E2E_USER_PASSWORD='${E2E_USER_PASSWORD}' ENV_FILE='${ENV_FILE:-}' DB_QUERY_USERNAME='${DB_QUERY_USERNAME:-}' DB_QUERY_PASSWORD='${DB_QUERY_PASSWORD:-}' bash ./scripts/bootstrap-playwright-smoke-data.sh"
+          bash -lc 'cd "${ROOT_DIR}/frontend" && bash ./scripts/bootstrap-playwright-smoke-data.sh'
+        ROOT_DIR="${ROOT_DIR}" \
+        ENV_FILE="${ENV_FILE:-}" \
+        E2E_ADMIN_EMAIL="${ADMIN_EMAIL:-}" \
+        E2E_ADMIN_PASSWORD="${ADMIN_PASSWORD:-}" \
+        E2E_USER_EMAIL="${E2E_USER_EMAIL}" \
+        E2E_USER_PASSWORD="${E2E_USER_PASSWORD}" \
+        PLAYWRIGHT_SKIP_WEBSERVER=true \
+        PLAYWRIGHT_BASE_URL="${FRONTEND_PUBLIC_BASE_URL}" \
+        PLAYWRIGHT_GREP_INVERT="${DEPLOYED_PLAYWRIGHT_GREP_INVERT}" \
         run_command_step \
           "frontend_e2e" \
           "${ARTIFACT_DIR}/frontend-e2e.txt" \
-          bash -lc "cd '${ROOT_DIR}/frontend' && ENV_FILE='${ENV_FILE:-}' E2E_ADMIN_EMAIL='${ADMIN_EMAIL:-}' E2E_ADMIN_PASSWORD='${ADMIN_PASSWORD:-}' E2E_USER_EMAIL='${E2E_USER_EMAIL}' E2E_USER_PASSWORD='${E2E_USER_PASSWORD}' PLAYWRIGHT_SKIP_WEBSERVER=true PLAYWRIGHT_BASE_URL='${FRONTEND_PUBLIC_BASE_URL}' PLAYWRIGHT_GREP_INVERT='${PLAYWRIGHT_GREP_INVERT}' npm run test:e2e"
+          bash -lc 'cd "${ROOT_DIR}/frontend" && npm run test:e2e'
         ;;
       skip)
         cat <<'EOF' > "${ARTIFACT_DIR}/frontend-e2e.txt"
@@ -183,7 +219,7 @@ if [[ "${RUN_COLLECT_LEGACY_REPAIR}" == "true" ]]; then
     bash "${ROOT_DIR}/deploy/smoke/run-local-collect-legacy-repair-suite.sh"
 fi
 
-python3 - "${DURATIONS_TSV}" "${SUMMARY_OUT}" "${JSON_OUT}" "${APP_BASE_URL}" "${ARTIFACT_DIR}" "${RUN_TS_UTC}" "${RUN_BACKEND_TESTS}" "${RUN_FRONTEND_BASELINE}" "${RUN_FRONTEND_E2E}" "${FRONTEND_E2E_MODE}" "${FRONTEND_PUBLIC_BASE_URL}" "${RUN_OPS_BASELINE}" "${RUN_OPS_OBSERVATION}" "${RUN_COLLECT_LEGACY_REPAIR}" <<'PY'
+python3 - "${DURATIONS_TSV}" "${SUMMARY_OUT}" "${JSON_OUT}" "${APP_BASE_URL}" "${ARTIFACT_DIR}" "${RUN_TS_UTC}" "${RUN_BACKEND_TESTS}" "${RUN_FRONTEND_BASELINE}" "${RUN_FRONTEND_E2E}" "${RUN_FRONTEND_ADMIN_E2E}" "${FRONTEND_E2E_MODE}" "${FRONTEND_PUBLIC_BASE_URL}" "${PLAYWRIGHT_GREP:-}" "${PLAYWRIGHT_GREP_INVERT:-}" "${EFFECTIVE_PLAYWRIGHT_GREP}" "${EFFECTIVE_PLAYWRIGHT_GREP_INVERT}" "${RUN_OPS_BASELINE}" "${RUN_OPS_OBSERVATION}" "${RUN_COLLECT_LEGACY_REPAIR}" <<'PY'
 import csv
 import json
 import sys
@@ -198,11 +234,16 @@ generated_at_utc = sys.argv[6]
 run_backend_tests = sys.argv[7]
 run_frontend_baseline = sys.argv[8]
 run_frontend_e2e = sys.argv[9]
-frontend_e2e_mode = sys.argv[10]
-frontend_public_base_url = sys.argv[11]
-run_ops_baseline = sys.argv[12]
-run_ops_observation = sys.argv[13]
-run_collect_legacy_repair = sys.argv[14]
+run_frontend_admin_e2e = sys.argv[10]
+frontend_e2e_mode = sys.argv[11]
+frontend_public_base_url = sys.argv[12]
+playwright_grep = sys.argv[13]
+playwright_grep_invert = sys.argv[14]
+effective_playwright_grep = sys.argv[15]
+effective_playwright_grep_invert = sys.argv[16]
+run_ops_baseline = sys.argv[17]
+run_ops_observation = sys.argv[18]
+run_collect_legacy_repair = sys.argv[19]
 
 def read_key_values(path_str: str) -> dict[str, str]:
     path = Path(path_str)
@@ -233,8 +274,13 @@ lines = [
     f"run_backend_tests={run_backend_tests}",
     f"run_frontend_baseline={run_frontend_baseline}",
     f"run_frontend_e2e={run_frontend_e2e}",
+    f"run_frontend_admin_e2e={run_frontend_admin_e2e}",
     f"frontend_e2e_mode={frontend_e2e_mode}",
     f"frontend_public_base_url={frontend_public_base_url}",
+    f"playwright_grep={playwright_grep}",
+    f"playwright_grep_invert={playwright_grep_invert}",
+    f"effective_playwright_grep={effective_playwright_grep}",
+    f"effective_playwright_grep_invert={effective_playwright_grep_invert}",
     f"run_ops_baseline={run_ops_baseline}",
     f"run_ops_observation={run_ops_observation}",
     f"run_collect_legacy_repair={run_collect_legacy_repair}",
@@ -310,8 +356,13 @@ json_out.write_text(json.dumps({
     "run_backend_tests": run_backend_tests,
     "run_frontend_baseline": run_frontend_baseline,
     "run_frontend_e2e": run_frontend_e2e,
+    "run_frontend_admin_e2e": run_frontend_admin_e2e,
     "frontend_e2e_mode": frontend_e2e_mode,
     "frontend_public_base_url": frontend_public_base_url,
+    "playwright_grep": playwright_grep,
+    "playwright_grep_invert": playwright_grep_invert,
+    "effective_playwright_grep": effective_playwright_grep,
+    "effective_playwright_grep_invert": effective_playwright_grep_invert,
     "run_ops_baseline": run_ops_baseline,
     "run_ops_observation": run_ops_observation,
     "run_collect_legacy_repair": run_collect_legacy_repair,
@@ -348,6 +399,7 @@ if failed:
     raise SystemExit(1)
 PY
 
+smoke_sanitize_artifacts "${ARTIFACT_DIR}"
 smoke_publish_dir_snapshot "${ARTIFACT_DIR}" "${LATEST_ARTIFACT_LINK}"
 smoke_publish_file "${SUMMARY_OUT}" "${LATEST_SUMMARY_LINK}"
 smoke_publish_file "${JSON_OUT}" "${LATEST_JSON_LINK}"

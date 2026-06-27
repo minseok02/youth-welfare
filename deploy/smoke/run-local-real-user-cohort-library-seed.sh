@@ -185,6 +185,7 @@ blocker_output=${BLOCKER_OUTPUT}
 artifact_dir=${ARTIFACT_DIR}
 EOF
 
+smoke_sanitize_artifacts "${ARTIFACT_DIR}"
 smoke_update_links \
   "${ARTIFACT_DIR}" "${ARTIFACT_ROOT}/latest" \
   "${SUMMARY_OUTPUT}" "${ARTIFACT_ROOT}/latest-cohort-library-summary.txt" \

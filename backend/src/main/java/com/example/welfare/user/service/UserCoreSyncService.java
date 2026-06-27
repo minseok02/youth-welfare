@@ -1,6 +1,7 @@
 package com.example.welfare.user.service;
 
 import com.example.welfare.global.util.AesEncryptUtil;
+import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.event.UserPiiSyncRequestedEvent;
@@ -103,7 +104,7 @@ public class UserCoreSyncService {
         if (StringUtils.hasText(email)) {
             return email;
         }
-        throw new IllegalStateException("auth identity email missing for new userKey=" + userKey);
+        throw new IllegalStateException("auth identity email missing for new userKeyHash=" + RedisKeyHash.sha256Hex(userKey));
     }
 
     private Integer calculateAge(LocalDate birthDate) {

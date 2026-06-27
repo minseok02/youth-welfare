@@ -29,7 +29,7 @@ class NotificationMessageServiceTest {
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(notificationMessageService, "appBaseUrl", "https://youth-welfare.kr");
+        ReflectionTestUtils.setField(notificationMessageService, "appBaseUrl", "https://youthmoa.kr");
     }
 
     @Test

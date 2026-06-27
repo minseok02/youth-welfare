@@ -153,6 +153,7 @@ CREATE TABLE IF NOT EXISTS user_pii_sync_queue (
 );
 
 CREATE INDEX IF NOT EXISTS idx_upsq_status_enqueued ON user_pii_sync_queue (status, last_enqueued_at);
+CREATE INDEX IF NOT EXISTS idx_upsq_status_synced ON user_pii_sync_queue (status, last_synced_at);
 
 CREATE TABLE IF NOT EXISTS user_attributes (
     id         BIGSERIAL PRIMARY KEY,

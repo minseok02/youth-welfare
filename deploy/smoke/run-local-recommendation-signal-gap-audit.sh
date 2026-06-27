@@ -22,6 +22,7 @@ DIAGNOSTICS_RESPONSE="${ARTIFACT_DIR}/recommendation-diagnostics.json"
 DB_ROWS_FILE="${ARTIFACT_DIR}/db-rows.tsv"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
     return 0
   fi

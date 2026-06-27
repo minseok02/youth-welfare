@@ -28,6 +28,7 @@
 - 일반 사용자는 `/admin/dashboard` 접근 시 홈으로 돌려보내고 경고 toast를 보여야 함
 - admin 진입 시 recommendation overview, collect/search triage, attention queue가 보여야 함
 - quick jump와 attention action은 올바른 섹션/focus target으로 이동해야 함
+- attention queue와 상단 운영 알림 카드는 각 item의 `nextAction`을 “다음 조치”로 보여줘야 함
 - queue 섹션들은 `OPEN / REVIEWED / ALL` 과 recent metrics를 유지해야 함
 - `summary` 또는 `breakdown` 한 섹션 실패가 페이지 전체 blank로 번지면 안 됨
 
@@ -38,6 +39,8 @@
 - `일반 사용자로 admin dashboard 접근 시 홈으로 리다이렉트되고 경고 toast가 보인다`
 - `admin dashboard는 recommendation overview와 triage 섹션을 함께 보여준다`
 - `admin dashboard quick jump는 recommendation breakdown 섹션으로 이동한다`
+- `admin dashboard 운영 알림 카드는 상위 주의 항목을 스크롤 없이 보여준다`
+- `admin dashboard 주의 항목 큐는 collect와 표준코드 backlog를 함께 보여준다`
 - `admin dashboard summary 실패 시 collect/search triage는 유지된다`
 - `admin dashboard breakdown 실패 시 recommendation hero는 유지되고 해당 섹션만 실패한다`
 - `admin dashboard 정책 오류 제보 섹션은 열린 제보 recent queue를 보여준다`
@@ -50,7 +53,7 @@
 
 ```bash
 cd frontend
-PLAYWRIGHT_GREP='일반 사용자로 admin dashboard 접근 시 홈으로 리다이렉트되고 경고 toast가 보인다|admin dashboard는 recommendation overview와 triage 섹션을 함께 보여준다|admin dashboard quick jump는 recommendation breakdown 섹션으로 이동한다|admin dashboard summary 실패 시 collect/search triage는 유지된다|admin dashboard breakdown 실패 시 recommendation hero는 유지되고 해당 섹션만 실패한다|admin dashboard 정책 오류 제보 섹션은 열린 제보 recent queue를 보여준다|admin dashboard 서비스 문의 섹션은 열린 문의 recent queue를 보여준다|admin dashboard 정책 중복 review 섹션은 duplicate queue를 보여준다|admin dashboard 정책 링크 review 섹션은 열린 링크 review queue를 보여준다|admin dashboard stale notification target 섹션은 오래된 unread target cluster를 보여준다' npm run test:e2e
+PLAYWRIGHT_GREP='일반 사용자로 admin dashboard 접근 시 홈으로 리다이렉트되고 경고 toast가 보인다|admin dashboard는 recommendation overview와 triage 섹션을 함께 보여준다|admin dashboard quick jump는 recommendation breakdown 섹션으로 이동한다|admin dashboard 운영 알림 카드는 상위 주의 항목을 스크롤 없이 보여준다|admin dashboard 주의 항목 큐는 collect와 표준코드 backlog를 함께 보여준다|admin dashboard summary 실패 시 collect/search triage는 유지된다|admin dashboard breakdown 실패 시 recommendation hero는 유지되고 해당 섹션만 실패한다|admin dashboard 정책 오류 제보 섹션은 열린 제보 recent queue를 보여준다|admin dashboard 서비스 문의 섹션은 열린 문의 recent queue를 보여준다|admin dashboard 정책 중복 review 섹션은 duplicate queue를 보여준다|admin dashboard 정책 링크 review 섹션은 열린 링크 review queue를 보여준다|admin dashboard stale notification target 섹션은 오래된 unread target cluster를 보여준다' npm run test:e2e
 ```
 
 ## 해석 기준

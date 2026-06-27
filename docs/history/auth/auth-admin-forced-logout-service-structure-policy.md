@@ -25,7 +25,7 @@
 
 ### 1. exact-token revoke와 user-session revoke는 책임이 다르다
 
-현재 [AccessTokenRevocationService.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AccessTokenRevocationService.java) 는:
+현재 [AccessTokenRevocationService.java](../../../backend/src/main/java/com/example/welfare/user/service/AccessTokenRevocationService.java) 는:
 
 - access token 문자열 1개
 - 남은 만료 시간 TTL 계산

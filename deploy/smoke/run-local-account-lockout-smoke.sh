@@ -19,6 +19,7 @@ SMOKE_HOUSEHOLD_TYPE="${SMOKE_HOUSEHOLD_TYPE:-1인 가구}"
 LOCK_THRESHOLD="${LOCK_THRESHOLD:-5}"
 HEALTH_RETRY_COUNT="${HEALTH_RETRY_COUNT:-15}"
 HEALTH_RETRY_DELAY_SECONDS="${HEALTH_RETRY_DELAY_SECONDS:-1}"
+KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
 
 ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
 HEALTH_RESPONSE="${ARTIFACT_DIR}/health.json"
@@ -26,6 +27,10 @@ SIGNUP_RESPONSE="${ARTIFACT_DIR}/signup.json"
 LOCKED_LOGIN_RESPONSE="${ARTIFACT_DIR}/locked-login.json"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
+  if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
+    return 0
+  fi
   rm -rf "${ARTIFACT_DIR}"
 }
 trap cleanup EXIT
@@ -96,6 +101,8 @@ assert_lockout_state() {
 
 smoke_require_command curl
 smoke_require_command python3
+KEEP_ARTIFACTS="$(smoke_normalize_bool "${KEEP_ARTIFACTS}")"
+mkdir -p "${ARTIFACT_DIR}"
 
 SMOKE_EMAIL="$(smoke_build_email "${SMOKE_EMAIL_PREFIX}")"
 

@@ -6,7 +6,12 @@ import CloseIcon from "@mui/icons-material/Close";
 import api from "../lib/axios";
 import PrivacyPolicyContent from "../components/PrivacyPolicyContent";
 import PrioritySortableList from "../components/PrioritySortableList";
-import { fetchProfileStandardCodebookOptions } from "../lib/officialCodebookOptions";
+import {
+  PROFILE_NOT_APPLICABLE_CODE,
+  fetchProfileStandardCodebookOptions,
+  normalizeHousingProfileCodes,
+} from "../lib/officialCodebookOptions";
+import { resolveStandardProfileCodeCompletion } from "../lib/profileStandardCodes";
 import { resolveSafeRouteTarget, sanitizePostLoginAction } from "../lib/safeNavigation";
 import {
   REGIONS,
@@ -269,6 +274,10 @@ export default function SignupPage() {
       }
       const submittedSgg = resolveSubmittedSgg(region, subRegion, ward);
       const normalizedEmail = normalizeEmailInput(email);
+      const normalizedHousingProfileCodes = normalizeHousingProfileCodes({
+        houseTenureCode,
+        housingTypeCode,
+      });
       const payload = {
         name, email: normalizedEmail, password: pw,
         birthDate: birthDateValue,
@@ -280,8 +289,8 @@ export default function SignupPage() {
         ...(optionalProfileConsentAgreed && income && { incomeLevel: parseInt(income, 10) }),
         ...(optionalProfileConsentAgreed && householdType && { householdType }),
         ...(optionalProfileConsentAgreed && employ && { employmentStatus: employ }),
-        ...(optionalProfileConsentAgreed && houseTenureCode && { houseTenureCode }),
-        ...(optionalProfileConsentAgreed && housingTypeCode && { housingTypeCode }),
+        ...(optionalProfileConsentAgreed && normalizedHousingProfileCodes.houseTenureCode && { houseTenureCode: normalizedHousingProfileCodes.houseTenureCode }),
+        ...(optionalProfileConsentAgreed && normalizedHousingProfileCodes.housingTypeCode && { housingTypeCode: normalizedHousingProfileCodes.housingTypeCode }),
         ...(optionalProfileConsentAgreed && basicLivingRecipientTypeCode && { basicLivingRecipientTypeCode }),
         ...(sensitiveInfoConsentAgreed && disabilityGradeCode && { disabilityGradeCode }),
         ...(optionalProfileConsentAgreed && priorities.length > 0 && { priorityCodes: priorities }),
@@ -313,11 +322,14 @@ export default function SignupPage() {
   const districtOptions = getDistrictOptions(region);
   const wardOptions = getWardOptions(region, subRegion);
   const optionalProfileInputDisabled = !optionalProfileConsentAgreed;
-  const selectedStandardCodeCount = [
+  const housingTypeInputDisabled = optionalProfileInputDisabled || houseTenureCode === PROFILE_NOT_APPLICABLE_CODE;
+  const standardCodeCompletion = resolveStandardProfileCodeCompletion({
     houseTenureCode,
     housingTypeCode,
     basicLivingRecipientTypeCode,
-  ].filter(Boolean).length;
+  });
+  const selectedStandardCodeCount = standardCodeCompletion.filledCount;
+  const selectableStandardCodeCount = standardCodeCompletion.totalCount;
 
   const btnPrimary = (disabled) => ({
     width: "100%", padding: "13px 0", borderRadius: 10, border: 0,
@@ -325,6 +337,15 @@ export default function SignupPage() {
     fontSize: 14, fontWeight: 700, cursor: disabled ? "not-allowed" : "pointer",
     display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
   });
+
+  const handleHouseTenureCodeChange = (value) => {
+    const normalizedHousingProfileCodes = normalizeHousingProfileCodes({
+      houseTenureCode: value,
+      housingTypeCode,
+    });
+    setHouseTenureCode(normalizedHousingProfileCodes.houseTenureCode);
+    setHousingTypeCode(normalizedHousingProfileCodes.housingTypeCode);
+  };
 
   return (
     <div style={{ minHeight: "100vh", background: BG, display: "flex", flexDirection: "column" }}>
@@ -620,16 +641,16 @@ export default function SignupPage() {
               <Field label="주거 및 생활 여건" hint="선택 입력이지만 주거·복지 자격조건 매칭 정확도를 높여요">
                 <div style={{ padding: "12px 14px", borderRadius: 12, background: "#f8fafc", border: `1px solid ${LINE2}`, fontSize: 12, color: INK2, lineHeight: 1.6 }}>
                   입력한 선택 프로필은 회원가입 직후부터 추천 점수에 반영됩니다.
-                  현재 <span style={{ color: AI, fontWeight: 800 }}>{selectedStandardCodeCount}/3개</span> 선택됨
+                  현재 <span style={{ color: AI, fontWeight: 800 }}>{selectedStandardCodeCount}/{selectableStandardCodeCount}개</span> 선택됨
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
-                  <select style={selCss(optionalProfileInputDisabled)} disabled={optionalProfileInputDisabled} value={houseTenureCode} onChange={e => setHouseTenureCode(e.target.value)}>
+                  <select style={selCss(optionalProfileInputDisabled)} disabled={optionalProfileInputDisabled} value={houseTenureCode} onChange={e => handleHouseTenureCodeChange(e.target.value)}>
                     <option value="">주거형태 선택</option>
                     {profileCodeOptions.houseTenure.map((option) => (
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </select>
-                  <select style={selCss(optionalProfileInputDisabled)} disabled={optionalProfileInputDisabled} value={housingTypeCode} onChange={e => setHousingTypeCode(e.target.value)}>
+                  <select style={selCss(housingTypeInputDisabled)} disabled={housingTypeInputDisabled} value={housingTypeCode} onChange={e => setHousingTypeCode(e.target.value)}>
                     <option value="">주택유형 선택</option>
                     {profileCodeOptions.housingType.map((option) => (
                       <option key={option.value} value={option.value}>{option.label}</option>

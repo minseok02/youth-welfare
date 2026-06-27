@@ -27,6 +27,7 @@ NOAUTH_RESPONSE="${ARTIFACT_DIR}/admin-noauth.json"
 NONADMIN_RESPONSE="${ARTIFACT_DIR}/admin-nonadmin.json"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   rm -rf "${ARTIFACT_DIR}"
 }
 trap cleanup EXIT

@@ -9,6 +9,7 @@ APP_HEALTH_URL="${APP_HEALTH_URL:-${APP_BASE_URL}/actuator/health}"
 APP_CONTAINER_NAME="${APP_CONTAINER_NAME:-youth-welfare-app}"
 HEALTH_RETRY_COUNT="${HEALTH_RETRY_COUNT:-60}"
 GOV24_SOURCE_ID="${GOV24_SOURCE_ID:-}"
+KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
 
 smoke_resolve_admin_credentials "${ROOT_DIR}"
 smoke_resolve_admin_access_token "${ROOT_DIR}"
@@ -18,8 +19,20 @@ if [[ -z "${ADMIN_ACCESS_TOKEN:-}" ]]; then
   : "${ADMIN_PASSWORD:?ADMIN_PASSWORD is empty; export ADMIN_PASSWORD or set /tmp/youth-welfare-admin-smoke-password}"
 fi
 
-TMP_DIR="$(mktemp -d)"
-trap 'rm -rf "${TMP_DIR}"' EXIT
+TMP_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
+ARTIFACT_DIR="${TMP_DIR}"
+
+cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
+  if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
+    return 0
+  fi
+  rm -rf "${ARTIFACT_DIR}"
+}
+trap cleanup EXIT
+
+KEEP_ARTIFACTS="$(smoke_normalize_bool "${KEEP_ARTIFACTS}")"
+mkdir -p "${ARTIFACT_DIR}"
 
 HEALTH_RESPONSE="${TMP_DIR}/health.json"
 HEALTH_STDERR="${TMP_DIR}/health.stderr"

@@ -25,6 +25,7 @@ HEALTH_RESPONSE="${ARTIFACT_DIR}/health.json"
 SUMMARY_TSV="${ARTIFACT_DIR}/summary.tsv"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   rm -rf "${ARTIFACT_DIR}"
 }
 trap cleanup EXIT

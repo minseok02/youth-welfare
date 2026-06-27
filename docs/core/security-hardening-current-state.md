@@ -60,18 +60,22 @@
 - frontend API client: 같은 API origin의 `/api/` 요청에만 `Authorization` header를 붙이고, refresh 요청에는 붙이지 않습니다.
 - backend auth boundary: `/api/admin/**`, `/swagger-ui/**`, `/v3/api-docs/**` 는 관리자 보호 대상입니다.
 - backend actuator: web exposure는 `health` 만 포함합니다.
-- prod runtime: `jwt.secret`, `aes.secret-key`, `SECURITY_CORS_ALLOWED_ORIGINS` 는 운영 env에서 주입해야 하며, refresh cookie secure 기본값은 `true` 입니다.
+- prod runtime: `jwt.secret`, `aes.secret-key`, `SECURITY_CORS_ALLOWED_ORIGINS` 는 운영 env에서 주입해야 하며, refresh cookie는 `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/api/auth` 기준입니다. 운영 preflight는 `AUTH_REFRESH_COOKIE_SECURE=true` 를 요구합니다.
 - tracked env files: 실제 `.env` 계열 파일은 git 추적 대상이 아니고, 추적 파일에는 예시 placeholder만 남아 있습니다.
 - prod docker compose: app은 localhost bind, non-root user, read-only filesystem, tmpfs, `no-new-privileges`, `cap_drop: ALL` 을 사용합니다.
 
 이번 점검에서 보강한 항목:
 
-- [CollectHttpRetryExecutor.java](../../backend/src/main/java/com/example/welfare/collect/gateway/CollectHttpRetryExecutor.java) 의 공통 재시도 로그가 request label을 남길 때 `serviceKey`, `apiKey`, `token`, `secret`, `password` 계열 key/value를 `<redacted>` 로 마스킹합니다.
-- [CollectHttpRetryExecutorTest.java](../../backend/src/test/java/com/example/welfare/collect/gateway/CollectHttpRetryExecutorTest.java) 에 request label 민감값 마스킹 회귀 테스트를 추가했습니다.
+- [LogSanitizer.java](../../backend/src/main/java/com/example/welfare/global/util/LogSanitizer.java) 를 추가해 backend 로그용 문자열에서 JWT/Bearer/Authorization/Cookie/JDBC URL userinfo/query secret/key-value secret/direct identifier를 redaction합니다.
+- [GlobalExceptionHandler.java](../../backend/src/main/java/com/example/welfare/global/exception/GlobalExceptionHandler.java) 의 unhandled exception error 로그는 throwable 원문 stacktrace 대신 errorType과 sanitizer를 통과한 단일 라인 메시지만 남깁니다.
+- [ChatSessionContextStateService.java](../../backend/src/main/java/com/example/welfare/chat/service/ChatSessionContextStateService.java) 의 parse 실패 로그는 raw JSON snippet이 섞일 수 있는 throwable을 싣지 않고 errorType만 남깁니다.
+- [AesEncryptUtil.java](../../backend/src/main/java/com/example/welfare/global/util/AesEncryptUtil.java), [PolicySearchLogService.java](../../backend/src/main/java/com/example/welfare/policy/service/PolicySearchLogService.java), [ChatRetrievalSnapshotService.java](../../backend/src/main/java/com/example/welfare/chat/service/ChatRetrievalSnapshotService.java), [AdminPolicyRegionAuditService.java](../../backend/src/main/java/com/example/welfare/admin/dashboard/service/AdminPolicyRegionAuditService.java) 의 실패 로그도 throwable stacktrace 대신 errorType 중심으로 줄였습니다.
+- [WebPushDispatchService.java](../../backend/src/main/java/com/example/welfare/notification/service/WebPushDispatchService.java) provider error attempt log와 [CollectHttpRetryExecutor.java](../../backend/src/main/java/com/example/welfare/collect/gateway/CollectHttpRetryExecutor.java) request label은 공통 `LogSanitizer`를 통과합니다.
+- [LogSanitizerTest.java](../../backend/src/test/java/com/example/welfare/global/util/LogSanitizerTest.java), [BackendLogRedactionContractTest.java](../../backend/src/test/java/com/example/welfare/global/config/BackendLogRedactionContractTest.java), [CollectHttpRetryExecutorTest.java](../../backend/src/test/java/com/example/welfare/collect/gateway/CollectHttpRetryExecutorTest.java), [WebPushDispatchServiceTest.java](../../backend/src/test/java/com/example/welfare/notification/service/WebPushDispatchServiceTest.java) 로 회귀를 고정했습니다.
 
 검증:
 
-- `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.collect.gateway.CollectHttpRetryExecutorTest`
+- `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.global.util.LogSanitizerTest --tests com.example.welfare.global.config.BackendLogRedactionContractTest --tests com.example.welfare.global.util.AesEncryptUtilTest --tests com.example.welfare.policy.service.PolicySearchLogServiceTest --tests com.example.welfare.collect.gateway.CollectHttpRetryExecutorTest --tests com.example.welfare.notification.service.WebPushDispatchServiceTest`
 - `cd backend && ./gradlew test --no-daemon`
 - `cd frontend && npm audit --audit-level=moderate`
 - `cd frontend && npm run lint`
@@ -129,10 +133,10 @@ edge case:
 
 - `Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options` 는 edge nginx가 단일 책임으로 내려줍니다.
 - `Content-Security-Policy` 도 edge nginx가 단일 책임으로 내려줍니다.
-- `/api/`, `/swagger-ui/`, `/v3/api-docs/`, `/actuator/` 프록시 경로에서는 upstream Spring이 내려준 같은 헤더를 `proxy_hide_header` 로 숨깁니다.
-- `/actuator/` 는 `127.0.0.1`, `::1`, 명시 허용 IP 외에는 `deny all` 입니다.
+- `/api/`, `/swagger-ui`, `/v3/api-docs`, `/actuator` 프록시 경로에서는 upstream Spring이 내려준 같은 헤더를 `proxy_hide_header` 로 숨깁니다.
+- `/actuator`, `/swagger-ui`, `/v3/api-docs` 는 trailing slash 유무와 관계없이 `127.0.0.1`, `::1`, 명시 허용 IP 외에는 `deny all` 입니다.
 - `server_tokens off;` 로 nginx 버전 노출을 줄입니다.
-- dotfile, `.env/.sql/.log/.bak`, `wp-admin`, `wp-login.php`, `xmlrpc.php`, `cgi-bin` 같은 스캐너 경로는 edge에서 바로 차단합니다.
+- HTTPS와 bootstrap conf 모두 dotfile, `.env/.sql/.log/.bak` 및 archive류 확장자, `wp-admin`, `wp-login.php`, `xmlrpc.php`, `cgi-bin` 같은 스캐너 경로는 edge에서 바로 차단합니다.
 
 주의:
 
@@ -171,7 +175,7 @@ edge case:
 - `recent_policy_views` 는 앱 경로상 `INSERT ... ON CONFLICT DO UPDATE` 와 read만 사용하므로, 별도 cleanup role을 추가하지 않고 `DELETE` 만 걷어내는 bounded step으로 닫았습니다.
 - `recommendation_review_gate_promotion_approvals` 는 admin 전용 upsert/delete 단일 테이블이라 `recommendation_review_gate_command_rw` 전용 command 경계로 분리했습니다. 이제 `app_core_rw` 는 이 테이블에 대한 `SELECT/INSERT/UPDATE/DELETE` 를 직접 갖지 않습니다.
 - `user_recommendations` refresh replace 경로도 `recommendation_persistence_command_rw` 전용 command 경계로 분리했습니다. 이제 `app_core_rw` 는 이 테이블의 `DELETE` 를 직접 갖지 않고, refresh replace의 `DELETE + INSERT` 는 command datasource 한 트랜잭션으로 수행합니다. PostgreSQL `DELETE ... WHERE user_key = ?` 계약 때문에 command role에는 `SELECT(user_key)` 만 bounded grant로 같이 줍니다. retention cleanup은 기존 `recommendation_retention_cleanup_rw` 전용 경계를 유지합니다.
-- 위 분리 뒤에도 기본 앱 `@Transactional` 경로는 계속 primary JPA `transactionManager` 를 사용해야 합니다. 현재 기준선은 [PrimaryDataSourceConfig.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/global/config/PrimaryDataSourceConfig.java:1) 에 `transactionManager` / `primaryTransactionManager` bean을 명시해 signup/login 같은 일반 런타임 API가 secondary manager 추가 때문에 깨지지 않는 상태입니다.
+- 위 분리 뒤에도 기본 앱 `@Transactional` 경로는 계속 primary JPA `transactionManager` 를 사용해야 합니다. 현재 기준선은 [PrimaryDataSourceConfig.java](../../backend/src/main/java/com/example/welfare/global/config/PrimaryDataSourceConfig.java) 에 `transactionManager` / `primaryTransactionManager` bean을 명시해 signup/login 같은 일반 런타임 API가 secondary manager 추가 때문에 깨지지 않는 상태입니다.
 - fresh init은 [z90-create-runtime-db-users.sh](../../deploy/postgres/init/z90-create-runtime-db-users.sh), 기존 volume drift 복구는 [V2026_05_29_01__tighten_app_core_cleanup_delete_grants.sql](../../deploy/postgres/patches/V2026_05_29_01__tighten_app_core_cleanup_delete_grants.sql) 기준으로 맞춥니다.
 - `recent_policy_views` revoke drift 복구는 [V2026_05_30_03__tighten_recent_policy_views_delete_grant.sql](../../deploy/postgres/patches/V2026_05_30_03__tighten_recent_policy_views_delete_grant.sql) 기준으로 맞춥니다.
 - `recommendation_review_gate_promotion_approvals` command role drift 복구는 [V2026_05_30_04__add_recommendation_review_gate_command_role.sql](../../deploy/postgres/patches/V2026_05_30_04__add_recommendation_review_gate_command_role.sql) 기준으로 맞춥니다.
@@ -210,7 +214,7 @@ edge case:
 
 기대값:
 
-- 외부 `/actuator/health` 는 `403` 또는 내부망 only
+- 외부 `/actuator/health`, `/swagger-ui`, `/v3/api-docs`, dotfile/민감 정적 경로는 `403` 또는 `404`
 - `Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options` 는 각각 1개만 존재
 
 ### 운영 cutover 묶음 확인
@@ -218,6 +222,8 @@ edge case:
 - `ENV_FILE=.env.production PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-prod-cutover-verification.sh`
 
 이 wrapper는 env preflight, RDS privilege verify, nginx edge verify를 순서대로 태웁니다.
+
+auth observation/session, admin dashboard/collect/recommendation/attention, ops baseline/observation 계열 운영 smoke 보존 아티팩트는 cleanup 단계에서 `smoke_sanitize_artifacts` 를 거친다. recommendation/chat/collect/Gov24/real-user 진단 smoke는 단독 실행과 latest snapshot publish 직전 모두 sanitizer 경계를 가진다. nightly/active-baseline/current-priority 상위 handoff wrapper도 child stdout과 latest handoff 산출물을 publish하기 전에 sanitizer를 통과시킨다. cookie jar는 삭제하고 access/refresh token, password, API key/secret, email, userKey 계열 값은 redaction한다. retained smoke artifact directory는 `700`, artifact file은 `600`으로 제한한다. runtime env render는 `umask 077` 과 `install -m 600` 으로 runtime env 파일을 생성한다. 공통 smoke 실패 출력과 prod cutover wrapper 단계 stdout/stderr도 token/password/API key/cookie/JDBC URL/email/userKey 계열 log redaction을 통과한다. log alert baseline은 app/nginx raw tail을 artifact 파일에 쓰기 전에 redaction하고, evaluator stdout과 webhook payload도 redaction stream을 통과한다. backend application log는 unhandled exception, chat context parse failure, crypto failure, search/snapshot best-effort logging, scheduled region audit, collect retry label, web-push provider error attempt log 경계에 `LogSanitizer`/errorType summary를 적용한다. nginx access log는 `$request`/`$request_uri` 대신 `$request_method $uri $server_protocol` 과 query/fragment 제거 `Referer`만 기록한다. performance latest artifact publish도 sanitizer를 먼저 통과해 과거 access log tail의 token/code/API key query를 redaction한다.
 
 ## 지금 남은 리스크
 

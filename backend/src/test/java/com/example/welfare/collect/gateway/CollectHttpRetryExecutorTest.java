@@ -85,7 +85,7 @@ class CollectHttpRetryExecutorTest {
     @Test
     @DisplayName("로그용 request label 은 민감한 key/value 를 마스킹한다")
     void sanitizeRequestLabelRedactsSensitiveValues() {
-        String source = "https://apis.data.go.kr/path?serviceKey=secret-key&page=1 apiKey=api-secret token=plain-token";
+        String source = "https://apis.data.go.kr/path?serviceKey=secret-key&page=1 apiKey=api-secret token=plain-token key=generic-secret";
 
         String sanitized = CollectHttpRetryExecutor.sanitizeRequestLabel(source);
 
@@ -93,10 +93,12 @@ class CollectHttpRetryExecutorTest {
                 .contains("serviceKey=<redacted>")
                 .contains("apiKey=<redacted>")
                 .contains("token=<redacted>")
+                .contains("key=<redacted>")
                 .contains("page=1")
                 .doesNotContain("secret-key")
                 .doesNotContain("api-secret")
-                .doesNotContain("plain-token");
+                .doesNotContain("plain-token")
+                .doesNotContain("generic-secret");
     }
 
     @Test

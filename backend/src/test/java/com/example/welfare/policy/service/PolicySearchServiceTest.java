@@ -380,6 +380,18 @@ class PolicySearchServiceTest {
                 .isEqualTo(ErrorCode.INVALID_INPUT);
     }
 
+    @Test
+    @DisplayName("정책 검색은 알 수 없는 statusFilter를 invalid input으로 거부한다")
+    void searchRejectsUnknownStatusFilter() {
+        PolicySearchService service = fixedClockService();
+
+        assertThatThrownBy(() -> service.search(
+                null, "청년", null, "NOT_A_FILTER", null, null, null, null, null, null, null, null, null, null, null, 0, 10
+        )).isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_INPUT);
+    }
+
     private WelfareService welfareService(Long id, String title) {
         return WelfareService.builder()
                 .id(id)

@@ -14,6 +14,7 @@ BASELINE_OUTPUT="${ARTIFACT_DIR}/baseline.out"
 TARGET_OUTPUT="${ARTIFACT_DIR}/target.out"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   rm -rf "${ARTIFACT_DIR}"
 }
 trap cleanup EXIT

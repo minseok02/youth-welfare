@@ -159,6 +159,12 @@ class AdminDashboardAttentionServiceTest {
                         .contains("793명이 주거·복지 표준코드 4개를 모두 비워둔 상태입니다.")
                         .contains("자동 보정 후보 0건")
                         .contains("충돌 gap 0건"));
+        assertThat(response.items()).extracting("nextAction", String.class)
+                .contains(
+                        "수집 실패 샘플과 열린 circuit을 확인하고, 같은 source의 반복 실패면 source별 수동 재수집과 회로 상태를 점검합니다.",
+                        "자동 보정 후보가 없으므로 사용자 입력 유도/관찰 대상으로 유지합니다.",
+                        "current priority와 active baseline summary를 비교하고 표준코드/추천 관측 변화 원인을 확인합니다."
+                );
     }
 
     @Test
@@ -265,6 +271,8 @@ class AdminDashboardAttentionServiceTest {
                 .anySatisfy(message -> assertThat(message)
                         .contains("자동 보정 후보 2건")
                         .contains("충돌 gap 0건"));
+        assertThat(response.items()).extracting("nextAction", String.class)
+                .contains("자동 보정 후보와 충돌 gap을 먼저 검토하고 안전 후보만 reconcile합니다.");
     }
 
     @Test
@@ -426,6 +434,13 @@ class AdminDashboardAttentionServiceTest {
                 .contains("policy-duplicate-backlog", "policy-error-report-backlog", "policy-link-review-backlog", "support-inquiry-backlog");
         assertThat(response.items()).extracting("message", String.class)
                 .anySatisfy(message -> assertThat(message).contains("최근 24시간 1건"));
+        assertThat(response.items()).extracting("nextAction", String.class)
+                .contains(
+                        "duplicate count가 큰 묶음부터 false positive 여부를 판단해 duplicate/link 우선순위를 기록합니다.",
+                        "최근 제보의 정책 원문과 링크를 확인하고 보정 또는 REVIEWED 메모를 남깁니다.",
+                        "bucket별 대표 링크를 열어 공식 상세 URL 여부를 확인하고 REVIEWED 메모를 남깁니다.",
+                        "최근 문의 유형과 route를 보고 재현/응답 여부를 메모한 뒤 처리완료로 닫습니다."
+                );
     }
 
     @Test
@@ -534,6 +549,8 @@ class AdminDashboardAttentionServiceTest {
                         .contains("stale 14일 2건")
                         .contains("재시도 대기 2건")
                         .contains("종결 실패 1건"));
+        assertThat(response.items()).extracting("nextAction", String.class)
+                .contains("attempt 실패 breakdown과 최근 실패 endpoint를 확인한 뒤 재시도/구독 비활성 원인을 분리합니다.");
     }
 
     @Test
@@ -592,5 +609,7 @@ class AdminDashboardAttentionServiceTest {
         var response = service.getAttentionFeed();
 
         assertThat(response.items()).extracting("key").contains("notification-stale-backlog");
+        assertThat(response.items()).extracting("nextAction", String.class)
+                .contains("대표 deeplink target을 확인한 뒤 같은 cluster만 bounded hide 처리하고 unread 총량 변화를 재확인합니다.");
     }
 }

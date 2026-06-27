@@ -1,5 +1,6 @@
 package com.example.welfare.user.service;
 
+import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.user.dto.response.UserPiiSyncStatusResponse;
 import com.example.welfare.user.entity.UserPiiSyncQueue;
 import com.example.welfare.user.entity.UserPiiSyncQueueStatus;
@@ -59,13 +60,13 @@ class UserPiiSyncStatusServiceTest {
         assertThat(response.pendingCount()).isEqualTo(2);
         assertThat(response.failedCount()).isEqualTo(1);
         assertThat(response.syncedCount()).isEqualTo(7);
-        assertThat(response.oldestPendingUserKey()).isEqualTo("pending-user");
+        assertThat(response.oldestPendingUserKeyHash()).isEqualTo(RedisKeyHash.sha256Hex("pending-user"));
         assertThat(response.oldestPendingEnqueuedAt()).isEqualTo(now.minusMinutes(20));
-        assertThat(response.oldestFailedUserKey()).isEqualTo("failed-user");
+        assertThat(response.oldestFailedUserKeyHash()).isEqualTo(RedisKeyHash.sha256Hex("failed-user"));
         assertThat(response.oldestFailedAttemptAt()).isEqualTo(now.minusMinutes(10));
         assertThat(response.latestSyncedAt()).isEqualTo(now.minusMinutes(1));
         assertThat(response.failedSamples()).hasSize(1);
-        assertThat(response.failedSamples().get(0).userKey()).isEqualTo("failed-user");
+        assertThat(response.failedSamples().get(0).userKeyHash()).isEqualTo(RedisKeyHash.sha256Hex("failed-user"));
         assertThat(response.failedSamples().get(0).attemptCount()).isEqualTo(3);
     }
 

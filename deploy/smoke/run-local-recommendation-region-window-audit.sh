@@ -16,6 +16,7 @@ ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
 JSONL_FILE="${ARTIFACT_DIR}/region-window-audit.jsonl"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
     return 0
   fi

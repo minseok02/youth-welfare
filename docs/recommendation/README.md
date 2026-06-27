@@ -7,19 +7,10 @@
 
 현재 active 기준 요약:
 
-- daily operator entrypoint:
-  - `bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh`
-- current reading:
-  - `VOLATILE_ONLY_DRIFT`
-  - basic gate `PASS`
-  - strict gate `LATEST_OBSERVATION_CHANGED`
-  - full latest batch review gate `DEFERRED_NON_REAL_LEADER_SIGNAL`
-  - recent-window supplemental reading `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`
-- current main blocker:
-  - historical example latest batch dominance + stale example saved batch path + current real SQL gap
-- review gate reading:
-  - full latest batch gate는 primary historical baseline
-  - recent-window gate는 supplemental current-live signal
+- daily operator entrypoint는 `bash deploy/smoke/run-local-recommendation-observation-suite.sh` 입니다.
+- AI exclusion latest overview가 필요할 때만 `bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh` 를 추가로 봅니다.
+- 현재 기본 해석은 `KEEP_OBSERVING`, `reopen_allowed=false`, `OBSERVE_REAL_USER_TRAFFIC` 입니다.
+- `reopen_allowed=false` 동안에는 score/weight/prompt/source balancing을 열지 않고 real-user sample과 leader signal을 관찰합니다.
 
 PR / handoff / reopen 문서를 읽는 순서:
 

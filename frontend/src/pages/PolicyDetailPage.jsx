@@ -5,6 +5,28 @@ import Header from "../components/Header";
 import FloatingNav from "../components/FloatingNav";
 import api from "../lib/axios";
 import { useAuthStore } from "../store/authStore";
+import {
+  appendRelatedPolicyCandidates,
+  parsePolicyContacts,
+  parsePolicyReferenceUrls,
+} from "../lib/policyDetailDisplay";
+import { GOV24_BENEFIT_TYPES, GOV24_USER_TYPES } from "../lib/policyFilterOptions";
+import {
+  decodeDisplayText,
+  formatGov24LabelText,
+  formatMultiValueText,
+  formatPolicyAgeRange as formatAgeRange,
+  formatPolicyDate as formatDate,
+  formatPolicyDday as formatDday,
+  formatPolicyIncomeRange as formatIncomeRange,
+  formatPolicyPeriod as formatPeriod,
+  formatPolicySource as formatSource,
+  formatPolicyStatusLabel as formatStatusLabel,
+  joinMetaParts,
+  normalizeSafeExternalUrl,
+  resolveGov24FallbackLabels,
+  splitMultiValue,
+} from "../lib/policyDisplay";
 import { resolveSafeRouteTarget, sanitizePostLoginAction, sanitizeTransientRouteState } from "../lib/safeNavigation";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
@@ -36,36 +58,9 @@ const LINE = "#e5e7eb";
 const LINE2 = "#f3f4f6";
 const NO_DATA = "원문에서 확인해주세요.";
 const SOURCE_NOTICE_TEXT = "정책 정보는 수집 시점 기준으로 재구성되었으며, 신청 전 반드시 원문 공고와 운영기관 안내를 확인하세요.";
+const GOV24_USER_TYPE_FILTER_TOKENS = GOV24_USER_TYPES.filter((token) => token !== "전체");
+const GOV24_BENEFIT_TYPE_FILTER_TOKENS = GOV24_BENEFIT_TYPES.filter((token) => token !== "전체");
 
-const HTML_ENTITIES = {
-  "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'",
-  "&nbsp;": " ", "&middot;": "·", "&bull;": "•", "&ndash;": "–",
-  "&mdash;": "—", "&laquo;": "«", "&raquo;": "»", "&times;": "×",
-};
-const EXTERNAL_URL_PROTOCOLS = new Set(["http:", "https:"]);
-const GOV24_USER_TYPE_TOKENS = ["개인", "가구", "법인/시설/단체", "소상공인"];
-const GOV24_BENEFIT_TYPE_TOKENS = [
-  "현금",
-  "현물",
-  "기타",
-  "현금(감면)",
-  "이용권",
-  "서비스(의료)",
-  "시설이용",
-  "기타(교육)",
-  "현금(보험)",
-  "현금(장학금)",
-  "현금(융자)",
-  "기타(상담)",
-  "서비스(돌봄)",
-  "서비스(일자리)",
-  "의료지원",
-  "상담/법률지원",
-  "기술지원",
-  "문화/여가지원",
-  "민원",
-  "봉사/기부",
-];
 const POLICY_ERROR_REPORT_REASONS = [
   { value: "REGION_MISMATCH", label: "지역 정보가 다릅니다" },
   { value: "PERIOD_MISMATCH", label: "신청 기간이 다릅니다" },
@@ -79,214 +74,11 @@ const sanitizePolicyReturnState = (state) => {
   return sanitizeTransientRouteState(state);
 };
 
-const decodeHtml = (text) => {
-  if (!text) return text;
-  return text.replace(/&[a-zA-Z0-9#]+;/g, (e) => HTML_ENTITIES[e] ?? e);
-};
-
-const splitMultiValue = (value) => {
-  const normalized = typeof value === "string" ? value.trim() : "";
-  if (!normalized) return [];
-  const seen = new Set();
-  return normalized
-    .split("||")
-    .map((part) => part.trim())
-    .filter((part) => {
-      if (!part || seen.has(part)) return false;
-      seen.add(part);
-      return true;
-    });
-};
-
-const formatMultiValueText = (value, separator = " · ") => {
-  const parts = splitMultiValue(value);
-  return parts.length > 0 ? parts.join(separator) : null;
-};
-
-const decodeDisplayText = (text) => {
-  const decoded = decodeHtml(text);
-  if (typeof decoded !== "string") return decoded;
-  return decoded.replace(/\s*\|\|\s*/g, " · ");
-};
-
-const normalizeSafeExternalUrl = (value) => {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : trimmed.startsWith("www.") ? `https://${trimmed}` : trimmed;
-
-  try {
-    const parsed = new URL(candidate);
-    return EXTERNAL_URL_PROTOCOLS.has(parsed.protocol) ? parsed.toString() : null;
-  } catch {
-    return null;
-  }
-};
-
 const safeOpenExternalUrl = (value) => {
   const safeUrl = normalizeSafeExternalUrl(value);
   if (!safeUrl) return false;
   window.open(safeUrl, "_blank", "noopener,noreferrer");
   return true;
-};
-
-const formatDate = (value) => {
-  if (!value) return null;
-  const d = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return null;
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-};
-
-const formatPeriod = (start, end) => {
-  const s = formatDate(start), e = formatDate(end);
-  if (s && e) return `${s} ~ ${e}`;
-  if (s) return `${s} ~`;
-  if (e) return `~ ${e}`;
-  return null;
-};
-
-const formatAgeRange = (min, max) => {
-  if (min && max) return `만 ${min}~${max}세`;
-  if (min) return `만 ${min}세 이상`;
-  if (max) return `만 ${max}세 이하`;
-  return null;
-};
-
-const formatIncomeRange = (min, max) => {
-  if (min && max) return `소득 ${min}~${max}분위`;
-  if (min) return `소득 ${min}분위 이상`;
-  if (max) return `소득 ${max}분위 이하`;
-  return null;
-};
-
-const joinMetaParts = (parts, separator = " · ") => {
-  const seen = new Set();
-  return parts
-    .map((part) => (typeof part === "string" ? part.trim() : part))
-    .filter((part) => {
-      if (!part || seen.has(part)) return false;
-      seen.add(part);
-      return true;
-    })
-    .join(separator);
-};
-
-const splitGov24MultiLabel = (label) => {
-  return splitMultiValue(label);
-};
-
-const resolveGov24FallbackLabels = (primaryLabel, candidates, allowedTokens) => {
-  const normalizedPrimary = typeof primaryLabel === "string" ? primaryLabel.trim() : "";
-  if (normalizedPrimary) return splitGov24MultiLabel(normalizedPrimary);
-
-  const allowed = new Set(allowedTokens);
-  const labels = [];
-  for (const candidate of candidates) {
-    const normalizedCandidate = typeof candidate === "string" ? candidate.trim() : "";
-    if (allowed.has(normalizedCandidate) && !labels.includes(normalizedCandidate)) {
-      labels.push(normalizedCandidate);
-    }
-  }
-
-  return labels;
-};
-
-const formatGov24LabelText = (labels) => labels.length > 0 ? labels.join(" · ") : null;
-
-const formatSource = (sourceType) => {
-  if (sourceType === "YOUTH") return "온통청년";
-  if (sourceType === "BOKJIRO_CENTRAL") return "복지로 중앙";
-  if (sourceType === "BOKJIRO_LOCAL") return "복지로 지자체";
-  if (sourceType === "GOV24") return "정부24";
-  return sourceType || "출처 정보 없음";
-};
-
-const formatStatusLabel = (status, applyEndDate) => {
-  if (status === "CLOSED") return "종료";
-  if (applyEndDate) {
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    if (new Date(`${applyEndDate}T00:00:00`) < today) return "종료";
-  }
-  if (status === "ACTIVE") return "진행중";
-  if (status === "UPCOMING") return "예정";
-  return "상태 정보 없음";
-};
-
-const formatDday = (endDate, status) => {
-  if (status === "CLOSED") return "종료";
-  if (!endDate) return status === "UPCOMING" ? "예정" : "상시/문의";
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const target = new Date(`${endDate}T00:00:00`);
-  if (Number.isNaN(target.getTime())) return "상시/문의";
-  const diff = Math.ceil((target - today) / 86400000);
-  if (diff < 0) return "종료";
-  if (diff === 0) return "D-Day";
-  return `D-${diff}`;
-};
-
-const parseContacts = (raw) => {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      return parsed
-        .map((item) => ({
-          name: item?.name || item?.deptNm || item?.orgNm || "",
-          phone: item?.phone || item?.telNo || item?.contact || "",
-        }))
-        .filter((item) => item.name || item.phone);
-    }
-  } catch {
-    return raw.split(/\n+/).map(l => l.trim()).filter(Boolean).map(l => ({ name: l, phone: "" }));
-  }
-  return [];
-};
-
-const parseReferenceUrls = (raw) => {
-  if (!raw) return [];
-
-  try {
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-
-    const seen = new Set();
-    return parsed
-      .map((item) => {
-        const displayUrl = typeof item?.url === "string" ? item.url.trim() : "";
-        const normalizedUrl = normalizeSafeExternalUrl(displayUrl);
-        if (!normalizedUrl) return null;
-        return {
-          url: normalizedUrl,
-          displayUrl,
-          type: item?.type || "REFERENCE",
-          label: item?.label || "추가 링크",
-          sourceField: item?.sourceField || "",
-          confidence: item?.confidence ?? null,
-        };
-      })
-      .filter((item) => {
-        if (!item || seen.has(item.url)) return false;
-        seen.add(item.url);
-        return true;
-      });
-  } catch {
-    return [];
-  }
-};
-
-const appendRelatedPolicies = (bucket, items, currentId, relationLabel, limit = 3) => {
-  for (const item of items ?? []) {
-    if (!item || String(item.id) === String(currentId) || bucket.some((candidate) => String(candidate.id) === String(item.id))) {
-      continue;
-    }
-    bucket.push({
-      ...item,
-      relationLabel,
-    });
-    if (bucket.length >= limit) {
-      break;
-    }
-  }
 };
 
 function Tag({ children, color, bg, border, onClick, title }) {
@@ -442,7 +234,7 @@ export default function PolicyDetailPage() {
             params: { category: policy.unifiedCategory, size: 6, statusFilter: "ACTIVE_ONLY" },
             signal: controller.signal,
           });
-          appendRelatedPolicies(relatedItems, data?.data?.content, id, "같은 분야");
+          appendRelatedPolicyCandidates(relatedItems, data?.data?.content, id, "같은 분야");
         }
 
         if (relatedItems.length < 3 && policy.sourceType) {
@@ -450,7 +242,7 @@ export default function PolicyDetailPage() {
             params: { sourceType: policy.sourceType, size: 6, statusFilter: "ACTIVE_ONLY" },
             signal: controller.signal,
           });
-          appendRelatedPolicies(relatedItems, data?.data?.content, id, "같은 출처");
+          appendRelatedPolicyCandidates(relatedItems, data?.data?.content, id, "같은 출처");
         }
 
         if (relatedItems.length < 3 && policy.sido) {
@@ -458,7 +250,7 @@ export default function PolicyDetailPage() {
             params: { sido: policy.sido, size: 6, statusFilter: "ACTIVE_ONLY" },
             signal: controller.signal,
           });
-          appendRelatedPolicies(relatedItems, data?.data?.content, id, "같은 지역");
+          appendRelatedPolicyCandidates(relatedItems, data?.data?.content, id, "같은 지역");
         }
 
         if (!controller.signal.aborted) {
@@ -478,8 +270,8 @@ export default function PolicyDetailPage() {
     return () => controller.abort();
   }, [policy, id]);
 
-  const contacts = useMemo(() => parseContacts(policy?.contactList), [policy?.contactList]);
-  const referenceUrls = useMemo(() => parseReferenceUrls(policy?.referenceUrlsJson), [policy?.referenceUrlsJson]);
+  const contacts = useMemo(() => parsePolicyContacts(policy?.contactList), [policy?.contactList]);
+  const referenceUrls = useMemo(() => parsePolicyReferenceUrls(policy?.referenceUrlsJson), [policy?.referenceUrlsJson]);
   const safeDetailUrl = useMemo(() => normalizeSafeExternalUrl(policy?.detailUrl), [policy?.detailUrl]);
   const safeHomepageUrl = useMemo(() => normalizeSafeExternalUrl(policy?.homepageUrl), [policy?.homepageUrl]);
   const primaryReferenceUrls = useMemo(
@@ -531,7 +323,7 @@ export default function PolicyDetailPage() {
     return resolveGov24FallbackLabels(
       policy?.gov24UserTypeLabel,
       visibleTags,
-      GOV24_USER_TYPE_TOKENS
+      GOV24_USER_TYPE_FILTER_TOKENS
     );
   }, [policy?.gov24UserTypeLabel, policy?.sourceType, visibleTags]);
   const gov24UserTypeDisplayText = useMemo(
@@ -544,7 +336,7 @@ export default function PolicyDetailPage() {
     return resolveGov24FallbackLabels(
       policy?.gov24BenefitTypeLabel,
       [policy?.provisionType, ...visibleTags],
-      GOV24_BENEFIT_TYPE_TOKENS
+      GOV24_BENEFIT_TYPE_FILTER_TOKENS
     );
   }, [policy?.gov24BenefitTypeLabel, policy?.provisionType, policy?.sourceType, visibleTags]);
   const gov24BenefitTypeDisplayText = useMemo(

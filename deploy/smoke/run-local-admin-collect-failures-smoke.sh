@@ -26,6 +26,7 @@ LOGIN_RESPONSE="${ARTIFACT_DIR}/admin-login.json"
 COLLECT_RESPONSE="${ARTIFACT_DIR}/collect-failures.json"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
     return 0
   fi

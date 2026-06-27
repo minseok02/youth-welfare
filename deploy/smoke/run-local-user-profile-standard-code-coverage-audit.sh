@@ -73,6 +73,12 @@ SELECT
     COUNT(*) FILTER (WHERE u_housing_type_code IS NOT NULL) AS users_housing_type_code_filled,
     COUNT(*) FILTER (WHERE u_basic_living_recipient_type_code IS NOT NULL) AS users_basic_living_recipient_type_code_filled,
     COUNT(*) FILTER (WHERE u_disability_grade_code IS NOT NULL) AS users_disability_grade_code_filled,
+    COUNT(*) FILTER (WHERE u_house_tenure_code IS NOT NULL AND u_house_tenure_code <> 'NONE') AS users_house_tenure_code_applicable,
+    COUNT(*) FILTER (WHERE u_housing_type_code IS NOT NULL AND u_housing_type_code <> 'NONE' AND u_house_tenure_code IS DISTINCT FROM 'NONE') AS users_housing_type_code_applicable,
+    COUNT(*) FILTER (WHERE u_basic_living_recipient_type_code IS NOT NULL AND u_basic_living_recipient_type_code <> 'NONE') AS users_basic_living_recipient_type_code_applicable,
+    COUNT(*) FILTER (WHERE u_disability_grade_code IS NOT NULL AND u_disability_grade_code <> 'NONE') AS users_disability_grade_code_applicable,
+    COUNT(*) FILTER (WHERE u_house_tenure_code = 'NONE' AND u_housing_type_code IS NOT NULL AND u_housing_type_code <> 'NONE') AS users_house_tenure_none_housing_type_mismatch,
+    COUNT(*) FILTER (WHERE p_house_tenure_code = 'NONE' AND p_housing_type_code IS NOT NULL AND p_housing_type_code <> 'NONE') AS profiles_house_tenure_none_housing_type_mismatch,
     COUNT(*) FILTER (WHERE has_profile_row AND p_filled_count > 0) AS profiles_with_any_standard_code,
     COUNT(*) FILTER (WHERE has_profile_row AND p_filled_count = 4) AS profiles_with_all_standard_codes,
     COUNT(*) FILTER (WHERE has_profile_row AND p_filled_count = 0) AS profiles_missing_all_standard_codes,
@@ -108,6 +114,12 @@ keys = [
     "users_housing_type_code_filled",
     "users_basic_living_recipient_type_code_filled",
     "users_disability_grade_code_filled",
+    "users_house_tenure_code_applicable",
+    "users_housing_type_code_applicable",
+    "users_basic_living_recipient_type_code_applicable",
+    "users_disability_grade_code_applicable",
+    "users_house_tenure_none_housing_type_mismatch",
+    "profiles_house_tenure_none_housing_type_mismatch",
     "profiles_with_any_standard_code",
     "profiles_with_all_standard_codes",
     "profiles_missing_all_standard_codes",
@@ -128,7 +140,12 @@ keys = [
     "bounded_local_users_missing_all_standard_codes",
 ]
 values = sys.argv[1].rstrip("\n").split("\t")
-for key, value in zip(keys, values):
+metrics = dict(zip(keys, values))
+for key, value in metrics.items():
     print(f"METRIC {key}={value}")
+if int(metrics.get("users_house_tenure_none_housing_type_mismatch", "0") or 0) > 0:
+    raise SystemExit("users house_tenure_code=NONE but housing_type_code has applicable values")
+if int(metrics.get("profiles_house_tenure_none_housing_type_mismatch", "0") or 0) > 0:
+    raise SystemExit("user_profiles house_tenure_code=NONE but housing_type_code has applicable values")
 print("OK user_profile_standard_code_coverage_audit")
 PY

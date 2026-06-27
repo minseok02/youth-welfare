@@ -105,7 +105,7 @@ public class NotificationController {
     @DeleteMapping("/push-subscriptions/{subscriptionId}")
     public ResponseEntity<ApiResponse<Void>> deletePushSubscription(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
-            @PathVariable Long subscriptionId) {
+            @PathVariable @Min(1) Long subscriptionId) {
         webPushSubscriptionCommandService.delete(resolveUserKey(authenticatedUser), subscriptionId);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
@@ -183,7 +183,7 @@ public class NotificationController {
     @PatchMapping("/{alertId}/read")
     public ResponseEntity<ApiResponse<Void>> markRead(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
-            @PathVariable Long alertId) {
+            @PathVariable @Min(1) Long alertId) {
         userAlertCommandService.markRead(resolveUserKey(authenticatedUser), alertId);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
@@ -191,7 +191,7 @@ public class NotificationController {
     @PatchMapping("/{alertId}/hide")
     public ResponseEntity<ApiResponse<Void>> hide(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
-            @PathVariable Long alertId) {
+            @PathVariable @Min(1) Long alertId) {
         userAlertCommandService.hide(resolveUserKey(authenticatedUser), alertId);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
