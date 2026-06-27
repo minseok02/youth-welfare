@@ -19,6 +19,7 @@ required_alert_ids = [
     "RECOMMENDATION_RUN_FAILURE_RATE",
     "NOTIFICATION_RETRY_BACKLOG",
     "WEB_PUSH_DISABLED_RATIO",
+    "DB_AUDIT_INTEGRITY",
 ]
 required_sources = [
     "run-local-ops-observation-suite.sh",
@@ -28,6 +29,7 @@ required_sources = [
     "recommendation_run_logs",
     "notification_attempt_logs",
     "web_push_subscriptions",
+    "audit-operational-db-state.sh",
 ]
 required_metrics = [
     "collect_failed_jobs_in_window",
@@ -36,6 +38,8 @@ required_metrics = [
     "retryable_failed_due_now",
     "terminal_failed_total",
     "disabled subscription ratio",
+    "active_users_without_pii",
+    "waiting_locks",
 ]
 
 failures = []
