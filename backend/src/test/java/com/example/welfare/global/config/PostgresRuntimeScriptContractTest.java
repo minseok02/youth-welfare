@@ -225,6 +225,8 @@ class PostgresRuntimeScriptContractTest {
                 .contains("OPERATIONAL_DB_AUDIT_OUTPUT")
                 .contains("RUN_OPERATIONAL_DB_AUDIT=\"${RUN_OPERATIONAL_DB_AUDIT:-true}\"")
                 .contains("run_step \"${RUN_OPERATIONAL_DB_AUDIT}\" \"operational_db_audit\"")
+                .contains("export SMOKE_TRUSTED_ORIGIN=\"${SMOKE_TRUSTED_ORIGIN:-${FRONTEND_PUBLIC_BASE_URL}}\"")
+                .contains("export SMOKE_TRUSTED_REFERER=\"${SMOKE_TRUSTED_REFERER:-${SMOKE_TRUSTED_ORIGIN}/}\"")
                 .contains("db_audit=%s")
                 .contains("operational_db_audit_output=%s");
     }
