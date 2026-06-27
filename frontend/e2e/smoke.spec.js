@@ -524,7 +524,7 @@ test("비로그인 chat 접근 후 로그인하면 원래 chat 경로로 복귀�
   await expectLoggedInChat(page);
 });
 
-test("로그인된 chat 세션이 만료되면 로그인으로 이동하고 재로그인 후 chat으로 복귀한다", async ({ page }) => {
+test("로그인된 chat 세션이 만료되면 로그인으로 이동하고 재로그인 후 chat으로 복귀한다 @dev-only", async ({ page }) => {
   await loginFromProtectedRoute(page, "/chat", userCredentials);
   await expectLoggedInChat(page);
 
