@@ -36,7 +36,7 @@ forced logout cutoff는 “cutoff 이전 token reject / 이후 token allow” �
 
 ### 2. 현재 `JwtUtil` 은 `issuedAt(now)` 만 기록한다
 
-현재 [JwtUtil.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/global/util/JwtUtil.java) 는:
+현재 [JwtUtil.java](../../../backend/src/main/java/com/example/welfare/global/util/JwtUtil.java) 는:
 
 - `issuedAt(now)`
 - `expiration(...)`
@@ -151,7 +151,7 @@ refresh token은 key 존재 여부/일치 여부가 더 본질적이다.
 
 ## next step
 
-다음 작은 task는 이 정책을 기준으로 [JwtUtil.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/global/util/JwtUtil.java) 에 어떤 helper를 추가해야 하는지, 즉:
+다음 작은 task는 이 정책을 기준으로 [JwtUtil.java](../../../backend/src/main/java/com/example/welfare/global/util/JwtUtil.java) 에 어떤 helper를 추가해야 하는지, 즉:
 
 - `iatm` claim write
 - `iatm` claim read

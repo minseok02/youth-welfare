@@ -21,12 +21,13 @@
 - [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
 - [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md)
 
-현재 server/RDS 기준 기본 해석은:
+현재 server/RDS 기준 기본 해석은 latest observation artifact를 우선합니다.
 
-- `dashboard_real_user_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
-- `breakdown_real_user_cohort_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
-- `real_user_review_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
-- `top1_leader_signal_summary=EXAMPLE_SMOKE_ONLY_LEADER`
+- `tmp/recommendation-observation/latest-recommendation-observation-summary.txt`
+- `tmp/recommendation-observation/latest-recommendation-observation.json`
+- `tmp/recommendation-observation/latest-recommendation-observation-note.md`
+
+문서화된 최신 전체 기준선은 `2026-06-21` current-priority wrapper artifact `tmp/current-priority-suite/20260621T171607Z` 이며, recommendation observation은 `KEEP_OBSERVING`, `reopen_allowed=false`, `decision_class=OBSERVE_REAL_USER_TRAFFIC` 입니다.
 
 즉 이 문서는 지금 당장 튜닝을 여는 문서가 아니라, **언제 reopen 판단으로 넘어갈 수 있는지와 어떤 gate를 primary/supplemental로 읽어야 하는지**를 가르는 gate 문서입니다.
 과거 local synthetic/bounded seed에서 `READY_*` 로 열렸던 기록은 gate 전이 검증용으로만 읽고, 운영 판단은 실제 server/RDS `REAL_USER` 표본을 우선합니다.

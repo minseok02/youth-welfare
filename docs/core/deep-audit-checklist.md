@@ -30,7 +30,8 @@
 - 개발 서버는 `frontend/vite.config.js`에서 `/api`를 `VITE_API_PROXY_TARGET` 또는 `VITE_API_BASE_URL` 또는 `http://127.0.0.1:8082`로 proxy한다.
 - axios는 `configuredApiOrigin()`과 `/api/` prefix를 모두 만족하는 요청에만 Bearer token을 붙인다.
 - 확인 결과: 외부 URL로 Authorization header가 새는 구조는 아니다.
-- 확인할 점: 운영에서 `VITE_API_BASE_URL`을 비워 same-origin으로 두는지, 별도 API origin을 쓸 경우 CORS와 CSP `connect-src`가 같이 갱신되는지.
+- 확인 결과: `frontend/.env.example`은 `VITE_API_BASE_URL`을 비워 same-origin 기본값으로 두고, nginx는 `/api/`를 `127.0.0.1:8082`로 proxy한다.
+- 보완 완료: nginx CSP `connect-src`와 edge 검증 스크립트는 `self`, `https://youthmoa.kr`, `https://www.youthmoa.kr` 를 모두 확인한다. 별도 API origin을 쓰면 `VITE_API_BASE_URL`, backend CORS, nginx CSP를 같이 바꿔야 한다.
 
 ### 내부 이동 / redirect 방어
 
@@ -63,6 +64,8 @@
 - CORS는 allow credentials가 켜져 있고, `security.cors.allowed-origins` 값만 허용한다.
 - `TrustedOriginFilter`는 cookie가 관여하는 `POST /api/auth/refresh`, `/api/auth/logout`, `/api/notifications/unsubscribe`에 Origin/Referer allowlist를 요구한다.
 - 확인 결과: refresh/logout/unsubscribe에 대한 browser-origin 방어 테스트가 있다.
+- 보완 완료: refresh cookie는 `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/api/auth` 기준이고, 운영 preflight는 `AUTH_REFRESH_COOKIE_SECURE=true` 를 fail-fast 한다.
+- 보완 완료: prod profile은 `server.forward-headers-strategy=framework` 를 쓰며 nginx proxy는 `X-Forwarded-Proto`, `X-Forwarded-Port`, `X-Forwarded-Host` 를 명시한다.
 - 보완 후보: 로그인/회원가입/문의 등 공개 mutation은 CSRF보다 abuse/rate-limit 성격이 크므로 현재 rate limit 점검 대상이다. 인증/인가 섹션에서 이어서 본다.
 
 ### 운영 도메인 불일치
@@ -587,14 +590,17 @@
 - request id는 허용 문자만 남기고 80자로 자른다.
 - `GlobalExceptionHandler`는 validation/custom error는 정해진 메시지로 응답하고, 일반 예외는 내부 메시지를 클라이언트에 노출하지 않는다.
 - 정리한 점: `UserCoreSyncService` 내부 예외 메시지에 raw userKey가 들어갈 수 있어 userKeyHash만 남기도록 수정했다.
-- 보완 후보: `GlobalExceptionHandler`의 unhandled exception stacktrace는 서버 로그에 남는다. 내부 예외 메시지에 PII/secret을 넣지 않는 규칙을 계속 유지해야 한다.
+- 정리한 점: `LogSanitizer`를 추가해 backend 로그용 문자열의 JWT/Bearer/Authorization/Cookie/JDBC URL userinfo/query secret/key-value secret/direct identifier를 redaction한다.
+- 정리한 점: `GlobalExceptionHandler`의 unhandled exception error 로그는 throwable 원문 stacktrace 대신 errorType과 sanitizer를 통과한 단일 라인 메시지만 남긴다.
+- 정리한 점: `ChatSessionContextStateService`의 JSON parse 실패 로그는 raw context JSON snippet이 섞일 수 있는 throwable을 싣지 않고 errorType만 남긴다.
+- 정리한 점: `PolicySearchLogService`, `ChatRetrievalSnapshotService`, `AdminPolicyRegionAuditService`의 best-effort/스케줄 실패 로그도 throwable stacktrace 없이 기존 집계 필드와 errorType만 남긴다.
 
 ### AES / PII 암호화
 
 - `AesProperties`는 AES secret이 비어 있거나 UTF-8 기준 32바이트가 아니면 부팅을 실패시킨다.
 - 현재 암호화는 `v2:` prefix와 AES/GCM/NoPadding, 12바이트 nonce, 128-bit tag를 사용한다.
 - legacy AES/CBC payload도 복호화할 수 있고, `UserPiiBackfillService.rotateLegacyEncryptedFields()`로 v2 재암호화가 가능하다.
-- AES encrypt/decrypt 실패 로그는 에러 타입/stacktrace 중심이고 평문을 직접 출력하지 않는다.
+- AES encrypt/decrypt 실패 로그는 stacktrace 없이 errorType만 남기고 평문/암호문을 직접 출력하지 않는다.
 - 확인 결과: 신규 PII 암호문은 authenticated encryption으로 저장된다.
 - 보완 후보: AES key rotation은 legacy cipher rotation과 다르다. 실제 key 교체 절차는 별도 dual-read/reencrypt 전략이 필요하다.
 
@@ -614,6 +620,7 @@
 - `UserNotificationReadService`는 email_enc를 복호화해 발송에 사용하고, 로그에는 이메일 원문을 남기지 않는다.
 - notification attempt log는 userKeyHash와 endpointHost 중심으로 기록한다.
 - web push endpoint full URL은 로그에 남기지 않고 host만 남긴다.
+- `WebPushDispatchService`는 provider error message를 notification attempt log에 남기기 전 `LogSanitizer`와 단일 라인/길이 제한을 통과시킨다.
 - 확인 결과: 알림 발송 경로는 최소 이메일 읽기와 host 수준 관측으로 제한된다.
 
 ### 관리자 PII 운영 API
@@ -630,7 +637,7 @@
 - 운영 예시 `env.production.example`은 `APP_BASE_URL=https://youthmoa.kr`, CORS도 `youthmoa.kr` 기준이다.
 - 루트 `.env.example`도 `APP_BASE_URL=https://youthmoa.kr`, CORS `youthmoa.kr` 기준으로 정리했다.
 - 확인 결과: 핵심 secret은 운영 env 주입 전제다.
-- 보완 후보: 여러 전용 DB role password가 기본적으로 `DB_PASSWORD` fallback을 가진다. 로컬 편의에는 좋지만 운영에서는 role별 password 분리를 preflight에서 강제해야 한다.
+- 보완 완료: 운영 profile, RDS bootstrap/verify, runtime cutover preflight는 recommendation command role env 누락을 `DB_URL`/`DB_PASSWORD` fallback으로 흡수하지 않는다. 로컬 개발용 fallback은 `application.yml`/bootRun 경계에만 남긴다.
 
 ### 다음 단계로 넘길 항목
 
@@ -749,18 +756,21 @@
 - HTTP는 ACME challenge를 제외하고 HTTPS로 redirect한다.
 - HTTPS server는 HSTS, nosniff, frame deny, referrer policy, permissions policy, CSP를 설정한다.
 - `/api/`는 `127.0.0.1:8082`로 proxy한다.
-- `/actuator/`, `/swagger-ui/`, `/v3/api-docs/`는 nginx 레벨에서 loopback만 허용한다.
+- `/actuator`, `/swagger-ui`, `/v3/api-docs`는 trailing slash 유무와 관계없이 nginx 레벨에서 loopback만 허용한다.
 - SPA fallback은 `try_files $uri $uri/ /index.html`이다.
-- dotfile과 env/log/sql/archive 확장자는 404로 막는다.
+- HTTPS와 bootstrap conf 모두 dotfile, env/log/sql/archive류 확장자, `wp-login.php`/`xmlrpc.php`/`cgi-bin` 스캐너 경로를 404로 막는다.
 - 확인 결과: edge 보안 header와 admin/dev 문서 경로 guard가 있다.
-- 보완 후보: CSP `connect-src`는 `self`와 `https://youthmoa.kr` 기준이다. 별도 API origin을 쓰면 nginx CSP, backend CORS, `VITE_API_BASE_URL`을 같이 바꿔야 한다.
+- 보완 완료: CSP `connect-src`는 `self`, `https://youthmoa.kr`, `https://www.youthmoa.kr` 기준이고 `verify-edge-baseline.sh`가 live header와 민감 blocked path status도 확인한다.
 
 ### runtime env / secret 주입
 
 - `render-app-runtime-env.sh`는 `.env.production` 전체를 컨테이너에 넣지 않고 allowlist key만 `.env.runtime.production`으로 렌더링한다.
+- render는 기본 strict 모드에서 운영 app runtime 필수 key 누락을 target 파일 생성 전에 실패시킨다.
 - target env file은 symlink를 거부하고 mode 600으로 설치한다.
 - 핵심 secret `JWT_SECRET`, `AES_SECRET_KEY`, DB password, API key, SMTP/Web Push key는 allowlist에 포함된다.
+- `AUTH_REFRESH_COOKIE_SECURE` 도 allowlist와 preflight 대상이며 운영에서는 `true` 만 허용한다.
 - production compose는 `${APP_RUNTIME_ENV_FILE:-.env.runtime.production}`만 app env_file로 읽는다.
+- `run-prod-cutover-verification.sh`는 실제 runtime env 파일을 덮어쓰지 않고 임시 0600 파일로 strict render 가능성을 먼저 확인한 뒤 preflight/RDS/edge verify를 실행한다.
 - 확인 결과: 운영 컨테이너에는 의도한 runtime key만 들어가도록 설계되어 있다.
 - 보완 후보: allowlist에 새 운영 env key를 추가하지 않으면 application.yml에 설정이 있어도 prod compose에는 들어가지 않는다. 새 설정 추가 시 render allowlist와 preflight를 같이 갱신한다.
 
@@ -769,9 +779,10 @@
 - `docker-compose.prod.yml`은 app과 redis만 띄우고 DB를 포함하지 않는다.
 - app은 non-root user `10001:10001`, read_only root filesystem, `/tmp` tmpfs, `no-new-privileges`, `cap_drop: ALL`, pids/memory limit을 가진다.
 - redis도 read_only, tmpfs, non-root user, cap drop, pids/memory limit을 가진다.
+- app runtime secret은 compose에 직접 inline하지 않고 `${APP_RUNTIME_ENV_FILE:-.env.runtime.production}` 렌더 결과만 읽는다.
 - app healthcheck는 `/actuator/health`를 loopback에서 확인한다.
 - local `docker-compose.yml`은 PostgreSQL/pgvector DB를 포함하지만 `ALLOW_LOCAL_DOCKER_DB` guard label이 있다.
-- 확인 결과: 운영 compose는 RDS 전제이고 컨테이너 권한을 줄이는 방향이다.
+- 확인 결과: 운영 compose는 RDS 전제이고 컨테이너 권한을 줄이는 방향이다. `ProdComposeHardeningContractTest`가 app/redis service set, loopback bind, read-only/tmpfs/cap drop/pids/memory limit, runtime env file 분리를 고정한다.
 
 ### DB/RDS preflight
 
@@ -780,6 +791,7 @@
 - PII datasource는 `currentSchema=youth_welfare_pii`를 요구한다.
 - runtime username은 `app_core_rw`, `migration_admin`, `admin_dashboard_ro`, `app_pii_rw`, `notification_pii_ro`, 각 command/cleanup role 이름과 일치해야 한다.
 - secondary datasource URL이 `DB_URL`과 완전히 같으면 실패한다.
+- 운영 profile은 admin-ro, recommendation command, cleanup, PII datasource env를 no-default로 다시 선언해 누락 시 부팅/preflight에서 실패한다.
 - runtime DB role password는 기본적으로 서로 달라야 한다. password 재사용은 실패하며, 로컬/예외 상황에서만 `ALLOW_SHARED_RUNTIME_DB_PASSWORDS=true`로 우회한다.
 - 확인 결과: 운영 cutover 전에 DB target/schema/role 이름/password drift를 잡는 장치가 있다.
 
@@ -810,8 +822,18 @@
 - operational log retention은 recommendation run log와 notification attempt log cleanup을 가진다.
 - PII sync queue retention은 `SYNCED` row를 기본 30일 후 삭제한다. 설정은 `USER_PII_SYNC_RETENTION_ENABLED`, `USER_PII_SYNC_RETENTION_SYNCED_DAYS`, `USER_PII_SYNC_RETENTION_CRON`, `USER_PII_SYNC_RETENTION_ZONE`로 조정한다.
 - deploy/performance와 deploy/smoke 아래에 edge baseline, app log 관측, ops observation wrapper, policy/recommend/chat/notification smoke가 있다.
+- auth observation/session, admin dashboard/collect/recommendation/attention, ops baseline/observation smoke는 cleanup에서 `smoke_sanitize_artifacts` 를 호출한다. 보존 아티팩트에 남는 cookie jar는 삭제하고 token/password/API key/email/userKey 계열 값은 redaction한다.
+- recommendation/chat/collect/Gov24/real-user 진단 smoke는 단독 실행 cleanup과 `latest` publish 직전에 같은 sanitizer를 다시 호출한다.
+- nightly/active-baseline/current-priority 상위 handoff wrapper도 child stdout과 latest handoff를 publish하기 전에 sanitizer를 호출한다.
+- smoke 공통 sanitize/publish 경로는 retained artifact directory를 `700`, artifact file을 `600`으로 제한한다. runtime env render는 `umask 077` 과 `install -m 600` 으로 `.env.runtime.production` 계열 파일을 만든다.
+- 공통 smoke 실패 출력(`smoke_assert_status`, health wait, admin login)은 응답 body를 stderr로 내보내기 전에 token/password/API key/cookie/JDBC URL/email/userKey 계열 값을 redaction한다.
+- `run-prod-cutover-verification.sh` 는 단계 stdout/stderr를 redaction한 뒤 artifact로 tee하고, 단계 종료와 cleanup에서 보존 artifact sanitizer를 다시 적용한다.
+- nginx `youth_welfare_timed` access log는 `$request`/`$request_uri` 대신 `$request_method $uri $server_protocol` 을 기록해 request query string을 남기지 않는다. `Referer`도 query/fragment를 제거한 `$youth_welfare_safe_referer` map 값만 기록한다.
+- performance artifact publish 공통 경로도 `smoke_sanitize_artifacts` 를 먼저 호출하므로, reload 전 access log tail에 token/code/API key query가 섞여도 latest artifact publish 전에 redaction된다.
+- log alert baseline은 app/nginx raw tail을 artifact 파일에 쓰기 전에 redaction하고, evaluator stdout과 webhook payload도 `smoke_redact_stream_for_log` 를 통과한다.
+- backend application log는 `LogSanitizer`와 sanitized exception summary 계약으로 secret-like 값과 직접 식별자가 error/attempt 로그에 원문으로 남는 경계를 줄인다.
 - 확인 결과: 운영 관측은 smoke script 중심으로 꽤 많이 갖춰져 있다.
-- 보완 후보: nginx `$request`는 query string을 포함한다. 생성되는 unsubscribe 링크는 hash token이라 서버에 안 가지만, query token 링크가 유입되면 access log에 token이 남을 수 있다. query token 지원 유지 여부를 정한다.
+- 남은 운영 확인: 실제 운영 secret 값 자체는 로컬 점검에서 읽지 않았으므로, 운영 host에서는 같은 wrapper/preflight를 실행해 redacted artifact를 증적으로 남긴다.
 
 ### 다음 단계로 넘길 항목
 

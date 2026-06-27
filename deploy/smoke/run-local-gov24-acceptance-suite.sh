@@ -29,6 +29,7 @@ RUN_GOV24_RECOMMEND_SCORE_AUDIT="${RUN_GOV24_RECOMMEND_SCORE_AUDIT:-true}"
 RUN_GOV24_SIGNAL_SMOKES="${RUN_GOV24_SIGNAL_SMOKES:-false}"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
     return 0
   fi
@@ -75,6 +76,8 @@ if [[ "${RUN_GOV24_REGION_BACKFILL}" == "true" ]]; then
     "gov24_region_backfill" \
     "${ARTIFACT_DIR}/gov24-region-backfill.txt" \
     env APP_BASE_URL="${APP_BASE_URL}" \
+    KEEP_ARTIFACTS=true \
+    ARTIFACT_DIR="${ARTIFACT_DIR}/gov24-region-backfill-artifacts" \
     bash "${ROOT_DIR}/deploy/smoke/run-local-gov24-region-backfill-smoke.sh"
 fi
 
@@ -91,6 +94,8 @@ if [[ "${RUN_GOV24_COLLECT_EMBEDDING_BOUNDARY}" == "true" ]]; then
     "gov24_collect_embedding_boundary" \
     "${ARTIFACT_DIR}/gov24-collect-embedding-boundary.txt" \
     env APP_BASE_URL="${APP_BASE_URL}" \
+    KEEP_ARTIFACTS=true \
+    ARTIFACT_DIR="${ARTIFACT_DIR}/gov24-collect-embedding-boundary-artifacts" \
     bash "${ROOT_DIR}/deploy/smoke/run-local-gov24-collect-embedding-boundary-smoke.sh"
 fi
 
@@ -99,6 +104,8 @@ if [[ "${RUN_GOV24_SIDECAR_BACKFILL}" == "true" ]]; then
     "gov24_sidecar_backfill" \
     "${ARTIFACT_DIR}/gov24-sidecar-backfill.txt" \
     env APP_BASE_URL="${APP_BASE_URL}" \
+    KEEP_ARTIFACTS=true \
+    ARTIFACT_DIR="${ARTIFACT_DIR}/gov24-sidecar-backfill-artifacts" \
     bash "${ROOT_DIR}/deploy/smoke/run-local-gov24-sidecar-backfill-smoke.sh"
 fi
 
@@ -177,7 +184,7 @@ if [[ "${RUN_GOV24_SIGNAL_SMOKES}" == "true" ]]; then
     bash "${ROOT_DIR}/deploy/smoke/run-local-gov24-education-signal-smoke.sh"
 fi
 
-python3 - "${DURATIONS_TSV}" "${SUMMARY_OUT}" "${JSON_OUT}" "${APP_BASE_URL}" <<'PY'
+python3 - "${DURATIONS_TSV}" "${SUMMARY_OUT}" "${JSON_OUT}" "${APP_BASE_URL}" "${ARTIFACT_DIR}" <<'PY'
 import csv
 import json
 import sys
@@ -187,9 +194,23 @@ durations_path = Path(sys.argv[1])
 summary_path = Path(sys.argv[2])
 json_path = Path(sys.argv[3])
 app_base_url = sys.argv[4]
+artifact_dir = sys.argv[5]
 
 with durations_path.open("r", encoding="utf-8") as fp:
     rows = list(csv.DictReader(fp, delimiter="\t"))
+
+artifact_dirs = {
+    "gov24_region_backfill": f"{artifact_dir}/gov24-region-backfill-artifacts",
+    "gov24_collect_embedding_boundary": f"{artifact_dir}/gov24-collect-embedding-boundary-artifacts",
+    "gov24_sidecar_backfill": f"{artifact_dir}/gov24-sidecar-backfill-artifacts",
+    "gov24_support_conditions_validation": f"{artifact_dir}/gov24-support-conditions-validation-artifacts",
+    "gov24_taxonomy_validation": f"{artifact_dir}/gov24-taxonomy-validation-artifacts",
+    "gov24_filter_axis_audit": f"{artifact_dir}/gov24-filter-axis-artifacts",
+    "gov24_housing_signal_smoke": f"{artifact_dir}/gov24-housing-signal-artifacts",
+    "gov24_education_signal_smoke": f"{artifact_dir}/gov24-education-signal-artifacts",
+}
+for row in rows:
+    row["artifact_dir"] = artifact_dirs.get(row["label"], "")
 
 failed = [row for row in rows if int(row["exit_code"]) != 0]
 suite_duration_ms = sum(int(row["duration_ms"]) for row in rows)
@@ -204,6 +225,8 @@ for row in rows:
     lines.append(f"{row['label']}_exit_code={row['exit_code']}")
     lines.append(f"{row['label']}_duration_ms={row['duration_ms']}")
     lines.append(f"{row['label']}_output_file={row['output_file']}")
+    if row["artifact_dir"]:
+        lines.append(f"{row['label']}_artifact_dir={row['artifact_dir']}")
 
 summary_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 json_path.write_text(json.dumps({
@@ -219,9 +242,11 @@ if failed:
     raise SystemExit(1)
 PY
 
-ln -sfn "${ARTIFACT_DIR}" "${LATEST_ARTIFACT_LINK}"
-ln -sfn "${SUMMARY_OUT}" "${LATEST_SUMMARY_LINK}"
-ln -sfn "${JSON_OUT}" "${LATEST_JSON_LINK}"
+smoke_sanitize_artifacts "${ARTIFACT_DIR}"
+smoke_update_links \
+  "${ARTIFACT_DIR}" "${LATEST_ARTIFACT_LINK}" \
+  "${SUMMARY_OUT}" "${LATEST_SUMMARY_LINK}" \
+  "${JSON_OUT}" "${LATEST_JSON_LINK}"
 
 echo "artifact_dir=${ARTIFACT_DIR}"
 echo "latest_artifact_link=${LATEST_ARTIFACT_LINK}"

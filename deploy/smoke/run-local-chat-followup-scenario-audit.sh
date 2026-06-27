@@ -20,6 +20,7 @@ HEALTH_RETRY_COUNT="${HEALTH_RETRY_COUNT:-15}"
 HEALTH_RETRY_DELAY_SECONDS="${HEALTH_RETRY_DELAY_SECONDS:-1}"
 REQUIRE_ALL_LAST_TURNS_POLICY_GROUNDED="${REQUIRE_ALL_LAST_TURNS_POLICY_GROUNDED:-true}"
 PROFILE_CHECK_ALLOWED_SCENARIOS="${PROFILE_CHECK_ALLOWED_SCENARIOS:-certificate-followup,transport-expense,culture-voucher}"
+CHAT_FOLLOWUP_SCENARIO_MIN_POLICY_ROWS="${CHAT_FOLLOWUP_SCENARIO_MIN_POLICY_ROWS:-10}"
 RUN_TS_UTC="${RUN_TS_UTC:-$(smoke_now_ts_utc)}"
 ARTIFACT_ROOT="${ARTIFACT_ROOT:-${ROOT_DIR}/tmp/chat-followup-scenario-audit}"
 ARTIFACT_DIR="${ARTIFACT_DIR:-${ARTIFACT_ROOT}/${RUN_TS_UTC}}"
@@ -34,11 +35,85 @@ NOTE_OUT="${ARTIFACT_DIR}/chat-followup-scenario-note.md"
 mkdir -p "${ARTIFACT_DIR}"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   if [[ "${KEEP_ARTIFACTS}" != "true" ]]; then
     rm -rf "${ARTIFACT_DIR}"
   fi
 }
 trap cleanup EXIT
+
+write_insufficient_policy_corpus_skip() {
+  local policy_row_count="$1"
+
+  cat > "${SUMMARY_OUT}" <<EOF
+chat_followup_scenario_audit=skipped
+skip_reason=INSUFFICIENT_POLICY_CORPUS
+policy_row_count=${policy_row_count}
+min_policy_rows=${CHAT_FOLLOWUP_SCENARIO_MIN_POLICY_ROWS}
+scenario_count=0
+decision=SKIPPED_INSUFFICIENT_POLICY_CORPUS
+require_all_last_turns_policy_grounded=${REQUIRE_ALL_LAST_TURNS_POLICY_GROUNDED}
+profile_check_allowed_scenarios=${PROFILE_CHECK_ALLOWED_SCENARIOS}
+artifact_dir=${ARTIFACT_DIR}
+EOF
+
+  python3 - \
+    "${JSON_OUT}" \
+    "${NOTE_OUT}" \
+    "${ARTIFACT_DIR}" \
+    "${policy_row_count}" \
+    "${CHAT_FOLLOWUP_SCENARIO_MIN_POLICY_ROWS}" \
+    "${REQUIRE_ALL_LAST_TURNS_POLICY_GROUNDED}" \
+    "${PROFILE_CHECK_ALLOWED_SCENARIOS}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+json_out = Path(sys.argv[1])
+note_out = Path(sys.argv[2])
+artifact_dir = sys.argv[3]
+policy_row_count = int(sys.argv[4])
+min_policy_rows = int(sys.argv[5])
+require_all = sys.argv[6].lower() == "true"
+profile_check_allowed = [item.strip() for item in sys.argv[7].split(",") if item.strip()]
+
+payload = {
+    "chatFollowupScenarioAudit": "skipped",
+    "skipReason": "INSUFFICIENT_POLICY_CORPUS",
+    "policyRowCount": policy_row_count,
+    "minPolicyRows": min_policy_rows,
+    "scenarioCount": 0,
+    "decision": "SKIPPED_INSUFFICIENT_POLICY_CORPUS",
+    "requireAllLastTurnsPolicyGrounded": require_all,
+    "profileCheckAllowedScenarios": profile_check_allowed,
+    "artifactDir": artifact_dir,
+}
+json_out.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+note_out.write_text(
+    "\n".join([
+        "# Chat Follow-up Scenario Audit",
+        "",
+        "- status: `skipped`",
+        "- skip_reason: `INSUFFICIENT_POLICY_CORPUS`",
+        f"- policy_row_count: `{policy_row_count}`",
+        f"- min_policy_rows: `{min_policy_rows}`",
+        "",
+        "Fresh local databases do not contain the representative policy corpus required by this strict scenario audit.",
+    ]) + "\n",
+    encoding="utf-8",
+)
+PY
+
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
+  smoke_update_links \
+    "${ARTIFACT_DIR}" "${ARTIFACT_ROOT}/latest" \
+    "${SUMMARY_OUT}" "${ARTIFACT_ROOT}/latest-chat-followup-scenario-summary.txt" \
+    "${JSON_OUT}" "${ARTIFACT_ROOT}/latest-chat-followup-scenario-summary.json" \
+    "${NOTE_OUT}" "${ARTIFACT_ROOT}/latest-chat-followup-scenario-note.md"
+
+  cat "${SUMMARY_OUT}"
+}
 
 extract_json() {
   local response_file="$1"
@@ -182,6 +257,15 @@ smoke_require_command python3
 smoke_print_step "health check"
 HEALTH_STATUS="$(smoke_wait_for_health "${HEALTH_RETRY_COUNT}" "${HEALTH_RETRY_DELAY_SECONDS}" "${APP_HEALTH_URL}" "${HEALTH_RESPONSE}" "${ARTIFACT_DIR}/health.stderr")"
 smoke_assert_status 200 "${HEALTH_STATUS}" "health check" "${HEALTH_RESPONSE}"
+
+smoke_print_step "policy corpus precheck"
+POLICY_ROW_COUNT="$(smoke_db_query "select count(*) from welfare_services;" | head -n 1)"
+POLICY_ROW_COUNT="${POLICY_ROW_COUNT//[^0-9]/}"
+POLICY_ROW_COUNT="${POLICY_ROW_COUNT:-0}"
+if (( POLICY_ROW_COUNT < CHAT_FOLLOWUP_SCENARIO_MIN_POLICY_ROWS )); then
+  write_insufficient_policy_corpus_skip "${POLICY_ROW_COUNT}"
+  exit 0
+fi
 
 run_scenario "housing-followup" \
   "서울 월세 지원 알려줘" \
@@ -405,6 +489,7 @@ if require_all_policy_grounded and failed_scenarios:
     raise SystemExit("last turn did not meet required chat audit mode for: " + ", ".join(failed_scenarios))
 PY
 
+smoke_sanitize_artifacts "${ARTIFACT_DIR}"
 smoke_update_links \
   "${ARTIFACT_DIR}" "${ARTIFACT_ROOT}/latest" \
   "${SUMMARY_OUT}" "${ARTIFACT_ROOT}/latest-chat-followup-scenario-summary.txt" \

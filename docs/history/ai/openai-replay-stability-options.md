@@ -10,7 +10,7 @@
 
 ## 현재 gateway 상태
 
-- [RealtimeAiGateway.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/recommend/gateway/RealtimeAiGateway.java)는 `chat.completions` 를 사용합니다.
+- [RealtimeAiGateway.java](../../../backend/src/main/java/com/example/welfare/recommend/gateway/RealtimeAiGateway.java)는 `chat.completions` 를 사용합니다.
 - 현재 request body에는 `model`, `messages`, `temperature=0.3`, `response_format` 만 들어가고 `seed` 는 없습니다.
 - replay trace는 `candidateIds`, `candidateRuleScores`, `promptSha256` 만 남기고, OpenAI 응답의 `system_fingerprint` 나 request identifier 는 저장하지 않습니다.
 

@@ -44,12 +44,12 @@ public class PolicySearchLogService {
                     .pageSize(Math.max(1, command.size()))
                     .build());
         } catch (RuntimeException e) {
-            log.warn("[PolicySearchLogService] 검색 로그 저장 실패 keywordLength={} resultCount={} page={} size={}",
+            log.warn("[PolicySearchLogService] 검색 로그 저장 실패 keywordLength={} resultCount={} page={} size={} errorType={}",
                     trimmedKeyword.length(),
                     command.resultCount(),
                     command.page(),
                     command.size(),
-                    e);
+                    e.getClass().getSimpleName());
         }
     }
 

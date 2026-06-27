@@ -17,7 +17,7 @@
 Healthchecks.io에서 새 check를 만들고 ping URL을 복사합니다. 그 다음 운영 서버에서 아래를 실행합니다.
 
 ```bash
-cd /home/ubuntu/youth-welfare
+cd /path/to/youth-welfare
 bash deploy/ops/configure-healthchecks-url.sh 'https://hc-ping.com/<uuid>'
 bash deploy/ops/install-basic-ops-cron.sh
 ```
@@ -46,7 +46,7 @@ ALERT_WEBHOOK_URL='https://example.com/webhook'
 
 주요 환경변수:
 
-- `ROOT_DIR`: repo 경로, 기본 `/home/ubuntu/youth-welfare`
+- `ROOT_DIR`: repo 경로. 운영 서버에서는 실제 checkout 위치를 명시합니다.
 - `OPS_ENV_FILE`: watchdog secret/env 파일
 - `ENV_FILE`: compose env 파일, 기본 `.env.production`
 - `COMPOSE_FILE`: compose 파일, 기본 `docker-compose.prod.yml`
@@ -58,7 +58,7 @@ ALERT_WEBHOOK_URL='https://example.com/webhook'
 수동 점검:
 
 ```bash
-ROOT_DIR=/home/ubuntu/youth-welfare bash deploy/ops/app-watchdog.sh
+ROOT_DIR="$(pwd)" bash deploy/ops/app-watchdog.sh
 tail -n 50 /var/log/youth-welfare/ops/app-watchdog.log
 ```
 

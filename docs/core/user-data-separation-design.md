@@ -24,10 +24,10 @@
 
 분리 작업 당시 코드 기준으로도 `User`는 너무 많은 책임을 가지고 있었다.
 
-- 인증과 회원가입은 [AuthLoginService](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AuthLoginService.java:22), [AuthSignupService](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AuthSignupService.java:13), [AuthSessionService](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AuthSessionService.java:10) 로 나뉘었지만, 여전히 최종 상태 저장은 `User` 엔티티 하나를 기준으로 sync된다.
-- 프로필 수정과 전화번호 복호화, 알림 설정, 회원탈퇴는 [UserProfileCommandService](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/user/service/UserProfileCommandService.java:23), [UserProfileReadService](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/user/service/UserProfileReadService.java:16), [UserAccountCommandService](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/user/service/UserAccountCommandService.java:17) 로 나뉘었지만, 여전히 `User` 엔티티 하나에 인증/프로필/알림 설정 상태가 함께 모여 있다.
-- 추천 파이프라인은 [RecommendationGenerationService](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/RecommendationGenerationService.java:18) 에서 `User` 와 추천 snapshot을 함께 읽어 사용한다.
-- 실제 `User` 엔티티도 [User](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/user/entity/User.java:16) 한 클래스에 인증, PII, 추천 프로필, 알림 설정이 함께 있다.
+- 인증과 회원가입은 [AuthLoginService](../../backend/src/main/java/com/example/welfare/user/service/AuthLoginService.java), [AuthSignupService](../../backend/src/main/java/com/example/welfare/user/service/AuthSignupService.java), [AuthSessionService](../../backend/src/main/java/com/example/welfare/user/service/AuthSessionService.java) 로 나뉘었지만, 여전히 최종 상태 저장은 `User` 엔티티 하나를 기준으로 sync된다.
+- 프로필 수정과 전화번호 복호화, 알림 설정, 회원탈퇴는 [UserProfileCommandService](../../backend/src/main/java/com/example/welfare/user/service/UserProfileCommandService.java), [UserProfileReadService](../../backend/src/main/java/com/example/welfare/user/service/UserProfileReadService.java), [UserAccountCommandService](../../backend/src/main/java/com/example/welfare/user/service/UserAccountCommandService.java) 로 나뉘었지만, 여전히 `User` 엔티티 하나에 인증/프로필/알림 설정 상태가 함께 모여 있다.
+- 추천 파이프라인은 [RecommendationGenerationService](../../backend/src/main/java/com/example/welfare/recommend/service/RecommendationGenerationService.java) 에서 `User` 와 추천 snapshot을 함께 읽어 사용한다.
+- 실제 `User` 엔티티도 [User](../../backend/src/main/java/com/example/welfare/user/entity/User.java) 한 클래스에 인증, PII, 추천 프로필, 알림 설정이 함께 있다.
 
 ## 목표
 
@@ -103,8 +103,8 @@
 
 현재 배포/보안 구조는 이전보다 나아졌지만 권한 경계가 아직 완전히 닫히지는 않았다.
 
-- DB 접속은 [application.yml](/home/ubuntu/youth-welfare/backend/src/main/resources/application.yml:1) 기준 기본 JPA datasource + `app_pii_rw` + `notification_pii_ro` 보조 datasource 3개를 함께 사용한다.
-- 현재 [docker-compose.yml](/home/ubuntu/youth-welfare/docker-compose.yml:1)은 앱 컨테이너가 `DB_USERNAME` 계정으로 접속하고, 신규 볼륨 초기화 시 `app_core_rw`, `app_pii_rw`, `notification_pii_ro`, `migration_admin` 계정을 함께 생성한다.
+- DB 접속은 [application.yml](../../backend/src/main/resources/application.yml) 기준 기본 JPA datasource + `app_pii_rw` + `notification_pii_ro` 보조 datasource 3개를 함께 사용한다.
+- 현재 [docker-compose.yml](../../docker-compose.yml)은 앱 컨테이너가 `DB_USERNAME` 계정으로 접속하고, 신규 볼륨 초기화 시 `app_core_rw`, `app_pii_rw`, `notification_pii_ro`, `migration_admin` 계정을 함께 생성한다.
 - 프로필 조회와 비밀번호 재설정 수신 주소 조회는 `app_pii_rw` 보조 datasource를 통해 `user_pii` 를 읽는다.
 - `user_pii` admin backfill 은 primary `users` source 조회와 `app_pii_rw` 의 누락 암호문 조회/수정 2단계로 수행한다.
 - 요청 경로 `user_pii` sync 는 primary `user_pii_sync_queue` 에 적재된 뒤 after-commit listener 가 `app_pii_rw` 로 upsert 한다.
@@ -112,7 +112,7 @@
 - `UserPiiSyncRetryScheduler` 는 `user.pii-sync.retry.*` 설정값으로 `FAILED` 우선, 이후 `PENDING` queue batch를 fixed-delay 재처리한다.
 - 운영자는 `/api/admin/users/pii-sync-status` 로 queue 적체 count, oldest pending/failed row, 최근 sync 시각, failed sample 목록을 조회할 수 있다.
 - 알림 발송 대상 이메일 조회와 재시도 단건 조회는 `notification_pii_ro` 보조 datasource를 통해 `user_pii(user_key, email_enc)` 만 읽는다.
-- API 권한은 [SecurityConfig](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/global/config/SecurityConfig.java:44) 에서 이미 `/api/admin/** -> hasRole("ADMIN")` 으로 막혀 있다.
+- API 권한은 [SecurityConfig](../../backend/src/main/java/com/example/welfare/global/config/SecurityConfig.java) 에서 이미 `/api/admin/** -> hasRole("ADMIN")` 으로 막혀 있다.
 - 기본 datasource/JPA persistence unit은 더 이상 `user_pii` 를 직접 읽거나 쓰지 않는다.
 - 신규 init 스크립트와 계정 템플릿은 이미 `app_core_rw` 의 `user_pii` 권한을 제거한 상태다.
 - 남은 일은 기존 운영 DB에서 같은 revoke SQL을 실제 적용하고, 운영 smoke/query 계정 경로를 `migration_admin` 기준으로 확인하는 것이다.
@@ -285,20 +285,20 @@
 실제 cut-over 시 바로 영향받는 코드는 아래다.
 
 - 인증/계정
-  - [AuthSignupService](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AuthSignupService.java:18)
-  - [AuthLoginService](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AuthLoginService.java:21)
-  - [AuthSessionService](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AuthSessionService.java:24)
-  - [UserProfileCommandService](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/user/service/UserProfileCommandService.java:34)
-  - [UserAccountCommandService](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/user/service/UserAccountCommandService.java:24)
-  - [User](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/user/entity/User.java:16)
+  - [AuthSignupService](../../backend/src/main/java/com/example/welfare/user/service/AuthSignupService.java)
+  - [AuthLoginService](../../backend/src/main/java/com/example/welfare/user/service/AuthLoginService.java)
+  - [AuthSessionService](../../backend/src/main/java/com/example/welfare/user/service/AuthSessionService.java)
+  - [UserProfileCommandService](../../backend/src/main/java/com/example/welfare/user/service/UserProfileCommandService.java)
+  - [UserAccountCommandService](../../backend/src/main/java/com/example/welfare/user/service/UserAccountCommandService.java)
+  - [User](../../backend/src/main/java/com/example/welfare/user/entity/User.java)
 - 추천
-  - [RecommendationGenerationService](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/RecommendationGenerationService.java:18)
-  - [RecommendationAccessService](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/RecommendationAccessService.java:13)
-  - [RuleScoringService](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/RuleScoringService.java:24)
+  - [RecommendationGenerationService](../../backend/src/main/java/com/example/welfare/recommend/service/RecommendationGenerationService.java)
+  - [RecommendationAccessService](../../backend/src/main/java/com/example/welfare/recommend/service/RecommendationAccessService.java)
+  - [RuleScoringService](../../backend/src/main/java/com/example/welfare/recommend/service/RuleScoringService.java)
   - `UserRecommendation`, `RecommendationLog`
 - 알림
-  - [NotificationScheduleService](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/notification/service/NotificationScheduleService.java:14)
-  - [NotificationDispatchService](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/notification/service/NotificationDispatchService.java:18)
+  - [NotificationScheduleService](../../backend/src/main/java/com/example/welfare/notification/service/NotificationScheduleService.java)
+  - [NotificationDispatchService](../../backend/src/main/java/com/example/welfare/notification/service/NotificationDispatchService.java)
   - `Notification`
 - 프로필/관심사
   - `UserAttribute`, `UserPriority`
@@ -485,7 +485,7 @@ secondary datasource URL도 권한 모델과 같이 맞춰야 한다. `APP_PII_D
 
 ## Spring Security / 계정 모델 변경안
 
-현재 [SecurityConfig](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/global/config/SecurityConfig.java:44) 는 `ROLE_ADMIN` / 일반 사용자 구분은 있다.
+현재 [SecurityConfig](../../backend/src/main/java/com/example/welfare/global/config/SecurityConfig.java) 는 `ROLE_ADMIN` / 일반 사용자 구분은 있다.
 하지만 역할이 DB 테이블이 아니라 환경변수 allowlist에서 유도되고, 서비스 계정/사람 계정/감사 계정이 별도 모델로 분리되어 있지 않다.
 데이터 분리와 함께 인증/인가 모델도 아래 방향으로 확장하는 것이 맞다.
 

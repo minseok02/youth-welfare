@@ -14,7 +14,18 @@ public record AdminDashboardAttentionResponse(
             String title,
             String message,
             String targetId,
-            String source
+            String source,
+            String nextAction
     ) {
+        public AttentionItem(
+                String key,
+                String severity,
+                String title,
+                String message,
+                String targetId,
+                String source
+        ) {
+            this(key, severity, title, message, targetId, source, null);
+        }
     }
 }

@@ -47,6 +47,7 @@ cleanup() {
       "${ARTIFACT_DIR}/cleanup-clear.json" \
       -H "Authorization: Bearer ${ADMIN_TOKEN:-}" >/dev/null 2>&1 || true
   fi
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   rm -rf "${ARTIFACT_DIR}"
 }
 trap cleanup EXIT

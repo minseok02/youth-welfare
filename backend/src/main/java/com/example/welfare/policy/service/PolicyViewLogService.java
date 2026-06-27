@@ -52,8 +52,8 @@ public class PolicyViewLogService {
         try {
             policyViewLogCommandRepository.upsertRecentView(serviceId, userKey, viewedAt);
         } catch (RuntimeException exception) {
-            log.warn("recent policy view upsert failed serviceId={} userKeyHash={}",
-                    serviceId, RedisKeyHash.sha256Hex(userKey), exception);
+            log.warn("recent policy view upsert failed serviceId={} userKeyHash={} errorType={}",
+                    serviceId, RedisKeyHash.sha256Hex(userKey), exception.getClass().getSimpleName());
         }
     }
 }

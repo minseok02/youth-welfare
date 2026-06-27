@@ -34,7 +34,7 @@ cd backend
 ```
 
 통합 테스트는 `integration` 프로필을 사용하며, 기본 연결 정보는
-[application-integration.yml](../backend/src/test/resources/application-integration.yml)에 정의되어 있습니다.
+[application-integration.yml](../../backend/src/test/resources/application-integration.yml)에 정의되어 있습니다.
 현재 main 기준 integration runtime 기대값은 `127.0.0.1:5433` PostgreSQL과 `127.0.0.1:6379` Redis 입니다.
 `integrationTest` 는 실행 전에 `integrationRuntimePreflight` 를 먼저 태워 이 runtime 이 없으면 개별 통합 테스트가 연쇄로 쏟아지기 전에 즉시 실패합니다.
 이 preflight 는 이제 포트 접근성만 보지 않고, primary / admin-ro / chat-session-cleanup / cluster-ai-cleanup / recommendation-retention-cleanup / collect-execution-lock-cleanup / web-push-subscription-cleanup / pii-rw / notification-pii-ro datasource에 실제 JDBC 로그인까지 확인합니다.

@@ -125,7 +125,7 @@ local-first closeout 기준의 실제 다음 액션을 고정합니다.
 현재 주의:
 
 - 이 smoke는 local policy snapshot과 canonical read-model schema(`service_taxonomies`)가 적재된 DB를 전제로 한다.
-- `SMOKE_RESET_DB=true` 직후 replay script는 [apply-local-policy-sidecar-draft.sh](../deploy/mysql/apply-local-policy-sidecar-draft.sh) 를 먼저 호출해 현재 PostgreSQL integrated schema 존재 여부를 preflight로 확인한다.
+- `SMOKE_RESET_DB=true` 직후 replay script는 [apply-local-policy-sidecar-draft.sh](../../deploy/mysql/apply-local-policy-sidecar-draft.sh) 를 먼저 호출해 현재 PostgreSQL integrated schema 존재 여부를 preflight로 확인한다.
 - 이 스크립트는 이제 예전 MySQL draft SQL을 다시 auto-apply 하는 경로가 아니다. schema가 비어 있으면 PostgreSQL bootstrap/collect flow 또는 snapshot restore가 필요하다고 명시적으로 실패한다.
 - 즉 replay smoke는 integrated schema와 local policy snapshot이 이미 채워져 있다는 전제 위에서만 self-heal 되고, fresh reset 뒤 `welfare_services` snapshot 자체가 비어 있으면 collect 또는 snapshot restore는 여전히 선행되어야 한다.
 
@@ -168,7 +168,7 @@ local-first closeout 기준의 실제 다음 액션을 고정합니다.
 7. `Gov24` runtime collect / runtime audit closeout: 통과
 
 추가로 fresh reset 뒤 local canonical read-model schema가 비어 있어 replay가 곧바로 막히던 공백은
-[deploy/mysql/apply-local-policy-sidecar-draft.sh](../deploy/mysql/apply-local-policy-sidecar-draft.sh)
+[deploy/mysql/apply-local-policy-sidecar-draft.sh](../../deploy/mysql/apply-local-policy-sidecar-draft.sh)
 와 replay script preflight 경계로 로컬 smoke 수준에서는 더 일찍 감지되도록 보강했다.
 이 helper는 현재 PostgreSQL integrated schema 존재 여부와 replay precondition을 확인하는 보조 경계로 읽고,
 예전 MySQL draft SQL을 다시 auto-apply 하는 경로로 해석하지 않는다.

@@ -18,6 +18,7 @@ SMOKE_HOUSEHOLD_TYPE="${SMOKE_HOUSEHOLD_TYPE:-1인 가구}"
 SMOKE_USER_AGENT="${SMOKE_USER_AGENT:-youth-welfare-chat-coaching-matrix/${RUN_TS_UTC:-$(smoke_now_ts_utc)}}"
 HEALTH_RETRY_COUNT="${HEALTH_RETRY_COUNT:-15}"
 HEALTH_RETRY_DELAY_SECONDS="${HEALTH_RETRY_DELAY_SECONDS:-1}"
+CHAT_APPLICATION_COACHING_MATRIX_MIN_POLICY_ROWS="${CHAT_APPLICATION_COACHING_MATRIX_MIN_POLICY_ROWS:-10}"
 RUN_TS_UTC="${RUN_TS_UTC:-$(smoke_now_ts_utc)}"
 ARTIFACT_ROOT="${ARTIFACT_ROOT:-${ROOT_DIR}/tmp/chat-application-coaching-matrix-audit}"
 ARTIFACT_DIR="${ARTIFACT_DIR:-${ARTIFACT_ROOT}/${RUN_TS_UTC}}"
@@ -35,6 +36,7 @@ CREATED_SESSIONS=()
 mkdir -p "${ARTIFACT_DIR}"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   if [[ -n "${ACCESS_TOKEN}" ]]; then
     for session_id in "${CREATED_SESSIONS[@]}"; do
       if [[ -n "${session_id}" ]]; then
@@ -91,6 +93,65 @@ smoke_require_command python3
 smoke_print_step "health check"
 HEALTH_STATUS="$(smoke_wait_for_health "${HEALTH_RETRY_COUNT}" "${HEALTH_RETRY_DELAY_SECONDS}" "${APP_HEALTH_URL}" "${HEALTH_RESPONSE}" "${ARTIFACT_DIR}/health.stderr")"
 smoke_assert_status 200 "${HEALTH_STATUS}" "health check" "${HEALTH_RESPONSE}"
+
+smoke_print_step "policy corpus precheck"
+POLICY_ROW_COUNT="$(smoke_db_query "select count(*) from welfare_services;" | head -n 1)"
+POLICY_ROW_COUNT="${POLICY_ROW_COUNT//[^0-9]/}"
+POLICY_ROW_COUNT="${POLICY_ROW_COUNT:-0}"
+if (( POLICY_ROW_COUNT < CHAT_APPLICATION_COACHING_MATRIX_MIN_POLICY_ROWS )); then
+  cat > "${SUMMARY_TXT}" <<EOF
+chat_application_coaching_matrix_audit=skipped
+skip_reason=INSUFFICIENT_POLICY_CORPUS
+policy_row_count=${POLICY_ROW_COUNT}
+min_policy_rows=${CHAT_APPLICATION_COACHING_MATRIX_MIN_POLICY_ROWS}
+scenario_count=0
+failed_checks=
+artifact_dir=${ARTIFACT_DIR}
+EOF
+  python3 - "${SUMMARY_JSON}" "${NOTE_OUT}" "${ARTIFACT_DIR}" "${POLICY_ROW_COUNT}" "${CHAT_APPLICATION_COACHING_MATRIX_MIN_POLICY_ROWS}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+summary_json = Path(sys.argv[1])
+note_out = Path(sys.argv[2])
+artifact_dir = sys.argv[3]
+policy_row_count = int(sys.argv[4])
+min_policy_rows = int(sys.argv[5])
+
+summary_json.write_text(json.dumps({
+    "chatApplicationCoachingMatrixAudit": "skipped",
+    "skipReason": "INSUFFICIENT_POLICY_CORPUS",
+    "artifactDir": artifact_dir,
+    "policyRowCount": policy_row_count,
+    "minPolicyRows": min_policy_rows,
+    "failedChecks": [],
+    "scenarios": [],
+}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+note_out.write_text(
+    "\n".join([
+        "# Chat Application Coaching Matrix Audit",
+        "",
+        "- status: `skipped`",
+        "- skip_reason: `INSUFFICIENT_POLICY_CORPUS`",
+        f"- policy_row_count: `{policy_row_count}`",
+        f"- min_policy_rows: `{min_policy_rows}`",
+        "",
+        "The matrix requires representative policy rows with known action-link shapes.",
+    ]) + "\n",
+    encoding="utf-8",
+)
+PY
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
+  smoke_update_links \
+    "${ARTIFACT_DIR}" "${ARTIFACT_ROOT}/latest" \
+    "${SUMMARY_TXT}" "${ARTIFACT_ROOT}/latest-chat-application-coaching-matrix-summary.txt" \
+    "${SUMMARY_JSON}" "${ARTIFACT_ROOT}/latest-chat-application-coaching-matrix-summary.json" \
+    "${NOTE_OUT}" "${ARTIFACT_ROOT}/latest-chat-application-coaching-matrix-note.md"
+  cat "${SUMMARY_TXT}"
+  exit 0
+fi
 
 SMOKE_EMAIL="$(smoke_build_email "${SMOKE_EMAIL_PREFIX}")"
 
@@ -264,6 +325,7 @@ if failed:
     raise SystemExit("\n".join(summary_lines))
 PY
 
+smoke_sanitize_artifacts "${ARTIFACT_DIR}"
 smoke_update_links \
   "${ARTIFACT_DIR}" "${ARTIFACT_ROOT}/latest" \
   "${SUMMARY_TXT}" "${ARTIFACT_ROOT}/latest-chat-application-coaching-matrix-summary.txt" \

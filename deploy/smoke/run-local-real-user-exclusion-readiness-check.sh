@@ -14,6 +14,7 @@ DISTRIBUTION_OUTPUT="${ARTIFACT_DIR}/real-user-zero-reason-distribution.out"
 KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
     return 0
   fi

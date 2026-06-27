@@ -251,6 +251,7 @@ operator_next_step=${NEXT_ACTION}
 artifact_dir=${ARTIFACT_DIR}
 EOF
 
+smoke_sanitize_artifacts "${ARTIFACT_DIR}"
 smoke_update_links \
   "${ARTIFACT_DIR}" "${ARTIFACT_ROOT}/latest" \
   "${SUMMARY_OUTPUT}" "${ARTIFACT_ROOT}/latest-review-gate-blocker-summary.txt"

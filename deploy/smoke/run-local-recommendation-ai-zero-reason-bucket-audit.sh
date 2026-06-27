@@ -26,6 +26,7 @@ REFRESH_RESPONSE="${ARTIFACT_DIR}/refresh-personal.json"
 DIAGNOSTICS_RESPONSE="${ARTIFACT_DIR}/recommendation-diagnostics.json"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
     return 0
   fi

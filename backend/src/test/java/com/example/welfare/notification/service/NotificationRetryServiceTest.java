@@ -121,6 +121,36 @@ class NotificationRetryServiceTest {
     }
 
     @Test
+    @DisplayName("재시도 예외 메시지의 secret-like 값은 저장 전에 마스킹한다")
+    void retryFailedNotificationsRedactsSecretLikeExceptionMessage() {
+        Notification notification = sampleFailedNotification(0);
+
+        given(notificationRetryReadService.findRetryableFailedNotificationIds(any(LocalDateTime.class)))
+                .willReturn(List.of(1L));
+        given(notificationRetryCommandService.claimForRetry(anyLong(), any(LocalDateTime.class), any(LocalDateTime.class)))
+                .willReturn(true);
+        given(notificationRetryReadService.findById(1L)).willReturn(java.util.Optional.of(notification));
+        given(userNotificationReadService.getNotificationEmailByUserKey("user-key-1")).willReturn("test@example.com");
+        given(notificationGateway.send("test@example.com", "[청년복지] 맞춤 정책 추천", "body"))
+                .willThrow(new RuntimeException(
+                        "smtp failed token=raw-token password=raw-password url=jdbc:postgresql://app:db-secret@db.example/app"
+                ));
+
+        notificationRetryService.retryFailedNotifications();
+
+        assertThat(notification.getErrorMessage())
+                .contains("notification retry failed (RuntimeException)")
+                .contains("token=<redacted>")
+                .contains("password=<redacted>")
+                .contains("jdbc:postgresql://<redacted>@db.example")
+                .doesNotContain("raw-token")
+                .doesNotContain("raw-password")
+                .doesNotContain("db-secret");
+        org.mockito.Mockito.verify(notificationRetryCommandService).save(notification);
+        assertRetryAttempt("rescheduled", "RuntimeException");
+    }
+
+    @Test
     @DisplayName("retry claim 에 실패한 row 는 발송하지 않는다")
     void retryFailedNotificationsSkipsWhenClaimFails() {
         given(notificationRetryReadService.findRetryableFailedNotificationIds(any(LocalDateTime.class)))

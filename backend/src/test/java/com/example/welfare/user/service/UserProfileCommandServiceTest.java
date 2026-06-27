@@ -241,6 +241,32 @@ class UserProfileCommandServiceTest {
     }
 
     @Test
+    @DisplayName("프로필 수정은 주거형태가 해당 없음이면 주택유형도 해당 없음으로 정규화한다")
+    void updateProfileNormalizesHousingTypeWhenHouseTenureIsNotApplicable() {
+        UserProfileCommandService service = newService();
+        User user = User.builder()
+                .id(1L)
+                .email("user@example.com")
+                .passwordHash("hash")
+                .houseTenureCode("3")
+                .housingTypeCode("4")
+                .build();
+        when(activeUserReadService.getActiveUserContext(1L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
+        when(userPlainPiiReadService.resolveCurrent(user, "user-key-1"))
+                .thenReturn(new UserPlainPii("user@example.com", "tester", LocalDate.of(1998, 1, 1)));
+
+        UpdateProfileRequest request = new UpdateProfileRequest();
+        ReflectionTestUtils.setField(request, "houseTenureCode", "NONE");
+
+        service.updateProfile(1L, request);
+
+        verify(userProfileStandardCodeValidator).validateProfileCodes("NONE", "NONE", null, null);
+        assertThat(user.getHouseTenureCode()).isEqualTo("NONE");
+        assertThat(user.getHousingTypeCode()).isEqualTo("NONE");
+    }
+
+    @Test
     @DisplayName("선택정보 동의 철회 시 추천용 프로필과 우선순위를 함께 비운다")
     void withdrawOptionalProfileConsentClearsOptionalProfileData() {
         UserProfileCommandService service = newService();

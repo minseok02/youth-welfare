@@ -21,16 +21,17 @@ LATEST_SUMMARY_JSON="${NGINX_LOG_ROOT}/latest-nginx-log-observability-summary.js
 
 perf_require_python
 mkdir -p "${ARTIFACT_DIR}"
+perf_sanitize_artifacts_on_exit "${ARTIFACT_DIR}"
 perf_write_run_context "${CONTEXT_TXT}"
 
 if [[ -r "${NGINX_ACCESS_LOG}" ]]; then
-  tail -n "${NGINX_LOG_TAIL_LINES}" "${NGINX_ACCESS_LOG}" > "${ACCESS_SAMPLE}" || true
+  tail -n "${NGINX_LOG_TAIL_LINES}" "${NGINX_ACCESS_LOG}" 2>/dev/null | smoke_redact_stream_for_log > "${ACCESS_SAMPLE}" || true
 else
   : > "${ACCESS_SAMPLE}"
 fi
 
 if [[ -r "${NGINX_ERROR_LOG}" ]]; then
-  tail -n 1000 "${NGINX_ERROR_LOG}" > "${ERROR_SAMPLE}" || true
+  tail -n 1000 "${NGINX_ERROR_LOG}" 2>/dev/null | smoke_redact_stream_for_log > "${ERROR_SAMPLE}" || true
 else
   : > "${ERROR_SAMPLE}"
 fi

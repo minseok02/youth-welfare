@@ -20,6 +20,7 @@ FALLBACK_ROWS="${ARTIFACT_DIR}/chat-fallback-strategy.tsv"
 RECENT_SAMPLES="${ARTIFACT_DIR}/chat-recent-samples.tsv"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   if [[ "${KEEP_ARTIFACTS}" != "true" ]]; then
     rm -rf "${ARTIFACT_DIR}"
   fi
@@ -349,6 +350,7 @@ for row in recent_samples:
 note_out.write_text("\n".join(note_lines) + "\n", encoding="utf-8")
 PY
 
+smoke_sanitize_artifacts "${ARTIFACT_DIR}"
 smoke_update_links \
   "${ARTIFACT_DIR}" "${CHAT_OBSERVABILITY_ROOT}/latest" \
   "${SUMMARY_OUT}" "${CHAT_OBSERVABILITY_ROOT}/latest-chat-observability-summary.txt" \

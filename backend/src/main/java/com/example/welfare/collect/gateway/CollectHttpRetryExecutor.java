@@ -2,21 +2,17 @@ package com.example.welfare.collect.gateway;
 
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.global.util.LogSanitizer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.IntFunction;
-import java.util.regex.Pattern;
 
 @Slf4j
 @Component
 public class CollectHttpRetryExecutor {
-
-    private static final Pattern SENSITIVE_LABEL_VALUE = Pattern.compile(
-            "(?i)(^|[?&\\s,;])((?:serviceKey|apiKey|key|token|access_token|refresh_token|client_secret|secret|password)=)([^&#\\s,;]*)"
-    );
 
     public <T> ExecutionResult<T> execute(String clientName,
                                           String requestLabel,
@@ -73,10 +69,7 @@ public class CollectHttpRetryExecutor {
     }
 
     static String sanitizeRequestLabel(String requestLabel) {
-        if (requestLabel == null) {
-            return null;
-        }
-        return SENSITIVE_LABEL_VALUE.matcher(requestLabel).replaceAll("$1$2<redacted>");
+        return LogSanitizer.sanitize(requestLabel);
     }
 
     private long nextBackoffMillis(long baseBackoffMs, int attempt) {

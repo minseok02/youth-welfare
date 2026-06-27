@@ -7,8 +7,8 @@
 
 현재 기준:
 
-- 로컬 개발/검증은 계속 [docker-compose.yml](/home/ubuntu/youth-welfare/docker-compose.yml:1) 을 사용한다.
-- 운영 EC2는 [docker-compose.prod.yml](/home/ubuntu/youth-welfare/docker-compose.prod.yml:1) 을 사용한다.
+- 로컬 개발/검증은 계속 [docker-compose.yml](../docker-compose.yml) 을 사용한다.
+- 운영 EC2는 [docker-compose.prod.yml](../docker-compose.prod.yml) 을 사용한다.
 - 운영 DB는 Docker 컨테이너가 아니라 `Amazon RDS for PostgreSQL 16` 이다.
 
 ## 1. 구조 차이
@@ -41,16 +41,16 @@ RDS PostgreSQL 16
 
 ## 2. 파일 역할
 
-- 로컬 compose: [docker-compose.yml](/home/ubuntu/youth-welfare/docker-compose.yml:1)
-- 운영 compose: [docker-compose.prod.yml](/home/ubuntu/youth-welfare/docker-compose.prod.yml:1)
-- 운영 env 예시: [env.production.example](/home/ubuntu/youth-welfare/env.production.example:1)
-- RDS bootstrap script: [bootstrap-rds-runtime.sh](/home/ubuntu/youth-welfare/deploy/postgres/bootstrap-rds-runtime.sh:1)
-- RDS privilege verify: [verify-rds-runtime-privileges.sh](/home/ubuntu/youth-welfare/deploy/postgres/verify-rds-runtime-privileges.sh:1)
-- cutover verify wrapper: [run-prod-cutover-verification.sh](/home/ubuntu/youth-welfare/deploy/smoke/run-prod-cutover-verification.sh:1)
+- 로컬 compose: [docker-compose.yml](../docker-compose.yml)
+- 운영 compose: [docker-compose.prod.yml](../docker-compose.prod.yml)
+- 운영 env 예시: [env.production.example](../env.production.example)
+- RDS bootstrap script: [bootstrap-rds-runtime.sh](../deploy/postgres/bootstrap-rds-runtime.sh)
+- RDS privilege verify: [verify-rds-runtime-privileges.sh](../deploy/postgres/verify-rds-runtime-privileges.sh)
+- cutover verify wrapper: [run-prod-cutover-verification.sh](../deploy/smoke/run-prod-cutover-verification.sh)
 - nginx 예시:
-  - bootstrap HTTP only: [youth-welfare.bootstrap.conf](/home/ubuntu/youth-welfare/deploy/nginx/youth-welfare.bootstrap.conf:1)
-  - HTTPS: [youth-welfare.conf](/home/ubuntu/youth-welfare/deploy/nginx/youth-welfare.conf:1)
-  - edge verify: [verify-edge-baseline.sh](/home/ubuntu/youth-welfare/deploy/nginx/verify-edge-baseline.sh:1)
+  - bootstrap HTTP only: [youth-welfare.bootstrap.conf](../deploy/nginx/youth-welfare.bootstrap.conf)
+  - HTTPS: [youth-welfare.conf](../deploy/nginx/youth-welfare.conf)
+  - edge verify: [verify-edge-baseline.sh](../deploy/nginx/verify-edge-baseline.sh)
 
 ## 3. 운영 `.env.production`
 
@@ -126,9 +126,18 @@ ENV_FILE=.env.production bash deploy/postgres/bootstrap-rds-runtime.sh
 - `RDS_MASTER_USERNAME`
 - `RDS_MASTER_PASSWORD`
 - `DB_URL`
-- runtime 계정용 username/password
+- runtime 계정용 username/password 전체
 
 가 `.env.production` 안에 채워져 있어야 한다.
+특히 recommendation command role은 운영 profile/bootstrap/preflight/verify에서
+`DB_URL`/`DB_PASSWORD`로 fallback하지 않으므로 아래 6개를 반드시 명시한다.
+
+- `RECOMMENDATION_REVIEW_GATE_COMMAND_DB_URL`
+- `DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME`
+- `DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD`
+- `RECOMMENDATION_PERSISTENCE_COMMAND_DB_URL`
+- `DB_RECOMMENDATION_PERSISTENCE_COMMAND_USERNAME`
+- `DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD`
 
 ## 6. 운영 env preflight
 
@@ -146,6 +155,8 @@ bash deploy/smoke/preflight-runtime-cutover-env.sh
 - `DB_URL` 이 `youth_welfare` 를 가리키는지
 - `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 이 `currentSchema=youth_welfare_pii` 인지
 - split-account username 이 기대값과 맞는지
+- recommendation review/persistence command datasource가 명시 env로 들어왔는지
+- `AUTH_REFRESH_COOKIE_SECURE=true` 로 운영 refresh cookie가 Secure 속성을 유지하는지
 - runtime DB role password가 서로 다른지. 운영 기본값은 password 재사용 시 실패하며, 로컬/예외 상황에서만 `ALLOW_SHARED_RUNTIME_DB_PASSWORDS=true`로 우회한다.
 
 ## 6-1. 운영 DB privilege verify
@@ -186,8 +197,9 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up -d redis
 
 현재 운영 compose hardening 기준:
 
-- `app` 이미지는 [backend/Dockerfile](/home/ubuntu/youth-welfare/backend/Dockerfile:1) 에서 `UID/GID 10001` non-root 사용자로 실행한다.
+- `app` 이미지는 [backend/Dockerfile](../backend/Dockerfile) 에서 `UID/GID 10001` non-root 사용자로 실행한다.
 - `app` 은 `read_only: true`, `/tmp` tmpfs, `security_opt: no-new-privileges:true`, `pids_limit: 256`, `mem_limit: 1g` 를 사용한다.
+- `app` 은 DB/JWT/API secret을 compose에 직접 inline하지 않고 `${APP_RUNTIME_ENV_FILE:-.env.runtime.production}` 만 env file로 읽는다.
 - `redis` 는 현재 persistence를 기대하지 않는 운영 구조를 전제로 `read_only: true`, `/data`/`/tmp` tmpfs, `security_opt: no-new-privileges:true`, `pids_limit: 128`, `mem_limit: 256m` 으로 띄운다.
 - app가 임시 파일을 써야 하는 경로는 `/tmp` 로 제한되고, Dockerfile entrypoint는 `-Djava.io.tmpdir=/tmp` 를 강제한다.
 
@@ -195,19 +207,24 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up -d redis
 
 현재 conf 기준:
 
-- HTTP bootstrap only: [youth-welfare.bootstrap.conf](/home/ubuntu/youth-welfare/deploy/nginx/youth-welfare.bootstrap.conf:1)
-- HTTPS: [youth-welfare.conf](/home/ubuntu/youth-welfare/deploy/nginx/youth-welfare.conf:1)
+- HTTP bootstrap only: [youth-welfare.bootstrap.conf](../deploy/nginx/youth-welfare.bootstrap.conf)
+- HTTPS: [youth-welfare.conf](../deploy/nginx/youth-welfare.conf)
 
 즉 app 컨테이너는 외부에 직접 노출하지 않고, nginx가 `127.0.0.1:8082` 로 프록시한다.
 
 현재 운영 템플릿 원칙:
 
 - `Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options` 는 edge nginx가 단일 책임으로 내려준다.
+- `Content-Security-Policy` 의 `connect-src` 는 same-origin 기본값인 `self` 와 운영 public host `https://youthmoa.kr`, `https://www.youthmoa.kr` 를 함께 허용한다.
+- prod Spring은 `server.forward-headers-strategy=framework` 로 nginx의 `X-Forwarded-Proto`, `X-Forwarded-Port`, `X-Forwarded-Host` 를 해석한다. HTTPS 템플릿은 `https/443`, bootstrap 템플릿은 `http/80` 을 명시한다.
+- refresh cookie는 `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/api/auth` 기준이며, 운영 preflight는 `AUTH_REFRESH_COOKIE_SECURE=true` 를 요구한다.
 - `server_tokens off;` 로 edge nginx 버전 문자열을 응답에서 숨긴다.
-- `youth_welfare_timed` access log format으로 `$request_time`, `$upstream_response_time`, `$request_id`, `$upstream_status` 를 남긴다.
+- HTTPS와 bootstrap 템플릿 모두 dotfile, env/log/sql/archive류 확장자, `wp-login.php`/`xmlrpc.php`/`cgi-bin` 스캐너 경로를 edge에서 404로 막는다.
+- `youth_welfare_timed` access log format으로 `$request_time`, `$upstream_response_time`, `$request_id`, `$upstream_status` 를 남긴다. request line은 `$request_method $uri $server_protocol` 로 기록해 query string을 제외하고, `Referer`도 query/fragment 제거 값만 남긴다.
 - 프록시 요청에는 `X-Request-Id: $request_id` 를 전달해 nginx access log와 Spring `[ApiRequest]` 로그를 같은 id로 맞춘다.
-- `/api/`, `/swagger-ui/`, `/v3/api-docs/`, `/actuator/` 프록시 경로에서는 upstream Spring이 내려준 같은 헤더를 `proxy_hide_header` 로 숨긴다.
-- `/actuator/` 는 외부 인터넷에 공개하지 않고 `127.0.0.1` / `::1` 및 명시적으로 허용한 내부 모니터링 IP만 통과시킨다.
+- Spring `[ApiRequest]` 로그는 query/body/header/cookie 원문을 남기지 않고, backend exception/provider error 계열 로그는 `LogSanitizer` 경계를 통과한다.
+- `/api/`, `/swagger-ui`, `/v3/api-docs`, `/actuator` 프록시 경로에서는 upstream Spring이 내려준 같은 헤더를 `proxy_hide_header` 로 숨긴다.
+- `/actuator`, `/swagger-ui`, `/v3/api-docs` 는 trailing slash 유무와 관계없이 외부 인터넷에 공개하지 않고 `127.0.0.1` / `::1` 및 명시적으로 허용한 내부 모니터링 IP만 통과시킨다.
 
 nginx reload 뒤에는 아래를 바로 다시 봅니다.
 
@@ -223,8 +240,10 @@ bash deploy/nginx/verify-edge-baseline.sh
 - `X-Frame-Options`
 - `X-Content-Type-Options`
 - `Content-Security-Policy`
+- CSP `connect-src` 의 필수 source(`self`, `https://youthmoa.kr`, `https://www.youthmoa.kr`)
 - `Server` 헤더의 nginx 버전 노출 여부
 - 외부 `/actuator/health` status
+- 외부 `/actuator`, `/swagger-ui`, `/v3/api-docs`, dotfile, env/log/sql/archive류 정적 경로, 대표 스캐너 경로의 403/404 차단 여부
 - nginx reload 뒤 성능 로그 관찰은 `bash deploy/performance/run-local-nginx-log-observability-baseline.sh` 로 다시 확인한다.
 
 를 같이 확인합니다.
@@ -240,6 +259,10 @@ SOURCE_ENV_FILE=.env.production \
 TARGET_ENV_FILE=.env.runtime.production \
 bash deploy/env/render-app-runtime-env.sh
 ```
+
+`render-app-runtime-env.sh` 는 기본적으로 운영 app runtime 필수 key가 source env에 모두 있는지 먼저 확인합니다.
+누락이 있으면 target runtime env를 부분 생성하지 않고 실패합니다. 임시 분석 목적의 비엄격 렌더만
+`STRICT_REQUIRED_RUNTIME_ENV=false` 로 우회합니다.
 
 2. env preflight
 
@@ -272,7 +295,10 @@ PUBLIC_BASE_URL='https://youthmoa.kr' \
 bash deploy/nginx/verify-edge-baseline.sh
 ```
 
-`run-prod-cutover-verification.sh` 는 2, 3, 5번을 한 번에 묶는 wrapper다. app/redis 재기동과 runtime API smoke는 포함하지 않으므로 별도로 실행한다.
+`run-prod-cutover-verification.sh` 는 1번의 strict render 가능성 확인과 2, 3, 5번을 한 번에 묶는 wrapper다.
+실제 `.env.runtime.production` 을 덮어쓰지 않고 임시 0600 파일로 렌더 가능성만 확인한 뒤 삭제한다.
+각 단계 stdout/stderr는 token/password/API key/cookie/JDBC URL/email/userKey 계열 값을 redaction한 뒤 artifact로 남기고, 보존 artifact는 cleanup에서도 다시 sanitizer를 통과한다.
+app/redis 재기동과 runtime API smoke는 포함하지 않으므로 별도로 실행한다.
 
 ```bash
 ENV_FILE=.env.production \

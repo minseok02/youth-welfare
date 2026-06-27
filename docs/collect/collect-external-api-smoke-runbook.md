@@ -9,9 +9,14 @@
 
 - `api_sync_logs`
 - `raw_api_payloads`
+- `welfare_service_details`
 - `collect_runtime_statuses`
 - `collect_execution_locks`
 - `welfare_services`
+- `service_taxonomies`
+- `service_taxonomy_terms`
+- `service_taxonomy_summary_slots`
+- `service_facts`
 
 ## 실행
 
@@ -43,6 +48,9 @@ bash deploy/smoke/run-local-collect-external-api-smoke.sh
 - `ACTIVE_LOCK_REVIEW`: 아직 active collect lock이 있습니다. 다른 수집을 시작하기 전에 진행 중인지 stale인지 확인합니다.
 - `ATTENTION_REQUIRED`: 최근 실패 수집 또는 open circuit이 있습니다.
 - `PARTIAL_SUCCESS_REVIEW`: 최근 partial success가 있어 source별 `failed_count`, `error_code`, raw payload freshness를 같이 확인합니다.
+- `STORAGE_PARITY_REVIEW`: 최근 source 수집 성공과 `saved_count`가 있는데 같은 source의 `raw_api_payloads` 또는 `welfare_services` row가 없습니다.
+- `SIDECAR_PARITY_REVIEW`: 최근 source 수집 성공과 저장 row가 있는데 canonical sidecar가 비어 있거나, Gov24 list raw의 필수 summary slot이 비어 있습니다.
+- `DETAIL_SUPPORT_COVERAGE_REVIEW`: 최근 detail/support 수집 성공과 `saved_count`가 있는데 해당 lane의 `DETAIL` raw, detail row, `SUPPORT` raw, 또는 support fact coverage가 비어 있습니다.
 - `SOURCE_UNAVAILABLE`: 필수 수집 테이블이 없습니다. runtime schema patch를 먼저 적용합니다.
 
 ## 해석 순서
@@ -50,10 +58,16 @@ bash deploy/smoke/run-local-collect-external-api-smoke.sh
 1. `source_available`과 `source_missing`을 먼저 봅니다.
 2. `api_sync_log_runs_*d`, `api_sync_failed_runs_*d`, `api_sync_partial_runs_*d`를 봅니다.
 3. `raw_payload_total`, `raw_payload_source_type_count`, `raw_payload_api_category_count`로 payload 저장 이력을 봅니다.
-4. `open_collect_circuit_keys`와 `active_collect_lock_keys`를 확인합니다.
-5. `decision_class`와 `next_action` 기준으로 다음 smoke나 runbook을 선택합니다.
+4. `storage_mismatch_sources`, `sources_with_api_success_without_raw_payload`, `sources_with_api_success_without_welfare_rows`로 source별 성공/저장 정합성을 봅니다.
+5. `sidecar_mismatch_sources`, `sources_with_recent_success_without_taxonomy`, `sources_with_gov24_missing_required_summary_slots`로 저장 이후 canonical sidecar 정합성을 봅니다.
+6. `detail_support_coverage_mismatch_lanes`, `lanes_with_recent_success_without_detail_raw`, `lanes_with_recent_success_without_detail_rows`, `lanes_with_recent_success_without_support_raw`, `lanes_with_recent_success_without_support_facts`로 detail/support coverage를 봅니다.
+7. `open_collect_circuit_keys`와 `active_collect_lock_keys`를 확인합니다.
+8. `decision_class`와 `next_action` 기준으로 다음 smoke나 runbook을 선택합니다.
 
 `NO_COLLECT_HISTORY`는 실패가 아니라 검증 한계입니다. 이 상태에서는 source 품질이나 upstream 안정성을 결론 내리지 않고, 필요한 경우 bounded collect smoke를 별도로 실행합니다.
+`STORAGE_PARITY_REVIEW`는 외부 API 재호출보다 DB 저장 경로 확인이 먼저입니다. 같은 source의 `api_sync_logs.saved_count`, `raw_api_payloads.source_type/api_category`, `welfare_services.source_type`을 비교합니다.
+`SIDECAR_PARITY_REVIEW`는 정책 row 저장 이후 replay/recommendation으로 넘어가기 전 canonical sidecar를 먼저 맞춰야 하는 상태입니다. `bokjiro-sidecars-backfill`, `gov24-sidecars-backfill?scope=list&missingOnly=true`, `gov24-sidecars-backfill?scope=regions` 같은 bounded replay 경로를 우선 확인합니다.
+`DETAIL_SUPPORT_COVERAGE_REVIEW`는 source별 list 저장 자체보다 후속 detail/support lane을 먼저 봐야 하는 상태입니다. Bokjiro는 `BOKJIRO_CENTRAL_DETAIL`/`BOKJIRO_LOCAL_DETAIL`, Gov24는 `GOV24_DETAIL`/`GOV24_SUPPORT`, YOUTH는 `YOUTH_DETAIL`로 분리해 봅니다.
 
 ## Bounded Detail 확인
 

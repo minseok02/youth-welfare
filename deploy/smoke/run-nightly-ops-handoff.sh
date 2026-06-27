@@ -32,6 +32,11 @@ RUN_COLLECT_GOVERNANCE_OBSERVATION="${RUN_COLLECT_GOVERNANCE_OBSERVATION:-true}"
 RUN_AUTH_OBSERVATION="${RUN_AUTH_OBSERVATION:-true}"
 RUN_FRONTEND_OBSERVATION="${RUN_FRONTEND_OBSERVATION:-false}"
 
+cleanup() {
+  smoke_sanitize_artifacts "${RUN_DIR}"
+}
+trap cleanup EXIT
+
 mkdir -p "${NIGHTLY_OPS_HANDOFF_LOG_ROOT}" "${RUN_DIR}" "$(dirname "${SUMMARY_APPEND_FILE}")"
 
 export ENV_FILE="${ENV_FILE:-.env.production}"
@@ -71,10 +76,12 @@ run_step() {
 
   if [[ "$(smoke_normalize_bool "${enabled}")" != "true" ]]; then
     printf '%s=skipped\n' "${label}" | tee "${output_file}" >/dev/null
+    smoke_sanitize_artifacts "${RUN_DIR}"
     return 0
   fi
 
   bash "${script_path}" | tee "${output_file}"
+  smoke_sanitize_artifacts "${RUN_DIR}"
 }
 
 printf '[%s] nightly ops handoff start\n' "${SUMMARY_TS_KST}" | tee -a "${SUMMARY_APPEND_FILE}"
@@ -154,3 +161,5 @@ fi
   printf '  auth_observation_output=%s\n' "${AUTH_OBSERVATION_OUTPUT}"
   printf '  frontend_observation_output=%s\n' "${FRONTEND_OBSERVATION_OUTPUT}"
 } | tee -a "${SUMMARY_APPEND_FILE}"
+
+smoke_sanitize_artifacts "${RUN_DIR}"

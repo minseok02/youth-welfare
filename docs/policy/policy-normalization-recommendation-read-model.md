@@ -113,7 +113,7 @@ targetGroupBuckets = [BENEFICIARY_SUPPORT]
 
 ## retrieval 경계
 
-현재 [RetrievalService.java](../backend/src/main/java/com/example/welfare/recommend/service/RetrievalService.java)는:
+현재 [RetrievalService.java](../../backend/src/main/java/com/example/welfare/recommend/service/RetrievalService.java)는:
 
 - DB SQL 후보 조회
 - youth filter
@@ -139,7 +139,7 @@ canonical 전환 후 권장 흐름:
 
 ## scoring 경계
 
-현재 [RuleScoringService.java](../backend/src/main/java/com/example/welfare/recommend/service/RuleScoringService.java)는 `ServiceTag` raw를 읽는다.
+현재 [RuleScoringService.java](../../backend/src/main/java/com/example/welfare/recommend/service/RuleScoringService.java)는 `ServiceTag` raw를 읽는다.
 
 canonical 전환 후 권장:
 
@@ -155,7 +155,7 @@ beneficiary 관련 규칙:
 
 priority 가중치 경계:
 
-- [DefaultPriorityMatcher.java](../backend/src/main/java/com/example/welfare/recommend/service/DefaultPriorityMatcher.java)는 1차 전환에서 `RecommendationCandidateProjection.unifiedCategoryCompat`, `applyEndDate` 만 병행 입력으로 읽는다
+- [DefaultPriorityMatcher.java](../../backend/src/main/java/com/example/welfare/recommend/service/DefaultPriorityMatcher.java)는 1차 전환에서 `RecommendationCandidateProjection.unifiedCategoryCompat`, `applyEndDate` 만 병행 입력으로 읽는다
 - `unifiedCategoryCompat` 자체도 현재는 read-model 계산값이 아니라 저장된 compat layer를 읽는 것으로 본다. 저장/계산 경계는 [policy-normalization-compat-storage-policy.md](../history/policy/policy-normalization-compat-storage-policy.md)를 따른다
 - canonical taxonomy summary code/label(`youth_major_code`, `gov24_service_field_code`)은 아직 priority matcher가 직접 해석하지 않는다
 - 즉 priority는 당분간 `compat_unified_category` 기반 호환 레이어를 유지하고, taxonomy summary code 직독은 후속 inventory/매핑표 결정 이후로 미룬다

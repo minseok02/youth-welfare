@@ -233,7 +233,7 @@ cd backend
 ### 문제 1. draft sidecar seed SQL 문법 오류
 
 - 파일:
-  [V2026_04_30_02__seed_policy_normalization_codes.sql](../backend/src/main/resources/db/migration-draft/V2026_04_30_02__seed_policy_normalization_codes.sql)
+  `backend/src/main/resources/db/migration-draft/V2026_04_30_02__seed_policy_normalization_codes.sql`
 - 증상:
   MySQL 8.0.45 에서 `WITH ... INSERT INTO ...` 문법 오류 발생
 - 조치:
@@ -248,7 +248,7 @@ cd backend
 - 영향:
   education replay 같은 canonical downstream 검증은 곧바로 재현되지 않음
 - 조치:
-  [deploy/mysql/apply-local-policy-sidecar-draft.sh](../deploy/mysql/apply-local-policy-sidecar-draft.sh) 를 추가했고, [run-local-education-priority-replay.sh](../deploy/smoke/run-local-education-priority-replay.sh) 가 replay 전에 missing sidecar schema 또는 zero target row를 감지하면 local draft create/seed SQL을 자동 재적용하도록 연결했다
+  [deploy/mysql/apply-local-policy-sidecar-draft.sh](../../deploy/mysql/apply-local-policy-sidecar-draft.sh) 를 추가했고, [run-local-education-priority-replay.sh](../../deploy/smoke/run-local-education-priority-replay.sh) 가 replay 전에 missing sidecar schema 또는 zero target row를 감지하면 local draft create/seed SQL을 자동 재적용하도록 연결했다
 - 상태:
   당시에는 local replay smoke 기준 self-heal 가능 상태까지 복구했다. 현재 active 해석은 이 historical 복구 경로보다 integrated schema + replay precondition 문서를 우선한다.
 

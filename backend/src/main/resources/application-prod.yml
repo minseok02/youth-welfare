@@ -38,6 +38,38 @@ app:
     from-address: ${MAIL_FROM_ADDRESS:${MAIL_USERNAME:${GMAIL_USERNAME}}}
     reply-to: ${MAIL_REPLY_TO:${MAIL_FROM_ADDRESS:${MAIL_USERNAME:${GMAIL_USERNAME}}}}
   datasource:
+    admin-ro:
+      url: ${ADMIN_RO_DB_URL}
+      username: ${DB_ADMIN_RO_USERNAME}
+      password: ${DB_ADMIN_RO_PASSWORD}
+    recommendation-review-gate-command:
+      url: ${RECOMMENDATION_REVIEW_GATE_COMMAND_DB_URL}
+      username: ${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME}
+      password: ${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD}
+    recommendation-persistence-command:
+      url: ${RECOMMENDATION_PERSISTENCE_COMMAND_DB_URL}
+      username: ${DB_RECOMMENDATION_PERSISTENCE_COMMAND_USERNAME}
+      password: ${DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD}
+    chat-session-cleanup:
+      url: ${CHAT_SESSION_CLEANUP_DB_URL}
+      username: ${DB_CHAT_SESSION_CLEANUP_USERNAME}
+      password: ${DB_CHAT_SESSION_CLEANUP_PASSWORD}
+    cluster-ai-cleanup:
+      url: ${CLUSTER_AI_CLEANUP_DB_URL}
+      username: ${DB_CLUSTER_AI_CLEANUP_USERNAME}
+      password: ${DB_CLUSTER_AI_CLEANUP_PASSWORD}
+    recommendation-retention-cleanup:
+      url: ${RECOMMENDATION_RETENTION_CLEANUP_DB_URL}
+      username: ${DB_RECOMMENDATION_RETENTION_CLEANUP_USERNAME}
+      password: ${DB_RECOMMENDATION_RETENTION_CLEANUP_PASSWORD}
+    collect-execution-lock-cleanup:
+      url: ${COLLECT_EXECUTION_LOCK_CLEANUP_DB_URL}
+      username: ${DB_COLLECT_EXECUTION_LOCK_CLEANUP_USERNAME}
+      password: ${DB_COLLECT_EXECUTION_LOCK_CLEANUP_PASSWORD}
+    web-push-subscription-cleanup:
+      url: ${WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_URL}
+      username: ${DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_USERNAME}
+      password: ${DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_PASSWORD}
     pii-rw:
       url: ${APP_PII_DB_URL}
       username: ${DB_APP_PII_USERNAME}

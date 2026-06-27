@@ -28,6 +28,7 @@ SERVICE_META_RESPONSE="${ARTIFACT_DIR}/service-meta.tsv"
 SERVICE_TAG_RESPONSE="${ARTIFACT_DIR}/service-tags.tsv"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
     return 0
   fi

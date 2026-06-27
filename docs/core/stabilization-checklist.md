@@ -19,6 +19,7 @@
 
 - backend health: `UP`
 - CI: backend unit, frontend lint/build/browser smoke green
+- server/RDS smoke env: 현재 compose app runtime과 맞출 때는 `ENV_FILE=.env.runtime.production`, `SMOKE_DB_MODE=postgres`, `APP_BASE_URL='http://127.0.0.1:8082'` 를 같이 쓴다. 관리자 password 없이 smoke만 검증할 때는 `ALLOW_ADMIN_JWT_MINT=true` 를 명시한다.
 - nightly/current-priority: 실패하면 실제 장애와 smoke 결함을 먼저 분리
 - attention feed:
   - `standard-code-backlog` 는 자동 보정 후보나 충돌 gap이 없으면 사용자 입력 backlog로 관찰
@@ -41,6 +42,8 @@ APP_BASE_URL='http://127.0.0.1:8082' \
 RUN_RECOMMENDATION_STANDARD_CODE_OBSERVATION=false \
 bash deploy/smoke/run-local-ops-observation-suite.sh
 ```
+
+현재 app container의 runtime env가 `.env.runtime.production` 으로 resolve된 상태에서는 위 명령의 `ENV_FILE` 을 `.env.runtime.production` 으로 바꿔 smoke DB와 app DB를 맞춥니다.
 
 summary에서 먼저 볼 값:
 
@@ -107,20 +110,34 @@ nightly는 즉시 기능 수정으로 들어가지 않습니다.
 - `safe_reconcile_candidate_rows > 0`: bounded reconcile 후보
 - `conflicting_value_gap_rows > 0`: 수동 conflict 확인 후보
 - `safe_reconcile_candidate_rows = 0` 이고 `conflicting_value_gap_rows = 0`: 사용자 입력 유도/관찰
-- 2026-06-10 server/RDS latest: `users_missing_all_standard_codes=299` 중 `non_example=2`, `EXAMPLE_SMOKE=297`, `safe_reconcile_candidate_rows=0`, `conflicting_value_gap_rows=0`
+- current-state에 별도 최신 재측정값이 없으면 `tmp/ops-observation/latest-ops-observation.json` 또는 `tmp/current-priority-suite/latest-current-priority-summary.json` 의 standard-code breakdown을 다시 확인합니다.
+
+2026-06-27 server/RDS 기준 current reading:
+
+- `active_baseline_suite=passed`, artifact `tmp/active-baseline-suite/20260627T123051Z`
+- `attention_feed_warning_item_count=1`
+- warning item은 `standard-code-backlog`
+- `users_house_tenure_none_housing_type_mismatch=0`
+- `profiles_house_tenure_none_housing_type_mismatch=0`
+- `safe_reconcile_candidate_rows=0`
+- `conflicting_value_gap_rows=0`
+- `users_missing_all_standard_codes=626`
+- `non_example_users_missing_all_standard_codes=5`
+
+이 상태에서는 표준코드 입력률을 관찰하고, DB 자동 보정 작업은 새 후보가 생길 때만 엽니다.
 
 ## 알림 backlog 기준
 
 아래 순서로 봅니다.
 
 ```bash
-ENV_FILE=.env.production SMOKE_DB_MODE=postgres \
+ENV_FILE=.env.runtime.production SMOKE_DB_MODE=postgres \
 bash deploy/smoke/run-local-notification-backlog-audit.sh
 
-ENV_FILE=.env.production SMOKE_DB_MODE=postgres \
+ENV_FILE=.env.runtime.production SMOKE_DB_MODE=postgres \
 bash deploy/smoke/run-local-notification-backlog-sample-audit.sh
 
-ENV_FILE=.env.production SMOKE_DB_MODE=postgres \
+ENV_FILE=.env.runtime.production SMOKE_DB_MODE=postgres \
 bash deploy/smoke/run-local-notification-stale-target-audit.sh
 ```
 
@@ -131,22 +148,23 @@ bash deploy/smoke/run-local-notification-stale-target-audit.sh
 - `stale_14d_total > 0`: `hide-stale` 후보를 target 단위로 좁혀 처리
 - `stale_unread_7d > 0` 이고 14일 이상이 아니면: cadence/가치 관찰
 
-2026-06-10 server/RDS 기준 current reading:
+2026-06-24 server/RDS 기준 current reading:
 
 - failed notification은 없음
-- `unread_total=14`, 모두 `RECOMMENDATION_DIGEST`
-- `stale_unread_7d=0`
+- `unread_total=26`, 모두 `RECOMMENDATION_DIGEST`
+- `stale_unread_7d=14`
 - `stale_unread_14d=0`
 - stale target audit은 `NO_STALE_TARGETS`
+- `/policies/3324` 의 14일 초과 unread 4건은 bounded `hide-stale` 로 처리 완료
 
-따라서 현재 알림 backlog는 장애나 stale hide 작업이 아니라 최근 recommendation digest unread 총량 관찰 단계입니다.
+따라서 현재 알림 backlog는 장애나 14일 이상 stale hide 작업이 아니라 recommendation digest tail 관찰 단계입니다.
 
 ## 정책 backlog 기준
 
 정책은 raw audit 잔량과 운영 queue를 구분합니다.
 
 ```bash
-ENV_FILE=.env.production SMOKE_DB_MODE=postgres \
+ENV_FILE=.env.runtime.production SMOKE_DB_MODE=postgres \
 bash deploy/smoke/run-local-policy-data-triage-observation-suite.sh
 ```
 
@@ -158,12 +176,11 @@ bash deploy/smoke/run-local-policy-data-triage-observation-suite.sh
 
 raw duplicate/link 숫자가 남아 있어도 운영 `OPEN` queue가 0이면 새 작업을 열지 않습니다.
 
-2026-06-10 server/RDS 기준 current reading:
+2026-06-27 server/RDS 기준 current reading:
 
 - `policy_duplicate_open_groups=0`
-- `policy_duplicate_open_rows=0`
 - `policy_link_open_reviews=0`
-- raw 후보는 `duplicate_groups_youth=82`, `duplicate_groups_bokjiro_local=59`, `active_visible_youth_total=163`
+- raw 후보는 `duplicate_groups_youth=85`, `duplicate_groups_bokjiro_local=59`, `active_visible_youth_link_blank=161`
 - `decision_class=REVIEW_QUEUE_CLOSED_RAW_BACKLOG_REMAINS`
 
 따라서 현재 정책 backlog는 처리 queue가 아니라 raw 품질 잔량 관찰 단계입니다.
@@ -181,7 +198,7 @@ raw duplicate/link 숫자가 남아 있어도 운영 `OPEN` queue가 0이면 새
 확인 명령:
 
 ```bash
-ENV_FILE=.env.production \
+ENV_FILE=.env.runtime.production \
 SMOKE_DB_MODE=postgres \
 APP_BASE_URL='http://127.0.0.1:8082' \
 bash deploy/smoke/run-local-recommendation-reopen-precheck.sh
@@ -189,17 +206,12 @@ bash deploy/smoke/run-local-recommendation-reopen-precheck.sh
 
 `reopen_allowed=false` 이면 추천 로직을 수정하지 않습니다.
 
-2026-06-10 server/RDS 기준 current reading:
+2026-06-27 server/RDS 기준 current reading:
 
-- `reopen_precheck_status=KEEP_OBSERVING`
-- `real_user_dashboard_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
-- `real_user_breakdown_cohort_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
-- `real_user_review_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
-- `real_user_top1_leader_signal_summary=EXAMPLE_SMOKE_ONLY_LEADER`
-- `mixed_top1_leader_service_id=3651`
-- `mixed_top1_leader_title=청년 웰컴페이(이사비) 지원사업`
-- `mixed_top1_leader_real_user_users=0`
-- `review_gate_policy_promotion_execution_status=DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW`
+- `reopen_allowed=false`
+- `decision_class=OBSERVE_REAL_USER_TRAFFIC`
+- real-user sample은 아직 얇음
+- full latest batch review gate가 열리지 않으면 bounded promotion review를 실행하지 않음
 
 따라서 현재 recommendation 안정화 결론은 관찰 유지이며, score/weight/prompt를 다시 열지 않습니다.
 

@@ -108,12 +108,12 @@ public class ChatRetrievalSnapshotService {
         try {
             chatRetrievalSnapshotRepository.save(snapshot);
         } catch (RuntimeException e) {
-            log.warn("[ChatRetrievalSnapshotService] snapshot 저장 실패 type={} scenarioKey={} sessionId={} questionLength={}",
+            log.warn("[ChatRetrievalSnapshotService] snapshot 저장 실패 type={} scenarioKey={} sessionId={} questionLength={} errorType={}",
                     snapshot.getSnapshotType(),
                     snapshot.getScenarioKey(),
                     snapshot.getSessionId(),
                     lengthOf(snapshot.getQuestion()),
-                    e);
+                    e.getClass().getSimpleName());
         }
     }
 

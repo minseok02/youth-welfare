@@ -22,8 +22,9 @@ compact daily operator 확인은 [collect-governance-observation-runbook.md](./c
   - `POST /api/admin/collect/gov24-sidecars-backfill?limitPerSource=0`
   도 같은 시간대에 일반 collect 수동 실행과 겹치지 않게 사용한다.
 - 주의:
-  - 현재 controller 기준 `limitPerSource=0` 은 무제한이 아니라 capped default `1000` 으로 정규화된다.
-  - admin 수동 파라미터 상한은 `maxCallsPerRun <= 5000`, `limitPerSource <= 1000`, `rounds <= 10`, `maxCallsPerRound <= 1000` 이다.
+  - sidecar backfill의 `limitPerSource=0` 은 controller에서 그대로 `0` 으로 보존되고 repository/service 계층에서 `0 이하 = unlimited` 로 해석한다.
+  - `limitPerSource` 양수 명시값은 `1..1000` 이다. 이 `0 = unlimited` 계약은 sidecar backfill 전용이며 reference-url rebuild 같은 다른 repair endpoint로 일반화하지 않는다.
+  - admin 수동 파라미터 상한은 `maxCallsPerRun <= 5000`, 양수 `limitPerSource <= 1000`, `rounds <= 10`, `maxCallsPerRound <= 1000` 이다.
 - 이미 다른 수집 작업이 실행 중이면 새 요청은 `409 Conflict (COL002)`로 거절한다.
 - 이유: 중복 실행 시 `service_tags` 저장 경합과 deadlock 위험이 커진다.
 

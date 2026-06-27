@@ -1,6 +1,7 @@
 package com.example.welfare.user.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -21,6 +22,7 @@ public class UserPiiSyncQueueRetentionService {
     @Value("${user.pii-sync.retention.synced-days:30}")
     private int syncedRetentionDays;
 
+    @Autowired
     public UserPiiSyncQueueRetentionService(UserPiiSyncQueueService userPiiSyncQueueService) {
         this(userPiiSyncQueueService, Clock.systemUTC());
     }

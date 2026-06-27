@@ -29,6 +29,7 @@ perf_publish_latest() {
   local json_file="${5:-}"
   local latest_json="${6:-}"
 
+  smoke_sanitize_artifacts "${artifact_dir}"
   smoke_publish_dir_snapshot "${artifact_dir}" "${latest_dir}"
 
   if [[ -n "${summary_file}" && -n "${latest_summary}" && -f "${summary_file}" ]]; then
@@ -40,6 +41,11 @@ perf_publish_latest() {
     rm -f "${latest_json}"
     smoke_publish_file "${json_file}" "${latest_json}"
   fi
+}
+
+perf_sanitize_artifacts_on_exit() {
+  PERF_SANITIZE_ARTIFACT_DIR="$1"
+  trap 'exit_code=$?; if [[ -n "${PERF_SANITIZE_ARTIFACT_DIR:-}" ]]; then smoke_sanitize_artifacts "${PERF_SANITIZE_ARTIFACT_DIR}"; fi; exit "${exit_code}"' EXIT
 }
 
 perf_write_run_context() {

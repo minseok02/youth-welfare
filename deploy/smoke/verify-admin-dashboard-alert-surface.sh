@@ -50,6 +50,7 @@ required_doc_terms = [
     "terminalFailedNotifications",
     "disabledAttempts",
     "endpointHost",
+    "nextAction",
     "zero-result rate",
     "disabled ratio",
 ]
@@ -70,6 +71,8 @@ required_page_terms = [
     "averageDurationMs",
     "disabledAttempts",
     "endpointHost",
+    "nextAction",
+    "다음 조치",
 ]
 
 failures = []

@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
 
 OPS_SUMMARY="${OPS_SUMMARY:-${ROOT_DIR}/tmp/ops-observation/latest-ops-observation-summary.txt}"
 NOTIFICATION_BACKLOG_SUMMARY="${NOTIFICATION_BACKLOG_SUMMARY:-${ROOT_DIR}/tmp/notification-backlog-audit/latest-notification-backlog-summary.txt}"
@@ -51,7 +52,7 @@ python3 - \
   "${WEB_PUSH_WARN_MIN_SUBSCRIPTIONS}" \
   "${WEB_PUSH_WARN_DISABLED_RATIO_PCT}" \
   "${WEB_PUSH_CRIT_DISABLED_RATIO_PCT}" \
-  "${WEB_PUSH_CRIT_FAILURE_15M}" <<'PY'
+  "${WEB_PUSH_CRIT_FAILURE_15M}" <<'PY' | smoke_redact_stream_for_log
 import sys
 from pathlib import Path
 

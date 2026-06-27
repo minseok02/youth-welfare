@@ -24,6 +24,8 @@ LOG_ALERT_LOG_DIR="${LOG_ALERT_LOG_DIR:-/var/log/youth-welfare/ops}"
 LOG_ALERT_LAST_STATUS_FILE="${LOG_ALERT_STATE_DIR}/log-alert.last-status"
 LOG_ALERT_LOG_FILE="${LOG_ALERT_LOG_DIR}/log-alert.log"
 
+source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
+
 mkdir -p "${LOG_ALERT_STATE_DIR}" "${LOG_ALERT_LOG_DIR}"
 
 log_line() {
@@ -45,17 +47,36 @@ urllib.request.urlopen(request, timeout=5).read()
 PY
 }
 
+run_redacted_to_file() {
+  local output_file="$1"
+  shift
+
+  : > "${output_file}"
+  chmod 600 "${output_file}" 2>/dev/null || true
+
+  set +e
+  "$@" 2>&1 | smoke_redact_stream_for_log > "${output_file}"
+  local status="${PIPESTATUS[0]}"
+  set -e
+
+  chmod 600 "${output_file}" 2>/dev/null || true
+  return "${status}"
+}
+
 cd "${ROOT_DIR}"
 
 if [[ "${LOG_ALERT_RUN_BASELINES}" == "true" ]]; then
-  APP_LOG_SINCE="${LOG_ALERT_APP_SINCE}" bash deploy/performance/run-local-app-log-observability-baseline.sh >/tmp/youth-welfare-app-log-alert-baseline.out
-  NGINX_LOG_TAIL_LINES="${LOG_ALERT_NGINX_TAIL_LINES}" bash deploy/performance/run-local-nginx-log-observability-baseline.sh >/tmp/youth-welfare-nginx-log-alert-baseline.out
+  APP_LOG_SINCE="${LOG_ALERT_APP_SINCE}" run_redacted_to_file /tmp/youth-welfare-app-log-alert-baseline.out \
+    bash deploy/performance/run-local-app-log-observability-baseline.sh
+  NGINX_LOG_TAIL_LINES="${LOG_ALERT_NGINX_TAIL_LINES}" run_redacted_to_file /tmp/youth-welfare-nginx-log-alert-baseline.out \
+    bash deploy/performance/run-local-nginx-log-observability-baseline.sh
 fi
 
 set +e
-ALERT_OUTPUT="$(bash deploy/performance/evaluate-log-alert-thresholds.sh 2>&1)"
+RAW_ALERT_OUTPUT="$(bash deploy/performance/evaluate-log-alert-thresholds.sh 2>&1)"
 ALERT_EXIT=$?
 set -e
+ALERT_OUTPUT="$(printf '%s\n' "${RAW_ALERT_OUTPUT}" | smoke_redact_stream_for_log)"
 
 printf '%s\n' "${ALERT_OUTPUT}"
 

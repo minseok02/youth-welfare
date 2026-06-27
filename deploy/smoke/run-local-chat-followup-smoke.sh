@@ -19,6 +19,8 @@ FIRST_CHAT_MESSAGE_CONTENT="${FIRST_CHAT_MESSAGE_CONTENT:-서울 월세 지원 �
 SECOND_CHAT_MESSAGE_CONTENT="${SECOND_CHAT_MESSAGE_CONTENT:-그럼 전세는?}"
 HEALTH_RETRY_COUNT="${HEALTH_RETRY_COUNT:-15}"
 HEALTH_RETRY_DELAY_SECONDS="${HEALTH_RETRY_DELAY_SECONDS:-1}"
+CHAT_FOLLOWUP_SMOKE_MIN_POLICY_ROWS="${CHAT_FOLLOWUP_SMOKE_MIN_POLICY_ROWS:-10}"
+KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
 
 ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
 COOKIE_JAR="${ARTIFACT_DIR}/user.cookie"
@@ -32,6 +34,10 @@ CHAT_MESSAGES_RESPONSE="${ARTIFACT_DIR}/chat-messages.json"
 DELETE_CHAT_RESPONSE="${ARTIFACT_DIR}/delete-chat.json"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
+  if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
+    return 0
+  fi
   rm -rf "${ARTIFACT_DIR}"
 }
 trap cleanup EXIT
@@ -60,11 +66,28 @@ PY
 smoke_require_command curl
 smoke_require_command python3
 
+KEEP_ARTIFACTS="$(smoke_normalize_bool "${KEEP_ARTIFACTS}")"
+mkdir -p "${ARTIFACT_DIR}"
+
 SMOKE_EMAIL="$(smoke_build_email "${SMOKE_EMAIL_PREFIX}")"
 
 smoke_print_step "health check"
 HEALTH_STATUS="$(smoke_wait_for_health "${HEALTH_RETRY_COUNT}" "${HEALTH_RETRY_DELAY_SECONDS}" "${APP_HEALTH_URL}" "${HEALTH_RESPONSE}" "${ARTIFACT_DIR}/health.stderr")"
 smoke_assert_status 200 "${HEALTH_STATUS}" "health check" "${HEALTH_RESPONSE}"
+
+smoke_print_step "policy corpus precheck"
+POLICY_ROW_COUNT="$(smoke_db_query "select count(*) from welfare_services;" | head -n 1)"
+POLICY_ROW_COUNT="${POLICY_ROW_COUNT//[^0-9]/}"
+POLICY_ROW_COUNT="${POLICY_ROW_COUNT:-0}"
+if (( POLICY_ROW_COUNT < CHAT_FOLLOWUP_SMOKE_MIN_POLICY_ROWS )); then
+  echo
+  echo "chat follow-up smoke skipped"
+  echo "skip_reason=INSUFFICIENT_POLICY_CORPUS"
+  echo "policy_row_count=${POLICY_ROW_COUNT}"
+  echo "min_policy_rows=${CHAT_FOLLOWUP_SMOKE_MIN_POLICY_ROWS}"
+  echo "app_base_url=${APP_BASE_URL}"
+  exit 0
+fi
 
 smoke_print_step "signup ${SMOKE_EMAIL}"
 smoke_seed_verified_email "${SMOKE_EMAIL}"

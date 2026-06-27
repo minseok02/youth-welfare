@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
 
 ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
 SURFACE_ARTIFACT_DIR="${ARTIFACT_DIR}/surface"
@@ -10,6 +11,7 @@ AI_STATUS_ARTIFACT_DIR="${ARTIFACT_DIR}/ai-status"
 SIGNAL_ARTIFACT_DIR="${ARTIFACT_DIR}/signal"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   rm -rf "${ARTIFACT_DIR}"
 }
 
@@ -59,4 +61,3 @@ if [[ "${KEEP_ARTIFACTS:-false}" == "true" ]]; then
   echo "ai_status_artifact_dir=${AI_STATUS_ARTIFACT_DIR}"
   echo "signal_artifact_dir=${SIGNAL_ARTIFACT_DIR}"
 fi
-

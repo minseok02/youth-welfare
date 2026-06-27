@@ -26,6 +26,7 @@ MIN_POSITIVE_RULE_DELTA_ROWS="${MIN_POSITIVE_RULE_DELTA_ROWS:-1}"
 MIN_MAX_RULE_DELTA="${MIN_MAX_RULE_DELTA:-7.99}"
 HEALTH_RETRY_COUNT="${HEALTH_RETRY_COUNT:-15}"
 HEALTH_RETRY_DELAY_SECONDS="${HEALTH_RETRY_DELAY_SECONDS:-1}"
+KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
 
 ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
 COOKIE_JAR="${ARTIFACT_DIR}/user.cookie"
@@ -41,6 +42,10 @@ BASELINE_BATCH_TSV="${ARTIFACT_DIR}/baseline-batch.tsv"
 ENHANCED_BATCH_TSV="${ARTIFACT_DIR}/enhanced-batch.tsv"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
+  if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
+    return 0
+  fi
   rm -rf "${ARTIFACT_DIR}"
 }
 trap cleanup EXIT
@@ -160,6 +165,7 @@ PY
 
 smoke_require_command curl
 smoke_require_command python3
+KEEP_ARTIFACTS="$(smoke_normalize_bool "${KEEP_ARTIFACTS}")"
 mkdir -p "${ARTIFACT_DIR}"
 
 SMOKE_EMAIL="$(smoke_build_email "${SMOKE_EMAIL_PREFIX}")"

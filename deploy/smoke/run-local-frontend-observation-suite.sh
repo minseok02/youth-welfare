@@ -17,6 +17,8 @@ FRONTEND_PUBLIC_BASE_URL="${FRONTEND_PUBLIC_BASE_URL:-${PUBLIC_BASE_URL:-}}"
 RUN_FRONTEND_ADMIN_E2E="${RUN_FRONTEND_ADMIN_E2E:-false}"
 FRONTEND_OBSERVATION_APP_BASE_URL="${FRONTEND_OBSERVATION_APP_BASE_URL:-${APP_BASE_URL:-http://127.0.0.1:8082}}"
 FRONTEND_OBSERVATION_HEALTH_URL="${FRONTEND_OBSERVATION_HEALTH_URL:-${HEALTH_URL:-${FRONTEND_OBSERVATION_APP_BASE_URL}/actuator/health}}"
+FRONTEND_OBSERVATION_PLAYWRIGHT_GREP="${PLAYWRIGHT_GREP:-}"
+FRONTEND_OBSERVATION_PLAYWRIGHT_GREP_INVERT="${PLAYWRIGHT_GREP_INVERT:-}"
 
 SUMMARY_OUT="${ARTIFACT_DIR}/frontend-observation-summary.txt"
 JSON_OUT="${ARTIFACT_DIR}/frontend-observation.json"
@@ -89,10 +91,19 @@ fi
 if [[ "${RUN_FRONTEND_E2E}" == "true" ]]; then
   case "${FRONTEND_E2E_MODE}" in
     local-dev)
+      LOCAL_PLAYWRIGHT_GREP_INVERT="${PLAYWRIGHT_GREP_INVERT:-}"
+      if [[ "${RUN_FRONTEND_ADMIN_E2E}" != "true" ]]; then
+        if [[ -n "${LOCAL_PLAYWRIGHT_GREP_INVERT}" ]]; then
+          LOCAL_PLAYWRIGHT_GREP_INVERT="${LOCAL_PLAYWRIGHT_GREP_INVERT}|@admin-required"
+        else
+          LOCAL_PLAYWRIGHT_GREP_INVERT="@admin-required"
+        fi
+      fi
+      FRONTEND_OBSERVATION_PLAYWRIGHT_GREP_INVERT="${LOCAL_PLAYWRIGHT_GREP_INVERT}"
       run_command_step \
         "frontend_e2e" \
         "${ARTIFACT_DIR}/frontend-e2e.txt" \
-        bash -lc "cd '${ROOT_DIR}/frontend' && npm run test:e2e"
+        bash -lc "cd '${ROOT_DIR}/frontend' && PLAYWRIGHT_GREP_INVERT='${LOCAL_PLAYWRIGHT_GREP_INVERT}' npm run test:e2e"
       ;;
     deployed-origin)
       if [[ -z "${FRONTEND_PUBLIC_BASE_URL}" ]]; then
@@ -113,18 +124,42 @@ if [[ "${RUN_FRONTEND_E2E}" == "true" ]]; then
         : "${ADMIN_EMAIL:?ADMIN_EMAIL is required when RUN_FRONTEND_ADMIN_E2E=true; set ADMIN_EMAIL/E2E_ADMIN_EMAIL or SECURITY_ADMIN_EMAILS}"
         : "${ADMIN_PASSWORD:?ADMIN_PASSWORD is required when RUN_FRONTEND_ADMIN_E2E=true; set ADMIN_PASSWORD/E2E_ADMIN_PASSWORD}"
       fi
-      PLAYWRIGHT_GREP_INVERT="@dev-only"
-      if [[ "${RUN_FRONTEND_ADMIN_E2E}" != "true" ]]; then
-        PLAYWRIGHT_GREP_INVERT="${PLAYWRIGHT_GREP_INVERT}|@admin-required"
+      DEPLOYED_PLAYWRIGHT_GREP_INVERT="@dev-only"
+      if [[ -n "${PLAYWRIGHT_GREP_INVERT:-}" ]]; then
+        DEPLOYED_PLAYWRIGHT_GREP_INVERT="${DEPLOYED_PLAYWRIGHT_GREP_INVERT}|${PLAYWRIGHT_GREP_INVERT}"
       fi
+      if [[ "${RUN_FRONTEND_ADMIN_E2E}" != "true" ]]; then
+        DEPLOYED_PLAYWRIGHT_GREP_INVERT="${DEPLOYED_PLAYWRIGHT_GREP_INVERT}|@admin-required"
+      fi
+      FRONTEND_OBSERVATION_PLAYWRIGHT_GREP_INVERT="${DEPLOYED_PLAYWRIGHT_GREP_INVERT}"
+      ROOT_DIR="${ROOT_DIR}" \
+      APP_BASE_URL="${FRONTEND_OBSERVATION_APP_BASE_URL}" \
+      HEALTH_URL="${FRONTEND_OBSERVATION_HEALTH_URL}" \
+      RUN_ADMIN_SETUP="${RUN_FRONTEND_ADMIN_E2E}" \
+      E2E_ADMIN_EMAIL="${ADMIN_EMAIL:-}" \
+      E2E_ADMIN_PASSWORD="${ADMIN_PASSWORD:-}" \
+      E2E_USER_EMAIL="${E2E_USER_EMAIL}" \
+      E2E_USER_PASSWORD="${E2E_USER_PASSWORD}" \
+      ENV_FILE="${ENV_FILE:-}" \
+      DB_QUERY_USERNAME="${DB_QUERY_USERNAME:-}" \
+      DB_QUERY_PASSWORD="${DB_QUERY_PASSWORD:-}" \
       run_command_step \
         "frontend_e2e_bootstrap" \
         "${ARTIFACT_DIR}/frontend-e2e-bootstrap.txt" \
-        bash -lc "cd '${ROOT_DIR}/frontend' && APP_BASE_URL='${FRONTEND_OBSERVATION_APP_BASE_URL}' HEALTH_URL='${FRONTEND_OBSERVATION_HEALTH_URL}' RUN_ADMIN_SETUP='${RUN_FRONTEND_ADMIN_E2E}' E2E_ADMIN_EMAIL='${ADMIN_EMAIL:-}' E2E_ADMIN_PASSWORD='${ADMIN_PASSWORD:-}' E2E_USER_EMAIL='${E2E_USER_EMAIL}' E2E_USER_PASSWORD='${E2E_USER_PASSWORD}' ENV_FILE='${ENV_FILE:-}' DB_QUERY_USERNAME='${DB_QUERY_USERNAME:-}' DB_QUERY_PASSWORD='${DB_QUERY_PASSWORD:-}' bash ./scripts/bootstrap-playwright-smoke-data.sh"
+        bash -lc 'cd "${ROOT_DIR}/frontend" && bash ./scripts/bootstrap-playwright-smoke-data.sh'
+      ROOT_DIR="${ROOT_DIR}" \
+      ENV_FILE="${ENV_FILE:-}" \
+      E2E_ADMIN_EMAIL="${ADMIN_EMAIL:-}" \
+      E2E_ADMIN_PASSWORD="${ADMIN_PASSWORD:-}" \
+      E2E_USER_EMAIL="${E2E_USER_EMAIL}" \
+      E2E_USER_PASSWORD="${E2E_USER_PASSWORD}" \
+      PLAYWRIGHT_SKIP_WEBSERVER=true \
+      PLAYWRIGHT_BASE_URL="${FRONTEND_PUBLIC_BASE_URL}" \
+      PLAYWRIGHT_GREP_INVERT="${DEPLOYED_PLAYWRIGHT_GREP_INVERT}" \
       run_command_step \
         "frontend_e2e" \
         "${ARTIFACT_DIR}/frontend-e2e.txt" \
-        bash -lc "cd '${ROOT_DIR}/frontend' && ENV_FILE='${ENV_FILE:-}' E2E_ADMIN_EMAIL='${ADMIN_EMAIL:-}' E2E_ADMIN_PASSWORD='${ADMIN_PASSWORD:-}' E2E_USER_EMAIL='${E2E_USER_EMAIL}' E2E_USER_PASSWORD='${E2E_USER_PASSWORD}' PLAYWRIGHT_SKIP_WEBSERVER=true PLAYWRIGHT_BASE_URL='${FRONTEND_PUBLIC_BASE_URL}' PLAYWRIGHT_GREP_INVERT='${PLAYWRIGHT_GREP_INVERT}' npm run test:e2e"
+        bash -lc 'cd "${ROOT_DIR}/frontend" && npm run test:e2e'
       ;;
     skip)
       cat <<'EOF' > "${ARTIFACT_DIR}/frontend-e2e.txt"
@@ -136,7 +171,7 @@ EOF
   esac
 fi
 
-python3 - "${DURATIONS_TSV}" "${SUMMARY_OUT}" "${JSON_OUT}" "${NOTE_OUT}" "${ARTIFACT_DIR}" "${RUN_TS_UTC}" "${RUN_FRONTEND_LINT}" "${RUN_FRONTEND_BUILD}" "${RUN_FRONTEND_E2E}" "${FRONTEND_E2E_MODE}" "${FRONTEND_PUBLIC_BASE_URL}" "${RUN_FRONTEND_ADMIN_E2E}" "${FRONTEND_OBSERVATION_APP_BASE_URL}" "${FRONTEND_OBSERVATION_HEALTH_URL}" <<'PY'
+python3 - "${DURATIONS_TSV}" "${SUMMARY_OUT}" "${JSON_OUT}" "${NOTE_OUT}" "${ARTIFACT_DIR}" "${RUN_TS_UTC}" "${RUN_FRONTEND_LINT}" "${RUN_FRONTEND_BUILD}" "${RUN_FRONTEND_E2E}" "${FRONTEND_E2E_MODE}" "${FRONTEND_PUBLIC_BASE_URL}" "${RUN_FRONTEND_ADMIN_E2E}" "${FRONTEND_OBSERVATION_APP_BASE_URL}" "${FRONTEND_OBSERVATION_HEALTH_URL}" "${FRONTEND_OBSERVATION_PLAYWRIGHT_GREP}" "${FRONTEND_OBSERVATION_PLAYWRIGHT_GREP_INVERT}" <<'PY'
 import csv
 import json
 import sys
@@ -156,6 +191,8 @@ frontend_public_base_url = sys.argv[11]
 run_frontend_admin_e2e = sys.argv[12]
 frontend_observation_app_base_url = sys.argv[13]
 frontend_observation_health_url = sys.argv[14]
+playwright_grep = sys.argv[15]
+playwright_grep_invert = sys.argv[16]
 
 rows = list(csv.DictReader(durations_path.open(encoding="utf-8"), delimiter="\t"))
 suite_duration_ms = sum(int(row["duration_ms"]) for row in rows)
@@ -213,6 +250,8 @@ lines = [
     f"frontend_e2e_mode={frontend_e2e_mode}",
     f"frontend_public_base_url={frontend_public_base_url}",
     f"run_frontend_admin_e2e={run_frontend_admin_e2e}",
+    f"playwright_grep={playwright_grep}",
+    f"playwright_grep_invert={playwright_grep_invert}",
     f"frontend_observation_app_base_url={frontend_observation_app_base_url}",
     f"frontend_observation_health_url={frontend_observation_health_url}",
 ]
@@ -243,6 +282,8 @@ json_payload = {
     "frontend_e2e_mode": frontend_e2e_mode,
     "frontend_public_base_url": frontend_public_base_url,
     "run_frontend_admin_e2e": run_frontend_admin_e2e,
+    "playwright_grep": playwright_grep,
+    "playwright_grep_invert": playwright_grep_invert,
     "frontend_observation_app_base_url": frontend_observation_app_base_url,
     "frontend_observation_health_url": frontend_observation_health_url,
     "decision_class": decision_class,
@@ -265,6 +306,8 @@ note_lines = [
     f"- `suite_duration_ms`: `{suite_duration_ms}`",
     f"- `frontend_e2e_mode`: `{frontend_e2e_mode}`",
     f"- `run_frontend_admin_e2e`: `{run_frontend_admin_e2e}`",
+    f"- `playwright_grep`: `{playwright_grep}`",
+    f"- `playwright_grep_invert`: `{playwright_grep_invert}`",
     f"- `flow_families`: `{', '.join(flow_families)}`",
     f"- `next_action`: `{next_action}`",
     "",

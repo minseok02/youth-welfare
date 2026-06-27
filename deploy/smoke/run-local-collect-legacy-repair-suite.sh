@@ -30,7 +30,12 @@ RUN_TARGETED_REPAIR="$(smoke_normalize_bool "${RUN_TARGETED_REPAIR}")"
 RUN_GAP_FILL="$(smoke_normalize_bool "${RUN_GAP_FILL}")"
 
 TMP_DIR="$(mktemp -d)"
-trap 'rm -rf "${TMP_DIR}"' EXIT
+
+cleanup() {
+  smoke_sanitize_artifacts "${TMP_DIR}"
+  rm -rf "${TMP_DIR}"
+}
+trap cleanup EXIT
 
 HEALTH_RESPONSE="${TMP_DIR}/health.json"
 HEALTH_STDERR="${TMP_DIR}/health.stderr"

@@ -258,8 +258,16 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
     }
 
     private String employmentLabel(RecommendationUserSnapshot user) {
-        return user.employmentStatus() != null
-                ? user.employmentStatus() : "취업상태 미입력";
+        if (user.employmentStatus() == null || user.employmentStatus().isBlank()) {
+            return "취업상태 미입력";
+        }
+        String employmentStatus = user.employmentStatus().trim();
+        if ("해당 없음".equals(employmentStatus)
+                || "해당없음".equals(employmentStatus)
+                || "NONE".equalsIgnoreCase(employmentStatus)) {
+            return "취업상태 조건 없음";
+        }
+        return employmentStatus;
     }
 
     private static final String SYSTEM_PROMPT =

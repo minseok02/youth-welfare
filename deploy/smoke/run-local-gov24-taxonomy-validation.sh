@@ -19,6 +19,7 @@ LATEST_JSON_LINK="${OBSERVATION_ROOT}/latest-gov24-taxonomy-validation-summary.j
 LATEST_NOTE_LINK="${OBSERVATION_ROOT}/latest-gov24-taxonomy-validation-note.md"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
     return 0
   fi
@@ -131,7 +132,9 @@ for axis_name, data in axis_summaries.items():
 note_lines.extend(["", "## Operator Reading", "", operator_reading])
 note_out.write_text("\n".join(note_lines) + "\n", encoding="utf-8")
 PY
+smoke_sanitize_artifacts "${ARTIFACT_DIR}"
 
+smoke_sanitize_artifacts "${ARTIFACT_DIR}"
 smoke_publish_dir_snapshot "${ARTIFACT_DIR}" "${LATEST_ARTIFACT_LINK}"
 smoke_publish_file "${SUMMARY_OUT}" "${LATEST_SUMMARY_LINK}"
 smoke_publish_file "${JSON_OUT}" "${LATEST_JSON_LINK}"

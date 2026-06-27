@@ -34,6 +34,7 @@ POLICY_RESPONSE="${ARTIFACT_DIR}/policy.json"
 DB_ROW_RESPONSE="${ARTIFACT_DIR}/db-row.txt"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   rm -rf "${ARTIFACT_DIR}"
 }
 trap cleanup EXIT

@@ -12,6 +12,7 @@ SUMMARY_OUT="${ARTIFACT_DIR}/recommendation-reopen-precheck-summary.txt"
 JSON_OUT="${ARTIFACT_DIR}/recommendation-reopen-precheck.json"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
     return 0
   fi

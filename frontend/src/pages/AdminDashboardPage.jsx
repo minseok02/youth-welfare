@@ -134,7 +134,15 @@ const ATTENTION_SOURCE_LABELS = {
   "user-profile-standard-codes": "standard-codes",
   "wrapper-observation": "wrapper",
   "policy-duplicate-groups": "duplicates",
+  "policy-error-reports": "policy-error",
   "policy-link-reviews": "links",
+  "support-inquiries": "support",
+  "policy-duplicate-backlog": "duplicates",
+  "policy-error-report-backlog": "policy-error",
+  "policy-link-review-backlog": "links",
+  "support-inquiry-backlog": "support",
+  "notification-backlog": "notification",
+  "notification-stale-backlog": "notification",
 };
 
 const ADMIN_QUEUE_STATUS_OPTIONS = [
@@ -174,8 +182,12 @@ function formatAttentionActionLabel(source) {
       return "stale 알림 보기";
     case "duplicates":
       return "중복 리뷰 보기";
+    case "policy-error":
+      return "오류 제보 보기";
     case "links":
       return "링크 review 보기";
+    case "support":
+      return "서비스 문의 보기";
     default:
       return "관련 섹션 보기";
   }
@@ -422,6 +434,23 @@ function ToneChip({ toneMap, value }) {
         fontWeight: 700,
       }}
     />
+  );
+}
+
+function AttentionNextAction({ nextAction }) {
+  if (!nextAction) {
+    return null;
+  }
+
+  return (
+    <Box sx={{ p: 1, borderRadius: 1.5, bgcolor: "#f8fafc", border: `1px solid ${PANEL_LINE}` }}>
+      <Typography sx={{ fontSize: 11, fontWeight: 800, color: INK3, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+        다음 조치
+      </Typography>
+      <Typography sx={{ fontSize: 12, color: INK2, mt: 0.35, overflowWrap: "anywhere", wordBreak: "break-word" }}>
+        {nextAction}
+      </Typography>
+    </Box>
   );
 }
 
@@ -1081,6 +1110,7 @@ export default function AdminDashboardPage() {
       severity: "warning",
       title: "대시보드 섹션 재시도 필요",
       message: `${formatNumber(failedSectionCount)}개 섹션이 실패했습니다. 실패 카드부터 다시 불러오세요.`,
+      nextAction: "실패한 섹션의 다시 시도를 먼저 누르고, 같은 API만 반복 실패하면 해당 섹션 runbook과 서버 로그를 확인합니다.",
     } : null,
   ].filter(Boolean);
   const attentionQueueItems = [
@@ -1476,6 +1506,7 @@ export default function AdminDashboardPage() {
                         <Typography sx={{ fontSize: 13, color: INK2 }}>
                           {item.message}
                         </Typography>
+                        <AttentionNextAction nextAction={item.nextAction} />
                         {item.targetId ? (
                           <Button
                             size="small"
@@ -1732,6 +1763,7 @@ export default function AdminDashboardPage() {
                               <Typography sx={{ fontSize: 13, color: INK2 }}>
                                 {item.message}
                               </Typography>
+                              <AttentionNextAction nextAction={item.nextAction} />
                             </Stack>
                             {item.targetId ? (
                               <Button
@@ -1813,10 +1845,10 @@ export default function AdminDashboardPage() {
                       </Box>
 
                       <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)", xl: "repeat(4, 1fr)" } }}>
-                        <MetricCard title="주거형태 입력" value={formatNumber(standardCodeCoverage.houseTenureFilled)} description="`house_tenure_code` 채움 수" />
-                        <MetricCard title="주택유형 입력" value={formatNumber(standardCodeCoverage.housingTypeFilled)} description="`housing_type_code` 채움 수" />
-                        <MetricCard title="기초생활수급권자 입력" value={formatNumber(standardCodeCoverage.basicLivingRecipientTypeFilled)} description="`basic_living_recipient_type_code` 채움 수" />
-                        <MetricCard title="장애등급 입력" value={formatNumber(standardCodeCoverage.disabilityGradeFilled)} description="`disability_grade_code` 채움 수" />
+                        <MetricCard title="주거형태 입력" value={formatNumber(standardCodeCoverage.houseTenureFilled)} description="`NONE` 포함 응답 수" />
+                        <MetricCard title="주택유형 입력" value={formatNumber(standardCodeCoverage.housingTypeFilled)} description="`NONE` 포함 응답 수" />
+                        <MetricCard title="기초생활수급권자 입력" value={formatNumber(standardCodeCoverage.basicLivingRecipientTypeFilled)} description="`NONE` 포함 응답 수" />
+                        <MetricCard title="장애등급 입력" value={formatNumber(standardCodeCoverage.disabilityGradeFilled)} description="`NONE` 포함 응답 수" />
                       </Box>
 
                       <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>

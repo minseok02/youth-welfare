@@ -15,6 +15,7 @@ SUMMARY_OUT="${ARTIFACT_DIR}/recommendation-region-mismatch-summary.txt"
 DETAIL_OUT="${ARTIFACT_DIR}/recommendation-region-mismatch-samples.tsv"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
     return 0
   fi

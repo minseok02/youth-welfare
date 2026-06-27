@@ -1,5 +1,6 @@
 package com.example.welfare.notification.service;
 
+import com.example.welfare.global.util.LogSanitizer;
 import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.notification.entity.Notification;
 import com.example.welfare.notification.gateway.NotificationGateway;
@@ -15,6 +16,7 @@ import java.util.concurrent.TimeUnit;
 public class NotificationRetryService {
 
     static final int MAX_RETRY_COUNT = 2;
+    private static final int MAX_ERROR_MESSAGE_LENGTH = 500;
     private static final long RETRY_DELAY_MINUTES = 120L;
     private static final long RETRY_CLAIM_MINUTES = 30L;
 
@@ -87,11 +89,23 @@ public class NotificationRetryService {
         } catch (Exception e) {
             return scheduleNextRetry(
                     notification,
-                    "notification retry failed (" + e.getClass().getSimpleName() + ")",
+                    retryFailureMessage(e),
                     e.getClass().getSimpleName(),
                     startedNanos
             );
         }
+    }
+
+    private String retryFailureMessage(Exception e) {
+        String message = e.getMessage();
+        if (message == null || message.isBlank()) {
+            return "notification retry failed (" + e.getClass().getSimpleName() + ")";
+        }
+        String sanitizedMessage = LogSanitizer.sanitizeSingleLine(message, MAX_ERROR_MESSAGE_LENGTH);
+        String formatted = "notification retry failed (" + e.getClass().getSimpleName() + "): " + sanitizedMessage;
+        return formatted.length() > MAX_ERROR_MESSAGE_LENGTH
+                ? formatted.substring(0, MAX_ERROR_MESSAGE_LENGTH)
+                : formatted;
     }
 
     private RetryOutcome scheduleNextRetry(Notification notification,

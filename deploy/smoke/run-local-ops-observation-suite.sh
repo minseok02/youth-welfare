@@ -37,6 +37,7 @@ LATEST_JSON_LINK="${OPS_OBSERVATION_ROOT}/latest-ops-observation.json"
 LATEST_NOTE_LINK="${OPS_OBSERVATION_ROOT}/latest-ops-observation-note.md"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
     return 0
   fi
@@ -679,6 +680,7 @@ note_lines = [
 note_out.write_text("\n".join(note_lines) + "\n", encoding="utf-8")
 PY
 
+smoke_sanitize_artifacts "${ARTIFACT_DIR}"
 smoke_publish_dir_snapshot "${ARTIFACT_DIR}" "${LATEST_ARTIFACT_LINK}"
 smoke_publish_file "${SUMMARY_OUT}" "${LATEST_SUMMARY_LINK}"
 smoke_publish_file "${JSON_OUT}" "${LATEST_JSON_LINK}"

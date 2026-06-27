@@ -41,6 +41,56 @@ class PostgresRuntimeContractTest {
     }
 
     @Test
+    @DisplayName("prod profile은 전용 runtime datasource env를 DB_URL/DB_PASSWORD fallback 없이 요구한다")
+    void prodProfileRequiresDedicatedRuntimeDatasourceEnvWithoutPrimaryFallbacks() throws IOException {
+        String prodConfig = Files.readString(Path.of("src/main/resources/application-prod.yml"));
+
+        assertThat(prodConfig)
+                .contains("url: ${ADMIN_RO_DB_URL}")
+                .contains("password: ${DB_ADMIN_RO_PASSWORD}")
+                .contains("url: ${RECOMMENDATION_REVIEW_GATE_COMMAND_DB_URL}")
+                .contains("password: ${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD}")
+                .contains("url: ${RECOMMENDATION_PERSISTENCE_COMMAND_DB_URL}")
+                .contains("password: ${DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD}")
+                .contains("url: ${CHAT_SESSION_CLEANUP_DB_URL}")
+                .contains("password: ${DB_CHAT_SESSION_CLEANUP_PASSWORD}")
+                .contains("url: ${CLUSTER_AI_CLEANUP_DB_URL}")
+                .contains("password: ${DB_CLUSTER_AI_CLEANUP_PASSWORD}")
+                .contains("url: ${RECOMMENDATION_RETENTION_CLEANUP_DB_URL}")
+                .contains("password: ${DB_RECOMMENDATION_RETENTION_CLEANUP_PASSWORD}")
+                .contains("url: ${COLLECT_EXECUTION_LOCK_CLEANUP_DB_URL}")
+                .contains("password: ${DB_COLLECT_EXECUTION_LOCK_CLEANUP_PASSWORD}")
+                .contains("url: ${WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_URL}")
+                .contains("password: ${DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_PASSWORD}")
+                .doesNotContain("${ADMIN_RO_DB_URL:${DB_URL")
+                .doesNotContain("${RECOMMENDATION_REVIEW_GATE_COMMAND_DB_URL:${DB_URL")
+                .doesNotContain("${RECOMMENDATION_PERSISTENCE_COMMAND_DB_URL:${DB_URL")
+                .doesNotContain("${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD:${DB_PASSWORD")
+                .doesNotContain("${DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD:${DB_PASSWORD");
+    }
+
+    @Test
+    @DisplayName("local Docker compose는 prod profile 필수 runtime datasource env를 명시한다")
+    void localDockerComposeProvidesProdRequiredRuntimeDatasourceEnv() throws IOException {
+        String compose = Files.readString(Path.of("../docker-compose.yml"));
+
+        assertThat(compose)
+                .contains("ADMIN_RO_DB_URL: jdbc:postgresql://db:5432/youth_welfare?sslmode=disable")
+                .contains("RECOMMENDATION_REVIEW_GATE_COMMAND_DB_URL: jdbc:postgresql://db:5432/youth_welfare?sslmode=disable")
+                .contains("RECOMMENDATION_PERSISTENCE_COMMAND_DB_URL: jdbc:postgresql://db:5432/youth_welfare?sslmode=disable")
+                .contains("CHAT_SESSION_CLEANUP_DB_URL: jdbc:postgresql://db:5432/youth_welfare?sslmode=disable")
+                .contains("CLUSTER_AI_CLEANUP_DB_URL: jdbc:postgresql://db:5432/youth_welfare?sslmode=disable")
+                .contains("RECOMMENDATION_RETENTION_CLEANUP_DB_URL: jdbc:postgresql://db:5432/youth_welfare?sslmode=disable")
+                .contains("COLLECT_EXECUTION_LOCK_CLEANUP_DB_URL: jdbc:postgresql://db:5432/youth_welfare?sslmode=disable")
+                .contains("WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_URL: jdbc:postgresql://db:5432/youth_welfare?sslmode=disable")
+                .contains("DB_ADMIN_RO_USERNAME: admin_dashboard_ro")
+                .contains("DB_CLUSTER_AI_CLEANUP_USERNAME: cluster_ai_cleanup_rw")
+                .contains("DB_RECOMMENDATION_RETENTION_CLEANUP_USERNAME: recommendation_retention_cleanup_rw")
+                .contains("DB_COLLECT_EXECUTION_LOCK_CLEANUP_USERNAME: collect_execution_lock_cleanup_rw")
+                .contains("DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_USERNAME: web_push_subscription_cleanup_rw");
+    }
+
+    @Test
     @DisplayName("PostgreSQL schema는 MySQL 전용 DDL/DML 문법을 포함하지 않는다")
     void schemaSqlDoesNotContainMysqlOnlySyntax() throws IOException {
         String schema = Files.readString(Path.of("src/main/resources/db/schema.sql"));

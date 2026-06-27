@@ -21,6 +21,7 @@ SUMMARY_OUTPUT="${ARTIFACT_DIR}/ai-exclusion-snapshot-summary.txt"
 KEEP_ARTIFACTS="$(smoke_normalize_bool "${KEEP_ARTIFACTS}")"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   if [[ "${KEEP_ARTIFACTS}" != "true" ]]; then
     rm -rf "${ARTIFACT_DIR}"
   fi

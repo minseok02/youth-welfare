@@ -22,6 +22,7 @@ SMOKE_INTEREST_FIELD="${SMOKE_INTEREST_FIELD:-교육}"
 REQUIRE_RECOMMENDATIONS="${REQUIRE_RECOMMENDATIONS:-false}"
 HEALTH_RETRY_COUNT="${HEALTH_RETRY_COUNT:-15}"
 HEALTH_RETRY_DELAY_SECONDS="${HEALTH_RETRY_DELAY_SECONDS:-1}"
+KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
 SMOKE_TRUSTED_ORIGIN="${SMOKE_TRUSTED_ORIGIN:-${PLAYWRIGHT_BASE_URL:-http://127.0.0.1:5173}}"
 SMOKE_TRUSTED_REFERER="${SMOKE_TRUSTED_REFERER:-${SMOKE_TRUSTED_ORIGIN}/}"
 TRUSTED_ORIGIN_HEADERS=(-H "Origin: ${SMOKE_TRUSTED_ORIGIN}" -H "Referer: ${SMOKE_TRUSTED_REFERER}")
@@ -40,6 +41,10 @@ OLDER_TOKEN_AFTER_LOGOUT_RESPONSE="${ARTIFACT_DIR}/older-token-after-logout.json
 HEALTH_RESPONSE="${ARTIFACT_DIR}/health.json"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
+  if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
+    return 0
+  fi
   rm -rf "${ARTIFACT_DIR}"
 }
 trap cleanup EXIT
@@ -99,6 +104,8 @@ PY
 
 smoke_require_command curl
 smoke_require_command python3
+KEEP_ARTIFACTS="$(smoke_normalize_bool "${KEEP_ARTIFACTS}")"
+mkdir -p "${ARTIFACT_DIR}"
 
 SMOKE_EMAIL="$(smoke_build_email "${SMOKE_EMAIL_PREFIX}")"
 

@@ -48,6 +48,7 @@ KEEP_ARTIFACTS="$(smoke_normalize_bool "${KEEP_ARTIFACTS}")"
 mkdir -p "${ARTIFACT_DIR}"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   if [[ "${KEEP_ARTIFACTS}" != "true" ]]; then
     rm -rf "${ARTIFACT_DIR}"
   fi
@@ -156,6 +157,7 @@ print(f"summary_output={summary_output}")
 PY
 
 mkdir -p "${REFRESH_ROOT}"
+smoke_sanitize_artifacts "${ARTIFACT_DIR}"
 smoke_update_links \
   "${ARTIFACT_DIR}" "${LATEST_ARTIFACT_LINK}" \
   "${SUMMARY_OUTPUT}" "${LATEST_SUMMARY_LINK}" \

@@ -149,6 +149,9 @@ RUN_GOV24_SIGNAL_SMOKES=true bash deploy/smoke/run-local-gov24-acceptance-suite.
 ```
 
 wrapper는 `tmp/gov24-acceptance-suite/latest*` 에 summary/json을 남깁니다.
+summary/json의 활성 step별 `*_artifact_dir` 값은 `region-backfill`,
+`collect-embedding-boundary`, `sidecar-backfill`, `support/taxonomy/filter`
+validation, `housing/education signal` child 응답 JSON 위치를 가리킵니다.
 
 ## 2-1. Gov24 runtime collect 기본 운영 경로
 

@@ -1,4 +1,4 @@
-import api from "./axios";
+import api from "./axios.js";
 
 export const PROFILE_STANDARD_CODEBOOK_KEYS = {
   houseTenure: "LOCAL_HOUSE_TENURE_TYPE",
@@ -10,7 +10,9 @@ export const PROFILE_STANDARD_CODEBOOK_KEYS = {
 const CODE_VALUE_KEY = "코드값";
 const CODE_LABEL_KEY = "코드값의미";
 const DEFAULT_LIMIT = 500;
-const NOT_APPLICABLE_OPTION = { value: "NONE", label: "해당 없음" };
+export const PROFILE_NOT_APPLICABLE_CODE = "NONE";
+
+const NOT_APPLICABLE_OPTION = { value: PROFILE_NOT_APPLICABLE_CODE, label: "해당 없음" };
 const NOT_APPLICABLE_CODEBOOK_KEYS = new Set(Object.values(PROFILE_STANDARD_CODEBOOK_KEYS));
 
 function mapCodebookRowsToOptions(rows = []) {
@@ -54,5 +56,14 @@ export async function fetchProfileStandardCodebookOptions() {
     housingType,
     basicLivingRecipientType,
     disabilityGrade,
+  };
+}
+
+export function normalizeHousingProfileCodes({ houseTenureCode = "", housingTypeCode = "" } = {}) {
+  return {
+    houseTenureCode,
+    housingTypeCode: houseTenureCode === PROFILE_NOT_APPLICABLE_CODE
+      ? PROFILE_NOT_APPLICABLE_CODE
+      : housingTypeCode,
   };
 }

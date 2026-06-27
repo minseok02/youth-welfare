@@ -133,6 +133,7 @@ raw audit 숫자만으로 broad parser rewrite나 대량 보정을 열지 않습
 - `policy_link_open_reviews`
 
 raw duplicate/link 잔량은 데이터 수집 특성과 source contract가 섞인 후보군입니다. 실제 운영 작업은 `OPEN` queue로 승격된 항목만 이 문서의 우선순위대로 처리합니다.
+compact wrapper인 `run-local-policy-data-triage-observation-suite.sh` 도 같은 순서를 따라 `policy_error_open_reports > 0` 이면 `POLICY_ERROR_REPORT_PRIORITY` 를 duplicate/link보다 먼저 반환합니다.
 
 ## 현재 server/RDS 기준
 
@@ -141,6 +142,7 @@ raw duplicate/link 잔량은 데이터 수집 특성과 source contract가 섞�
 - `policy_duplicate_open_groups=0`
 - `policy_duplicate_open_rows=0`
 - `policy_link_open_reviews=0`
+- `policy_error_open_reports=0`
 - `decision_class=REVIEW_QUEUE_CLOSED_RAW_BACKLOG_REMAINS`
 
 raw audit에는 아래 후보가 남아 있지만, 이 값만으로 새 review 작업을 열지 않습니다.

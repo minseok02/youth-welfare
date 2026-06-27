@@ -28,6 +28,7 @@ LOGIN_RESPONSE="${ARTIFACT_DIR}/login.json"
 SIMILAR_USERS_VIEWED_RESPONSE="${ARTIFACT_DIR}/similar-users-viewed.json"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   if [[ "${KEEP_ARTIFACTS:-false}" != "true" ]]; then
     rm -rf "${ARTIFACT_DIR}"
   fi

@@ -21,7 +21,12 @@ if [[ -z "${ADMIN_ACCESS_TOKEN:-}" ]]; then
 fi
 
 TMP_DIR="$(mktemp -d)"
-trap 'rm -rf "${TMP_DIR}"' EXIT
+
+cleanup() {
+  smoke_sanitize_artifacts "${TMP_DIR}"
+  rm -rf "${TMP_DIR}"
+}
+trap cleanup EXIT
 
 HEALTH_RESPONSE="${TMP_DIR}/health.json"
 HEALTH_STDERR="${TMP_DIR}/health.stderr"

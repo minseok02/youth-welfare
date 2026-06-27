@@ -566,6 +566,7 @@ print(output_json)
 PY
 
 mkdir -p "${STATUS_ROOT}"
+smoke_sanitize_artifacts "${ARTIFACT_DIR}"
 smoke_update_links \
   "${ARTIFACT_DIR}" "${LATEST_ARTIFACT_LINK}" \
   "${OUTPUT_MD}" "${LATEST_NOTE_LINK}" \

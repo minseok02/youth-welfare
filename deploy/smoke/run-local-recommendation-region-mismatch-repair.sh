@@ -18,6 +18,7 @@ SUMMARY_OUT="${ARTIFACT_DIR}/recommendation-region-mismatch-repair-summary.txt"
 TARGETS_OUT="${ARTIFACT_DIR}/target-users.tsv"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
     return 0
   fi

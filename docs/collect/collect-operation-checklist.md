@@ -85,8 +85,10 @@
 
 - `welfare_services`
 - `raw_api_payloads`
+- `welfare_service_details`
 - `collect_list_snapshot_items`
 - `service_taxonomies`
+- `service_taxonomy_summary_slots`
 - `service_facts`
 
 ## 4. 결과 해석
@@ -114,6 +116,8 @@
 - `api_sync_logs` row 없음
 - list snapshot의 `missing_count` 가 대량으로 증가했는데 upstream 장애/필터 변경 설명이 없는 경우
 - forced detail 후보가 반복적으로 실패해 같은 sourceId가 계속 남는 경우
+- `DETAIL_SUPPORT_COVERAGE_REVIEW`: 최근 detail/support 수집 성공이 있는데 `DETAIL` raw, detail row, `SUPPORT` raw, support fact coverage가 비어 있는 경우
+- `STORAGE_PARITY_REVIEW` 또는 `SIDECAR_PARITY_REVIEW`: 수집 성공 로그와 raw/welfare/sidecar 저장 결과가 서로 맞지 않는 경우
 
 `api_sync_logs`와 `raw_api_payloads`가 모두 비어 있으면 `NO_COLLECT_HISTORY`로 분리합니다. 이는 실패가 아니라 source 품질을 결론 낼 수 없는 로컬 DB 상태입니다.
 단, 앱 화면/로그에는 정책 데이터가 많은데 smoke가 `NO_COLLECT_HISTORY`를 내면 먼저 smoke가 로컬 Docker DB를 보고 있는지 확인합니다.
@@ -131,6 +135,7 @@
 - replay smoke
 - read-model count
 - `service_taxonomies` / `service_facts` density
+- `collect-detail-support-coverage.tsv` 의 source별 missing detail/support count
 
 ## 6. 여기서 멈춰야 하는 경우
 

@@ -9,6 +9,7 @@
 - `deploy/smoke/evaluate-operational-alert-thresholds.sh`가 `ok/warning/critical/skipped` 판정의 source of truth입니다.
 - admin dashboard는 threshold 판정 엔진이 아니라 triage surface입니다.
 - dashboard는 evaluator가 경고한 사건을 사람이 확인할 수 있는 raw field와 샘플을 노출해야 합니다.
+- attention item의 `nextAction`은 운영자가 다음에 볼 카드/큐를 놓치지 않도록 돕는 triage 안내입니다. alert status 판정 근거로 쓰지 않습니다.
 
 ## ADMIN_DASHBOARD_ALERT_SURFACE_AUTHORITY
 
@@ -30,6 +31,8 @@ dashboard 화면은 alert status를 직접 계산하지 않습니다.
 | `RECOMMENDATION_RUN_FAILURE_RATE` | `RECOMMENDATION_RUN_SUMMARY` | `GET /api/admin/dashboard/recommendation-run-summary` | `admin-recommendation-run-summary` | `totalRuns`, `successRuns`, `errorRuns`, `noCandidateRuns`, `averageDurationMs`, `outcomeBreakdowns`, `recentRuns` |
 | `NOTIFICATION_RETRY_BACKLOG` | `NOTIFICATION_BACKLOG_SUMMARY` | `GET /api/admin/dashboard/summary`, `GET /api/admin/dashboard/notification-attempt-summary` | notification metric cards, `admin-notification-attempt-summary` | `retryableFailedNotifications`, `terminalFailedNotifications`, `failedAttempts`, `disabledAttempts`, `breakdowns`, `recentFailures` |
 | `WEB_PUSH_DISABLED_RATIO` | `WEB_PUSH_SUMMARY` | `GET /api/admin/dashboard/notification-attempt-summary` | `admin-notification-attempt-summary` | `disabledAttempts`, `breakdowns[].channel`, `breakdowns[].outcome`, `recentFailures[].endpointHost`, `recentFailures[].errorType` |
+
+Attention feed(`GET /api/admin/dashboard/attention-feed`)는 위 섹션으로 연결되는 `targetId`, 사람이 바로 취할 `nextAction`, 그리고 원인 축을 구분하는 `source`를 함께 내려야 합니다. 화면은 `nextAction`을 “다음 조치”로 표시하되, evaluator의 `alert_id`나 threshold를 재계산하지 않습니다.
 
 ## ADMIN_DASHBOARD_ALERT_SURFACE_LIMITS
 

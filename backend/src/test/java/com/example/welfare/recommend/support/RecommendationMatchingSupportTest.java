@@ -181,6 +181,19 @@ class RecommendationMatchingSupportTest {
         )).isFalse();
     }
 
+    @Test
+    @DisplayName("주거형태가 해당하지 않음이면 기존 불일치 주택유형 값도 주거 신호로 쓰지 않는다")
+    void doesNotMatchHousingProfileWhenHouseTenureIsNotApplicableEvenWithHousingType() {
+        RecommendationUserSnapshot user = snapshot((byte) 5, null, null, List.of(), null, null, "NONE", "4");
+
+        assertThat(RecommendationMatchingSupport.housingProfileMatches(
+                user,
+                WelfareService.builder().title("청년 아파트 주거 지원").build(),
+                List.of(),
+                null
+        )).isFalse();
+    }
+
     private RecommendationUserSnapshot snapshot(Byte incomeLevel,
                                                 String householdType,
                                                 String employmentStatus,

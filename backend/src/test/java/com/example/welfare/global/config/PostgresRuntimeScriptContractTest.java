@@ -14,6 +14,7 @@ class PostgresRuntimeScriptContractTest {
 
     private static final Path RDS_BOOTSTRAP = Path.of("../deploy/postgres/bootstrap-rds-runtime.sh");
     private static final Path RUNTIME_CUTOVER_PREFLIGHT = Path.of("../deploy/smoke/preflight-runtime-cutover-env.sh");
+    private static final Path RUNTIME_ENV_RENDER = Path.of("../deploy/env/render-app-runtime-env.sh");
 
     @Test
     @DisplayName("RDS bootstrap은 앱에서 쓰는 PostgreSQL runtime role을 fresh DB에도 모두 생성한다")
@@ -70,6 +71,51 @@ class PostgresRuntimeScriptContractTest {
                 .contains("DB_NOTIFICATION_PII_RO_PASSWORD")
                 .contains("DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD")
                 .contains("runtime DB password separation: ");
+    }
+
+    @Test
+    @DisplayName("runtime cutover preflight는 recommendation command role 누락을 DB_URL/DB_PASSWORD로 흡수하지 않는다")
+    void runtimeCutoverPreflightDoesNotFallbackRecommendationCommandRolesToPrimaryDb() throws IOException {
+        String script = Files.readString(RUNTIME_CUTOVER_PREFLIGHT);
+
+        assertThat(script)
+                .doesNotContain("RECOMMENDATION_REVIEW_GATE_COMMAND_DB_URL=\"${RECOMMENDATION_REVIEW_GATE_COMMAND_DB_URL:-${DB_URL:-}}\"")
+                .doesNotContain("DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD=\"${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD:-${DB_PASSWORD:-}}\"")
+                .doesNotContain("RECOMMENDATION_PERSISTENCE_COMMAND_DB_URL=\"${RECOMMENDATION_PERSISTENCE_COMMAND_DB_URL:-${DB_URL:-}}\"")
+                .doesNotContain("DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD=\"${DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD:-${DB_PASSWORD:-}}\"");
+    }
+
+    @Test
+    @DisplayName("runtime env render는 prod app 필수 key 누락을 조용히 건너뛰지 않는다")
+    void runtimeEnvRenderRequiresProdAppRuntimeKeysBeforeWritingTarget() throws IOException {
+        String script = Files.readString(RUNTIME_ENV_RENDER);
+
+        assertThat(script)
+                .contains("STRICT_REQUIRED_RUNTIME_ENV=\"${STRICT_REQUIRED_RUNTIME_ENV:-true}\"")
+                .contains("required_keys=(")
+                .contains("validate_required_keys")
+                .contains("missing required runtime env key in source file")
+                .contains("RECOMMENDATION_REVIEW_GATE_COMMAND_DB_URL")
+                .contains("RECOMMENDATION_PERSISTENCE_COMMAND_DB_URL")
+                .contains("DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD")
+                .contains("DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD")
+                .contains("AUTH_REFRESH_COOKIE_SECURE")
+                .doesNotContain("DB_MIGRATION_USERNAME\n")
+                .doesNotContain("DB_MIGRATION_PASSWORD\n");
+    }
+
+    @Test
+    @DisplayName("RDS bootstrap/verify는 recommendation command role password를 DB_PASSWORD로 흡수하지 않는다")
+    void rdsBootstrapAndVerifyDoNotFallbackRecommendationCommandRolePasswordsToPrimaryPassword() throws IOException {
+        String bootstrap = Files.readString(RDS_BOOTSTRAP);
+        String verify = Files.readString(Path.of("../deploy/postgres/verify-rds-runtime-privileges.sh"));
+
+        assertThat(bootstrap)
+                .doesNotContain("DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD=\"${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD:-${DB_PASSWORD:-}}\"")
+                .doesNotContain("DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD=\"${DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD:-${DB_PASSWORD:-}}\"");
+        assertThat(verify)
+                .doesNotContain("DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD=\"${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD:-${DB_PASSWORD:-}}\"")
+                .doesNotContain("DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD=\"${DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD:-${DB_PASSWORD:-}}\"");
     }
 
     @Test

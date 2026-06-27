@@ -7,6 +7,7 @@ source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
 APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:8082}"
 OBSERVATION_ROOT="${OBSERVATION_ROOT:-${ROOT_DIR}/tmp/policy-quality-observation}"
 KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
+POLICY_QUALITY_MIN_POLICY_ROWS="${POLICY_QUALITY_MIN_POLICY_ROWS:-10}"
 RUN_TS_UTC="$(smoke_now_ts_utc)"
 ARTIFACT_DIR="${ARTIFACT_DIR:-${OBSERVATION_ROOT}/${RUN_TS_UTC}}"
 
@@ -36,6 +37,70 @@ smoke_require_command python3
 smoke_require_command tee
 mkdir -p "${ARTIFACT_DIR}"
 mkdir -p "${SMOKE_ARTIFACT_DIR}"
+
+smoke_print_step "policy corpus precheck"
+POLICY_ROW_COUNT="$(smoke_db_query "select count(*) from welfare_services;" | head -n 1)"
+POLICY_ROW_COUNT="${POLICY_ROW_COUNT//[^0-9]/}"
+POLICY_ROW_COUNT="${POLICY_ROW_COUNT:-0}"
+if (( POLICY_ROW_COUNT < POLICY_QUALITY_MIN_POLICY_ROWS )); then
+  cat > "${SUMMARY_OUT}" <<EOF
+policy_quality_observation_suite=skipped
+skip_reason=INSUFFICIENT_POLICY_CORPUS
+policy_row_count=${POLICY_ROW_COUNT}
+min_policy_rows=${POLICY_QUALITY_MIN_POLICY_ROWS}
+decision_class=SKIPPED_INSUFFICIENT_POLICY_CORPUS
+operator_reading=Policy quality observation requires a representative policy corpus. Fresh local DB has too few rows, so this is not treated as retrieval drift.
+next_action=docs/policy/policy-normalization-current-state.md
+artifact_dir=${ARTIFACT_DIR}
+EOF
+  python3 - "${JSON_OUT}" "${NOTE_OUT}" "${ARTIFACT_DIR}" "${POLICY_ROW_COUNT}" "${POLICY_QUALITY_MIN_POLICY_ROWS}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+json_out = Path(sys.argv[1])
+note_out = Path(sys.argv[2])
+artifact_dir = sys.argv[3]
+policy_row_count = int(sys.argv[4])
+min_policy_rows = int(sys.argv[5])
+
+payload = {
+    "policy_quality_observation_suite": "skipped",
+    "skip_reason": "INSUFFICIENT_POLICY_CORPUS",
+    "policy_row_count": policy_row_count,
+    "min_policy_rows": min_policy_rows,
+    "decision_class": "SKIPPED_INSUFFICIENT_POLICY_CORPUS",
+    "operator_reading": "Policy quality observation requires a representative policy corpus. Fresh local DB has too few rows, so this is not treated as retrieval drift.",
+    "next_action": "docs/policy/policy-normalization-current-state.md",
+    "artifact_dir": artifact_dir,
+}
+json_out.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+note_out.write_text(
+    "\n".join([
+        "# Policy Quality Observation",
+        "",
+        "- status: `skipped`",
+        "- skip_reason: `INSUFFICIENT_POLICY_CORPUS`",
+        f"- policy_row_count: `{policy_row_count}`",
+        f"- min_policy_rows: `{min_policy_rows}`",
+        "",
+        "Fresh local databases do not contain the representative policy corpus required by retrieval/category quality gates.",
+    ]) + "\n",
+    encoding="utf-8",
+)
+PY
+  smoke_publish_dir_snapshot "${ARTIFACT_DIR}" "${LATEST_ARTIFACT_LINK}"
+  smoke_publish_file "${SUMMARY_OUT}" "${LATEST_SUMMARY_LINK}"
+  smoke_publish_file "${JSON_OUT}" "${LATEST_JSON_LINK}"
+  smoke_publish_file "${NOTE_OUT}" "${LATEST_NOTE_LINK}"
+  cat "${SUMMARY_OUT}"
+  echo "latest_artifact_link=${LATEST_ARTIFACT_LINK}"
+  echo "latest_summary_link=${LATEST_SUMMARY_LINK}"
+  echo "latest_json_link=${LATEST_JSON_LINK}"
+  echo "latest_note_link=${LATEST_NOTE_LINK}"
+  exit 0
+fi
 
 smoke_print_step "policy quality observation"
 APP_BASE_URL="${APP_BASE_URL}" \

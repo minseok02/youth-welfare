@@ -7,15 +7,18 @@ source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
 APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:8082}"
 OBSERVATION_ROOT="${OBSERVATION_ROOT:-${ROOT_DIR}/tmp/recommendation-observation}"
 KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
-RUN_HOUSING_STANDARD_CODE_EFFECT_AUDIT="${RUN_HOUSING_STANDARD_CODE_EFFECT_AUDIT:-true}"
-RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT="${RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT:-true}"
+RUN_HOUSING_STANDARD_CODE_EFFECT_AUDIT="${RUN_HOUSING_STANDARD_CODE_EFFECT_AUDIT:-auto}"
+RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT="${RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT:-auto}"
 RUN_RECOMMENDATION_STANDARD_CODE_ADOPTION_AUDIT="${RUN_RECOMMENDATION_STANDARD_CODE_ADOPTION_AUDIT:-true}"
+STANDARD_CODE_EFFECT_MIN_POLICY_ROWS="${STANDARD_CODE_EFFECT_MIN_POLICY_ROWS:-10}"
 RUN_TS_UTC="$(smoke_now_ts_utc)"
 ARTIFACT_DIR="${ARTIFACT_DIR:-${OBSERVATION_ROOT}/${RUN_TS_UTC}}"
 PRECHECK_OUTPUT="${ARTIFACT_DIR}/recommendation-reopen-precheck.out"
 HOUSING_EFFECT_OUTPUT="${ARTIFACT_DIR}/housing-standard-code-effect.out"
 WELFARE_MATRIX_OUTPUT="${ARTIFACT_DIR}/welfare-standard-code-matrix.out"
 STANDARD_CODE_ADOPTION_OUTPUT="${ARTIFACT_DIR}/recommendation-standard-code-adoption.out"
+HOUSING_EFFECT_ARTIFACT_DIR="${ARTIFACT_DIR}/housing-effect-artifact"
+WELFARE_MATRIX_ARTIFACT_DIR="${ARTIFACT_DIR}/welfare-matrix-artifact"
 SUMMARY_OUT="${ARTIFACT_DIR}/recommendation-observation-summary.txt"
 JSON_OUT="${ARTIFACT_DIR}/recommendation-observation.json"
 NOTE_OUT="${ARTIFACT_DIR}/recommendation-observation-note.md"
@@ -25,6 +28,7 @@ LATEST_JSON_LINK="${OBSERVATION_ROOT}/latest-recommendation-observation.json"
 LATEST_NOTE_LINK="${OBSERVATION_ROOT}/latest-recommendation-observation-note.md"
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
     return 0
   fi
@@ -32,15 +36,53 @@ cleanup() {
 }
 trap cleanup EXIT
 
+normalize_bool_or_auto() {
+  local value="${1,,}"
+  case "${value}" in
+    true|false|auto) printf '%s' "${value}" ;;
+    *)
+      echo "unsupported boolean/auto value: ${1}" >&2
+      exit 1
+      ;;
+  esac
+}
+
+standard_code_effect_policy_rows() {
+  smoke_db_query "select count(*) from welfare_services;" 2>/dev/null | head -n 1
+}
+
+resolve_auto_audit_flag() {
+  local label="$1"
+  local value="$2"
+  local policy_rows="$3"
+
+  if [[ "${value}" != "auto" ]]; then
+    printf '%s' "${value}"
+    return 0
+  fi
+
+  if [[ "${policy_rows}" =~ ^[0-9]+$ && "${policy_rows}" -ge "${STANDARD_CODE_EFFECT_MIN_POLICY_ROWS}" ]]; then
+    printf 'true'
+    return 0
+  fi
+
+  echo "SKIP ${label}: welfare_services rows ${policy_rows:-unknown} < ${STANDARD_CODE_EFFECT_MIN_POLICY_ROWS}" >&2
+  printf 'false'
+}
+
 KEEP_ARTIFACTS="$(smoke_normalize_bool "${KEEP_ARTIFACTS}")"
-RUN_HOUSING_STANDARD_CODE_EFFECT_AUDIT="$(smoke_normalize_bool "${RUN_HOUSING_STANDARD_CODE_EFFECT_AUDIT}")"
-RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT="$(smoke_normalize_bool "${RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT}")"
+RUN_HOUSING_STANDARD_CODE_EFFECT_AUDIT="$(normalize_bool_or_auto "${RUN_HOUSING_STANDARD_CODE_EFFECT_AUDIT}")"
+RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT="$(normalize_bool_or_auto "${RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT}")"
 RUN_RECOMMENDATION_STANDARD_CODE_ADOPTION_AUDIT="$(smoke_normalize_bool "${RUN_RECOMMENDATION_STANDARD_CODE_ADOPTION_AUDIT}")"
 
 smoke_require_command bash
 smoke_require_command python3
 smoke_require_command tee
 mkdir -p "${ARTIFACT_DIR}"
+
+POLICY_ROW_COUNT="$(standard_code_effect_policy_rows || true)"
+RUN_HOUSING_STANDARD_CODE_EFFECT_AUDIT="$(resolve_auto_audit_flag "housing standard code effect audit" "${RUN_HOUSING_STANDARD_CODE_EFFECT_AUDIT}" "${POLICY_ROW_COUNT}")"
+RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT="$(resolve_auto_audit_flag "welfare standard code matrix audit" "${RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT}" "${POLICY_ROW_COUNT}")"
 
 smoke_print_step "recommendation observation precheck"
 APP_BASE_URL="${APP_BASE_URL}" \
@@ -51,14 +93,16 @@ bash "${ROOT_DIR}/deploy/smoke/run-local-recommendation-reopen-precheck.sh" | te
 if [[ "${RUN_HOUSING_STANDARD_CODE_EFFECT_AUDIT}" == "true" ]]; then
   smoke_print_step "housing standard code effect audit"
   APP_BASE_URL="${APP_BASE_URL}" \
-  ARTIFACT_DIR="${ARTIFACT_DIR}/housing-effect-artifact" \
+  KEEP_ARTIFACTS=true \
+  ARTIFACT_DIR="${HOUSING_EFFECT_ARTIFACT_DIR}" \
   bash "${ROOT_DIR}/deploy/smoke/run-local-housing-standard-code-effect-audit.sh" | tee "${HOUSING_EFFECT_OUTPUT}"
 fi
 
 if [[ "${RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT}" == "true" ]]; then
   smoke_print_step "welfare standard code matrix audit"
   APP_BASE_URL="${APP_BASE_URL}" \
-  ARTIFACT_DIR="${ARTIFACT_DIR}/welfare-matrix-artifact" \
+  KEEP_ARTIFACTS=true \
+  ARTIFACT_DIR="${WELFARE_MATRIX_ARTIFACT_DIR}" \
   bash "${ROOT_DIR}/deploy/smoke/run-local-welfare-standard-code-matrix-audit.sh" | tee "${WELFARE_MATRIX_OUTPUT}"
 fi
 
@@ -67,7 +111,7 @@ if [[ "${RUN_RECOMMENDATION_STANDARD_CODE_ADOPTION_AUDIT}" == "true" ]]; then
   bash "${ROOT_DIR}/deploy/smoke/run-local-recommendation-standard-code-adoption-audit.sh" | tee "${STANDARD_CODE_ADOPTION_OUTPUT}"
 fi
 
-python3 - "${PRECHECK_OUTPUT}" "${HOUSING_EFFECT_OUTPUT}" "${WELFARE_MATRIX_OUTPUT}" "${STANDARD_CODE_ADOPTION_OUTPUT}" "${SUMMARY_OUT}" "${JSON_OUT}" "${NOTE_OUT}" "${ARTIFACT_DIR}" "${RUN_HOUSING_STANDARD_CODE_EFFECT_AUDIT}" "${RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT}" "${RUN_RECOMMENDATION_STANDARD_CODE_ADOPTION_AUDIT}" <<'PY'
+python3 - "${PRECHECK_OUTPUT}" "${HOUSING_EFFECT_OUTPUT}" "${WELFARE_MATRIX_OUTPUT}" "${STANDARD_CODE_ADOPTION_OUTPUT}" "${SUMMARY_OUT}" "${JSON_OUT}" "${NOTE_OUT}" "${ARTIFACT_DIR}" "${RUN_HOUSING_STANDARD_CODE_EFFECT_AUDIT}" "${RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT}" "${RUN_RECOMMENDATION_STANDARD_CODE_ADOPTION_AUDIT}" "${HOUSING_EFFECT_ARTIFACT_DIR}" "${WELFARE_MATRIX_ARTIFACT_DIR}" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -83,6 +127,8 @@ artifact_dir = sys.argv[8]
 run_housing_effect = sys.argv[9] == "true"
 run_welfare_matrix = sys.argv[10] == "true"
 run_standard_code_adoption = sys.argv[11] == "true"
+housing_effect_artifact_dir = sys.argv[12]
+welfare_matrix_artifact_dir = sys.argv[13]
 
 values = {}
 for raw_line in output_path.read_text(encoding="utf-8").splitlines():
@@ -212,6 +258,7 @@ summary_lines = [
 if run_housing_effect:
     summary_lines.extend([
         f"housing_standard_code_effect_stdout={artifact_dir}/housing-standard-code-effect.out",
+        f"housing_standard_code_effect_artifact_dir={housing_effect_artifact_dir}",
         f"housing_standard_code_effect_positive_rule_delta_rows={positive_rule_delta_rows}",
         f"housing_standard_code_effect_positive_final_delta_rows={positive_final_delta_rows}",
         f"housing_standard_code_effect_max_rule_delta={max_rule_delta}",
@@ -221,6 +268,7 @@ if run_housing_effect:
 if run_welfare_matrix:
     summary_lines.extend([
         f"welfare_standard_code_matrix_stdout={artifact_dir}/welfare-standard-code-matrix.out",
+        f"welfare_standard_code_matrix_artifact_dir={welfare_matrix_artifact_dir}",
         f"welfare_standard_code_matrix_scenario_count={welfare_matrix_values.get('scenario_count', '')}",
         f"welfare_standard_code_matrix_positive_rule_scenarios={welfare_matrix_values.get('positive_rule_scenarios', '')}",
         f"welfare_standard_code_matrix_positive_final_scenarios={welfare_matrix_values.get('positive_final_scenarios', '')}",
@@ -269,6 +317,7 @@ json_payload = {
 if run_housing_effect:
     json_payload["housing_standard_code_effect"] = {
         "stdout": f"{artifact_dir}/housing-standard-code-effect.out",
+        "artifact_dir": housing_effect_artifact_dir,
         "positive_rule_delta_rows": int(positive_rule_delta_rows or "0"),
         "positive_final_delta_rows": int(positive_final_delta_rows or "0"),
         "max_rule_delta": float(max_rule_delta or "0"),
@@ -278,6 +327,7 @@ if run_housing_effect:
 if run_welfare_matrix:
     json_payload["welfare_standard_code_matrix"] = {
         "stdout": f"{artifact_dir}/welfare-standard-code-matrix.out",
+        "artifact_dir": welfare_matrix_artifact_dir,
         "scenario_count": int(welfare_matrix_values.get("scenario_count", "0") or "0"),
         "positive_rule_scenarios": int(welfare_matrix_values.get("positive_rule_scenarios", "0") or "0"),
         "positive_final_scenarios": int(welfare_matrix_values.get("positive_final_scenarios", "0") or "0"),
@@ -329,6 +379,7 @@ if run_housing_effect:
         "## Housing Standard Code Effect",
         "",
         f"- `status`: `{housing_effect_status}`",
+        f"- `artifact_dir`: `{housing_effect_artifact_dir}`",
         f"- `positive_rule_delta_rows`: `{positive_rule_delta_rows}`",
         f"- `positive_final_delta_rows`: `{positive_final_delta_rows}`",
         f"- `max_rule_delta`: `{max_rule_delta}`",
@@ -341,6 +392,7 @@ if run_welfare_matrix:
         "## Welfare Standard Code Matrix",
         "",
         f"- `status`: `{welfare_matrix_status}`",
+        f"- `artifact_dir`: `{welfare_matrix_artifact_dir}`",
         f"- `scenario_count`: `{welfare_matrix_values.get('scenario_count', '')}`",
         f"- `positive_rule_scenarios`: `{welfare_matrix_values.get('positive_rule_scenarios', '')}`",
         f"- `positive_final_scenarios`: `{welfare_matrix_values.get('positive_final_scenarios', '')}`",
@@ -366,7 +418,9 @@ if run_standard_code_adoption:
     ])
 note_out.write_text("\n".join(note_lines) + "\n", encoding="utf-8")
 PY
+smoke_sanitize_artifacts "${ARTIFACT_DIR}"
 
+smoke_sanitize_artifacts "${ARTIFACT_DIR}"
 smoke_publish_dir_snapshot "${ARTIFACT_DIR}" "${LATEST_ARTIFACT_LINK}"
 smoke_publish_file "${SUMMARY_OUT}" "${LATEST_SUMMARY_LINK}"
 smoke_publish_file "${JSON_OUT}" "${LATEST_JSON_LINK}"

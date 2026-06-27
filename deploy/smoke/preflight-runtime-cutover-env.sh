@@ -26,6 +26,15 @@ unquote() {
   printf "%s" "${value}"
 }
 
+redact_jdbc_url_for_log() {
+  local jdbc_url="$1"
+  local redacted
+
+  redacted="$(printf "%s" "${jdbc_url}" | sed -E 's#(jdbc:postgresql://)[^/@[:space:]]+:[^/@[:space:]]+@#\1<redacted>@#g')"
+  redacted="$(printf "%s" "${redacted}" | sed -E 's#([?&;](password|sslpassword)=)[^&;]*#\1<redacted>#Ig')"
+  printf "%s" "${redacted}"
+}
+
 load_env_file() {
   local line key value
 
@@ -65,13 +74,6 @@ load_env_file() {
 
 if [[ -n "${ENV_FILE}" ]]; then
 load_env_file
-
-RECOMMENDATION_REVIEW_GATE_COMMAND_DB_URL="${RECOMMENDATION_REVIEW_GATE_COMMAND_DB_URL:-${DB_URL:-}}"
-DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME="${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_USERNAME:-recommendation_review_gate_command_rw}"
-DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD="${DB_RECOMMENDATION_REVIEW_GATE_COMMAND_PASSWORD:-${DB_PASSWORD:-}}"
-RECOMMENDATION_PERSISTENCE_COMMAND_DB_URL="${RECOMMENDATION_PERSISTENCE_COMMAND_DB_URL:-${DB_URL:-}}"
-DB_RECOMMENDATION_PERSISTENCE_COMMAND_USERNAME="${DB_RECOMMENDATION_PERSISTENCE_COMMAND_USERNAME:-recommendation_persistence_command_rw}"
-DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD="${DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD:-${DB_PASSWORD:-}}"
 fi
 
 require_non_empty() {
@@ -107,7 +109,7 @@ extract_jdbc_kind() {
     return 0
   fi
 
-  echo "${name} must be a jdbc:postgresql:// URL: ${jdbc_url}" >&2
+  echo "${name} must be a jdbc:postgresql:// URL: $(redact_jdbc_url_for_log "${jdbc_url}")" >&2
   exit 1
 }
 
@@ -120,7 +122,7 @@ extract_database_name() {
   remainder="${jdbc_url#jdbc:postgresql://}"
 
   if [[ "${remainder}" != */* ]]; then
-    echo "${name} must contain host/database: ${jdbc_url}" >&2
+    echo "${name} must contain host/database: $(redact_jdbc_url_for_log "${jdbc_url}")" >&2
     exit 1
   fi
 
@@ -129,7 +131,7 @@ extract_database_name() {
   database_name="${database_name%%;*}"
 
   if [[ -z "${database_name}" ]]; then
-    echo "${name} must contain database/schema name: ${jdbc_url}" >&2
+    echo "${name} must contain database/schema name: $(redact_jdbc_url_for_log "${jdbc_url}")" >&2
     exit 1
   fi
 
@@ -145,13 +147,13 @@ extract_host_port() {
   remainder="${jdbc_url#jdbc:postgresql://}"
 
   if [[ "${remainder}" != */* ]]; then
-    echo "${name} must contain host/database: ${jdbc_url}" >&2
+    echo "${name} must contain host/database: $(redact_jdbc_url_for_log "${jdbc_url}")" >&2
     exit 1
   fi
 
   host_port="${remainder%%/*}"
   if [[ -z "${host_port}" ]]; then
-    echo "${name} must contain host/database: ${jdbc_url}" >&2
+    echo "${name} must contain host/database: $(redact_jdbc_url_for_log "${jdbc_url}")" >&2
     exit 1
   fi
 
@@ -180,14 +182,14 @@ assert_runtime_core_target() {
   jdbc_kind="$(extract_jdbc_kind "${name}" "${jdbc_url}")"
   database_name="$(extract_database_name "${name}" "${jdbc_url}")"
   if [[ "${database_name}" != "youth_welfare" ]]; then
-    echo "${name} must point to 'youth_welfare' but was '${database_name}': ${jdbc_url}" >&2
+    echo "${name} must point to 'youth_welfare' but was '${database_name}': $(redact_jdbc_url_for_log "${jdbc_url}")" >&2
     exit 1
   fi
 
   if [[ "${jdbc_kind}" == "postgresql" ]]; then
     current_schema="$(extract_postgres_current_schema "${jdbc_url}")"
     if [[ -n "${current_schema}" && "${current_schema}" != "public" ]]; then
-      echo "${name} must target the runtime public schema (no currentSchema or currentSchema=public) but was '${current_schema}': ${jdbc_url}" >&2
+      echo "${name} must target the runtime public schema (no currentSchema or currentSchema=public) but was '${current_schema}': $(redact_jdbc_url_for_log "${jdbc_url}")" >&2
       exit 1
     fi
   fi
@@ -202,13 +204,13 @@ assert_runtime_pii_target() {
   database_name="$(extract_database_name "${name}" "${jdbc_url}")"
 
   if [[ "${database_name}" != "youth_welfare" ]]; then
-    echo "${name} must point to 'youth_welfare' with currentSchema=youth_welfare_pii but was '${database_name}': ${jdbc_url}" >&2
+    echo "${name} must point to 'youth_welfare' with currentSchema=youth_welfare_pii but was '${database_name}': $(redact_jdbc_url_for_log "${jdbc_url}")" >&2
     exit 1
   fi
 
   current_schema="$(extract_postgres_current_schema "${jdbc_url}")"
   if [[ "${current_schema}" != "youth_welfare_pii" ]]; then
-    echo "${name} must set currentSchema=youth_welfare_pii but was '${current_schema:-<missing>}': ${jdbc_url}" >&2
+    echo "${name} must set currentSchema=youth_welfare_pii but was '${current_schema:-<missing>}': $(redact_jdbc_url_for_log "${jdbc_url}")" >&2
     exit 1
   fi
 }
@@ -294,6 +296,7 @@ validate_env() {
   require_non_empty DB_APP_PII_PASSWORD "${DB_APP_PII_PASSWORD:-}"
   require_non_empty DB_NOTIFICATION_PII_RO_USERNAME "${DB_NOTIFICATION_PII_RO_USERNAME:-}"
   require_non_empty DB_NOTIFICATION_PII_RO_PASSWORD "${DB_NOTIFICATION_PII_RO_PASSWORD:-}"
+  require_non_empty AUTH_REFRESH_COOKIE_SECURE "${AUTH_REFRESH_COOKIE_SECURE:-}"
 
   assert_equals DB_USERNAME "${DB_USERNAME}" "app_core_rw"
   assert_equals DB_MIGRATION_USERNAME "${DB_MIGRATION_USERNAME}" "migration_admin"
@@ -307,6 +310,7 @@ validate_env() {
   assert_equals DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_USERNAME "${DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_USERNAME}" "web_push_subscription_cleanup_rw"
   assert_equals DB_APP_PII_USERNAME "${DB_APP_PII_USERNAME}" "app_pii_rw"
   assert_equals DB_NOTIFICATION_PII_RO_USERNAME "${DB_NOTIFICATION_PII_RO_USERNAME}" "notification_pii_ro"
+  assert_equals AUTH_REFRESH_COOKIE_SECURE "${AUTH_REFRESH_COOKIE_SECURE}" "true"
 
   assert_runtime_core_target DB_URL "${DB_URL}"
   assert_runtime_core_target ADMIN_RO_DB_URL "${ADMIN_RO_DB_URL}"
@@ -413,6 +417,7 @@ runtime cutover env summary
 - DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_USERNAME: ${DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_USERNAME}
 - DB_APP_PII_USERNAME: ${DB_APP_PII_USERNAME}
 - DB_NOTIFICATION_PII_RO_USERNAME: ${DB_NOTIFICATION_PII_RO_USERNAME}
+- AUTH_REFRESH_COOKIE_SECURE: ${AUTH_REFRESH_COOKIE_SECURE}
 - runtime DB password separation: $([[ "${ALLOW_SHARED_RUNTIME_DB_PASSWORDS}" == "true" ]] && printf "skipped (ALLOW_SHARED_RUNTIME_DB_PASSWORDS=true)" || printf "enforced")
 - DB_PASSWORD: $(password_state "${DB_PASSWORD:-}")
 - DB_MIGRATION_PASSWORD: $(password_state "${DB_MIGRATION_PASSWORD:-}")

@@ -7,6 +7,7 @@ source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
 APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:8082}"
 APP_HEALTH_URL="${APP_HEALTH_URL:-${APP_BASE_URL}/actuator/health}"
 APP_CONTAINER_NAME="${APP_CONTAINER_NAME:-youth-welfare-app}"
+KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
 
 smoke_resolve_admin_credentials "${ROOT_DIR}"
 smoke_resolve_admin_access_token "${ROOT_DIR}"
@@ -23,8 +24,12 @@ LOGIN_RESPONSE="${ARTIFACT_DIR}/admin-login.json"
 RETRIEVAL_RESPONSE="${ARTIFACT_DIR}/retrieval-evaluation.json"
 GATE_RESPONSE="${ARTIFACT_DIR}/retrieval-gate.json"
 CATEGORY_RESPONSE="${ARTIFACT_DIR}/category-audit.json"
+mkdir -p "${ARTIFACT_DIR}"
 
 cleanup() {
+  if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
+    return 0
+  fi
   rm -rf "${ARTIFACT_DIR}"
 }
 trap cleanup EXIT
@@ -100,6 +105,8 @@ PY
 smoke_require_command curl
 smoke_require_command python3
 
+KEEP_ARTIFACTS="$(smoke_normalize_bool "${KEEP_ARTIFACTS}")"
+
 smoke_print_step "health check"
 HEALTH_STATUS="$(smoke_wait_for_health "${HEALTH_RETRY_COUNT}" "${HEALTH_RETRY_DELAY_SECONDS}" "${APP_HEALTH_URL}" "${HEALTH_RESPONSE}" "${ARTIFACT_DIR}/health.stderr")"
 smoke_assert_status 200 "${HEALTH_STATUS}" "health check" "${HEALTH_RESPONSE}"
@@ -162,6 +169,6 @@ echo "category_unified_count=${VALUES[12]}"
 echo "category_top_unified=${VALUES[13]}"
 echo "category_top_unified_total_share=${VALUES[14]}"
 echo "category_top_unified_searchable_coverage=${VALUES[15]}"
-echo "youth_broad_top_source=${VALUES[16]}"
-echo "youth_broad_top_dominant_unified=${VALUES[17]}"
-echo "youth_broad_top_dominant_share=${VALUES[18]}"
+echo "youth_broad_top_source=${VALUES[16]-}"
+echo "youth_broad_top_dominant_unified=${VALUES[17]-}"
+echo "youth_broad_top_dominant_share=${VALUES[18]-}"

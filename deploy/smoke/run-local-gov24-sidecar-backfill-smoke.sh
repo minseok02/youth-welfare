@@ -7,6 +7,7 @@ source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
 APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:8082}"
 APP_HEALTH_URL="${APP_HEALTH_URL:-${APP_BASE_URL}/actuator/health}"
 HEALTH_RETRY_COUNT="${HEALTH_RETRY_COUNT:-60}"
+KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
 
 smoke_resolve_admin_credentials "${ROOT_DIR}"
 smoke_resolve_admin_access_token "${ROOT_DIR}"
@@ -16,8 +17,20 @@ if [[ -z "${ADMIN_ACCESS_TOKEN:-}" ]]; then
   : "${ADMIN_PASSWORD:?ADMIN_PASSWORD is empty; export ADMIN_PASSWORD or set /tmp/youth-welfare-admin-smoke-password}"
 fi
 
-TMP_DIR="$(mktemp -d)"
-trap 'rm -rf "${TMP_DIR}"' EXIT
+TMP_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
+ARTIFACT_DIR="${TMP_DIR}"
+
+cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
+  if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
+    return 0
+  fi
+  rm -rf "${ARTIFACT_DIR}"
+}
+trap cleanup EXIT
+
+KEEP_ARTIFACTS="$(smoke_normalize_bool "${KEEP_ARTIFACTS}")"
+mkdir -p "${ARTIFACT_DIR}"
 
 HEALTH_RESPONSE="${TMP_DIR}/health.json"
 HEALTH_STDERR="${TMP_DIR}/health.stderr"

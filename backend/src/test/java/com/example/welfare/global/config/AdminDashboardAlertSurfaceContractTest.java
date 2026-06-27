@@ -18,6 +18,7 @@ class AdminDashboardAlertSurfaceContractTest {
     private static final Path SEARCH_DTO = Path.of("../backend/src/main/java/com/example/welfare/admin/dashboard/dto/AdminSearchFailureResponse.java");
     private static final Path RECOMMENDATION_DTO = Path.of("../backend/src/main/java/com/example/welfare/admin/dashboard/dto/AdminRecommendationRunSummaryResponse.java");
     private static final Path NOTIFICATION_DTO = Path.of("../backend/src/main/java/com/example/welfare/admin/dashboard/dto/AdminNotificationAttemptSummaryResponse.java");
+    private static final Path ATTENTION_DTO = Path.of("../backend/src/main/java/com/example/welfare/admin/dashboard/dto/AdminDashboardAttentionResponse.java");
 
     @Test
     @DisplayName("admin dashboard alert surface 문서는 evaluator 권위와 dashboard triage 경계를 구분한다")
@@ -31,7 +32,8 @@ class AdminDashboardAlertSurfaceContractTest {
                 .contains("ADMIN_DASHBOARD_ALERT_SURFACE_VERIFICATION")
                 .contains("evaluate-operational-alert-thresholds.sh")
                 .contains("dashboard 화면은 alert status를 직접 계산하지 않습니다.")
-                .contains("Dashboard-only fields must not be used as the final alert status");
+                .contains("Dashboard-only fields must not be used as the final alert status")
+                .contains("attention item의 `nextAction`");
     }
 
     @Test
@@ -77,7 +79,9 @@ class AdminDashboardAlertSurfaceContractTest {
                 .contains("noCandidateRuns")
                 .contains("averageDurationMs")
                 .contains("disabledAttempts")
-                .contains("endpointHost");
+                .contains("endpointHost")
+                .contains("nextAction")
+                .contains("다음 조치");
     }
 
     @Test
@@ -114,6 +118,10 @@ class AdminDashboardAlertSurfaceContractTest {
                 .contains("recentFailures")
                 .contains("endpointHost")
                 .contains("errorType");
+
+        assertThat(Files.readString(ATTENTION_DTO))
+                .contains("AttentionItem")
+                .contains("nextAction");
     }
 
     @Test
@@ -132,6 +140,8 @@ class AdminDashboardAlertSurfaceContractTest {
                 .contains("failedJobsInWindow")
                 .contains("zeroResultSearchesInWindow")
                 .contains("disabledAttempts")
+                .contains("nextAction")
+                .contains("다음 조치")
                 .contains("admin dashboard alert surface contract passed");
     }
 }

@@ -10,7 +10,7 @@ entrypoint는 아래 wrapper입니다.
 
 - `bash deploy/smoke/run-local-frontend-observation-suite.sh`
 - 운영 서버:
-  - `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-local-frontend-observation-suite.sh`
+  - `ENV_FILE=.env.runtime.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-local-frontend-observation-suite.sh`
 
 `deployed-origin` 기본 경계:
 
@@ -21,6 +21,8 @@ entrypoint는 아래 wrapper입니다.
 - 실제 admin credential이 있고 admin dashboard smoke까지 포함해 확인하려면 `RUN_FRONTEND_ADMIN_E2E=true` 를 명시합니다.
 - `RUN_FRONTEND_ADMIN_E2E=true` 일 때는 `ADMIN_EMAIL`/`ADMIN_PASSWORD` 또는 `E2E_ADMIN_EMAIL`/`E2E_ADMIN_PASSWORD` 가 필요합니다. wrapper/bootstrap/Playwright helper는 더 이상 기본 `admin@example.com` / `password123!` 로 조용히 fallback 하지 않습니다.
 - 기본 admin credential은 의도적인 local-only smoke에서만 `ALLOW_DEFAULT_ADMIN_CREDENTIALS=true` 로 열 수 있습니다.
+
+`local-dev` 경계도 `RUN_FRONTEND_ADMIN_E2E=false` 이면 `@admin-required` 케이스를 명시 제외합니다. `ALLOW_DEFAULT_ADMIN_CREDENTIALS=true` 를 shell에 둔 상태라도 wrapper가 admin dashboard smoke를 조용히 포함하지 않게 막습니다. local-only admin dashboard를 확인할 때는 `RUN_FRONTEND_ADMIN_E2E=true ALLOW_DEFAULT_ADMIN_CREDENTIALS=true` 를 함께 명시합니다.
 
 ## latest artifact
 
@@ -41,6 +43,8 @@ entrypoint는 아래 wrapper입니다.
 - `frontend_build_duration_ms`
 - `frontend_e2e_duration_ms`
 - `run_frontend_admin_e2e`
+- `playwright_grep`
+- `playwright_grep_invert`
 - `next_action`
 
 ## 현재 해석

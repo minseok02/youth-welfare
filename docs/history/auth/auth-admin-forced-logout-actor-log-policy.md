@@ -64,7 +64,7 @@
 
 ### 3. 현재 controller layer는 actor principal을 굳이 쓰지 않아도 된다
 
-지금 [UserAdminController.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/user/controller/UserAdminController.java) 의 forced logout 경로는:
+지금 [UserAdminController.java](../../../backend/src/main/java/com/example/welfare/user/controller/UserAdminController.java) 의 forced logout 경로는:
 
 - `ROLE_ADMIN` 인가
 - target `userKey`

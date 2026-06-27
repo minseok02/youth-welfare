@@ -120,8 +120,12 @@ public final class RecommendationMatchingSupport {
                                                 WelfareService service,
                                                 List<ServiceTag> tags,
                                                 RecommendationCandidateProjection projection) {
+        String effectiveHousingTypeCode = UserProfileStandardCodeValidator.normalizeHousingTypeCode(
+                user.houseTenureCode(),
+                user.housingTypeCode()
+        );
         if (!hasApplicableProfileCode(user.houseTenureCode())
-                && !hasApplicableProfileCode(user.housingTypeCode())) {
+                && !hasApplicableProfileCode(effectiveHousingTypeCode)) {
             return false;
         }
 
@@ -133,9 +137,9 @@ public final class RecommendationMatchingSupport {
         Set<String> houseTenureSignals = !hasApplicableProfileCode(user.houseTenureCode())
                 ? Set.of()
                 : HOUSE_TENURE_SIGNALS.get(user.houseTenureCode());
-        Set<String> housingTypeSignals = !hasApplicableProfileCode(user.housingTypeCode())
+        Set<String> housingTypeSignals = !hasApplicableProfileCode(effectiveHousingTypeCode)
                 ? Set.of()
-                : HOUSING_TYPE_SIGNALS.get(user.housingTypeCode());
+                : HOUSING_TYPE_SIGNALS.get(effectiveHousingTypeCode);
 
         return hasMappedSignal(haystack, houseTenureSignals)
                 || hasMappedSignal(haystack, housingTypeSignals);

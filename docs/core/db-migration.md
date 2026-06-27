@@ -33,7 +33,7 @@
 - 기존 로컬 런타임 drift를 맞출 때는 `deploy/postgres/patches/*.sql` 과 `deploy/postgres/apply-local-runtime-schema-patch.sh` 를 먼저 봅니다.
 - `service_taxonomies` / `service_taxonomy_summary_slots` 운영 경계는 current-state, policy runbook, replay smoke 문서를 active truth로 봅니다.
 
-- draft 파일: [`backend/src/main/resources/db/migration-draft/V2026_04_30_01__create_policy_sidecars.sql`](../backend/src/main/resources/db/migration-draft/V2026_04_30_01__create_policy_sidecars.sql)
+- draft 파일: `backend/src/main/resources/db/migration-draft/V2026_04_30_01__create_policy_sidecars.sql`
 - 포함 내용:
   - `normalization_code_sets`, `normalization_codes` 생성 초안
   - `service_taxonomies`, `service_taxonomy_terms`, `service_facts` 생성 초안
@@ -43,7 +43,7 @@
   - `service_taxonomy_terms.term_code` 는 MySQL nullable unique semantics를 피하려고 코드가 없을 때 `''` 로 normalize 하는 안을 포함
   - `service_taxonomies` 가 여전히 legacy summary row 중심이므로, generic summary slot 병행 저장 구조는 [policy-normalization-summary-slot-storage-plan.md](../history/policy/policy-normalization-summary-slot-storage-plan.md) 기준으로 후속 draft migration으로 분리한다
 
-- draft 파일: [`backend/src/main/resources/db/migration-draft/V2026_04_30_02__seed_policy_normalization_codes.sql`](../backend/src/main/resources/db/migration-draft/V2026_04_30_02__seed_policy_normalization_codes.sql)
+- draft 파일: `backend/src/main/resources/db/migration-draft/V2026_04_30_02__seed_policy_normalization_codes.sql`
 - 포함 내용:
   - `SYSTEM_COMPAT_UNIFIED_CATEGORY`, `YOUTH_MAJOR` 중심의 최소 대표 `normalization_codes` seed 초안
   - `YOUTH_MID`, `GOV24_*` 는 공식 코드 import 전 단계라 metadata set만 먼저 생성
@@ -51,7 +51,7 @@
   - `YOUTH category_main` 은 raw 문자열을 그대로 복사하지 않고 `JSON_TABLE` split + punctuation normalize 후 single canonical major로 collapse 가능한 경우에만 `youth_major_*` summary 를 채움
   - `YOUTH_MID` / `GOV24` 공식 코드 전체 import 와 `service_taxonomy_terms` / `service_facts` backfill 은 후속 task로 분리
 
-- draft 파일: [`backend/src/main/resources/db/migration-draft/V2026_04_30_03__seed_policy_official_code_subsets.sql`](../backend/src/main/resources/db/migration-draft/V2026_04_30_03__seed_policy_official_code_subsets.sql)
+- draft 파일: `backend/src/main/resources/db/migration-draft/V2026_04_30_03__seed_policy_official_code_subsets.sql`
 - 포함 내용:
   - 온통청년 공개 코드정의서에서 stable code 값이 실제로 보이는 집합(`YOUTH_PROVIDER_GROUP`, `YOUTH_PROVISION_METHOD`, `YOUTH_*_REQUIREMENT`, `YOUTH_MARITAL_STATUS`, `YOUTH_INCOME_CONDITION_TYPE`)의 `normalization_codes` seed 초안
   - Gov24 `supportConditions` 에서 현재 조사로 근거가 확인된 대표 공식 코드(`JA0101`, `JA0102`, `JA0110`, `JA0111`, `JA0201~JA0205`, `JA0320`, `JA0327`, `JA0412`) seed 초안
@@ -64,7 +64,7 @@
   - 2026-05-01 기준 `GOV24` current public dataset/공지 재확인 결과, old `category` / `category-code` operation은 2021 개편 때 deprecated 되었고 current source-of-truth는 `serviceList` / `serviceDetail` / `supportConditions` 3종이다. 하지만 current public page text만으로는 `serviceField` / `userType` / `benefitType` finite inventory 가 드러나지 않아 import SQL은 계속 보류한다. 자세한 기준은 [policy-normalization-gov24-label-source-plan.md](../history/policy/policy-normalization-gov24-label-source-plan.md)에 정리했다.
   - `GOV24_SUPPORT_CONDITION` 도 현재는 대표 subset code만 공식 근거가 확인된 상태이고, full inventory/backfill은 current Swagger/schema export 또는 provider codebook 확보 전까지 보류한다. 자세한 기준은 [policy-normalization-gov24-support-condition-source-plan.md](../history/policy/policy-normalization-gov24-support-condition-source-plan.md)에 정리했다.
 
-- draft 파일: [`backend/src/main/resources/db/migration-draft/V2026_05_02_01__add_service_taxonomy_summary_slots.sql`](../backend/src/main/resources/db/migration-draft/V2026_05_02_01__add_service_taxonomy_summary_slots.sql)
+- draft 파일: `backend/src/main/resources/db/migration-draft/V2026_05_02_01__add_service_taxonomy_summary_slots.sql`
 - 포함 내용:
   - `service_taxonomy_summary_slots` 생성 초안
   - canonical summary slot을 `slot_key / slot_code / slot_label` row로 병행 저장하기 위한 반복 테이블
@@ -73,13 +73,13 @@
   - backfill / read-model 전환은 아직 열지 않았고, 현재 단계는 collect writer dual-write까지만 검증 범위다
   - 배경 설계는 [policy-normalization-summary-slot-storage-plan.md](../history/policy/policy-normalization-summary-slot-storage-plan.md)를 따른다
 
-- draft 파일: [`backend/src/main/resources/db/migration-draft/V2026_05_02_02__backfill_service_taxonomy_summary_slots.sql`](../backend/src/main/resources/db/migration-draft/V2026_05_02_02__backfill_service_taxonomy_summary_slots.sql)
+- draft 파일: `backend/src/main/resources/db/migration-draft/V2026_05_02_02__backfill_service_taxonomy_summary_slots.sql`
 - 포함 내용:
   - 기존 `service_taxonomies` summary row를 `service_taxonomy_summary_slots` 로 재적재하는 local backfill 초안
   - `YOUTH_MAJOR`, `YOUTH_MID`, `GOV24_*`, `PROVISION_METHOD` managed slot만 재생성
   - 현재 local replay closeout에서는 dual-write 이전 snapshot을 이 SQL로 먼저 메운 뒤 density를 확인한다
 
-- draft 파일: [`backend/src/main/resources/db/migration-draft/V2026_05_02_03__widen_service_taxonomy_summary_slot_label.sql`](../backend/src/main/resources/db/migration-draft/V2026_05_02_03__widen_service_taxonomy_summary_slot_label.sql)
+- draft 파일: `backend/src/main/resources/db/migration-draft/V2026_05_02_03__widen_service_taxonomy_summary_slot_label.sql`
 - 포함 내용:
   - `service_taxonomy_summary_slots.slot_label` 을 `TEXT` 로 보정
   - 유니크 키에서 `slot_label` 을 제외하고 `(service_id, slot_key, slot_code, authority)` 로 재정의
@@ -164,7 +164,7 @@ local draft migration 상태에서 stored 복지로 detail raw payload replay를
 
 overlap service 는 `17`건이었고, 샘플은 `여성청소년 생리용품 지원`, `통합문화이용권`, `자활근로(기초, 차상위)`, `재난적의료비 지원 사업` 처럼 source 자체가 두 집단을 함께 명시한 경우가 대부분이었다. 따라서 현재 canonical 정책은 `기초생활수급자` 와 `차상위계층` 을 상하위 collapse 하지 않고 multi-term 으로 그대로 유지한다. 이 bucket은 hard fact 가 아니라 soft taxonomy 이므로, 추천/read-model 단계에서 필요하면 중복 가중치만 제어하고 원본 term 정보는 보존하는 쪽이 맞다.
 
-추천/read-model 단계의 초기 dedupe 전략도 같이 고정했다. persistence 에는 raw `TARGET_GROUP` term 둘 다 남기고, canonical read-model 이 `BENEFICIARY_SUPPORT` bucket 을 별도로 만든 뒤 scoring 은 이 bucket 기준으로 서비스당 최대 1회만 bonus 를 주는 방식이다. 현재 [RuleScoringService](../backend/src/main/java/com/example/welfare/recommend/service/RuleScoringService.java) 도 boolean 매칭 기반이라 동일 축 중복 가산은 하지 않으므로, future sidecar read-path 도 같은 “max-one bonus” 규칙을 유지한다.
+추천/read-model 단계의 초기 dedupe 전략도 같이 고정했다. persistence 에는 raw `TARGET_GROUP` term 둘 다 남기고, canonical read-model 이 `BENEFICIARY_SUPPORT` bucket 을 별도로 만든 뒤 scoring 은 이 bucket 기준으로 서비스당 최대 1회만 bonus 를 주는 방식이다. 현재 [RuleScoringService](../../backend/src/main/java/com/example/welfare/recommend/service/RuleScoringService.java) 도 boolean 매칭 기반이라 동일 축 중복 가산은 하지 않으므로, future sidecar read-path 도 같은 “max-one bonus” 규칙을 유지한다.
 
 이 dedupe는 repository SQL에서 직접 collapse 하지 않고, `RecommendationCandidateProjection` 류의 canonical recommendation read-model projection 에서 raw `targetGroupsRaw` / `beneficiaryTerms` / `targetGroupBuckets` 를 함께 만드는 방식으로 분리한다. 즉 persistence 는 raw truth, projection 은 scoring-friendly view, response/UI 는 raw explanation 을 각각 따로 가진다.
 
@@ -172,20 +172,20 @@ overlap service 는 `17`건이었고, 샘플은 `여성청소년 생리용품 �
 
 2026-04-30 live/detail 재확인에서도 이 판단을 유지했다. local DB에 저장된 복지로 `DETAIL` raw payload key는 `targetDetail`, `supportDetail`, `applyMethodDetail`, `selectionCriteria`, `contactList`, `supportCycle`, `provisionType` 뿐이었고, `applyEndDate`, `aplyEndDt`, `deadline`, `rcptEndDt` 같은 explicit deadline key는 `0`건이었다. 같은 날 당시 local runtime의 공공데이터포털 key로 중앙/지자체 live detail endpoint를 직접 다시 호출하려 했지만 두 endpoint 모두 `HTTP 429` 로 막혀 신규 raw field inventory는 확보하지 못했다. public data.go.kr 설명도 detail API를 `eligibility / selection criteria / application procedures` 수준으로만 설명하고 있어, 현재 단계에서는 `BK_APPLY_END_DATE` 를 계속 optional fact로 유지하는 쪽이 맞다.
 
-- 파일: [`backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql`](../backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql)
+- 파일: `backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql`
 - 포함 내용:
   - `user_pii_sync_queue` 생성
   - request-path `user_pii` sync payload 와 상태(`PENDING/SYNCED/FAILED`) 저장
   - 향후 retry/admin replay 용 `attempt_count`, `last_error`, `last_*_at` 컬럼 추가
 
-- 파일: [`backend/src/main/resources/db/migration/V2026_04_28_01__drop_runtime_legacy_user_id.sql`](../backend/src/main/resources/db/migration/V2026_04_28_01__drop_runtime_legacy_user_id.sql)
+- 파일: `backend/src/main/resources/db/migration/V2026_04_28_01__drop_runtime_legacy_user_id.sql`
 - 포함 내용:
   - `user_recommendations`, `recommendation_logs`, `notifications`, `chat_sessions`, `service_view_logs` 의 legacy `user_id` 컬럼 제거
   - `user_recommendations` 유니크 키를 `(user_key, service_id, recommended_at)` 기준으로 재구성
   - `recommendation_logs`, `notifications`, `chat_sessions` 의 `user_key NOT NULL` 제약 확정
   - runtime 테이블의 `user_id` 기반 인덱스/FK 제거 후 `user_key` 기반 인덱스만 유지
 
-- 파일: [`backend/src/main/resources/db/migration/V2026_04_27_03__add_user_core_split_tables.sql`](../backend/src/main/resources/db/migration/V2026_04_27_03__add_user_core_split_tables.sql)
+- 파일: `backend/src/main/resources/db/migration/V2026_04_27_03__add_user_core_split_tables.sql`
 - 포함 내용:
   - `auth_users`, `user_profiles` 생성
   - `youth_welfare_pii.user_pii` 생성
@@ -193,45 +193,45 @@ overlap service 는 `17`건이었고, 샘플은 `여성청소년 생리용품 �
   - `auth_users.email_lookup_hash`, `user_profiles.age/age_band/has_*` 파생값 채움
   - `user_pii` 는 migration 시점에는 `phone_enc` 만 backfill하고, 이후 최신 백엔드의 관리자 백필 API로 `email_enc/name_enc/birth_date_enc` 를 채우는 구조
 
-- 파일: [`backend/src/main/resources/db/migration/V2026_04_27_02__add_user_key_columns.sql`](../backend/src/main/resources/db/migration/V2026_04_27_02__add_user_key_columns.sql)
+- 파일: `backend/src/main/resources/db/migration/V2026_04_27_02__add_user_key_columns.sql`
 - 포함 내용:
   - `users.user_key CHAR(32)` 추가 및 기존 사용자 deterministic hash backfill
   - `user_attributes`, `user_priorities`, `user_recommendations`, `recommendation_logs`, `notifications`, `chat_sessions`, `service_view_logs` 에 `user_key` nullable 컬럼 추가
   - 기존 `user_id -> users.user_key` 기준 backfill
   - PII 분리 1단계용 공용 사용자 식별자 호환 경로 준비
 
-- 파일: [`backend/src/main/resources/db/migration/V2026_04_27_01__add_service_region_compound_indexes.sql`](../backend/src/main/resources/db/migration/V2026_04_27_01__add_service_region_compound_indexes.sql)
+- 파일: `backend/src/main/resources/db/migration/V2026_04_27_01__add_service_region_compound_indexes.sql`
 - 포함 내용:
   - `service_regions(service_id, sido_name, sgg_name)` 복합 인덱스 추가
   - `service_regions(service_id, region_code)` 복합 인덱스 추가
   - 지역 검색 `EXISTS` 서브쿼리와 추천 지역 후보 판정 비용 완화
 
-- 파일: [`backend/src/main/resources/db/migration/V2026_04_25_01__add_chat_tables.sql`](../backend/src/main/resources/db/migration/V2026_04_25_01__add_chat_tables.sql)
+- 파일: `backend/src/main/resources/db/migration/V2026_04_25_01__add_chat_tables.sql`
 - 포함 내용:
   - `chat_sessions` 생성
   - `chat_messages` 생성
   - 챗 세션/메시지 기본 인덱스 추가
   - 로그아웃/회원탈퇴 시 `users -> chat_sessions -> chat_messages` cascade delete 준비
 
-- 파일: [`backend/src/main/resources/db/migration/V2026_04_24_01__add_search_youth_relevance.sql`](../backend/src/main/resources/db/migration/V2026_04_24_01__add_search_youth_relevance.sql)
+- 파일: `backend/src/main/resources/db/migration/V2026_04_24_01__add_search_youth_relevance.sql`
 - 포함 내용:
   - `welfare_services.search_youth_relevant` 컬럼 추가
   - `idx_ws_search_youth` 인덱스 추가
   - 검색용 청년 관련성 플래그 기반 SQL 필터 준비
 
-- 파일: [`backend/src/main/resources/db/migration/V2026_04_23_01__add_api_sync_logs.sql`](../backend/src/main/resources/db/migration/V2026_04_23_01__add_api_sync_logs.sql)
+- 파일: `backend/src/main/resources/db/migration/V2026_04_23_01__add_api_sync_logs.sql`
 - 포함 내용:
   - `api_sync_logs` 생성
   - source별 수집 실행 상태와 저장/스킵/필터/실패 건수 기록
 
-- 파일: [`backend/src/main/resources/db/migration/V2026_04_17_01__recent_schema_updates.sql`](../backend/src/main/resources/db/migration/V2026_04_17_01__recent_schema_updates.sql)
+- 파일: `backend/src/main/resources/db/migration/V2026_04_17_01__recent_schema_updates.sql`
 - 포함 내용:
   - `service_view_logs` 생성
   - `notifications`, `notification_services` 생성
   - `notifications.retry_count`, `notifications.next_retry_at` 추가
   - `idx_noti_retry` 인덱스 추가
 
-- 파일: [`backend/src/main/resources/db/migration/V2026_04_18_02__add_raw_api_payloads.sql`](../backend/src/main/resources/db/migration/V2026_04_18_02__add_raw_api_payloads.sql)
+- 파일: `backend/src/main/resources/db/migration/V2026_04_18_02__add_raw_api_payloads.sql`
 - 포함 내용:
   - `raw_api_payloads` 생성
   - 공공 API 목록/상세 원문 payload 보관

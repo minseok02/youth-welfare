@@ -16,6 +16,9 @@
 - DB tables: `recommendation_run_logs`, `notification_attempt_logs`
 - DB read models: `web_push_subscriptions`, `chat_retrieval_snapshots`
 
+app/nginx raw tail sample은 artifact 파일에 쓰기 전에 `smoke_redact_stream_for_log` 를 통과합니다.
+성능/log alert artifact는 정상 publish 전뿐 아니라 exit trap에서도 `smoke_sanitize_artifacts` 를 다시 적용합니다.
+
 ## 운영 dashboard alert 기준
 
 아래 `alert_id`는 운영 dashboard, nightly handoff, smoke artifact에서 같은 기준으로 읽습니다.
@@ -116,7 +119,7 @@ bash deploy/performance/tune-log-alert-thresholds.sh
 4. `bash deploy/smoke/run-local-ops-observation-suite.sh`
 5. `bash deploy/smoke/run-local-notification-backlog-audit.sh`
 6. `bash deploy/smoke/evaluate-operational-alert-thresholds.sh`
-7. `ALERT_WEBHOOK_URL` 을 설정한 서버에서는 `bash deploy/ops/send-log-alert.sh` 로 webhook 전송까지 닫습니다.
+7. `ALERT_WEBHOOK_URL` 을 설정한 서버에서는 `bash deploy/ops/send-log-alert.sh` 로 webhook 전송까지 닫습니다. child baseline output, evaluator stdout, webhook payload는 redaction stream을 거칩니다.
 8. 관리자 API에서 추천 run summary 확인
 9. DB 또는 관리자 API에서 `notification_attempt_logs` 최근 실패 outcome 확인
 10. 원인이 배포/DB migration drift이면 [server-runtime-drift-checklist.md](./server-runtime-drift-checklist.md)를 먼저 적용
@@ -136,10 +139,10 @@ bash deploy/smoke/evaluate-operational-alert-thresholds.sh
 cron 예시:
 
 ```cron
-*/5 * * * * cd /home/ubuntu/youth-welfare && LOG_ALERT_APP_SINCE=10m LOG_ALERT_NGINX_TAIL_LINES=2000 bash deploy/ops/send-log-alert.sh >> /var/log/youth-welfare/ops/log-alert.cron.log 2>&1
+*/5 * * * * APP_ROOT=/path/to/youth-welfare && cd "$APP_ROOT" && LOG_ALERT_APP_SINCE=10m LOG_ALERT_NGINX_TAIL_LINES=2000 bash deploy/ops/send-log-alert.sh >> /var/log/youth-welfare/ops/log-alert.cron.log 2>&1
 ```
 
-`deploy/ops/send-log-alert.sh` 는 `~/.config/youth-welfare/ops.env` 의 `ALERT_WEBHOOK_URL` 을 재사용합니다. URL이 없으면 전송은 건너뛰고 평가 결과와 상태 파일만 남깁니다.
+`deploy/ops/send-log-alert.sh` 는 `~/.config/youth-welfare/ops.env` 의 `ALERT_WEBHOOK_URL` 을 재사용합니다. URL이 없으면 전송은 건너뛰고 평가 결과와 상태 파일만 남깁니다. webhook message는 evaluator output을 `smoke_redact_stream_for_log` 로 redaction한 값만 사용합니다.
 
 webhook 연결 순서:
 

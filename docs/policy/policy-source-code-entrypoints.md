@@ -40,7 +40,7 @@
 
 ### admin entry
 
-- [CollectAdminController.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/controller/CollectAdminController.java)
+- [CollectAdminController.java](../../backend/src/main/java/com/example/welfare/collect/controller/CollectAdminController.java)
 
 여기서 보는 것:
 
@@ -62,8 +62,8 @@
 
 ### scheduled/batch entry
 
-- [CollectBatchService.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectBatchService.java)
-- [CollectSourceExecutionService.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectSourceExecutionService.java)
+- [CollectBatchService.java](../../backend/src/main/java/com/example/welfare/collect/service/CollectBatchService.java)
+- [CollectSourceExecutionService.java](../../backend/src/main/java/com/example/welfare/collect/service/CollectSourceExecutionService.java)
 
 핵심:
 
@@ -78,17 +78,17 @@
 
 핵심 파일:
 
-- [CollectSource.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectSource.java)
-- [CollectSourceAdapter.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectSourceAdapter.java)
-- [AbstractListCollectSourceAdapter.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/AbstractListCollectSourceAdapter.java)
+- [CollectSource.java](../../backend/src/main/java/com/example/welfare/collect/service/CollectSource.java)
+- [CollectSourceAdapter.java](../../backend/src/main/java/com/example/welfare/collect/service/CollectSourceAdapter.java)
+- [AbstractListCollectSourceAdapter.java](../../backend/src/main/java/com/example/welfare/collect/service/AbstractListCollectSourceAdapter.java)
 
 현재 예시 adapter:
 
-- [YouthCollectSourceAdapter.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/YouthCollectSourceAdapter.java)
-- [BokjiroCentralCollectSourceAdapter.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/BokjiroCentralCollectSourceAdapter.java)
-- [BokjiroLocalCollectSourceAdapter.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/BokjiroLocalCollectSourceAdapter.java)
-- [BokjiroDetailCollectSourceAdapter.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/BokjiroDetailCollectSourceAdapter.java)
-- [BokjiroDetailRefreshCollectSourceAdapter.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/BokjiroDetailRefreshCollectSourceAdapter.java)
+- [YouthCollectSourceAdapter.java](../../backend/src/main/java/com/example/welfare/collect/service/YouthCollectSourceAdapter.java)
+- [BokjiroCentralCollectSourceAdapter.java](../../backend/src/main/java/com/example/welfare/collect/service/BokjiroCentralCollectSourceAdapter.java)
+- [BokjiroLocalCollectSourceAdapter.java](../../backend/src/main/java/com/example/welfare/collect/service/BokjiroLocalCollectSourceAdapter.java)
+- [BokjiroDetailCollectSourceAdapter.java](../../backend/src/main/java/com/example/welfare/collect/service/BokjiroDetailCollectSourceAdapter.java)
+- [BokjiroDetailRefreshCollectSourceAdapter.java](../../backend/src/main/java/com/example/welfare/collect/service/BokjiroDetailRefreshCollectSourceAdapter.java)
 
 새 source가 list형 정책 source라면 보통:
 
@@ -103,9 +103,9 @@
 
 핵심 파일:
 
-- [RawApiPayload.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/entity/RawApiPayload.java)
-- [RawApiPayloadRepository.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/repository/RawApiPayloadRepository.java)
-- [RawApiPayloadService.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/RawApiPayloadService.java)
+- [RawApiPayload.java](../../backend/src/main/java/com/example/welfare/collect/entity/RawApiPayload.java)
+- [RawApiPayloadRepository.java](../../backend/src/main/java/com/example/welfare/collect/repository/RawApiPayloadRepository.java)
+- [RawApiPayloadService.java](../../backend/src/main/java/com/example/welfare/collect/service/RawApiPayloadService.java)
 
 의미:
 
@@ -123,8 +123,8 @@
 
 핵심 파일:
 
-- [CollectItemSaver.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectItemSaver.java)
-- [WelfareServiceMapper.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/mapper/WelfareServiceMapper.java)
+- [CollectItemSaver.java](../../backend/src/main/java/com/example/welfare/collect/service/CollectItemSaver.java)
+- [WelfareServiceMapper.java](../../backend/src/main/java/com/example/welfare/collect/mapper/WelfareServiceMapper.java)
 
 의미:
 
@@ -150,10 +150,10 @@
 
 핵심 파일:
 
-- [NormalizedPolicyAggregate.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/normalization/NormalizedPolicyAggregate.java)
-- [NormalizedPolicySidecarWriter.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/normalization/NormalizedPolicySidecarWriter.java)
-- [DeferredNormalizedPolicySidecarWriter.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/normalization/DeferredNormalizedPolicySidecarWriter.java)
-- [NormalizedFactMergeSupport.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/normalization/NormalizedFactMergeSupport.java)
+- [NormalizedPolicyAggregate.java](../../backend/src/main/java/com/example/welfare/collect/normalization/NormalizedPolicyAggregate.java)
+- [NormalizedPolicySidecarWriter.java](../../backend/src/main/java/com/example/welfare/collect/normalization/NormalizedPolicySidecarWriter.java)
+- [DeferredNormalizedPolicySidecarWriter.java](../../backend/src/main/java/com/example/welfare/collect/normalization/DeferredNormalizedPolicySidecarWriter.java)
+- [NormalizedFactMergeSupport.java](../../backend/src/main/java/com/example/welfare/collect/normalization/NormalizedFactMergeSupport.java)
 
 의미:
 
@@ -174,8 +174,8 @@
 
 핵심 파일:
 
-- [BokjiroDetailCollectService.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/BokjiroDetailCollectService.java)
-- [NormalizedPolicySidecarBackfillService.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/normalization/NormalizedPolicySidecarBackfillService.java)
+- [BokjiroDetailCollectService.java](../../backend/src/main/java/com/example/welfare/collect/service/BokjiroDetailCollectService.java)
+- [NormalizedPolicySidecarBackfillService.java](../../backend/src/main/java/com/example/welfare/collect/normalization/NormalizedPolicySidecarBackfillService.java)
 
 의미:
 
@@ -195,10 +195,10 @@
 
 핵심 파일:
 
-- [ApiSyncLog.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/entity/ApiSyncLog.java)
-- [ApiSyncLogStatusConverter.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/entity/converter/ApiSyncLogStatusConverter.java)
-- [ApiSyncLogRepository.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/repository/ApiSyncLogRepository.java)
-- [ApiSyncLogService.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/ApiSyncLogService.java)
+- [ApiSyncLog.java](../../backend/src/main/java/com/example/welfare/collect/entity/ApiSyncLog.java)
+- [ApiSyncLogStatusConverter.java](../../backend/src/main/java/com/example/welfare/collect/entity/converter/ApiSyncLogStatusConverter.java)
+- [ApiSyncLogRepository.java](../../backend/src/main/java/com/example/welfare/collect/repository/ApiSyncLogRepository.java)
+- [ApiSyncLogService.java](../../backend/src/main/java/com/example/welfare/collect/service/ApiSyncLogService.java)
 
 의미:
 
@@ -212,11 +212,11 @@
 
 핵심 파일:
 
-- [CanonicalRecommendationReadModelRepository.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/recommend/repository/CanonicalRecommendationReadModelRepository.java)
-- [RecommendationCandidateProjection.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/recommend/dto/RecommendationCandidateProjection.java)
-- [RetrievalService.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/RetrievalService.java)
-- [RuleScoringService.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/RuleScoringService.java)
-- [DefaultPriorityMatcher.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/DefaultPriorityMatcher.java)
+- [CanonicalRecommendationReadModelRepository.java](../../backend/src/main/java/com/example/welfare/recommend/repository/CanonicalRecommendationReadModelRepository.java)
+- [RecommendationCandidateProjection.java](../../backend/src/main/java/com/example/welfare/recommend/dto/RecommendationCandidateProjection.java)
+- [RetrievalService.java](../../backend/src/main/java/com/example/welfare/recommend/service/RetrievalService.java)
+- [RuleScoringService.java](../../backend/src/main/java/com/example/welfare/recommend/service/RuleScoringService.java)
+- [DefaultPriorityMatcher.java](../../backend/src/main/java/com/example/welfare/recommend/service/DefaultPriorityMatcher.java)
 
 의미:
 
@@ -237,13 +237,13 @@
 정책형 source 기준 추천 순서:
 
 1. [policy-source-onboarding-checklist.md](./policy-source-onboarding-checklist.md)
-2. [CollectSource.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectSource.java)
+2. [CollectSource.java](../../backend/src/main/java/com/example/welfare/collect/service/CollectSource.java)
 3. 기존 adapter 예시 1개
-4. [RawApiPayloadService.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/RawApiPayloadService.java)
-5. [WelfareServiceMapper.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/mapper/WelfareServiceMapper.java)
-6. [CollectItemSaver.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectItemSaver.java)
-7. [DeferredNormalizedPolicySidecarWriter.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/normalization/DeferredNormalizedPolicySidecarWriter.java)
-8. 필요 시 [CanonicalRecommendationReadModelRepository.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/recommend/repository/CanonicalRecommendationReadModelRepository.java)
+4. [RawApiPayloadService.java](../../backend/src/main/java/com/example/welfare/collect/service/RawApiPayloadService.java)
+5. [WelfareServiceMapper.java](../../backend/src/main/java/com/example/welfare/collect/mapper/WelfareServiceMapper.java)
+6. [CollectItemSaver.java](../../backend/src/main/java/com/example/welfare/collect/service/CollectItemSaver.java)
+7. [DeferredNormalizedPolicySidecarWriter.java](../../backend/src/main/java/com/example/welfare/collect/normalization/DeferredNormalizedPolicySidecarWriter.java)
+8. 필요 시 [CanonicalRecommendationReadModelRepository.java](../../backend/src/main/java/com/example/welfare/recommend/repository/CanonicalRecommendationReadModelRepository.java)
 
 listing형이면:
 
@@ -255,8 +255,8 @@ listing형이면:
 
 ## 10. 요약
 
-1. collect 시작점은 [CollectAdminController.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/controller/CollectAdminController.java), [CollectAdminService.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectAdminService.java), [CollectBatchService.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectBatchService.java), [CollectSourceExecutionService.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectSourceExecutionService.java) 입니다.
-2. raw payload 경계는 [RawApiPayloadService.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/RawApiPayloadService.java) 입니다.
-3. `welfare_services` 저장 경계는 [CollectItemSaver.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectItemSaver.java) 입니다.
-4. canonical sidecar 경계는 [DeferredNormalizedPolicySidecarWriter.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/collect/normalization/DeferredNormalizedPolicySidecarWriter.java) 입니다.
-5. recommendation 연결은 [CanonicalRecommendationReadModelRepository.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/recommend/repository/CanonicalRecommendationReadModelRepository.java) 부터 봅니다.
+1. collect 시작점은 [CollectAdminController.java](../../backend/src/main/java/com/example/welfare/collect/controller/CollectAdminController.java), [CollectAdminService.java](../../backend/src/main/java/com/example/welfare/collect/service/CollectAdminService.java), [CollectBatchService.java](../../backend/src/main/java/com/example/welfare/collect/service/CollectBatchService.java), [CollectSourceExecutionService.java](../../backend/src/main/java/com/example/welfare/collect/service/CollectSourceExecutionService.java) 입니다.
+2. raw payload 경계는 [RawApiPayloadService.java](../../backend/src/main/java/com/example/welfare/collect/service/RawApiPayloadService.java) 입니다.
+3. `welfare_services` 저장 경계는 [CollectItemSaver.java](../../backend/src/main/java/com/example/welfare/collect/service/CollectItemSaver.java) 입니다.
+4. canonical sidecar 경계는 [DeferredNormalizedPolicySidecarWriter.java](../../backend/src/main/java/com/example/welfare/collect/normalization/DeferredNormalizedPolicySidecarWriter.java) 입니다.
+5. recommendation 연결은 [CanonicalRecommendationReadModelRepository.java](../../backend/src/main/java/com/example/welfare/recommend/repository/CanonicalRecommendationReadModelRepository.java) 부터 봅니다.

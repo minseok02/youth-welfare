@@ -36,8 +36,8 @@ local DB snapshot 기준 `YOUTH` row 분포:
 
 또 사용자 입력 계약은 이미 `incomeLevel 1~10` 으로 제한돼 있습니다.
 
-- [SignupRequest.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/user/dto/request/SignupRequest.java)
-- [UpdateProfileRequest.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/user/dto/request/UpdateProfileRequest.java)
+- [SignupRequest.java](../../../backend/src/main/java/com/example/welfare/user/dto/request/SignupRequest.java)
+- [UpdateProfileRequest.java](../../../backend/src/main/java/com/example/welfare/user/dto/request/UpdateProfileRequest.java)
 
 따라서 `0/0` 을 “0분위 전용” 으로 해석하면:
 

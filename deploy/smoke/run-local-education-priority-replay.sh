@@ -52,6 +52,7 @@ load_env_file() {
 }
 
 cleanup() {
+  smoke_sanitize_artifacts "${ARTIFACT_DIR}"
   if declare -F stop_app >/dev/null 2>&1; then
     stop_app || true
   fi

@@ -155,7 +155,11 @@ program_count = bucket_counts.get("program_event", 0)
 event_count = bucket_counts.get("event_culture", 0)
 other_count = bucket_counts.get("other", 0)
 
-if benefit_count >= max(announcement_count, program_count, event_count, other_count):
+if active_visible_total == 0:
+    decision_class = "NO_ACTIVE_VISIBLE_LINK_REVIEW_CANDIDATES"
+    operator_reading = "현재 노출되는 YOUTH 링크 공백 후보가 없습니다. 링크 review queue를 새로 열지 않고 관찰만 유지합니다."
+    next_action = "docs/policy/policy-data-quality-triage-runbook.md"
+elif benefit_count >= max(announcement_count, program_count, event_count, other_count):
     decision_class = "BENEFIT_LINK_FIX_PRIORITY"
     operator_reading = "현재 노출되는 링크 공백 YOUTH 후보 중 급부/지원형 정책 비중이 가장 크므로, 단순 source contract 설명보다 실제 CTA 보완 우선순위를 먼저 잡는 편이 맞습니다."
     next_action = "정책 링크 review queue에서 benefit_support bucket부터 확인"

@@ -26,10 +26,10 @@
 현재 기본 해석은 아래와 같습니다.
 
 - `REAL_USER` readiness gate가 deferred면 이 문서를 바로 쓰지 않습니다.
-- `2026-06-10` server/RDS current truth는 `KEEP_OBSERVING` 입니다.
-- 최신 precheck 기준 `real_user_dashboard_gate=DEFERRED_REAL_USER_SAMPLE_THIN`, `real_user_breakdown_cohort_gate=DEFERRED_REAL_USER_SAMPLE_THIN`, `real_user_top1_leader_signal_summary=EXAMPLE_SMOKE_ONLY_LEADER` 입니다.
-- 최신 precheck 기준 real-user 표본은 dashboard/breakdown 모두 `1` 명이라 reopen 근거로 읽지 않습니다.
-- policy promotion도 `KEEP_PRIMARY_BASELINE`, `NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW`, `DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW` 로 읽습니다.
+- latest observation 기준 current truth는 `KEEP_OBSERVING`, `reopen_allowed=false`, `decision_class=OBSERVE_REAL_USER_TRAFFIC` 입니다.
+- 세부 real-user gate와 leader signal 값은 `tmp/recommendation-observation/latest-recommendation-observation-summary.txt` 와 `tmp/recommendation-observation/latest-recommendation-observation.json` 을 우선합니다.
+- 문서화된 최신 전체 기준선은 `2026-06-21` current-priority wrapper artifact `tmp/current-priority-suite/20260621T171607Z` 입니다.
+- policy promotion도 latest precheck/observation artifact가 reopen 가능 상태를 명시하기 전에는 닫힌 것으로 읽습니다.
 - reopen 판단은 gate 확인 뒤에만 들어옵니다.
 
 ## 언제 이 문서를 쓰나
@@ -63,19 +63,14 @@ bash deploy/smoke/run-local-recommendation-reopen-precheck.sh
 
 ## 현재 server/RDS 기준
 
-2026-06-10 최신 precheck 기준:
+현재 active 판정은 latest observation/precheck artifact를 우선합니다.
 
-- `reopen_precheck_status=KEEP_OBSERVING`
-- `reopen_precheck_reason=INVESTIGATE_SAME_PROFILE_EXAMPLE_VS_REAL_USER_DIFFERENTIAL`
-- `gate_action_class=KEEP_BASELINE_MONITORING`
-- `gate_policy_status=PRIMARY_BLOCKER_ONLY`
-- `real_user_dashboard_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
-- `real_user_breakdown_cohort_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
-- `real_user_review_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
-- `real_user_top1_leader_signal_summary=EXAMPLE_SMOKE_ONLY_LEADER`
-- `review_gate_policy_promotion_status=KEEP_PRIMARY_BASELINE`
-- `review_gate_policy_promotion_readiness_status=NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW`
-- `review_gate_policy_promotion_execution_status=DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW`
+- `tmp/recommendation-observation/latest-recommendation-observation-summary.txt`
+- `tmp/recommendation-observation/latest-recommendation-observation.json`
+- `tmp/current-priority-suite/latest-current-priority-summary.txt`
+- `tmp/current-priority-suite/latest-current-priority-summary.json`
+
+문서화된 최신 전체 기준선은 `2026-06-21` current-priority wrapper artifact `tmp/current-priority-suite/20260621T171607Z` 이며, recommendation observation은 `KEEP_OBSERVING`, `reopen_allowed=false`, `decision_class=OBSERVE_REAL_USER_TRAFFIC` 입니다.
 
 이 상태에서는 lane 1/2/3 중 어느 것도 열지 않습니다.
 다음 액션은 real-user sample과 leader signal 관찰 유지입니다.

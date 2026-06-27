@@ -31,7 +31,7 @@ bash deploy/smoke/run-nightly-standard-code-observation.sh
 운영 서버/RDS:
 
 ```bash
-ENV_FILE=.env.production \
+ENV_FILE=.env.runtime.production \
 SMOKE_DB_MODE=postgres \
 APP_BASE_URL='http://127.0.0.1:8082' \
 bash deploy/smoke/run-local-recommendation-observation-suite.sh
@@ -44,10 +44,14 @@ bash deploy/smoke/run-local-recommendation-observation-suite.sh
 - `tmp/recommendation-observation/latest-recommendation-observation-note.md`
 - `tmp/performance/app-log-observability/latest-app-log-observability-summary.txt`
 - `tmp/recommendation-observation/latest/housing-standard-code-effect.out`
+- `tmp/recommendation-observation/latest/housing-effect-artifact/`
 - `tmp/recommendation-observation/latest/welfare-standard-code-matrix.out`
+- `tmp/recommendation-observation/latest/welfare-matrix-artifact/`
 - `tmp/recommendation-observation/latest/recommendation-standard-code-adoption.out`
 
 사람이 먼저 읽을 때는 `note.md`, 자동 파싱이나 handoff 스크립트는 `summary/json` 을 우선합니다.
+child API 응답 JSON이 필요하면 `housing_standard_code_effect_artifact_dir`,
+`welfare_standard_code_matrix_artifact_dir` 값을 따라갑니다.
 
 ## 먼저 볼 값
 
@@ -59,9 +63,11 @@ bash deploy/smoke/run-local-recommendation-observation-suite.sh
 - `recommended_cadence`
 - `next_action`
 - `housing_standard_code_effect_status`
+- `housing_standard_code_effect_artifact_dir`
 - `housing_standard_code_effect_positive_rule_delta_rows`
 - `housing_standard_code_effect_max_rule_delta`
 - `welfare_standard_code_matrix_status`
+- `welfare_standard_code_matrix_artifact_dir`
 - `welfare_standard_code_matrix_positive_rule_scenarios`
 - `welfare_standard_code_matrix_max_rule_delta`
 - `recommendation_standard_code_adoption_status`
@@ -153,16 +159,17 @@ bash deploy/performance/run-local-app-log-observability-baseline.sh
 
 ## 현재 server/RDS 기준
 
-2026-06-10 최신 reopen precheck 기준:
+현재 active 판정은 latest observation artifact를 우선합니다.
 
-- `reopen_precheck_status=KEEP_OBSERVING`
-- `real_user_dashboard_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
-- `real_user_breakdown_cohort_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
-- `real_user_review_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
-- `dashboard_real_user_users_in_window=1`
-- `breakdown_real_user_users_in_window=1`
-- `real_user_top1_leader_signal_summary=EXAMPLE_SMOKE_ONLY_LEADER`
-- `review_gate_policy_promotion_execution_status=DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW`
+- `tmp/recommendation-observation/latest-recommendation-observation-summary.txt`
+- `tmp/recommendation-observation/latest-recommendation-observation.json`
+- `tmp/recommendation-observation/latest-recommendation-observation-note.md`
+
+문서화된 최신 전체 기준선은 `2026-06-21` current-priority wrapper artifact `tmp/current-priority-suite/20260621T171607Z` 입니다. 이 기준선의 recommendation observation은 아래입니다.
+
+- `precheck_status=KEEP_OBSERVING`
+- `reopen_allowed=false`
+- `decision_class=OBSERVE_REAL_USER_TRAFFIC`
 
 따라서 현재 observation 결과는 recommendation reopen이 아니라 관찰 유지로 handoff 합니다.
 
@@ -172,5 +179,6 @@ bash deploy/performance/run-local-app-log-observability-baseline.sh
 `reopen_allowed=true` 가 아니면 기본 해석은 **코드 reopen이 아니라 관찰 유지** 입니다.
 이제 여기에는 `housing standard code effect` 와 `welfare standard code matrix` 도 같이 묶여 있어서,
 주거형태/주택유형뿐 아니라 `기초생활수급권자 / 장애등급` 계열 표준코드 효과도 같은 artifact에서 바로 확인할 수 있습니다.
+다만 이 두 감사는 추천 후보 데이터가 충분해야 의미가 있으므로 기본값은 `auto` 입니다. fresh local DB처럼 `welfare_services` row가 `STANDARD_CODE_EFFECT_MIN_POLICY_ROWS` 미만이면 자동으로 `skipped` 처리하고, 데이터가 충분한 서버/RDS나 seed 환경에서는 실행합니다. 데이터 부족 환경에서도 강제로 확인해야 하면 `RUN_HOUSING_STANDARD_CODE_EFFECT_AUDIT=true` 또는 `RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT=true` 를 명시합니다.
 추가로 `recommendation standard code adoption` audit가 latest batch 기준 `표준코드가 실제로 들어간 추천 사용자 비중`까지 같이 남깁니다.
 nightly wrapper는 여기에 더해 `run-local-recommendation-review-gate-blocker-audit.sh` 를 같이 실행해서, `blocker_class`, `operator_next_step`, `mixed_concentration_readiness`, `real_user_concentration_readiness` 까지 `/var/log/youth-welfare/standard-code-observation/nightly-summary-YYYY-MM-DD.log` 에 남깁니다.

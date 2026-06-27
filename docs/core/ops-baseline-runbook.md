@@ -34,12 +34,20 @@ daily operator가 raw child stdout 대신 compact handoff를 먼저 보려면 �
 bash deploy/smoke/run-local-ops-observation-suite.sh
 ```
 
+로컬 개발 DB에서 admin password를 따로 두지 않았다면 local-only JWT mint를 명시합니다.
+
+```bash
+APP_BASE_URL='http://127.0.0.1:8082' \
+ALLOW_ADMIN_JWT_MINT=true \
+bash deploy/smoke/run-local-ops-observation-suite.sh
+```
+
 프론트 baseline을 같이 읽을 때는 `frontend observation` summary의 `flow_families` 를 먼저 봅니다. 이 값은 공개/검색상세/로그인/보호/세션복구/개인유지/admin/추천챗 같은 큰 축을 요약해서, 어떤 runbook을 먼저 열어야 하는지 바로 알려줍니다.
 
 운영 서버/RDS:
 
 ```bash
-ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-ops-observation-suite.sh
+ENV_FILE=.env.runtime.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-ops-observation-suite.sh
 ```
 
 이 observation wrapper는 아래 두 가지도 같이 돌립니다.
@@ -66,6 +74,8 @@ ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8
 - `recommendation_standard_code_adoption_latest_batch_users_with_any_standard_code_share_pct`
 - `recommendation_standard_code_adoption_latest_batch_users_missing_all_standard_codes`
 
+`housing_standard_code_effect` 와 `welfare_standard_code_matrix` 는 데이터 의존 감사입니다. 기본값은 `auto` 이며, fresh local DB처럼 `welfare_services` row가 `STANDARD_CODE_EFFECT_MIN_POLICY_ROWS` 미만이면 `skipped` 로 남기고 wrapper 자체는 계속 진행합니다. 운영/RDS 또는 충분한 seed DB에서 강제 검증할 때만 `RUN_HOUSING_STANDARD_CODE_EFFECT_AUDIT=true`, `RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT=true` 를 명시합니다.
+
 `standard-code-backlog` attention item은 단순 미입력 잔량이면 `info` 로 읽고,
 `safe_reconcile_candidate_rows > 0` 또는 `conflicting_value_gap_rows > 0` 일 때만 운영자가 바로 처리할 `warning` 으로 봅니다.
 전체 미입력 잔량은 smoke 계정으로 크게 부풀 수 있으므로, 운영 판단은 `user_profile_standard_code_non_example_users_missing_all_standard_codes` 를 같이 봅니다.
@@ -76,7 +86,7 @@ wrapper promoted alert의 current-priority 비교는 비교 대상 metric이 현
 nightly server wrapper가 필요하면 아래를 씁니다.
 
 ```bash
-ENV_FILE=.env.production \
+ENV_FILE=.env.runtime.production \
 SMOKE_DB_MODE=postgres \
 APP_BASE_URL='http://127.0.0.1:8082' \
 FRONTEND_E2E_MODE=deployed-origin \
@@ -87,7 +97,7 @@ bash deploy/smoke/run-nightly-standard-code-observation.sh
 여러 nightly handoff를 cron 한 줄로 묶을 때는 아래 wrapper를 씁니다.
 
 ```bash
-ENV_FILE=.env.production \
+ENV_FILE=.env.runtime.production \
 SMOKE_DB_MODE=postgres \
 APP_BASE_URL='http://127.0.0.1:8082' \
 FRONTEND_E2E_MODE=deployed-origin \

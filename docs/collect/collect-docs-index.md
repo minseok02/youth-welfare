@@ -85,10 +85,12 @@
 
 - `api_sync_logs`
 - `raw_api_payloads`
+- `welfare_services` / `welfare_service_details`
+- canonical sidecar
 - `collect_runtime_statuses`
 - `collect_execution_locks`
 
-를 외부 API 재호출 없이 compact하게 읽고, `NO_COLLECT_HISTORY`와 실제 실패를 분리하는 post-run smoke entrypoint입니다.
+를 외부 API 재호출 없이 compact하게 읽고, `NO_COLLECT_HISTORY`, 저장/sidecar/detail-support coverage mismatch, 실제 실패를 분리하는 post-run smoke entrypoint입니다.
 
 ### 5. daily governance observation
 

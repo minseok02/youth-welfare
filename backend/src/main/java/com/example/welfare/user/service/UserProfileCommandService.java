@@ -59,6 +59,10 @@ public class UserProfileCommandService {
         String effectiveHousingTypeCode = request.getHousingTypeCode() != null
                 ? request.getHousingTypeCode()
                 : user.getHousingTypeCode();
+        effectiveHousingTypeCode = UserProfileStandardCodeValidator.normalizeHousingTypeCode(
+                effectiveHouseTenureCode,
+                effectiveHousingTypeCode
+        );
         String effectiveBasicLivingRecipientTypeCode = request.getBasicLivingRecipientTypeCode() != null
                 ? request.getBasicLivingRecipientTypeCode()
                 : user.getBasicLivingRecipientTypeCode();

@@ -32,28 +32,17 @@
 
 ## 현재 판단
 
-`2026-06-10` 서버/RDS 기준 recommendation 트랙의 현재 상태는 **KEEP_OBSERVING / reopen 금지** 입니다.
+현재 recommendation 트랙의 active 상태는 **KEEP_OBSERVING / reopen 금지** 입니다.
 
-현재 운영 source of truth는 `run-local-recommendation-reopen-precheck.sh`, `run-local-recommendation-observation-suite.sh`, admin dashboard summary/breakdowns 를 같이 읽습니다. 최신 server/RDS precheck 기준 결론은 아래입니다.
+현재 운영 source of truth는 `run-local-recommendation-observation-suite.sh` 의 latest summary/json/note 입니다. 필요하면 `run-local-recommendation-reopen-precheck.sh` 와 admin dashboard summary/breakdowns 를 같이 읽습니다. 최신 active entrypoint는 아래 artifact입니다.
 
-- `recommendation_reopen_precheck=passed`
-- `reopen_precheck_status=KEEP_OBSERVING`
-- `reopen_precheck_reason=INVESTIGATE_SAME_PROFILE_EXAMPLE_VS_REAL_USER_DIFFERENTIAL`
-- `gate_action_class=KEEP_BASELINE_MONITORING`
-- `gate_policy_status=PRIMARY_BLOCKER_ONLY`
-- `real_user_dashboard_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
-- `real_user_breakdown_cohort_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
-- `real_user_review_gate=DEFERRED_REAL_USER_SAMPLE_THIN`
-- `dashboard_real_user_users_in_window=1`
-- `breakdown_real_user_users_in_window=1`
-- `real_user_top1_leader_signal_summary=EXAMPLE_SMOKE_ONLY_LEADER`
-- `mixed_top1_leader_service_id=3651`
-- `mixed_top1_leader_title=청년 웰컴페이(이사비) 지원사업`
-- `mixed_top1_leader_share_pct=42.91`
-- `mixed_top1_leader_real_user_users=0`
-- `review_gate_policy_promotion_status=KEEP_PRIMARY_BASELINE`
-- `review_gate_policy_promotion_readiness_status=NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW`
-- `review_gate_policy_promotion_execution_status=DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW`
+- `tmp/recommendation-observation/latest-recommendation-observation-summary.txt`
+- `tmp/recommendation-observation/latest-recommendation-observation.json`
+- `tmp/recommendation-observation/latest-recommendation-observation-note.md`
+- `tmp/current-priority-suite/latest-current-priority-summary.txt`
+- `tmp/current-priority-suite/latest-current-priority-summary.json`
+
+문서화된 최신 전체 기준선은 `2026-06-21` current-priority wrapper artifact `tmp/current-priority-suite/20260621T171607Z` 입니다. 이 기준선의 recommendation observation은 `KEEP_OBSERVING`, `reopen_allowed=false`, `decision_class=OBSERVE_REAL_USER_TRAFFIC` 입니다.
 
 따라서 지금은 local/Gov24 signal, global weight, prompt, source/category balancing 을 다시 열지 않습니다.
 `REAL_USER` 표본이 최소 기준을 채우고 top1 leader가 example/smoke 중심에서 벗어날 때만 reopen decision 문서로 넘어갑니다.
@@ -62,20 +51,20 @@
 
 `2026-06-17` 재확인 기준도 동일합니다. endpoint smoke와 관리자 계정 직접 호출은 모두 `200/success=true` 이고 결과는 `0`건입니다. 운영 표본은 `active_real_users=2`, `recent_view_users_window=2`, `recent_policy_view_rows_30d=26`, `candidate_policy_groups_before_exclusions=22`, `result_policy_groups=0`, `decision_class=REAL_USER_SAMPLE_THIN` 입니다. 현재 구현은 북마크/클릭 "선호"가 아니라 비슷한 `REAL_USER` 의 최근 조회 기반이며, 프론트 `MainPage` 에는 아직 이 API를 노출하는 레일이 연결되어 있지 않습니다.
 
-주의할 점은 아래쪽에 남아 있는 `2026-06-01` 및 이전 local closeout 기록입니다.
-그 기록은 당시 snapshot/historical context 로 읽고, active 운영 판단은 위 `2026-06-10` server/RDS 기준을 우선합니다.
+주의할 점은 아래쪽에 남아 있는 `2026-06-10`, `2026-06-01` 및 이전 closeout 기록입니다.
+그 기록은 당시 snapshot/historical context 로 읽고, active 운영 판단은 latest observation artifact와 위 `2026-06-21` current-priority 기준선을 우선합니다.
 
 daily operator entrypoint는 [recommendation-observation-runbook.md](./recommendation-observation-runbook.md) 와 `bash deploy/smoke/run-local-recommendation-observation-suite.sh` 입니다. observation suite는 `summary/json` 외에 `latest-recommendation-observation-note.md` 도 남겨, 현재 reopen 가능 여부와 다음 행동을 사람 말로 바로 handoff 할 수 있습니다.
 표준코드 입력 유도 UX 확장, adoption audit, nightly wrapper까지 포함한 최근 closeout 요약은 [recommendation-standard-code-coverage-and-observation-closeout.md](./recommendation-standard-code-coverage-and-observation-closeout.md) 에 따로 묶어 둡니다.
 지역이 다른 정책이 추천된다는 제보를 다룰 때는 먼저 [recommendation-region-mismatch-repair-runbook.md](./recommendation-region-mismatch-repair-runbook.md) 로 current query bug와 stale saved batch를 구분합니다. 현재 closeout 기준 남은 mismatch는 사실상 old `GOV24` saved batch 잔량으로 읽고, 대응은 `audit -> bounded refresh repair -> re-audit` 순서로 고정합니다.
 `2026-06-03` 최신 latest-window / blocker audit 기준으로는 남은 recommendation 품질 이슈가 region mismatch보다 **`NO_PRIORITY` 사용자군에서 특정 지자체 정책이 상단을 반복 점유하는 현상** 쪽입니다. mixed latest batch는 `top1_leader=3284(인천 청년도약기지)`, `share=42.47%` 였고, real-user-only latest batch도 `top1_leader=3254(인천 중구 청년 자격시험 응시료 지원사업)`, `share=10.00%`, `real_user_concentration_readiness=NO_PRIORITY_DOMINANT` 로 읽혔습니다. 즉 current query bug보다 **우선순위 입력/유도**가 다음 제품 체감 개선 포인트입니다.
 이 판단을 더 직접 확인할 때는 [recommendation-no-priority-gap-audit-runbook.md](./recommendation-no-priority-gap-audit-runbook.md) 를 먼저 씁니다. 이 wrapper는 `NO_PRIORITY` top1 과 `HAS_PRIORITY` top1, priority profile top1 을 한 번에 묶어 보여 주므로, “코드 재튜닝”보다 “우선순위 입력 유도”가 맞는지 빠르게 가를 수 있습니다.
-같은 맥락에서 `우선순위를 줬는데도 낮은 우선순위 카테고리가 계속 top1을 먹는가` 는 [run-local-recommendation-priority-category-mismatch-audit.sh](/home/ubuntu/youth-welfare/deploy/smoke/run-local-recommendation-priority-category-mismatch-audit.sh:1) 로 다시 본다. 현재 latest 기준 단일 `HOUSING/FINANCE/FAMILY` 는 mismatch `0%` 이고, 문제는 거의 `EDUCATION` 축에만 몰려 있다. 실제 latest 집계는 `EDUCATION users=47, matched=9, mismatched=38, mismatch_pct=80.85` 이고, top1은 `광주시 청년지원센터 더누림 플랫폼 창업누림운영(일자리)` `30명`, `청년 어학·자격시험 응시료 지원사업(금융·생활지원)` `4명`, `드림나래(인천청년 면접복장 지원)(기타)` `4명` 순으로 나타난다. 즉 현재 priority/category 정렬 약화 문제는 전반적이라기보다 **교육 1순위 사용자군에서만 강하게 보이는 bounded mismatch** 로 읽는 편이 맞다.
+같은 맥락에서 `우선순위를 줬는데도 낮은 우선순위 카테고리가 계속 top1을 먹는가` 는 [run-local-recommendation-priority-category-mismatch-audit.sh](../../deploy/smoke/run-local-recommendation-priority-category-mismatch-audit.sh) 로 다시 본다. 현재 latest 기준 단일 `HOUSING/FINANCE/FAMILY` 는 mismatch `0%` 이고, 문제는 거의 `EDUCATION` 축에만 몰려 있다. 실제 latest 집계는 `EDUCATION users=47, matched=9, mismatched=38, mismatch_pct=80.85` 이고, top1은 `광주시 청년지원센터 더누림 플랫폼 창업누림운영(일자리)` `30명`, `청년 어학·자격시험 응시료 지원사업(금융·생활지원)` `4명`, `드림나래(인천청년 면접복장 지원)(기타)` `4명` 순으로 나타난다. 즉 현재 priority/category 정렬 약화 문제는 전반적이라기보다 **교육 1순위 사용자군에서만 강하게 보이는 bounded mismatch** 로 읽는 편이 맞다.
 이때 기존 `recommend.priority.education-canonical-bonus.enabled` narrow experiment가 이 mismatch를 바로 해결해 주는지는 separate check가 필요하다. 현재 local `run-local-education-priority-replay.sh` 재측정 기준 sample A/B 모두 `off == on` 이었고(`A_top10_target=7->7`, `B_top10_target=0->0`), `A/B_best_target_rank` 도 변화가 없었다. 즉 현 시점 결론은 “교육 mismatch가 있으니 일단 flag를 켜면 된다”가 아니라, **현재 mismatch는 bonus toggle보다 candidate/policy signal 쏠림 문제일 가능성이 더 크다** 쪽이다.
-이 원인을 한 단계 더 좁힐 때는 [run-local-recommendation-education-priority-gap-audit.sh](/home/ubuntu/youth-welfare/deploy/smoke/run-local-recommendation-education-priority-gap-audit.sh:1) 를 쓴다. 현재 latest 기준으로는 `일자리` top1 `30명` 중 `26명`이 실제로 교육 카테고리 경쟁 후보를 같이 가지고 있었고, 그 경우 평균 final gap은 `0.1387` 이다. 반대로 `금융·생활지원` top1 `4명` 중 `3명`은 latest saved batch 안에 교육 카테고리 후보 자체가 없었다. 즉 교육 1순위 mismatch는 “교육 bonus가 전역적으로 약하다”보다 **일자리 신호 우위 + 금융/기타에서의 교육 후보 부재** 가 섞인 bounded 현상으로 보는 편이 더 정확하다.
-서비스 단위 신호까지 다시 볼 때는 [run-local-recommendation-education-priority-signal-audit.sh](/home/ubuntu/youth-welfare/deploy/smoke/run-local-recommendation-education-priority-signal-audit.sh:1) 를 쓴다. 현재 mismatch winner는 사실상 세 서비스로 수렴한다. `광주시 청년지원센터 더누림 플랫폼 창업누림운영` 은 `GOV24_SERVICE_FIELD=고용·창업`, `GOV24_BENEFIT_TYPE=기타(교육)` 조합의 `일자리` winner이고, `청년 어학·자격시험 응시료 지원사업` 은 `교육||일자리||서민금융` mixed `INTEREST_THEME` 를 가진 `금융·생활지원` winner이며 `education_fact_count=0` 이다. `드림나래(인천청년 면접복장 지원)` 는 `기타` winner인데 구조화 신호는 사실상 `LIFE_STAGE=청년` 정도만 남는다. 즉 현재 `EDUCATION` mismatch는 “교육 category 전체가 안 먹는다”가 아니라 **특정 `JOB/FINANCE/OTHER` winner 서비스의 구조화 신호 프로필이 교육 후보를 덮는 bounded 케이스** 로 읽는 편이 맞다.
+이 원인을 한 단계 더 좁힐 때는 [run-local-recommendation-education-priority-gap-audit.sh](../../deploy/smoke/run-local-recommendation-education-priority-gap-audit.sh) 를 쓴다. 현재 latest 기준으로는 `일자리` top1 `30명` 중 `26명`이 실제로 교육 카테고리 경쟁 후보를 같이 가지고 있었고, 그 경우 평균 final gap은 `0.1387` 이다. 반대로 `금융·생활지원` top1 `4명` 중 `3명`은 latest saved batch 안에 교육 카테고리 후보 자체가 없었다. 즉 교육 1순위 mismatch는 “교육 bonus가 전역적으로 약하다”보다 **일자리 신호 우위 + 금융/기타에서의 교육 후보 부재** 가 섞인 bounded 현상으로 보는 편이 더 정확하다.
+서비스 단위 신호까지 다시 볼 때는 [run-local-recommendation-education-priority-signal-audit.sh](../../deploy/smoke/run-local-recommendation-education-priority-signal-audit.sh) 를 쓴다. 현재 mismatch winner는 사실상 세 서비스로 수렴한다. `광주시 청년지원센터 더누림 플랫폼 창업누림운영` 은 `GOV24_SERVICE_FIELD=고용·창업`, `GOV24_BENEFIT_TYPE=기타(교육)` 조합의 `일자리` winner이고, `청년 어학·자격시험 응시료 지원사업` 은 `교육||일자리||서민금융` mixed `INTEREST_THEME` 를 가진 `금융·생활지원` winner이며 `education_fact_count=0` 이다. `드림나래(인천청년 면접복장 지원)` 는 `기타` winner인데 구조화 신호는 사실상 `LIFE_STAGE=청년` 정도만 남는다. 즉 현재 `EDUCATION` mismatch는 “교육 category 전체가 안 먹는다”가 아니라 **특정 `JOB/FINANCE/OTHER` winner 서비스의 구조화 신호 프로필이 교육 후보를 덮는 bounded 케이스** 로 읽는 편이 맞다.
 
-이 중 `Gov24` 혼합 taxonomy는 matcher 경계도 다시 좁혔다. 현재 [DefaultPriorityMatcher.java](/home/ubuntu/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/DefaultPriorityMatcher.java:1)는 `serviceField` 상위 분류와 `benefitType` bucket이 충돌할 때 `benefitType` 만으로 hard priority match를 열지 않는다. 예를 들어 `serviceField=고용·창업` + `benefitType=기타(교육)` 인 `12595 광주시 청년지원센터 더누림 플랫폼 창업누림운영` 은 더 이상 `EDUCATION` hard match를 열지 않는다. local `run-local-gov24-signal-suite.sh` 재측정 기준 `education` scenario는 `top2_source_distribution=BOKJIRO_LOCAL:2`, `gov24_top2_rows=0` 으로 바뀌었고, 해당 서비스는 `rank1 -> rank5` 로 내려갔다. 즉 `Gov24 benefitType` 는 soft bonus 신호로는 남기되, 상위 분류와 충돌하는 경우 category priority hard condition은 열지 않는 게 현재 경계다.
+이 중 `Gov24` 혼합 taxonomy는 matcher 경계도 다시 좁혔다. 현재 [DefaultPriorityMatcher.java](../../backend/src/main/java/com/example/welfare/recommend/service/DefaultPriorityMatcher.java)는 `serviceField` 상위 분류와 `benefitType` bucket이 충돌할 때 `benefitType` 만으로 hard priority match를 열지 않는다. 예를 들어 `serviceField=고용·창업` + `benefitType=기타(교육)` 인 `12595 광주시 청년지원센터 더누림 플랫폼 창업누림운영` 은 더 이상 `EDUCATION` hard match를 열지 않는다. local `run-local-gov24-signal-suite.sh` 재측정 기준 `education` scenario는 `top2_source_distribution=BOKJIRO_LOCAL:2`, `gov24_top2_rows=0` 으로 바뀌었고, 해당 서비스는 `rank1 -> rank5` 로 내려갔다. 즉 `Gov24 benefitType` 는 soft bonus 신호로는 남기되, 상위 분류와 충돌하는 경우 category priority hard condition은 열지 않는 게 현재 경계다.
 `2026-06-03` 추천 메모 점검에서는 “메모 문구가 이상하다”는 제보가 실제로 **blank `aiReason` + generic fallback** 문제와 연결되는지 다시 확인했습니다. 현재 real-user latest batch 기준 `top5` 추천 `400`건 중 `181`건, `top20` 추천 `1597`건 중 `1197`건이 blank memo 상태였고, 이 blank는 대부분 `SCORED` 실패가 아니라 `ai_status=NOT_REQUESTED` 였습니다. 즉 메모 문제가 곧바로 OpenAI reason 품질 문제라기보다, **상단 노출 카드에 AI 미요청 후보가 많이 섞이고 UI는 이를 같은 fallback 문구로 보여 주는 구조**에 더 가깝습니다. 이 때문에 `RealtimeAiGateway` 의 `recommend.ai.top-n` 을 설정 가능하게 열고 기본값을 `12` 로 올렸습니다. immediate UI 쪽은 `MainPage` fallback 메모를 `출처 반복` 대신 `세부분야/제공방식/지원유형/서비스분야` 기반 문구로 바꿔 체감 문제를 먼저 줄였습니다. 이후 더 큰 후속은 “문구”보다 **상단 카드에서 `NOT_REQUESTED` 비중을 얼마나 줄일지** 를 기준으로 읽는 편이 맞습니다.
 `2026-06-03` 후속 recommendation 품질 보정에서는 `NO_PRIORITY` 사용자에게 **청년 직접신호가 없는 age-overlap 정책이 explicit youth 정책과 거의 같은 rule score를 받는 경계**를 좁혔습니다. 핵심 수정은 두 가지입니다. 첫째, `RecommendationProjectionHeuristicSupport` 의 `explicit youth signal` 판정에서 `lifeStages` 를 제외해, 단지 `lifeStage=청년` 이라는 이유만으로 `+15 explicit youth` 를 받지 않게 했습니다. 이제 title/summary/target/raw/keyword 같은 직접 텍스트 신호만 explicit으로 보고, `lifeStages` 는 별도 `focused life stage +8` 로만 남습니다. 둘째, `RuleScoringService` 에서 `NO_PRIORITY` 사용자에 한해 `explicit youth` 정책은 `+5`, `focused life stage` 정책은 `+2`, 반대로 `audienceRelevanceBonus <= 3` 인 **age-only youthRelevant** 정책은 `-5` bounded penalty를 주도록 바꿨습니다. 같은 울산 23세 샘플을 `personal=true` fresh refresh로 다시 재측정한 결과, 저장 추천 top15는 `울주군 청년 면접비 지원사업(rank 5)`, `울산광역시 청년가구 주거비 지원사업(rank 6)`, `청년면접정장 대여 사업(rank 8)` 처럼 청년 직접신호 local 후보가 상단으로 올라오고, 기존에 retrieval 상단에 보이던 `저소득 중증장애인 장애수당 추가 지원(3903)` 은 fresh saved batch에서 `finalScore=0.336` 까지 내려갔습니다. 즉 retrieval window 전체는 여전히 broad local 후보가 많이 남아 있지만, **실제 user-facing saved recommendation은 explicit youth 정책을 더 우선하는 쪽으로 재정렬된 상태**로 보는 편이 맞습니다.
 
@@ -116,7 +105,7 @@ daily operator entrypoint는 [recommendation-observation-runbook.md](./recommend
 
 ## 다시 열 조건
 
-reopen gate 자체는 `2026-06-10` 기준 닫혀 있습니다. 지금 immediate next 는 특정 정책 family 랭킹 보정이 아닙니다. 특정 family 승격 판단은 real-user sample과 leader signal이 다시 열릴 때만 봅니다.
+reopen gate 자체는 최신 observation 기준 닫혀 있습니다. 지금 immediate next 는 특정 정책 family 랭킹 보정이 아닙니다. 특정 family 승격 판단은 real-user sample과 leader signal이 다시 열릴 때만 봅니다.
 
 1. 운영 `REAL_USER` 기준으로 새로운 rank mismatch, click mismatch, cache mismatch, diagnostics mismatch 같은 **재현 가능한 버그** 가 다시 보일 때
 2. 운영 지표상 local 청년 정책 노출이 제품 기대보다 약하다는 **명시적 제품 목표** 가 생길 때
@@ -264,7 +253,7 @@ reopen gate 자체는 `2026-06-10` 기준 닫혀 있습니다. 지금 immediate 
 
 수동 정합보다 편한 경로가 필요하면 `AUTO_REFRESH_STATUS_JSON_IF_STALE=true` 로 `latest-status`, `latest-gate` 를 실행할 수 있습니다. 이 경우 stale JSON이면 `latest-status-export` 를 먼저 다시 태운 뒤 fresh latest JSON 기준으로 값을 읽습니다.
 
-daily operator entrypoint로는 `run-local-recommendation-observation-suite.sh` 를 먼저 쓰고, 세부 해석이 필요할 때 `run-local-recommendation-ai-exclusion-latest-overview.sh` 를 여는 편이 맞습니다. observation suite는 reopen precheck를 감싸 current action을 compact summary로 고정합니다. `2026-06-10` 기준 current priority 는 `KEEP_OBSERVING` 이며, `DEFERRED_REAL_USER_SAMPLE_THIN` 과 `EXAMPLE_SMOKE_ONLY_LEADER` 가 같이 남아 있으므로 recommendation 로직을 수정하지 않습니다. latest overview는 latest export를 먼저 갱신한 뒤 `latest-status`, 기본 `latest-gate`, strict `latest-gate` 를 순서대로 보여 주므로, 더 깊은 상태와 다음 행동을 한 번에 다시 읽을 수 있습니다.
+daily operator entrypoint로는 `run-local-recommendation-observation-suite.sh` 를 먼저 쓰고, 세부 해석이 필요할 때 `run-local-recommendation-ai-exclusion-latest-overview.sh` 를 여는 편이 맞습니다. observation suite는 reopen precheck를 감싸 current action을 compact summary로 고정합니다. latest 기준 current priority 는 `KEEP_OBSERVING`, `reopen_allowed=false`, `decision_class=OBSERVE_REAL_USER_TRAFFIC` 이므로 recommendation 로직을 수정하지 않습니다. latest overview는 latest export를 먼저 갱신한 뒤 `latest-status`, 기본 `latest-gate`, strict `latest-gate` 를 순서대로 보여 주므로, 더 깊은 상태와 다음 행동을 한 번에 다시 읽을 수 있습니다.
 
 이 overview wrapper는 이제 `tmp/recommendation-ai-exclusion-latest-overview/<ts>/latest-overview-summary.txt`, `latest-overview-note.md`, `latest-overview.json` 과 `latest` symlink도 같이 남깁니다. 즉 daily 확인 뒤에는 stdout만 보지 않고 compact summary, 사람용 note, machine-readable JSON 중 필요한 artifact를 바로 handoff 기준으로 써도 됩니다. 같은 artifact에는 `review_gate_context` 도 포함돼, full latest batch primary gate(`MIXED_BATCH_NON_REAL_DOMINANCE_WITH_NO_REAL_USER_PATH`)와 recent-window supplemental reading(`RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`), 그리고 `historical_example_dominance_detected=true` 까지 한 번에 같이 읽을 수 있습니다.
 

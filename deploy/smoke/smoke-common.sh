@@ -390,7 +390,7 @@ PY
   )"
   if [[ "${login_status}" != "200" ]]; then
     echo "admin smoke login failed: expected 200, got ${login_status}" >&2
-    cat "${login_response}" >&2
+    smoke_print_redacted_file_for_log "${login_response}"
     rm -rf "${login_dir}"
     return 1
   fi
@@ -485,13 +485,103 @@ smoke_update_links() {
     exit 1
   fi
 
-  local target link
+  local target link link_dir target_path target_dir target_base
   while (( $# > 0 )); do
     target="$1"
     link="$2"
-    ln -sfn "${target}" "${link}"
+    link_dir="$(dirname -- "${link}")"
+    smoke_secure_mkdir "${link_dir}"
+
+    target_path="${target}"
+    if [[ "${target}" != /* && ( -e "${target}" || -L "${target}" ) ]]; then
+      target_dir="$(dirname -- "${target}")"
+      target_base="$(basename -- "${target}")"
+      target_path="$(cd "${target_dir}" && pwd -P)/${target_base}"
+    fi
+
+    ln -sfn "${target_path}" "${link}"
     shift 2
   done
+}
+
+smoke_secure_mkdir() {
+  local dir="$1"
+
+  mkdir -p "${dir}"
+  case "${dir}" in
+    ""|"."|"/") return 0 ;;
+  esac
+  chmod 700 "${dir}" 2>/dev/null || true
+}
+
+smoke_restrict_artifact_permissions() {
+  local artifact_dir="$1"
+
+  [[ -d "${artifact_dir}" ]] || return 0
+  case "${artifact_dir}" in
+    ""|"."|"/") return 0 ;;
+  esac
+
+  chmod 700 "${artifact_dir}" 2>/dev/null || true
+  find "${artifact_dir}" -type d -exec chmod 700 {} + 2>/dev/null || true
+  find "${artifact_dir}" -type f -exec chmod 600 {} + 2>/dev/null || true
+}
+
+smoke_redact_stream_for_log() {
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c "$(cat <<'PY'
+import re
+import sys
+
+literal_patterns = [
+    (re.compile(r"eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}"), "<redacted-jwt>"),
+    (re.compile(r"(?i)(Bearer\s+)[A-Za-z0-9._~+/=-]+"), r"\1<redacted>"),
+    (re.compile(r"(?i)\b(Set-Cookie:\s*)[^\r\n]+"), r"\1<redacted>"),
+    (re.compile(r"(?i)\b(Cookie:\s*)[^\r\n]+"), r"\1<redacted>"),
+    (re.compile(r"(?i)\b((?:jdbc:)?(?:postgresql|postgres|mysql)://)[^/@\s:]+:[^/@\s]+@"), r"\1<redacted>@"),
+    (re.compile(r"(?i)([?&;](?:password|sslpassword|token|access_token|refresh_token|api_key|apikey|client_secret|secret|key|authorization_code|verification_code|reset_code|code)=)[^&;\s]*"), r"\1<redacted>"),
+    (re.compile(r"(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b"), "<redacted-email>"),
+]
+
+json_key_pattern = re.compile(
+    r'("(?i:accessToken|refreshToken|idToken|token|password|authorization|cookie|setCookie|jwtSecret|jwt_secret|apiKey|api_key|clientSecret|client_secret|secret|email|userKey)"\s*:\s*)"[^"]*"'
+)
+
+kv_pattern = re.compile(
+    r"(?im)^(\s*(?:access_token|refresh_token|admin_access_token|jwt_secret|api_key|client_secret|secret|password|authorization|cookie|set_cookie|email|user_key|userKey|targetUserKey)\s*[=:]\s*).*$"
+)
+
+env_key_pattern = re.compile(
+    r"(?im)^(\s*(?:export\s+)?(?:[A-Z0-9_]*(?:PASSWORD|SECRET|TOKEN|API_KEY|CLIENT_SECRET)[A-Z0-9_]*|AUTHORIZATION|COOKIE|SET_COOKIE|EMAIL|USER_KEY|TARGET_USER_KEY)\s*=\s*).*$"
+)
+
+def redact(text: str) -> str:
+    redacted = json_key_pattern.sub(r'\1"<redacted>"', text)
+    redacted = kv_pattern.sub(r"\1<redacted>", redacted)
+    redacted = env_key_pattern.sub(r"\1<redacted>", redacted)
+    for pattern, replacement in literal_patterns:
+        redacted = pattern.sub(replacement, redacted)
+    return redacted
+
+for line in sys.stdin:
+    sys.stdout.write(redact(line))
+PY
+)"
+    return $?
+  fi
+
+  sed -E \
+    -e 's#(Bearer[[:space:]]+)[A-Za-z0-9._~+/=-]+#\1<redacted>#Ig' \
+    -e 's#((jdbc:)?(postgresql|postgres|mysql)://)[^/@[:space:]:]+:[^/@[:space:]]+@#\1<redacted>@#Ig' \
+    -e 's#([?&;](password|sslpassword|token|access_token|refresh_token|api_key|apikey|client_secret|secret|key|authorization_code|verification_code|reset_code|code)=)[^&;[:space:]]*#\1<redacted>#Ig' \
+    -e 's#^([[:space:]]*(export[[:space:]]+)?[A-Z0-9_]*(PASSWORD|SECRET|TOKEN|API_KEY|CLIENT_SECRET)[A-Z0-9_]*[[:space:]]*=[[:space:]]*).*$#\1<redacted>#Ig'
+}
+
+smoke_print_redacted_file_for_log() {
+  local file_path="$1"
+
+  [[ -f "${file_path}" ]] || return 0
+  smoke_redact_stream_for_log < "${file_path}" >&2
 }
 
 smoke_publish_file() {
@@ -500,8 +590,8 @@ smoke_publish_file() {
   local dest_dir
 
   dest_dir="$(dirname "${dest_file}")"
-  mkdir -p "${dest_dir}"
-  cp "${source_file}" "${dest_file}"
+  smoke_secure_mkdir "${dest_dir}"
+  install -m 600 "${source_file}" "${dest_file}"
 }
 
 smoke_publish_dir_snapshot() {
@@ -510,13 +600,92 @@ smoke_publish_dir_snapshot() {
   local dest_parent tmp_dir
 
   dest_parent="$(dirname "${dest_dir}")"
-  mkdir -p "${dest_parent}"
+  smoke_secure_mkdir "${dest_parent}"
+  smoke_restrict_artifact_permissions "${source_dir}"
   tmp_dir="${dest_dir}.tmp.$$"
   rm -rf "${tmp_dir}"
-  mkdir -p "${tmp_dir}"
+  smoke_secure_mkdir "${tmp_dir}"
   cp -a "${source_dir}/." "${tmp_dir}/"
+  smoke_restrict_artifact_permissions "${tmp_dir}"
   rm -rf "${dest_dir}"
   mv "${tmp_dir}" "${dest_dir}"
+  smoke_restrict_artifact_permissions "${dest_dir}"
+}
+
+smoke_sanitize_artifacts() {
+  local artifact_dir="$1"
+
+  [[ -d "${artifact_dir}" ]] || return 0
+
+  find "${artifact_dir}" -type f \( \
+    -name '*.cookie' -o \
+    -name '*cookie*' -o \
+    -name '*cookies*' \
+  \) -delete 2>/dev/null || true
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    smoke_restrict_artifact_permissions "${artifact_dir}"
+    return 0
+  fi
+
+  python3 - "${artifact_dir}" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+root = Path(sys.argv[1])
+
+literal_patterns = [
+    # JWT-shaped access tokens.
+    (re.compile(r"eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}"), "<redacted-jwt>"),
+    # Authorization headers in stdout/stderr artifacts.
+    (re.compile(r"(?i)(Bearer\s+)[A-Za-z0-9._~+/=-]+"), r"\1<redacted>"),
+    # HTTP cookie headers and JDBC/SQL URLs can appear in retained command output.
+    (re.compile(r"(?i)\b(Set-Cookie:\s*)[^\r\n]+"), r"\1<redacted>"),
+    (re.compile(r"(?i)\b(Cookie:\s*)[^\r\n]+"), r"\1<redacted>"),
+    (re.compile(r"(?i)\b((?:jdbc:)?(?:postgresql|postgres|mysql)://)[^/@\s:]+:[^/@\s]+@"), r"\1<redacted>@"),
+    (re.compile(r"(?i)([?&;](?:password|sslpassword|token|access_token|refresh_token|api_key|apikey|client_secret|secret|key|authorization_code|verification_code|reset_code|code)=)[^&;\s]*"), r"\1<redacted>"),
+    # Email addresses are not needed in retained smoke artifacts.
+    (re.compile(r"(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b"), "<redacted-email>"),
+]
+
+json_key_pattern = re.compile(
+    r'("(?i:accessToken|refreshToken|idToken|token|password|authorization|cookie|setCookie|jwtSecret|jwt_secret|apiKey|api_key|clientSecret|client_secret|secret|email|userKey)"\s*:\s*)"[^"]*"'
+)
+
+kv_pattern = re.compile(
+    r"(?im)^(\s*(?:access_token|refresh_token|admin_access_token|jwt_secret|api_key|client_secret|secret|password|authorization|cookie|set_cookie|email|user_key|userKey|targetUserKey)\s*[=:]\s*).*$"
+)
+
+env_key_pattern = re.compile(
+    r"(?im)^(\s*(?:export\s+)?(?:[A-Z0-9_]*(?:PASSWORD|SECRET|TOKEN|API_KEY|CLIENT_SECRET)[A-Z0-9_]*|AUTHORIZATION|COOKIE|SET_COOKIE|EMAIL|USER_KEY|TARGET_USER_KEY)\s*=\s*).*$"
+)
+
+for path in root.rglob("*"):
+    if not path.is_file():
+        continue
+    try:
+        raw = path.read_bytes()
+    except OSError:
+        continue
+    if b"\x00" in raw:
+        continue
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        text = raw.decode("utf-8", errors="ignore")
+
+    redacted = json_key_pattern.sub(r'\1"<redacted>"', text)
+    redacted = kv_pattern.sub(r"\1<redacted>", redacted)
+    redacted = env_key_pattern.sub(r"\1<redacted>", redacted)
+    for pattern, replacement in literal_patterns:
+        redacted = pattern.sub(replacement, redacted)
+
+    if redacted != text:
+        path.write_text(redacted, encoding="utf-8")
+PY
+
+  smoke_restrict_artifact_permissions "${artifact_dir}"
 }
 
 smoke_http_status() {
@@ -537,6 +706,43 @@ import hashlib
 import sys
 
 print(hashlib.sha256(sys.argv[1].strip().lower().encode("utf-8")).hexdigest())
+PY
+}
+
+smoke_user_email_shadow_value() {
+  local raw_email="$1"
+
+  smoke_require_command python3
+
+  python3 - "${raw_email}" <<'PY'
+import hashlib
+import sys
+
+safe_domains = {
+    "example.com",
+    "example.org",
+    "example.net",
+    "youth-welfare.dev",
+    "realuser.app",
+    "smoke.local",
+    "localhost",
+}
+
+email = (sys.argv[1] or "").strip().lower()
+if not email:
+    print(email)
+    raise SystemExit
+
+domain = email.rsplit("@", 1)[1] if "@" in email else ""
+if (
+    domain in safe_domains
+    or domain.endswith(".local")
+    or domain.endswith(".test")
+    or domain.endswith(".invalid")
+):
+    print(email)
+else:
+    print("shadow_" + hashlib.sha256(email.encode("utf-8")).hexdigest())
 PY
 }
 
@@ -584,10 +790,10 @@ smoke_wait_for_health() {
     if (( attempt == retries )); then
       echo "health check failed after ${retries} attempts" >&2
       if [[ -s "${health_stderr_file}" ]]; then
-        cat "${health_stderr_file}" >&2
+        smoke_print_redacted_file_for_log "${health_stderr_file}"
       fi
       if [[ -f "${health_response_file}" ]]; then
-        cat "${health_response_file}" >&2
+        smoke_print_redacted_file_for_log "${health_response_file}"
       fi
       return 1
     fi
@@ -608,7 +814,7 @@ smoke_assert_status() {
   local file_path="$4"
   if [[ "${expected}" != "${actual}" ]]; then
     echo "${context} failed: expected ${expected}, got ${actual}" >&2
-    cat "${file_path}" >&2
+    smoke_print_redacted_file_for_log "${file_path}"
     exit 1
   fi
 }
@@ -1141,8 +1347,11 @@ smoke_ensure_admin_account() {
   local signup_response
   local signup_status
   local bootstrap_user_key
-  local admin_email_sql
+  local admin_stored_email
+  local bootstrap_email_hash
+  local admin_stored_email_sql
   local admin_email_hash_sql
+  local bootstrap_email_hash_sql
 
   db_mode="$(smoke_resolve_db_mode)"
   case "${bootstrap_mode}" in
@@ -1168,9 +1377,12 @@ smoke_ensure_admin_account() {
     return 0
   fi
 
-  existing_user_count="$(smoke_db_query "SELECT COUNT(*) FROM users WHERE email = $(smoke_sql_quote "${admin_email}");")"
+  admin_stored_email="$(smoke_user_email_shadow_value "${admin_email}")"
+  existing_user_count="$(
+    smoke_db_query "SELECT COUNT(*) FROM users WHERE email IN ($(smoke_sql_quote "${admin_email}"), $(smoke_sql_quote "${admin_stored_email}"));"
+  )"
   if [[ "${existing_user_count}" != "0" ]]; then
-    echo "admin bootstrap refused: users.email already contains ${admin_email} but auth_users does not" >&2
+    echo "admin bootstrap refused: users.email already contains admin email shadow/plain value but auth_users does not" >&2
     exit 1
   fi
 
@@ -1198,21 +1410,23 @@ smoke_ensure_admin_account() {
   )"
   if [[ "${signup_status}" != "200" ]]; then
     echo "admin bootstrap signup failed: expected 200, got ${signup_status}" >&2
-    cat "${signup_response}" >&2
+    smoke_print_redacted_file_for_log "${signup_response}"
     rm -rf "${bootstrap_dir}"
     exit 1
   fi
 
-  bootstrap_user_key="$(smoke_db_query "SELECT user_key FROM users WHERE email = $(smoke_sql_quote "${bootstrap_email}") LIMIT 1;")"
+  bootstrap_email_hash="$(smoke_sha256_hex "${bootstrap_email}")"
+  bootstrap_email_hash_sql="$(smoke_sql_quote "${bootstrap_email_hash}")"
+  bootstrap_user_key="$(smoke_db_query "SELECT user_key FROM auth_users WHERE email_lookup_hash = ${bootstrap_email_hash_sql} LIMIT 1;")"
   if [[ -z "${bootstrap_user_key}" ]]; then
-    echo "admin bootstrap failed: user_key not found for ${bootstrap_email}" >&2
+    echo "admin bootstrap failed: auth user_key not found for bootstrap email lookup hash" >&2
     rm -rf "${bootstrap_dir}"
     exit 1
   fi
 
-  admin_email_sql="$(smoke_sql_quote "${admin_email}")"
+  admin_stored_email_sql="$(smoke_sql_quote "${admin_stored_email}")"
   admin_email_hash_sql="$(smoke_sql_quote "${admin_email_hash}")"
-  smoke_db_query "UPDATE users SET email = ${admin_email_sql} WHERE user_key = $(smoke_sql_quote "${bootstrap_user_key}");" >/dev/null
+  smoke_db_query "UPDATE users SET email = ${admin_stored_email_sql} WHERE user_key = $(smoke_sql_quote "${bootstrap_user_key}");" >/dev/null
   smoke_db_query "UPDATE auth_users SET email_lookup_hash = ${admin_email_hash_sql} WHERE user_key = $(smoke_sql_quote "${bootstrap_user_key}");" >/dev/null
 
   rm -rf "${bootstrap_dir}"

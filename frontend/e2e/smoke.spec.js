@@ -1620,7 +1620,7 @@ test("admin dashboard quick jump는 recommendation breakdown 섹션으로 이동
   await expect(page.getByText("1순위 분포 선두 서비스")).toBeVisible();
 });
 
-test("admin dashboard summary 실패 시 collect/search triage는 유지된다 @dev-only", async ({ page }) => {
+test("admin dashboard summary 실패 시 collect/search triage는 유지된다 @dev-only @admin-required", async ({ page }) => {
   await mockAdminDashboardApis(page);
   await primeAdminDashboardFailureMode(page, "summary");
   await loginToAdminDashboard(page);
@@ -1633,7 +1633,7 @@ test("admin dashboard summary 실패 시 collect/search triage는 유지된다 @
   await expect(page.getByText("검색 실패 상세")).toBeVisible();
 });
 
-test("admin dashboard breakdown 실패 시 recommendation hero는 유지되고 해당 섹션만 실패한다 @dev-only", async ({ page }) => {
+test("admin dashboard breakdown 실패 시 recommendation hero는 유지되고 해당 섹션만 실패한다 @dev-only @admin-required", async ({ page }) => {
   await mockAdminDashboardApis(page);
   await primeAdminDashboardFailureMode(page, "breakdown");
   await loginToAdminDashboard(page);
@@ -1876,6 +1876,9 @@ test("admin dashboard 운영 알림 카드는 상위 주의 항목을 스크롤 
   await expect(alertsCard.getByText("수집 drift 확인", { exact: true })).toBeVisible();
   await expect(alertsCard.getByText("표준코드 입력 backlog", { exact: true })).toBeVisible();
   await expect(alertsCard.getByText("stale 알림 target backlog", { exact: true })).toBeVisible();
+  await expect(alertsCard.getByText("다음 조치", { exact: true }).first()).toBeVisible();
+  await expect(alertsCard.getByText(/수집 실패 샘플과 열린 circuit/)).toBeVisible();
+  await expect(alertsCard.getByText(/안전 후보만 reconcile/)).toBeVisible();
   await expect(alertsCard.getByRole("button", { name: "주의 항목 큐 보기", exact: true })).toBeVisible();
 });
 
@@ -1888,6 +1891,9 @@ test("admin dashboard 주의 항목 큐는 collect와 표준코드 backlog를 �
   await expect(queueSection.getByText("수집 drift 확인", { exact: true })).toBeVisible();
   await expect(queueSection.getByText("표준코드 입력 backlog", { exact: true })).toBeVisible();
   await expect(queueSection.getByText("알림 backlog 확인", { exact: true })).toBeVisible();
+  await expect(queueSection.getByText("다음 조치", { exact: true }).first()).toBeVisible();
+  await expect(queueSection.getByText(/attempt 실패 breakdown/)).toBeVisible();
+  await expect(queueSection.getByText(/bounded hide 처리/)).toBeVisible();
   const actionCount = await queueSection.getByRole("button", { name: "해당 섹션 보기" }).count();
   expect(actionCount).toBeGreaterThanOrEqual(4);
 });
@@ -2011,6 +2017,7 @@ test("admin dashboard 운영 알림 카드는 warning 상태일 때 wrapper 경�
           message: "표준코드 미입력 5 증가, priority 관측 passed -> failed",
           targetId: "admin-wrapper-observation",
           source: "wrapper-observation",
+          nextAction: "current priority와 active baseline summary를 비교하고 표준코드/추천 관측 변화 원인을 확인합니다.",
         },
       ],
     })),
