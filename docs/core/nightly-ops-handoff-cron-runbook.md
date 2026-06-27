@@ -22,6 +22,7 @@ SMOKE_DB_MODE=postgres \
 APP_BASE_URL='http://127.0.0.1:8082' \
 FRONTEND_E2E_MODE=deployed-origin \
 FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' \
+ALLOW_ADMIN_JWT_MINT=true \
 bash deploy/smoke/run-nightly-ops-handoff.sh
 ```
 
@@ -40,6 +41,7 @@ bash deploy/smoke/run-nightly-ops-handoff.sh
 
 브라우저 smoke는 비용이 더 크고 `deployed-origin` 자격증명/환경에 더 민감하므로, `RUN_FRONTEND_OBSERVATION=true` 일 때만 넣는 편이 맞습니다.
 DB audit는 읽기 전용이며 `RUN_OPERATIONAL_DB_AUDIT=false` 일 때만 제외합니다.
+운영 CORS는 public origin만 허용하므로, wrapper는 기본적으로 `SMOKE_TRUSTED_ORIGIN=${FRONTEND_PUBLIC_BASE_URL}` 와 `SMOKE_TRUSTED_REFERER=${SMOKE_TRUSTED_ORIGIN}/` 를 하위 auth smoke에 전달합니다. API 호출 대상은 내부 `APP_BASE_URL=http://127.0.0.1:8082` 여도 `Origin` 은 `https://youthmoa.kr` 이어야 합니다.
 
 ## 수동 선검증
 
@@ -65,6 +67,8 @@ bash deploy/smoke/run-nightly-ops-handoff.sh
 - `policy=passed`
 - `collect=passed`
 - `auth=passed`
+- `db_audit=ok`
+- auth smoke output의 `smoke_trusted_origin=https://youthmoa.kr`
 
 opt-in frontend까지 같이 볼 때:
 
@@ -152,6 +156,41 @@ DB audit 해석 기준:
 - `active_users_without_pii=0` 이어야 한다.
 - `withdrawn_or_inactive_users_without_pii` 는 탈퇴/비활성 계정 PII 삭제 잔여로 분리해서 본다.
 - `auth_without_users`, `profiles_without_users`, `pii_without_users` 는 0이어야 하며, 0이 아니면 user projection drift로 본다.
+
+## 최근 운영 확인 기준
+
+2026-06-27 기준 PR #363 이후 축소 nightly 검증은 아래 조건으로 통과했다.
+
+```bash
+RUN_STANDARD_CODE_OBSERVATION=false \
+RUN_POLICY_QUALITY_OBSERVATION=false \
+RUN_POLICY_DATA_TRIAGE_OBSERVATION=false \
+RUN_COLLECT_GOVERNANCE_OBSERVATION=false \
+RUN_AUTH_OBSERVATION=true \
+RUN_FRONTEND_OBSERVATION=false \
+RUN_OPERATIONAL_DB_AUDIT=true \
+ENV_FILE=.env.production \
+SMOKE_DB_MODE=postgres \
+APP_BASE_URL='http://127.0.0.1:8082' \
+FRONTEND_E2E_MODE=deployed-origin \
+FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' \
+ALLOW_ADMIN_JWT_MINT=true \
+bash deploy/smoke/run-nightly-ops-handoff.sh
+```
+
+관찰된 결과:
+
+- `auth=passed`
+- `db_audit=ok`
+- `smoke_trusted_origin=https://youthmoa.kr`
+- `OPERATIONAL_DB_AUDIT_SUMMARY=<operational-db-audit.out> bash deploy/smoke/evaluate-operational-alert-thresholds.sh` -> `OP_ALERT_STATUS=ok`
+
+## 문제 분리
+
+- `ADMIN_PASSWORD is empty`: cron env에 `ALLOW_ADMIN_JWT_MINT=true` 가 없거나 admin token mint에 필요한 `SECURITY_ADMIN_EMAILS`, `JWT_SECRET`, DB 조회 경계가 깨진 상태다.
+- `403 Invalid CORS request`: 하위 smoke의 `SMOKE_TRUSTED_ORIGIN` 이 prod CORS allowlist 밖이다. nightly wrapper에서는 `FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr'` 가 설정돼야 하며, 필요하면 `SMOKE_TRUSTED_ORIGIN` 을 명시한다.
+- summary 파일이 생성되지 않고 `nightly-cron.log` 만 늘어남: wrapper가 summary append 전에 실패한 것이다. 최신 로그에서 위 두 오류를 먼저 확인한다.
+- `db_audit` artifact가 없음: DB audit lane 이전 단계에서 중단됐거나 `RUN_OPERATIONAL_DB_AUDIT=false` 로 실행된 것이다.
 
 ## 운영 해석
 

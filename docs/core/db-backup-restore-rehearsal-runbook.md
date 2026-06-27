@@ -19,6 +19,12 @@
 - 복원 대상 DB 접속 정보는 별도 `.env.restore` 같은 파일에 둔다.
 - 운영 앱의 `DB_URL`은 리허설 중 변경하지 않는다.
 
+2026-06-27 현재 blocker:
+
+- 실행 역할 `arn:aws:sts::857721769929:assumed-role/youth-welfare-ops-monitor-v2-role/...` 에 실제 `rds:DescribeDBInstances` 권한이 아직 없다.
+- 같은 역할로 `iam:PutRolePolicy` 도 `AccessDenied` 이므로 현재 세션에서 직접 정책 반영이 불가능하다.
+- repo의 `deploy/ops/aws-ops-monitor-role-policy.json` 에 `rds:DescribeDBInstances` 는 추가되어 있으므로, privileged AWS actor가 실제 `youth-welfare-ops-monitor-v2-role` 정책에 반영한 뒤 이 런북을 진행한다.
+
 ## 1. 운영 RDS 백업 상태 확인
 
 ```bash
