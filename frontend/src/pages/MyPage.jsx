@@ -352,7 +352,38 @@ function ProfileBanner({ pct, requiredMissing, recommendedMissing, onComplete, o
   );
 }
 
-function StandardCodePromptCard({ missingCount, filledCount, totalCount, onComplete }) {
+function StandardCodeMissingChips({ missingLabels, tone = "blue" }) {
+  if (!missingLabels?.length) {
+    return null;
+  }
+
+  const palette = tone === "green"
+    ? { fg: "#047857", bg: "#ecfdf5", border: "#bbf7d0" }
+    : { fg: AI, bg: WHITE, border: LINE };
+
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+      {missingLabels.map((label) => (
+        <span
+          key={label}
+          style={{
+            fontSize: 12,
+            color: palette.fg,
+            background: palette.bg,
+            padding: "4px 10px",
+            borderRadius: 99,
+            fontWeight: 700,
+            border: `1px solid ${palette.border}`,
+          }}
+        >
+          {label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function StandardCodePromptCard({ missingCount, filledCount, totalCount, missingLabels, onComplete }) {
   if (missingCount === 0) {
     return null;
   }
@@ -374,15 +405,9 @@ function StandardCodePromptCard({ missingCount, filledCount, totalCount, onCompl
           주거·복지 맞춤 정보를 더 채우면 추천 정확도가 올라갑니다
         </div>
         <div style={{ fontSize: 13, color: INK2, marginBottom: 10 }}>
-          현재 {filledCount}/{totalCount}개 입력됨. 선택 프로필을 보완하면 자격조건 매칭과 점수 보정이 더 정확해집니다.
+          현재 {filledCount}/{totalCount}개 입력됨. 아래 항목은 대상이 아니면 '해당 없음'을 선택해도 추천 기준으로 반영됩니다.
         </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          <span
-            style={{ fontSize: 12, color: AI, background: WHITE, padding: "4px 10px", borderRadius: 99, fontWeight: 700, border: `1px solid ${LINE}` }}
-          >
-            선택 프로필 {missingCount}개 보완 가능
-          </span>
-        </div>
+        <StandardCodeMissingChips missingLabels={missingLabels} />
       </div>
       <button
         onClick={onComplete}
@@ -411,6 +436,7 @@ function StandardCodeSaveReminder({
   missingCount,
   filledCount,
   totalCount,
+  missingLabels,
   hasPriorities,
   onComplete,
   onGoPriority,
@@ -451,8 +477,13 @@ function StandardCodeSaveReminder({
             ? hasPriorities
               ? "메인에서 맞춤 재추천을 실행하면 최신 정보 기준으로 다시 받을 수 있습니다."
               : "다음으로 추천 우선순위를 설정하면 최신 정보가 더 안정적으로 반영됩니다."
-            : `선택 프로필 ${missingCount}개를 더 보완하면 주거·복지 자격조건 매칭이 더 정확해집니다.`}
+            : `선택 프로필 ${missingCount}개를 더 보완하면 주거·복지 자격조건 매칭이 더 정확해집니다. 대상이 아니면 '해당 없음'을 선택하세요.`}
         </div>
+        {!complete && (
+          <div style={{ marginTop: 10 }}>
+            <StandardCodeMissingChips missingLabels={missingLabels} />
+          </div>
+        )}
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
         <button
@@ -512,7 +543,7 @@ function StandardCodeSaveReminder({
   );
 }
 
-function NotificationStandardCodePrompt({ missingCount, filledCount, totalCount, onComplete }) {
+function NotificationStandardCodePrompt({ missingCount, filledCount, totalCount, missingLabels, onComplete }) {
   if (missingCount === 0) {
     return null;
   }
@@ -539,6 +570,9 @@ function NotificationStandardCodePrompt({ missingCount, filledCount, totalCount,
         </div>
         <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.6 }}>
           선택 프로필 {missingCount}개를 보완하면 마감 알림과 추천 요약에서 주거·복지 조건 매칭이 더 안정됩니다.
+        </div>
+        <div style={{ marginTop: 10 }}>
+          <StandardCodeMissingChips missingLabels={missingLabels} tone="green" />
         </div>
       </div>
       <button
@@ -1762,6 +1796,7 @@ export default function MyPage() {
                   missingCount={standardCodeMissingLabels.length}
                   filledCount={standardCodeFilledCount}
                   totalCount={standardCodeTotalCount}
+                  missingLabels={standardCodeMissingLabels}
                   onComplete={focusStandardCodeSection}
                 />
 
@@ -1770,6 +1805,7 @@ export default function MyPage() {
                   missingCount={standardCodeMissingLabels.length}
                   filledCount={standardCodeFilledCount}
                   totalCount={standardCodeTotalCount}
+                  missingLabels={standardCodeMissingLabels}
                   hasPriorities={priorities.length > 0}
                   onComplete={focusStandardCodeSection}
                   onGoPriority={goToPrioritySettings}
@@ -1778,7 +1814,7 @@ export default function MyPage() {
                 />
 
                 <div id="profile-standard-code-section">
-                <SectionCard title="주거 및 생활 여건" desc="공식 코드북 기준으로 저장되어 주거·복지 자격조건 매칭 정확도를 높여요">
+                <SectionCard title="주거 및 생활 여건" desc="선택 안 함은 미응답, 해당 없음은 명시적인 비대상으로 저장됩니다. 대상이 아니면 해당 없음까지 선택하는 편이 추천 품질에 더 좋습니다.">
                   <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
                     <ConsentNotice
                       checked={sensitiveInfoConsentAgreed}
@@ -1794,7 +1830,7 @@ export default function MyPage() {
                     />
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
-                    <Field label="주거형태">
+                    <Field label="주거형태" hint="거주 형태가 정책 조건과 맞는지 볼 때 사용합니다. 대상이 아니면 '해당 없음'을 선택하세요.">
                       <select
                         style={selCss(optionalProfileFieldDisabled)}
                         disabled={optionalProfileFieldDisabled}
@@ -1807,7 +1843,7 @@ export default function MyPage() {
                         ))}
                       </select>
                     </Field>
-                    <Field label="주택유형">
+                    <Field label="주택유형" hint="주거형태가 '해당 없음'이면 자동으로 '해당 없음' 처리됩니다.">
                       <select
                         style={selCss(housingTypeFieldDisabled)}
                         disabled={housingTypeFieldDisabled}
@@ -2253,6 +2289,7 @@ export default function MyPage() {
                     missingCount={standardCodeMissingLabels.length}
                     filledCount={standardCodeFilledCount}
                     totalCount={standardCodeTotalCount}
+                    missingLabels={standardCodeMissingLabels}
                     onComplete={focusStandardCodeSection}
                   />
 
