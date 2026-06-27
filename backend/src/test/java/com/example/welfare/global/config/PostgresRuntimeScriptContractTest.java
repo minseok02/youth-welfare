@@ -171,6 +171,25 @@ class PostgresRuntimeScriptContractTest {
     }
 
     @Test
+    @DisplayName("fresh schema와 runtime migration은 user projection 테이블을 users에 FK로 묶는다")
+    void schemaAndMigrationContainUserProjectionForeignKeys() throws IOException {
+        String schema = Files.readString(Path.of("src/main/resources/db/schema.sql"));
+        String migration = Files.readString(Path.of(
+                "src/main/resources/db/migration/V2026_06_27_02__add_user_projection_foreign_keys.sql"));
+        String patch = Files.readString(Path.of(
+                "../deploy/postgres/patches/V2026_06_27_02__add_user_projection_foreign_keys.sql"));
+
+        for (String sql : List.of(schema, migration, patch)) {
+            assertThat(sql)
+                    .contains("fk_auth_users_user_key")
+                    .contains("fk_user_profiles_user_key")
+                    .contains("fk_user_pii_user_key")
+                    .contains("REFERENCES public.users(user_key)")
+                    .contains("ON DELETE CASCADE");
+        }
+    }
+
+    @Test
     @DisplayName("운영 DB audit helper는 권한 경계 밖의 쓰기 없이 핵심 무결성/락/이력 상태를 조회한다")
     void operationalDbAuditChecksCoreReadOnlySignals() throws IOException {
         String script = Files.readString(OPERATIONAL_DB_AUDIT);
@@ -184,6 +203,9 @@ class PostgresRuntimeScriptContractTest {
                 .contains("active_queries_over_5m")
                 .contains("waiting_locks")
                 .contains("schema_migration_history")
+                .contains("fk_auth_users_user_key")
+                .contains("fk_user_profiles_user_key")
+                .contains("fk_user_pii_user_key")
                 .doesNotContain("DELETE FROM")
                 .doesNotContain("UPDATE ")
                 .doesNotContain("INSERT INTO");

@@ -81,7 +81,8 @@ CREATE TABLE IF NOT EXISTS auth_users (
     created_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uq_au_user_key UNIQUE (user_key),
-    CONSTRAINT uq_au_email_lookup_hash UNIQUE (email_lookup_hash)
+    CONSTRAINT uq_au_email_lookup_hash UNIQUE (email_lookup_hash),
+    CONSTRAINT fk_auth_users_user_key FOREIGN KEY (user_key) REFERENCES public.users(user_key) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS user_profiles (
@@ -114,7 +115,8 @@ CREATE TABLE IF NOT EXISTS user_profiles (
     has_phone               BOOLEAN NOT NULL DEFAULT FALSE,
     created_at              TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at              TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uq_upf_user_key UNIQUE (user_key)
+    CONSTRAINT uq_upf_user_key UNIQUE (user_key),
+    CONSTRAINT fk_user_profiles_user_key FOREIGN KEY (user_key) REFERENCES public.users(user_key) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_upf_notification ON user_profiles (notification_yn, notification_period);
@@ -146,7 +148,8 @@ CREATE TABLE IF NOT EXISTS youth_welfare_pii.user_pii (
     phone_enc      VARCHAR(512),
     created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uq_upii_user_key UNIQUE (user_key)
+    CONSTRAINT uq_upii_user_key UNIQUE (user_key),
+    CONSTRAINT fk_user_pii_user_key FOREIGN KEY (user_key) REFERENCES public.users(user_key) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS user_pii_sync_queue (

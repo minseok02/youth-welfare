@@ -131,6 +131,24 @@ from pg_constraint
 where conname='fk_crs_session'
 union all
 select 'schema_contract',
+       'fk_auth_users_user_key',
+       coalesce(max(pg_get_constraintdef(oid)), 'MISSING')
+from pg_constraint
+where conname='fk_auth_users_user_key'
+union all
+select 'schema_contract',
+       'fk_user_profiles_user_key',
+       coalesce(max(pg_get_constraintdef(oid)), 'MISSING')
+from pg_constraint
+where conname='fk_user_profiles_user_key'
+union all
+select 'schema_contract',
+       'fk_user_pii_user_key',
+       coalesce(max(pg_get_constraintdef(oid)), 'MISSING')
+from pg_constraint
+where conname='fk_user_pii_user_key'
+union all
+select 'schema_contract',
        'idx_crs_session_id',
        case when count(*) = 1 then 'OK' else 'MISSING' end
 from pg_indexes
