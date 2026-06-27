@@ -51,6 +51,7 @@ SMOKE_DB_MODE=postgres \
 APP_BASE_URL='http://127.0.0.1:8082' \
 FRONTEND_E2E_MODE=deployed-origin \
 FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' \
+ALLOW_ADMIN_JWT_MINT=true \
 KEEP_ARTIFACTS=true \
 bash deploy/smoke/run-nightly-ops-handoff.sh
 ```
@@ -81,13 +82,13 @@ bash deploy/smoke/run-nightly-ops-handoff.sh
 nightly handoff:
 
 ```cron
-10 1 * * * APP_ROOT=/path/to/youth-welfare ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' bash "$APP_ROOT/deploy/smoke/run-nightly-ops-handoff.sh" >> /var/log/youth-welfare/nightly-ops-handoff/nightly-cron.log 2>&1
+10 1 * * * APP_ROOT=/path/to/youth-welfare ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' ALLOW_ADMIN_JWT_MINT=true bash "$APP_ROOT/deploy/smoke/run-nightly-ops-handoff.sh" >> /var/log/youth-welfare/nightly-ops-handoff/nightly-cron.log 2>&1
 ```
 
 weekly frontend 포함:
 
 ```cron
-30 1 * * 1 APP_ROOT=/path/to/youth-welfare RUN_FRONTEND_OBSERVATION=true ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' bash "$APP_ROOT/deploy/smoke/run-nightly-ops-handoff.sh" >> /var/log/youth-welfare/nightly-ops-handoff/frontend-weekly-cron.log 2>&1
+30 1 * * 1 APP_ROOT=/path/to/youth-welfare RUN_FRONTEND_OBSERVATION=true ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' ALLOW_ADMIN_JWT_MINT=true bash "$APP_ROOT/deploy/smoke/run-nightly-ops-handoff.sh" >> /var/log/youth-welfare/nightly-ops-handoff/frontend-weekly-cron.log 2>&1
 ```
 
 cleanup:
@@ -107,6 +108,7 @@ SMOKE_DB_MODE=postgres \
 APP_BASE_URL='http://127.0.0.1:8082' \
 FRONTEND_E2E_MODE=deployed-origin \
 FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' \
+ALLOW_ADMIN_JWT_MINT=true \
 bash deploy/smoke/install-nightly-ops-handoff-cron.sh
 ```
 
