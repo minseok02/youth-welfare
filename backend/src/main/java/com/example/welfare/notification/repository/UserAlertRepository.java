@@ -21,6 +21,14 @@ public interface UserAlertRepository extends JpaRepository<UserAlert, Long> {
 
     Optional<UserAlert> findByEventKey(String eventKey);
 
+    boolean existsByUserKeyAndKindAndStatusAndTitleAndDeeplinkUrl(
+            String userKey,
+            UserAlert.UserAlertKind kind,
+            UserAlertStatus status,
+            String title,
+            String deeplinkUrl
+    );
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             update UserAlert ua

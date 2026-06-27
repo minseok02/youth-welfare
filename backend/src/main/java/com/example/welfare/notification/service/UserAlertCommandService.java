@@ -33,6 +33,15 @@ public class UserAlertCommandService {
             return;
         }
         NotificationContent content = recommendationDigestContentService.build(recommendations);
+        if (userAlertRepository.existsByUserKeyAndKindAndStatusAndTitleAndDeeplinkUrl(
+                notification.getUserKey(),
+                UserAlertKind.RECOMMENDATION_DIGEST,
+                UserAlertStatus.UNREAD,
+                content.title(),
+                content.deeplinkUrl()
+        )) {
+            return;
+        }
         userAlertRepository.save(UserAlert.builder()
                 .userKey(notification.getUserKey())
                 .eventKey(notification.getDispatchKey())
