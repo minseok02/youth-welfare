@@ -16,6 +16,7 @@ class PostgresRuntimeScriptContractTest {
     private static final Path RUNTIME_CUTOVER_PREFLIGHT = Path.of("../deploy/smoke/preflight-runtime-cutover-env.sh");
     private static final Path RUNTIME_ENV_RENDER = Path.of("../deploy/env/render-app-runtime-env.sh");
     private static final Path OPERATIONAL_DB_AUDIT = Path.of("../deploy/postgres/audit-operational-db-state.sh");
+    private static final Path NIGHTLY_OPS_HANDOFF = Path.of("../deploy/smoke/run-nightly-ops-handoff.sh");
 
     @Test
     @DisplayName("RDS bootstrap은 앱에서 쓰는 PostgreSQL runtime role을 fresh DB에도 모두 생성한다")
@@ -209,6 +210,21 @@ class PostgresRuntimeScriptContractTest {
                 .doesNotContain("DELETE FROM")
                 .doesNotContain("UPDATE ")
                 .doesNotContain("INSERT INTO");
+    }
+
+    @Test
+    @DisplayName("nightly ops handoff는 운영 DB audit를 기본 artifact로 남긴다")
+    void nightlyOpsHandoffRunsOperationalDbAudit() throws IOException {
+        String script = Files.readString(NIGHTLY_OPS_HANDOFF);
+
+        assertThat(script)
+                .contains("OPERATIONAL_DB_AUDIT_SCRIPT")
+                .contains("deploy/postgres/audit-operational-db-state.sh")
+                .contains("OPERATIONAL_DB_AUDIT_OUTPUT")
+                .contains("RUN_OPERATIONAL_DB_AUDIT=\"${RUN_OPERATIONAL_DB_AUDIT:-true}\"")
+                .contains("run_step \"${RUN_OPERATIONAL_DB_AUDIT}\" \"operational_db_audit\"")
+                .contains("db_audit=%s")
+                .contains("operational_db_audit_output=%s");
     }
 
     @Test
