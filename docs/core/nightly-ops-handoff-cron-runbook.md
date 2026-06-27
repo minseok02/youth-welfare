@@ -147,6 +147,12 @@ summary 한 줄은 아래 축을 같이 남깁니다.
 - `missing_all_standard_codes`
 - `adoption_any_share_pct`
 
+DB audit 해석 기준:
+
+- `active_users_without_pii=0` 이어야 한다.
+- `withdrawn_or_inactive_users_without_pii` 는 탈퇴/비활성 계정 PII 삭제 잔여로 분리해서 본다.
+- `auth_without_users`, `profiles_without_users`, `pii_without_users` 는 0이어야 하며, 0이 아니면 user projection drift로 본다.
+
 ## 운영 해석
 
 이 wrapper는 운영 handoff를 compact하게 남기기 위한 entrypoint입니다.
