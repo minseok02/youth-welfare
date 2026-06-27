@@ -10,6 +10,7 @@ POLICY_DATA_TRIAGE_SCRIPT="${ROOT_DIR}/deploy/smoke/run-local-policy-data-triage
 COLLECT_GOVERNANCE_SCRIPT="${ROOT_DIR}/deploy/smoke/run-local-collect-governance-observation-suite.sh"
 AUTH_OBSERVATION_SCRIPT="${ROOT_DIR}/deploy/smoke/run-local-auth-observation-suite.sh"
 FRONTEND_OBSERVATION_SCRIPT="${ROOT_DIR}/deploy/smoke/run-local-frontend-observation-suite.sh"
+OPERATIONAL_DB_AUDIT_SCRIPT="${ROOT_DIR}/deploy/postgres/audit-operational-db-state.sh"
 
 NIGHTLY_OPS_HANDOFF_LOG_ROOT="${NIGHTLY_OPS_HANDOFF_LOG_ROOT:-/var/log/youth-welfare/nightly-ops-handoff}"
 RUN_TS_UTC="${RUN_TS_UTC:-$(smoke_now_ts_utc)}"
@@ -24,6 +25,7 @@ POLICY_DATA_TRIAGE_OUTPUT="${RUN_DIR}/policy-data-triage-observation.out"
 COLLECT_GOVERNANCE_OUTPUT="${RUN_DIR}/collect-governance-observation.out"
 AUTH_OBSERVATION_OUTPUT="${RUN_DIR}/auth-observation.out"
 FRONTEND_OBSERVATION_OUTPUT="${RUN_DIR}/frontend-observation.out"
+OPERATIONAL_DB_AUDIT_OUTPUT="${RUN_DIR}/operational-db-audit.out"
 
 RUN_STANDARD_CODE_OBSERVATION="${RUN_STANDARD_CODE_OBSERVATION:-true}"
 RUN_POLICY_QUALITY_OBSERVATION="${RUN_POLICY_QUALITY_OBSERVATION:-true}"
@@ -31,6 +33,7 @@ RUN_POLICY_DATA_TRIAGE_OBSERVATION="${RUN_POLICY_DATA_TRIAGE_OBSERVATION:-true}"
 RUN_COLLECT_GOVERNANCE_OBSERVATION="${RUN_COLLECT_GOVERNANCE_OBSERVATION:-true}"
 RUN_AUTH_OBSERVATION="${RUN_AUTH_OBSERVATION:-true}"
 RUN_FRONTEND_OBSERVATION="${RUN_FRONTEND_OBSERVATION:-false}"
+RUN_OPERATIONAL_DB_AUDIT="${RUN_OPERATIONAL_DB_AUDIT:-true}"
 
 cleanup() {
   smoke_sanitize_artifacts "${RUN_DIR}"
@@ -92,6 +95,7 @@ run_step "${RUN_POLICY_DATA_TRIAGE_OBSERVATION}" "policy_data_triage_observation
 run_step "${RUN_COLLECT_GOVERNANCE_OBSERVATION}" "collect_governance_observation" "${COLLECT_GOVERNANCE_SCRIPT}" "${COLLECT_GOVERNANCE_OUTPUT}"
 run_step "${RUN_AUTH_OBSERVATION}" "auth_observation" "${AUTH_OBSERVATION_SCRIPT}" "${AUTH_OBSERVATION_OUTPUT}"
 run_step "${RUN_FRONTEND_OBSERVATION}" "frontend_observation" "${FRONTEND_OBSERVATION_SCRIPT}" "${FRONTEND_OBSERVATION_OUTPUT}"
+run_step "${RUN_OPERATIONAL_DB_AUDIT}" "operational_db_audit" "${OPERATIONAL_DB_AUDIT_SCRIPT}" "${OPERATIONAL_DB_AUDIT_OUTPUT}"
 
 OPS_SUMMARY="${ROOT_DIR}/tmp/ops-observation/latest-ops-observation-summary.txt"
 POLICY_SUMMARY="${ROOT_DIR}/tmp/policy-quality-observation/latest-policy-quality-observation-summary.txt"
@@ -133,15 +137,22 @@ if [[ "$(smoke_normalize_bool "${RUN_FRONTEND_OBSERVATION}")" != "true" ]]; then
   FRONTEND_DECISION_CLASS="skipped"
 fi
 
+if [[ "$(smoke_normalize_bool "${RUN_OPERATIONAL_DB_AUDIT}")" == "true" ]]; then
+  DB_AUDIT_STATUS="ok"
+else
+  DB_AUDIT_STATUS="skipped"
+fi
+
 {
-  printf '[%s] ops=%s policy=%s policy_triage=%s collect=%s auth=%s frontend=%s\n' \
+  printf '[%s] ops=%s policy=%s policy_triage=%s collect=%s auth=%s frontend=%s db_audit=%s\n' \
     "${SUMMARY_TS_KST}" \
     "${OPS_STATUS:-unknown}" \
     "${POLICY_STATUS:-unknown}" \
     "${POLICY_TRIAGE_STATUS:-unknown}" \
     "${COLLECT_STATUS:-unknown}" \
     "${AUTH_STATUS:-unknown}" \
-    "${FRONTEND_STATUS:-skipped}"
+    "${FRONTEND_STATUS:-skipped}" \
+    "${DB_AUDIT_STATUS:-unknown}"
   printf '  attention_keys=%s missing_all_standard_codes=%s adoption_any_share_pct=%s\n' \
     "${OPS_ATTENTION_KEYS:-}" \
     "${OPS_STANDARD_CODE_MISSING_ALL:-}" \
@@ -160,6 +171,7 @@ fi
   printf '  collect_governance_output=%s\n' "${COLLECT_GOVERNANCE_OUTPUT}"
   printf '  auth_observation_output=%s\n' "${AUTH_OBSERVATION_OUTPUT}"
   printf '  frontend_observation_output=%s\n' "${FRONTEND_OBSERVATION_OUTPUT}"
+  printf '  operational_db_audit_output=%s\n' "${OPERATIONAL_DB_AUDIT_OUTPUT}"
 } | tee -a "${SUMMARY_APPEND_FILE}"
 
 smoke_sanitize_artifacts "${RUN_DIR}"

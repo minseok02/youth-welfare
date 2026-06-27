@@ -8,6 +8,21 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE EXTENSION IF NOT EXISTS vector;
 CREATE SCHEMA IF NOT EXISTS youth_welfare_pii;
 
+CREATE TABLE IF NOT EXISTS schema_migration_history (
+    id            BIGSERIAL PRIMARY KEY,
+    version       VARCHAR(64) NOT NULL,
+    description   VARCHAR(255) NOT NULL,
+    script_name   VARCHAR(255) NOT NULL,
+    script_sha256 VARCHAR(64) NOT NULL,
+    applied_by    VARCHAR(128) NOT NULL DEFAULT CURRENT_USER,
+    applied_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    note          TEXT,
+    CONSTRAINT uq_smh_script_name UNIQUE (script_name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_smh_applied_at
+    ON schema_migration_history (applied_at DESC);
+
 CREATE TABLE IF NOT EXISTS priority_options (
     id          SMALLSERIAL PRIMARY KEY,
     code        VARCHAR(30) NOT NULL,
@@ -66,7 +81,8 @@ CREATE TABLE IF NOT EXISTS auth_users (
     created_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uq_au_user_key UNIQUE (user_key),
-    CONSTRAINT uq_au_email_lookup_hash UNIQUE (email_lookup_hash)
+    CONSTRAINT uq_au_email_lookup_hash UNIQUE (email_lookup_hash),
+    CONSTRAINT fk_auth_users_user_key FOREIGN KEY (user_key) REFERENCES public.users(user_key) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS user_profiles (
@@ -99,7 +115,8 @@ CREATE TABLE IF NOT EXISTS user_profiles (
     has_phone               BOOLEAN NOT NULL DEFAULT FALSE,
     created_at              TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at              TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uq_upf_user_key UNIQUE (user_key)
+    CONSTRAINT uq_upf_user_key UNIQUE (user_key),
+    CONSTRAINT fk_user_profiles_user_key FOREIGN KEY (user_key) REFERENCES public.users(user_key) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_upf_notification ON user_profiles (notification_yn, notification_period);
@@ -131,7 +148,8 @@ CREATE TABLE IF NOT EXISTS youth_welfare_pii.user_pii (
     phone_enc      VARCHAR(512),
     created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uq_upii_user_key UNIQUE (user_key)
+    CONSTRAINT uq_upii_user_key UNIQUE (user_key),
+    CONSTRAINT fk_user_pii_user_key FOREIGN KEY (user_key) REFERENCES public.users(user_key) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS user_pii_sync_queue (

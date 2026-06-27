@@ -32,6 +32,7 @@ cross-cutting 문서가 흩어져 있어도
 ### 데이터/마이그레이션
 
 - [db-migration.md](./db-migration.md)
+- [db-backup-restore-rehearsal-runbook.md](./db-backup-restore-rehearsal-runbook.md)
 - [user-data-separation-design.md](./user-data-separation-design.md)
 - [pii-key-rotation-runbook.md](./pii-key-rotation-runbook.md)
 
@@ -93,9 +94,12 @@ cross-cutting 문서가 흩어져 있어도
 ### 4. DB migration / schema 메모
 
 - [db-migration.md](./db-migration.md)
+- [db-backup-restore-rehearsal-runbook.md](./db-backup-restore-rehearsal-runbook.md)
 
 이 문서는 현재 PostgreSQL mainline 기준 schema/migration truth를 보조하는 **legacy migration / draft sidecar 메모** 를 정리합니다.
 현재 실행 판단은 `db-migration.md` 단독보다 `current-state.md`, `testing.md`, 관련 runbook을 먼저 봅니다.
+
+`db-backup-restore-rehearsal-runbook.md` 는 운영 DB 백업에서 별도 DB로 복원하고 앱 연결 전 감사/smoke를 태우는 절차를 고정합니다.
 
 ### 5. 사용자 데이터 분리 설계
 

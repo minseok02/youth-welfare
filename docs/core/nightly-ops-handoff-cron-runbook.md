@@ -32,12 +32,14 @@ bash deploy/smoke/run-nightly-ops-handoff.sh
 3. `run-local-policy-data-triage-observation-suite.sh`
 4. `run-local-collect-governance-observation-suite.sh`
 5. `run-local-auth-observation-suite.sh`
+6. `deploy/postgres/audit-operational-db-state.sh`
 
 기본값에서 제외되는 lane:
 
 - `frontend observation`
 
 브라우저 smoke는 비용이 더 크고 `deployed-origin` 자격증명/환경에 더 민감하므로, `RUN_FRONTEND_OBSERVATION=true` 일 때만 넣는 편이 맞습니다.
+DB audit는 읽기 전용이며 `RUN_OPERATIONAL_DB_AUDIT=false` 일 때만 제외합니다.
 
 ## 수동 선검증
 
@@ -130,6 +132,7 @@ PRINT_ONLY=true bash deploy/smoke/install-nightly-ops-handoff-cron.sh
 - `nightly-cron.log`
 - `cleanup-cron.log`
 - `artifacts/<UTC timestamp>/...`
+  - `operational-db-audit.out`
 
 summary 한 줄은 아래 축을 같이 남깁니다.
 
@@ -138,6 +141,7 @@ summary 한 줄은 아래 축을 같이 남깁니다.
 - `collect`
 - `auth`
 - `frontend`
+- `db_audit`
 - `frontend flow_families` 는 `tmp/frontend-observation/latest-frontend-observation-note.md` 와 json에서 확인
 - `attention_keys`
 - `missing_all_standard_codes`

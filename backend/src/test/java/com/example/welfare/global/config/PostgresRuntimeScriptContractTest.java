@@ -15,6 +15,8 @@ class PostgresRuntimeScriptContractTest {
     private static final Path RDS_BOOTSTRAP = Path.of("../deploy/postgres/bootstrap-rds-runtime.sh");
     private static final Path RUNTIME_CUTOVER_PREFLIGHT = Path.of("../deploy/smoke/preflight-runtime-cutover-env.sh");
     private static final Path RUNTIME_ENV_RENDER = Path.of("../deploy/env/render-app-runtime-env.sh");
+    private static final Path OPERATIONAL_DB_AUDIT = Path.of("../deploy/postgres/audit-operational-db-state.sh");
+    private static final Path NIGHTLY_OPS_HANDOFF = Path.of("../deploy/smoke/run-nightly-ops-handoff.sh");
 
     @Test
     @DisplayName("RDS bootstrap은 앱에서 쓰는 PostgreSQL runtime role을 fresh DB에도 모두 생성한다")
@@ -147,6 +149,82 @@ class PostgresRuntimeScriptContractTest {
         assertThat(schema).contains("CREATE UNIQUE INDEX IF NOT EXISTS uq_policy_duplicate_review_records_group");
         assertThat(schema).contains("CREATE TABLE IF NOT EXISTS policy_link_review_records");
         assertThat(schema).contains("CREATE INDEX IF NOT EXISTS idx_plrr_reviewed_at");
+    }
+
+    @Test
+    @DisplayName("fresh schema와 runtime migration은 수동 DB 변경 이력 테이블을 포함한다")
+    void schemaAndMigrationContainSchemaMigrationHistory() throws IOException {
+        String schema = Files.readString(Path.of("src/main/resources/db/schema.sql"));
+        String migration = Files.readString(Path.of(
+                "src/main/resources/db/migration/V2026_06_27_01__add_schema_migration_history.sql"));
+        String patch = Files.readString(Path.of(
+                "../deploy/postgres/patches/V2026_06_27_01__add_schema_migration_history.sql"));
+
+        for (String sql : List.of(schema, migration, patch)) {
+            assertThat(sql)
+                    .contains("CREATE TABLE IF NOT EXISTS schema_migration_history")
+                    .contains("script_sha256 VARCHAR(64) NOT NULL")
+                    .contains("CONSTRAINT uq_smh_script_name UNIQUE (script_name)")
+                    .contains("CREATE INDEX IF NOT EXISTS idx_smh_applied_at");
+        }
+        assertThat(migration).contains("GRANT SELECT ON TABLE public.schema_migration_history TO admin_dashboard_ro");
+        assertThat(patch).contains(":'admin_ro_username'");
+    }
+
+    @Test
+    @DisplayName("fresh schema와 runtime migration은 user projection 테이블을 users에 FK로 묶는다")
+    void schemaAndMigrationContainUserProjectionForeignKeys() throws IOException {
+        String schema = Files.readString(Path.of("src/main/resources/db/schema.sql"));
+        String migration = Files.readString(Path.of(
+                "src/main/resources/db/migration/V2026_06_27_02__add_user_projection_foreign_keys.sql"));
+        String patch = Files.readString(Path.of(
+                "../deploy/postgres/patches/V2026_06_27_02__add_user_projection_foreign_keys.sql"));
+
+        for (String sql : List.of(schema, migration, patch)) {
+            assertThat(sql)
+                    .contains("fk_auth_users_user_key")
+                    .contains("fk_user_profiles_user_key")
+                    .contains("fk_user_pii_user_key")
+                    .contains("REFERENCES public.users(user_key)")
+                    .contains("ON DELETE CASCADE");
+        }
+    }
+
+    @Test
+    @DisplayName("운영 DB audit helper는 권한 경계 밖의 쓰기 없이 핵심 무결성/락/이력 상태를 조회한다")
+    void operationalDbAuditChecksCoreReadOnlySignals() throws IOException {
+        String script = Files.readString(OPERATIONAL_DB_AUDIT);
+
+        assertThat(script)
+                .contains("AUDIT_OPERATIONAL_DB_STATE")
+                .contains("auth_without_users")
+                .contains("profiles_without_users")
+                .contains("chat_snapshots_nonnull_orphan_session")
+                .contains("notification_failed_like")
+                .contains("active_queries_over_5m")
+                .contains("waiting_locks")
+                .contains("schema_migration_history")
+                .contains("fk_auth_users_user_key")
+                .contains("fk_user_profiles_user_key")
+                .contains("fk_user_pii_user_key")
+                .doesNotContain("DELETE FROM")
+                .doesNotContain("UPDATE ")
+                .doesNotContain("INSERT INTO");
+    }
+
+    @Test
+    @DisplayName("nightly ops handoff는 운영 DB audit를 기본 artifact로 남긴다")
+    void nightlyOpsHandoffRunsOperationalDbAudit() throws IOException {
+        String script = Files.readString(NIGHTLY_OPS_HANDOFF);
+
+        assertThat(script)
+                .contains("OPERATIONAL_DB_AUDIT_SCRIPT")
+                .contains("deploy/postgres/audit-operational-db-state.sh")
+                .contains("OPERATIONAL_DB_AUDIT_OUTPUT")
+                .contains("RUN_OPERATIONAL_DB_AUDIT=\"${RUN_OPERATIONAL_DB_AUDIT:-true}\"")
+                .contains("run_step \"${RUN_OPERATIONAL_DB_AUDIT}\" \"operational_db_audit\"")
+                .contains("db_audit=%s")
+                .contains("operational_db_audit_output=%s");
     }
 
     @Test

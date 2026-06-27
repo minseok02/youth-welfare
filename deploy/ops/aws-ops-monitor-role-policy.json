@@ -53,6 +53,14 @@
         "ec2:DescribeInstances"
       ],
       "Resource": "*"
+    },
+    {
+      "Sid": "ReadYouthWelfareRdsMetadata",
+      "Effect": "Allow",
+      "Action": [
+        "rds:DescribeDBInstances"
+      ],
+      "Resource": "arn:aws:rds:ap-northeast-2:857721769929:db:youth-welfare-prod-db"
     }
   ]
 }
