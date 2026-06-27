@@ -33,7 +33,8 @@ class OperationalAlertThresholdContractTest {
                 "SEARCH_ZERO_RESULT_RATE",
                 "RECOMMENDATION_RUN_FAILURE_RATE",
                 "NOTIFICATION_RETRY_BACKLOG",
-                "WEB_PUSH_DISABLED_RATIO"
+                "WEB_PUSH_DISABLED_RATIO",
+                "DB_AUDIT_INTEGRITY"
         );
 
         for (String alertId : alertIds) {
@@ -50,7 +51,9 @@ class OperationalAlertThresholdContractTest {
                 .contains("retryable_failed_due_now")
                 .contains("terminal_failed_total")
                 .contains("web_push_subscriptions")
-                .contains("disabled subscription ratio");
+                .contains("disabled subscription ratio")
+                .contains("active_users_without_pii")
+                .contains("waiting_locks");
     }
 
     @Test
@@ -64,6 +67,7 @@ class OperationalAlertThresholdContractTest {
                 .contains("RECOMMENDATION_RUN_FAILURE_RATE")
                 .contains("NOTIFICATION_RETRY_BACKLOG")
                 .contains("WEB_PUSH_DISABLED_RATIO")
+                .contains("DB_AUDIT_INTEGRITY")
                 .contains("warning:")
                 .contains("critical:")
                 .contains("run-local-ops-observation-suite.sh")
@@ -71,7 +75,8 @@ class OperationalAlertThresholdContractTest {
                 .contains("run-local-notification-backlog-audit.sh")
                 .contains("recommendation_run_logs")
                 .contains("notification_attempt_logs")
-                .contains("web_push_subscriptions");
+                .contains("web_push_subscriptions")
+                .contains("audit-operational-db-state.sh");
     }
 
     @Test
@@ -85,14 +90,17 @@ class OperationalAlertThresholdContractTest {
                 .contains("CHAT_OBSERVABILITY_SUMMARY")
                 .contains("RECOMMENDATION_RUN_SUMMARY")
                 .contains("WEB_PUSH_SUMMARY")
+                .contains("OPERATIONAL_DB_AUDIT_SUMMARY")
                 .contains("COLLECT_FAILED_JOB_RATE")
                 .contains("SEARCH_ZERO_RESULT_RATE")
                 .contains("RECOMMENDATION_RUN_FAILURE_RATE")
                 .contains("NOTIFICATION_RETRY_BACKLOG")
                 .contains("WEB_PUSH_DISABLED_RATIO")
+                .contains("DB_AUDIT_INTEGRITY")
                 .contains("OP_ALERT_STATUS")
                 .contains("OP_ALERT_COLLECT_WARN_FAILED_RATE_PCT")
-                .contains("OP_ALERT_WEB_PUSH_CRIT_DISABLED_RATIO_PCT");
+                .contains("OP_ALERT_WEB_PUSH_CRIT_DISABLED_RATIO_PCT")
+                .contains("OP_ALERT_DB_AUDIT_CRIT_WAITING_LOCKS");
     }
 
     @Test

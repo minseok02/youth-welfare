@@ -175,3 +175,43 @@ where schemaname='public' and tablename='user_pii_sync_queue' and indexname='idx
 select 'schema_migration_history' as section,
        case when to_regclass('public.schema_migration_history') is null then 'MISSING' else 'OK' end as status;
 SQL
+
+PGPASSWORD="${DB_MIGRATION_PASSWORD}" psql "${DB_URL#jdbc:}" \
+  -U "${DB_MIGRATION_USERNAME}" \
+  -X \
+  -v ON_ERROR_STOP=1 \
+  -At <<'SQL'
+select 'operational_alert_source_available=true'
+union all
+select 'auth_without_users=' || count(*)::text
+from auth_users au left join users u on u.user_key=au.user_key where u.user_key is null
+union all
+select 'profiles_without_users=' || count(*)::text
+from user_profiles up left join users u on u.user_key=up.user_key where u.user_key is null
+union all
+select 'pii_without_users=' || count(*)::text
+from youth_welfare_pii.user_pii p left join users u on u.user_key=p.user_key where u.user_key is null
+union all
+select 'active_users_without_pii=' || count(*)::text
+from users u left join youth_welfare_pii.user_pii p on p.user_key=u.user_key
+where p.user_key is null and u.is_active = true and u.withdrawn_at is null
+union all
+select 'chat_snapshots_nonnull_orphan_session=' || count(*)::text
+from chat_retrieval_snapshots crs left join chat_sessions cs on cs.id=crs.session_id
+where crs.session_id is not null and cs.id is null
+union all
+select 'user_pii_sync_pending_or_failed=' || count(*)::text
+from user_pii_sync_queue where status in ('PENDING','FAILED')
+union all
+select 'notification_failed_like=' || count(*)::text
+from notification_attempt_logs
+where lower(outcome) in ('failed','retryable_failed','terminal_failed','send_failed','error')
+   or error_type is not null
+union all
+select 'waiting_locks=' || count(*)::text
+from pg_locks where not granted
+union all
+select 'active_queries_over_5m=' || count(*)::text
+from pg_stat_activity
+where state='active' and pid <> pg_backend_pid() and now() - query_start > interval '5 minutes';
+SQL

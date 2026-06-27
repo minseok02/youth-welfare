@@ -15,6 +15,7 @@
 - notification backlog artifact: `tmp/notification-backlog-audit/latest-notification-backlog-summary.txt`
 - DB tables: `recommendation_run_logs`, `notification_attempt_logs`
 - DB read models: `web_push_subscriptions`, `chat_retrieval_snapshots`
+- DB audit artifact: `deploy/postgres/audit-operational-db-state.sh`
 
 app/nginx raw tail sample은 artifact 파일에 쓰기 전에 `smoke_redact_stream_for_log` 를 통과합니다.
 성능/log alert artifact는 정상 publish 전뿐 아니라 exit trap에서도 `smoke_sanitize_artifacts` 를 다시 적용합니다.
@@ -33,6 +34,7 @@ dashboard raw triage surface와 evaluator 판정 권위의 경계는 [admin-dash
 | `RECOMMENDATION_RUN_FAILURE_RATE` | `recommendation_run_logs`, admin recommendation run summary | `outcome`, `duration_ms`, `saved_count` | warning: 30분 창 `ERROR` 또는 `NO_CANDIDATES`가 1건 이상, 실패율 5% 이상, 또는 평균 `duration_ms >= 5000` | critical: 10분 창 `ERROR >= 3`, 30분 실패율 20% 이상, 또는 traffic이 있는데 1시간 동안 `SUCCESS`가 없음 | run log의 error prefix와 추천 후보/AI/cache 경계를 분리해서 확인 |
 | `NOTIFICATION_RETRY_BACKLOG` | `run-local-notification-backlog-audit.sh`, `notification_attempt_logs` | `retryable_failed_total`, `retryable_failed_due_now`, `terminal_failed_total`, `earliest_retry_at` | warning: `retryable_failed_due_now > 0`, `retryable_failed_total >= 10`, 또는 earliest retry가 30분 이상 지연 | critical: `terminal_failed_total > 0`, `retryable_failed_total >= 100`, `retryable_failed_due_now >= 10`, 또는 earliest retry가 2시간 이상 지연 | retry runner, SMTP/Kakao provider, terminal failure reason을 순서대로 확인 |
 | `WEB_PUSH_DISABLED_RATIO` | `web_push_subscriptions`, `notification_attempt_logs` | disabled subscription ratio, `notification_attempt_logs.outcome='disabled'`, endpoint host failure count | warning: subscription total이 20개 이상이고 disabled ratio가 10% 이상, 또는 disabled outcome이 직전 24시간 평균의 3배 이상 | critical: subscription total이 20개 이상이고 disabled ratio가 25% 이상, 또는 15분 창 disabled/gateway failure가 10건 이상 | VAPID key, `/sw.js` MIME, endpoint host별 만료/거부 응답을 확인 |
+| `DB_AUDIT_INTEGRITY` | `audit-operational-db-state.sh` | `auth_without_users`, `profiles_without_users`, `pii_without_users`, `active_users_without_pii`, `chat_snapshots_nonnull_orphan_session`, `waiting_locks`, `active_queries_over_5m` | warning: `user_pii_sync_pending_or_failed > 0`, `notification_failed_like > 0`, 또는 `active_queries_over_5m >= 1` | critical: user projection drift 합계 > 0, `active_users_without_pii > 0`, `chat_snapshots_nonnull_orphan_session > 0`, 또는 `waiting_locks >= 1` | DB audit artifact를 열어 FK/PII sync/lock 원인을 분리하고 필요 시 migration drift checklist를 적용 |
 
 비율 계산은 분모가 0이면 `0%`로 읽고, 표본이 너무 작으면 count 조건을 우선합니다.
 warning은 운영자가 같은 날 확인할 신호이고, critical은 배포/스케줄/외부 provider 상태를 즉시 확인할 신호입니다.
@@ -133,7 +135,7 @@ CHAT_OBSERVABILITY_SUMMARY=tmp/chat-observability-audit/latest-chat-observabilit
 bash deploy/smoke/evaluate-operational-alert-thresholds.sh
 ```
 
-`RECOMMENDATION_RUN_FAILURE_RATE` 와 `WEB_PUSH_DISABLED_RATIO` 는 DB/API 요약 artifact가 있을 때만 평가합니다.
+`RECOMMENDATION_RUN_FAILURE_RATE`, `WEB_PUSH_DISABLED_RATIO`, `DB_AUDIT_INTEGRITY` 는 DB/API 요약 artifact가 있을 때만 평가합니다.
 없으면 `skipped=...` 로 출력하고 `warning` 으로 승격하지 않습니다.
 
 cron 예시:
@@ -175,6 +177,7 @@ tail -n 20 /var/log/youth-welfare/ops/log-alert.cron.log
 bash deploy/smoke/generate-operational-alert-db-summaries.sh
 RECOMMENDATION_RUN_SUMMARY=tmp/operational-alert-db-summaries/latest-recommendation-run-summary.txt \
 WEB_PUSH_SUMMARY=tmp/operational-alert-db-summaries/latest-web-push-summary.txt \
+OPERATIONAL_DB_AUDIT_SUMMARY=/var/log/youth-welfare/nightly-ops-handoff/artifacts/<UTC timestamp>/operational-db-audit.out \
   bash deploy/smoke/evaluate-operational-alert-thresholds.sh
 ```
 

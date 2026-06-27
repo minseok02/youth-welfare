@@ -9,6 +9,7 @@ NOTIFICATION_BACKLOG_SUMMARY="${NOTIFICATION_BACKLOG_SUMMARY:-${ROOT_DIR}/tmp/no
 CHAT_OBSERVABILITY_SUMMARY="${CHAT_OBSERVABILITY_SUMMARY:-${ROOT_DIR}/tmp/chat-observability-audit/latest-chat-observability-summary.txt}"
 RECOMMENDATION_RUN_SUMMARY="${RECOMMENDATION_RUN_SUMMARY:-}"
 WEB_PUSH_SUMMARY="${WEB_PUSH_SUMMARY:-}"
+OPERATIONAL_DB_AUDIT_SUMMARY="${OPERATIONAL_DB_AUDIT_SUMMARY:-}"
 
 COLLECT_WARN_FAILED_RATE_PCT="${OP_ALERT_COLLECT_WARN_FAILED_RATE_PCT:-5}"
 COLLECT_CRIT_FAILED_RATE_PCT="${OP_ALERT_COLLECT_CRIT_FAILED_RATE_PCT:-20}"
@@ -28,6 +29,8 @@ WEB_PUSH_WARN_MIN_SUBSCRIPTIONS="${OP_ALERT_WEB_PUSH_WARN_MIN_SUBSCRIPTIONS:-20}
 WEB_PUSH_WARN_DISABLED_RATIO_PCT="${OP_ALERT_WEB_PUSH_WARN_DISABLED_RATIO_PCT:-10}"
 WEB_PUSH_CRIT_DISABLED_RATIO_PCT="${OP_ALERT_WEB_PUSH_CRIT_DISABLED_RATIO_PCT:-25}"
 WEB_PUSH_CRIT_FAILURE_15M="${OP_ALERT_WEB_PUSH_CRIT_FAILURE_15M:-10}"
+DB_AUDIT_WARN_ACTIVE_QUERIES_OVER_5M="${OP_ALERT_DB_AUDIT_WARN_ACTIVE_QUERIES_OVER_5M:-1}"
+DB_AUDIT_CRIT_WAITING_LOCKS="${OP_ALERT_DB_AUDIT_CRIT_WAITING_LOCKS:-1}"
 
 python3 - \
   "${OPS_SUMMARY}" \
@@ -35,6 +38,7 @@ python3 - \
   "${CHAT_OBSERVABILITY_SUMMARY}" \
   "${RECOMMENDATION_RUN_SUMMARY}" \
   "${WEB_PUSH_SUMMARY}" \
+  "${OPERATIONAL_DB_AUDIT_SUMMARY}" \
   "${COLLECT_WARN_FAILED_RATE_PCT}" \
   "${COLLECT_CRIT_FAILED_RATE_PCT}" \
   "${COLLECT_CRIT_FAILED_JOBS}" \
@@ -52,7 +56,9 @@ python3 - \
   "${WEB_PUSH_WARN_MIN_SUBSCRIPTIONS}" \
   "${WEB_PUSH_WARN_DISABLED_RATIO_PCT}" \
   "${WEB_PUSH_CRIT_DISABLED_RATIO_PCT}" \
-  "${WEB_PUSH_CRIT_FAILURE_15M}" <<'PY' | smoke_redact_stream_for_log
+  "${WEB_PUSH_CRIT_FAILURE_15M}" \
+  "${DB_AUDIT_WARN_ACTIVE_QUERIES_OVER_5M}" \
+  "${DB_AUDIT_CRIT_WAITING_LOCKS}" <<'PY' | smoke_redact_stream_for_log
 import sys
 from pathlib import Path
 
@@ -62,6 +68,7 @@ from pathlib import Path
     chat_observability_summary_path,
     recommendation_run_summary_path,
     web_push_summary_path,
+    operational_db_audit_summary_path,
     collect_warn_failed_rate_pct,
     collect_crit_failed_rate_pct,
     collect_crit_failed_jobs,
@@ -80,6 +87,8 @@ from pathlib import Path
     web_push_warn_disabled_ratio_pct,
     web_push_crit_disabled_ratio_pct,
     web_push_crit_failure_15m,
+    db_audit_warn_active_queries_over_5m,
+    db_audit_crit_waiting_locks,
 ) = sys.argv[1:]
 
 collect_warn_failed_rate_pct = float(collect_warn_failed_rate_pct)
@@ -100,6 +109,8 @@ web_push_warn_min_subscriptions = int(web_push_warn_min_subscriptions)
 web_push_warn_disabled_ratio_pct = float(web_push_warn_disabled_ratio_pct)
 web_push_crit_disabled_ratio_pct = float(web_push_crit_disabled_ratio_pct)
 web_push_crit_failure_15m = int(web_push_crit_failure_15m)
+db_audit_warn_active_queries_over_5m = int(db_audit_warn_active_queries_over_5m)
+db_audit_crit_waiting_locks = int(db_audit_crit_waiting_locks)
 
 critical = []
 warning = []
@@ -160,6 +171,7 @@ notification = read_key_values(notification_backlog_summary_path)
 chat = read_key_values(chat_observability_summary_path)
 recommendation = read_key_values(recommendation_run_summary_path, optional=True)
 web_push = read_key_values(web_push_summary_path, optional=True)
+db_audit = read_key_values(operational_db_audit_summary_path, optional=True)
 
 # COLLECT_FAILED_JOB_RATE
 failed_jobs = as_int(ops, "collect_failed_jobs_in_window")
@@ -255,6 +267,41 @@ if web_push:
             add_warning("WEB_PUSH_DISABLED_RATIO", f"disabled outcome multiplier {disabled_attempt_multiplier_1h:.2f} >= 3.00")
 else:
     skipped.append("WEB_PUSH_DISABLED_RATIO: set WEB_PUSH_SUMMARY to evaluate DB/API web push metrics")
+
+# DB_AUDIT_INTEGRITY, optional DB audit artifact.
+if db_audit:
+    db_audit_source_available = str(db_audit.get("operational_alert_source_available", "true")).lower() != "false"
+    if not db_audit_source_available:
+        source_missing = db_audit.get("source_missing", "operational-db-audit")
+        skipped.append(f"DB_AUDIT_INTEGRITY: source unavailable {source_missing}")
+    else:
+        projection_drift = (
+            as_int(db_audit, "auth_without_users")
+            + as_int(db_audit, "profiles_without_users")
+            + as_int(db_audit, "pii_without_users")
+        )
+        active_users_without_pii = as_int(db_audit, "active_users_without_pii")
+        chat_orphans = as_int(db_audit, "chat_snapshots_nonnull_orphan_session")
+        pii_sync_pending_or_failed = as_int(db_audit, "user_pii_sync_pending_or_failed")
+        notification_failed_like = as_int(db_audit, "notification_failed_like")
+        waiting_locks = as_int(db_audit, "waiting_locks")
+        active_queries_over_5m = as_int(db_audit, "active_queries_over_5m")
+        if projection_drift > 0:
+            add_critical("DB_AUDIT_INTEGRITY", f"user projection drift rows {projection_drift} > 0")
+        elif active_users_without_pii > 0:
+            add_critical("DB_AUDIT_INTEGRITY", f"active users without PII {active_users_without_pii} > 0")
+        elif chat_orphans > 0:
+            add_critical("DB_AUDIT_INTEGRITY", f"nonnull chat snapshot orphan rows {chat_orphans} > 0")
+        elif waiting_locks >= db_audit_crit_waiting_locks:
+            add_critical("DB_AUDIT_INTEGRITY", f"waiting locks {waiting_locks} >= {db_audit_crit_waiting_locks}")
+        elif pii_sync_pending_or_failed > 0:
+            add_warning("DB_AUDIT_INTEGRITY", f"PII sync pending/failed rows {pii_sync_pending_or_failed} > 0")
+        elif notification_failed_like > 0:
+            add_warning("DB_AUDIT_INTEGRITY", f"notification failed-like attempts {notification_failed_like} > 0")
+        elif active_queries_over_5m >= db_audit_warn_active_queries_over_5m:
+            add_warning("DB_AUDIT_INTEGRITY", f"active queries over 5m {active_queries_over_5m} >= {db_audit_warn_active_queries_over_5m}")
+else:
+    skipped.append("DB_AUDIT_INTEGRITY: set OPERATIONAL_DB_AUDIT_SUMMARY to evaluate DB audit metrics")
 
 status = "critical" if critical else "warning" if warning else "ok"
 print(f"OP_ALERT_STATUS={status}")
