@@ -13,6 +13,7 @@
 
 ## 현재 결론
 
+- 최신 PR closeout 검증(2026-06-28): `refactor/admin-dashboard-sections` / PR `#365` 에서 admin dashboard page orchestration, 상단 운영 패널, 정책 오류 신고 item 패널을 기능 단위로 분리했습니다. 로컬 기준 `npm run lint`, `npm run test:unit`(`50 pass`), `npm run build`, `git diff --check` 를 통과했습니다. 상세 작업 기록은 [frontend-qa-session-2026-06-28.md](./frontend-qa-session-2026-06-28.md) 를 봅니다.
 - 최신 로컬 재검증(2026-06-26): `npm audit --audit-level=moderate`, `npm run lint`, `npm run test:unit`, `npm run build` 통과. wrapper 기준 기본 local-dev artifact `tmp/frontend-observation/20260626T104138Z` 는 `RUN_FRONTEND_ADMIN_E2E=false` 로 `@admin-required` 를 제외하고 lint/build/browser smoke `33 passed`, `playwright_grep_invert=@admin-required`, `decision_class=BASELINE_HEALTHY` 입니다. 별도 local-only admin opt-in artifact `tmp/frontend-observation/20260626T103616Z` 는 `RUN_FRONTEND_ADMIN_E2E=true ALLOW_DEFAULT_ADMIN_CREDENTIALS=true PLAYWRIGHT_GREP='admin dashboard'` 로 admin dashboard smoke `24 passed`, `decision_class=BASELINE_HEALTHY` 입니다.
 - 현재 프론트엔드에는 repo-native `Playwright` browser smoke가 있습니다.
 - 따라서 프론트 QA는 현재 단계에서 `정적 검증(build/lint) + Playwright smoke + 수동 브라우저 시나리오 검증` 기준으로 봅니다.

@@ -82,10 +82,12 @@
 - [frontend-qa-template.md](./frontend-qa-template.md)
 - [frontend-qa-session-2026-05-15.md](./frontend-qa-session-2026-05-15.md)
 - [frontend-qa-session-2026-05-17.md](./frontend-qa-session-2026-05-17.md)
+- [frontend-qa-session-2026-06-28.md](./frontend-qa-session-2026-06-28.md)
 
 브라우저 QA 결과를 남길 때 복사해서 쓰는 템플릿입니다.
 `frontend-qa-session-2026-05-15.md` 는 오늘 기준 high-risk 동선과 baseline을 미리 채워 둔 세션 시트입니다.
 `frontend-qa-session-2026-05-17.md` 는 admin dashboard 수동 QA 결과를 남긴 최신 세션 시트입니다.
+`frontend-qa-session-2026-06-28.md` 는 admin dashboard 프론트 구조 분리와 PR closeout 검증을 남긴 최신 세션 시트입니다.
 
 ## 읽는 순서
 
@@ -126,9 +128,10 @@
 1. [frontend-qa-template.md](./frontend-qa-template.md)
 2. 바로 실행을 시작하려면 [frontend-qa-session-2026-05-15.md](./frontend-qa-session-2026-05-15.md) 를 사용합니다.
 3. admin dashboard 결과를 확인하려면 [frontend-qa-session-2026-05-17.md](./frontend-qa-session-2026-05-17.md) 를 사용합니다.
-4. 재현 URL, query/state, `reason`, `state.from`, `?session=`/`?tab=` 같은 증거를 먼저 채웁니다.
-5. 이슈가 재현되면 [troubleshooting-log.md](../core/troubleshooting-log.md)
-6. 실행 결과를 active 기준선에 반영할 필요가 있을 때만 [phase-plan.md](../phase-plan.md)
+4. admin dashboard refactor closeout은 [frontend-qa-session-2026-06-28.md](./frontend-qa-session-2026-06-28.md) 를 확인합니다.
+5. 재현 URL, query/state, `reason`, `state.from`, `?session=`/`?tab=` 같은 증거를 먼저 채웁니다.
+6. 이슈가 재현되면 [troubleshooting-log.md](../core/troubleshooting-log.md)
+7. 실행 결과를 active 기준선에 반영할 필요가 있을 때만 [phase-plan.md](../phase-plan.md)
 
 ## 요약
 
