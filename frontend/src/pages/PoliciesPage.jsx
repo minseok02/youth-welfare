@@ -553,8 +553,20 @@ export default function PoliciesPage() {
     ) {
       return;
     }
+    // 페이지 이동만 바뀐 경우엔 히스토리에 push(뒤로가기 시 이전 페이지로 복귀),
+    // 필터·정렬 변경 등은 기존처럼 replace(뒤로가기로 필터 토글 안 되게).
+    const curNoPage = new URLSearchParams(searchParams.toString());
+    const nextNoPage = new URLSearchParams(nextSearch);
+    const nextPageValue = nextNoPage.get("page") || "";
+    curNoPage.delete("page");
+    nextNoPage.delete("page");
+    curNoPage.sort();
+    nextNoPage.sort();
+    const onlyPageChanged =
+      curNoPage.toString() === nextNoPage.toString()
+      && (searchParams.get("page") || "") !== nextPageValue;
     setSearchParams(params, {
-      replace: true,
+      replace: !onlyPageChanged,
       state: nextState,
     });
   }, [appliedSearch, defaultSort, defaultStatusFilter, gov24BenefitType, gov24ServiceField, gov24UserType, income, location.state, page, pageSize, region, searchParams, selectedCat, setSearchParams, sort, sourceType, statusFilter, subRegion, targetGroup, ward]);
