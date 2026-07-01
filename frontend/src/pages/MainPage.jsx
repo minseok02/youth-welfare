@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Snackbar, Alert, useMediaQuery } from "@mui/material";
 import Header from "../components/Header";
 import FloatingNav from "../components/FloatingNav";
+import CategoryIcon from "../components/CategoryIcon";
 import api from "../lib/axios";
 import { useAuthStore } from "../store/authStore";
 import { resolveStandardProfileCodeCompletion } from "../lib/profileStandardCodes";
@@ -146,12 +147,12 @@ const OK_BG = "#ecfdf5";
 const GUIDE_NUDGE_STORAGE_KEY = "yw-guide-nudge-seen-v1";
 
 const CATEGORY_META = [
-  { value: "일자리",        label: "일자리",        emoji: "💼", bg: "#dbeafe" },
-  { value: "주거",          label: "주거",          emoji: "🏠", bg: "#fef3c7" },
-  { value: "교육·직업훈련", label: "교육·직업훈련", emoji: "🎓", bg: "#dcfce7" },
-  { value: "금융·생활지원", label: "금융·생활지원", emoji: "💰", bg: "#fce7f3" },
-  { value: "건강·의료",     label: "건강·의료",     emoji: "🩺", bg: "#e0e7ff" },
-  { value: "참여·기회",     label: "참여·기회",     emoji: "👥", bg: "#fed7aa" },
+  { value: "일자리",        label: "일자리",        icon: "job",           bg: "#dbeafe", fg: "#2563eb" },
+  { value: "주거",          label: "주거",          icon: "housing",       bg: "#fef3c7", fg: "#f59e0b" },
+  { value: "교육·직업훈련", label: "교육·직업훈련", icon: "education",     bg: "#dcfce7", fg: "#16a34a" },
+  { value: "금융·생활지원", label: "금융·생활지원", icon: "finance",       bg: "#fce7f3", fg: "#db2777" },
+  { value: "건강·의료",     label: "건강·의료",     icon: "health",        bg: "#e0e7ff", fg: "#0d9488" },
+  { value: "참여·기회",     label: "참여·기회",     icon: "participation", bg: "#fed7aa", fg: "#7c3aed" },
 ];
 
 const POPULAR_CATEGORIES = ["일자리", "교육·직업훈련", "금융·생활지원", "주거", "건강·의료", "참여·기회"];
@@ -276,7 +277,6 @@ function HeroNonLogin({ totalPolicies, deadlineCount, firstDeadlinePolicy, secon
 function HeroLoggedIn({
   user,
   navigate,
-  onRefresh,
   onPersonalRefresh,
   refreshingRec,
   personalRefreshing,
@@ -284,10 +284,6 @@ function HeroLoggedIn({
   deadlineCount,
   firstDeadlinePolicy,
   secondDeadlinePolicy,
-  hasPriorities,
-  standardCodeMissingCount,
-  standardCodeFilledCount,
-  standardCodeTotalCount,
 }) {
   const isMobile = useMediaQuery("(max-width: 1199px)");
   return (
@@ -320,95 +316,12 @@ function HeroLoggedIn({
               {personalRefreshing ? "분석 중..." : "맞춤 재추천 →"}
             </button>
             <button
-              onClick={onRefresh}
-              disabled={refreshingRec || personalRefreshing}
-              style={{ padding: "14px 22px", background: "rgba(255,255,255,0.12)", color: "white", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer", opacity: (refreshingRec || personalRefreshing) ? 0.7 : 1 }}
-            >
-              {refreshingRec ? "갱신 중..." : "새로고침"}
-            </button>
-            <button
               onClick={() => navigate("/policies")}
-              style={{ padding: "14px 22px", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 12, fontSize: 14, fontWeight: 500, cursor: "pointer" }}
+              style={{ padding: "14px 22px", background: "rgba(255,255,255,0.12)", color: "white", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer" }}
             >
               전체 둘러보기
             </button>
-            <button
-              onClick={() => navigate("/guide")}
-              style={{ padding: "14px 22px", background: "rgba(255,255,255,0.08)", color: "white", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 12, fontSize: 14, fontWeight: 500, cursor: "pointer" }}
-            >
-              이용가이드
-            </button>
           </div>
-          {!hasPriorities && (
-            <div style={{
-              marginTop: 14,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 10,
-              flexWrap: "wrap",
-              padding: "10px 14px",
-              borderRadius: 14,
-              background: "rgba(15,23,42,0.18)",
-              border: "1px solid rgba(255,255,255,0.22)",
-            }}>
-              <span style={{ fontSize: 12, fontWeight: 800, color: "white", letterSpacing: "0.04em" }}>
-                추천 품질 우선 개선
-              </span>
-              <span style={{ fontSize: 13, opacity: 0.92 }}>
-                우선순위를 아직 설정하지 않았어요. 최신 품질 점검에서도 무우선순위 사용자군은 상단 정책 쏠림이 더 크게 보였습니다.
-              </span>
-              <button
-                onClick={() => navigate("/mypage?tab=1")}
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: 999,
-                  border: "1px solid rgba(255,255,255,0.28)",
-                  background: "rgba(255,255,255,0.08)",
-                  color: "white",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                우선순위 설정 →
-              </button>
-            </div>
-          )}
-          {standardCodeMissingCount > 0 && (
-            <div style={{
-              marginTop: 14,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 10,
-              flexWrap: "wrap",
-              padding: "10px 14px",
-              borderRadius: 14,
-              background: "rgba(255,255,255,0.12)",
-              border: "1px solid rgba(255,255,255,0.18)",
-            }}>
-              <span style={{ fontSize: 12, fontWeight: 800, color: "white", letterSpacing: "0.04em" }}>
-                추천 정확도 보강
-              </span>
-              <span style={{ fontSize: 13, opacity: 0.9 }}>
-                선택 프로필 {standardCodeFilledCount}/{standardCodeTotalCount} 입력됨 · 더 정확한 추천을 위한 추가 정보가 있어요
-              </span>
-              <button
-                onClick={() => navigate("/mypage?tab=0")}
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: 999,
-                  border: "1px solid rgba(255,255,255,0.28)",
-                  background: "rgba(255,255,255,0.08)",
-                  color: "white",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                지금 채우기 →
-              </button>
-            </div>
-          )}
           <div style={{ display: "flex", gap: isMobile ? 16 : 24, marginTop: 28, fontSize: 13 }}>
             <div>
               <div style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800 }}>{totalPolicies > 0 ? totalPolicies.toLocaleString() : "—"}</div>
@@ -480,7 +393,9 @@ function CategoryBar({ counts, navigate }) {
           onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(37,99,235,0.12)"; }}
           onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}
         >
-          <div style={{ width: isMobile ? 40 : 52, height: isMobile ? 40 : 52, borderRadius: 14, background: c.bg, margin: "0 auto 8px" }} />
+          <div style={{ width: isMobile ? 40 : 52, height: isMobile ? 40 : 52, borderRadius: 14, background: c.bg, margin: "0 auto 8px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <CategoryIcon name={c.icon} size={isMobile ? 22 : 28} color={c.fg} />
+          </div>
           <div style={{ fontSize: isMobile ? 12 : 13, fontWeight: 700, color: INK }}>{c.label}</div>
           {counts[c.value] > 0 && (
             <div style={{ fontSize: 11, color: INK3, marginTop: 2 }}>{counts[c.value].toLocaleString()}개</div>
@@ -1029,6 +944,7 @@ export default function MainPage() {
 
   // AI 추천 (로그인)
   const [recommendations, setRecommendations] = useState([]);
+  const [recVisibleCount, setRecVisibleCount] = useState(9);
   const [loadingRec, setLoadingRec] = useState(false);
   const [recError, setRecError] = useState(false);
   const [refreshingRec, setRefreshingRec] = useState(false);
@@ -1143,7 +1059,7 @@ export default function MainPage() {
       });
     setLoadingRec(true);
     setRecError(false);
-    api.get("/api/recommendations", { params: { size: 6 }, signal: controller.signal })
+    api.get("/api/recommendations", { params: { size: 30 }, signal: controller.signal })
       .then(({ data }) => setRecommendations((data.data ?? []).map(mapRec)))
       .catch((err) => {
         if (err.name !== "CanceledError" && err.code !== "ERR_CANCELED") {
@@ -1315,7 +1231,6 @@ export default function MainPage() {
           <HeroLoggedIn
             user={user}
             navigate={navigate}
-            onRefresh={() => handleRefreshRecommendations()}
             onPersonalRefresh={() => handlePersonalRefresh()}
             refreshingRec={refreshingRec}
             personalRefreshing={personalRefreshing}
@@ -1323,10 +1238,6 @@ export default function MainPage() {
             deadlineCount={deadlinePolicies.length}
             firstDeadlinePolicy={deadlinePolicies[0]}
             secondDeadlinePolicy={deadlinePolicies[1]}
-            hasPriorities={Boolean(user?.hasPriorities)}
-            standardCodeMissingCount={standardCodeMissingCount}
-            standardCodeFilledCount={standardCodeFilledCount}
-            standardCodeTotalCount={standardCodeTotalCount}
           />
         ) : (
           <HeroNonLogin
@@ -1377,16 +1288,15 @@ export default function MainPage() {
           <PriorityPromptBanner navigate={navigate} />
         )}
 
-        {/* 카테고리 바 */}
-        <CategoryBar counts={categoryCounts} navigate={navigate} />
-
         {/* AI 추천 (로그인) / 로그인 유도 (비로그인) */}
         <section style={{ marginTop: 48 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 16 }}>
             <div>
               <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", color: INK }}>맞춤 추천 정책</div>
               <div style={{ fontSize: 13, color: INK3, marginTop: 4 }}>
-                {isLoggedIn ? "저희가 프로필을 분석해 선별했어요" : "로그인하면 나에게 맞는 정책을 추려드려요"}
+                {isLoggedIn
+                  ? (recommendations.length > 0 ? `저희가 프로필을 분석해 선별했어요 · 총 ${recommendations.length}건` : "저희가 프로필을 분석해 선별했어요")
+                  : "로그인하면 나에게 맞는 정책을 추려드려요"}
               </div>
             </div>
             {isLoggedIn && (
@@ -1405,16 +1315,31 @@ export default function MainPage() {
             loadingRec ? (
               <Spinner />
             ) : recommendations.length > 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {recommendations.map((rec) => (
-                  <RecCard
-                    key={rec.id}
-                    rec={rec}
-                    onPolicyNavigate={navigateToPolicyDetail}
-                    onBookmarkToggle={handleRecommendationBookmarkToggle}
-                  />
-                ))}
-              </div>
+              <>
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {recommendations.slice(0, recVisibleCount).map((rec) => (
+                    <RecCard
+                      key={rec.id}
+                      rec={rec}
+                      onPolicyNavigate={navigateToPolicyDetail}
+                      onBookmarkToggle={handleRecommendationBookmarkToggle}
+                    />
+                  ))}
+                </div>
+
+                {recommendations.length > recVisibleCount && (
+                  <div style={{ textAlign: "center", marginTop: 18 }}>
+                    <button
+                      onClick={() => setRecVisibleCount((n) => n + 9)}
+                      style={{ padding: "12px 28px", background: "white", color: A7, border: `1px solid ${A}44`, borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer" }}
+                      onMouseEnter={e => { e.currentTarget.style.background = AS; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = "white"; }}
+                    >
+                      더 보기 ({recommendations.length - recVisibleCount}건 더)
+                    </button>
+                  </div>
+                )}
+              </>
             ) : (
               <div style={{ textAlign: "center", padding: "48px 24px", background: "white", borderRadius: 16, border: `1px solid ${LINE}` }}>
                 <div style={{ marginTop: 12, fontSize: 15, color: INK2 }}>
@@ -1476,7 +1401,7 @@ export default function MainPage() {
                   .map(cat => {
                     const meta = CATEGORY_META.find(c => c.value === cat);
                     const policy = teaserPolicies[cat]?.[0];
-                    return policy ? { id: policy.id, title: policy.title, bg: meta?.bg, category: cat } : null;
+                    return policy ? { id: policy.id, title: policy.title, bg: meta?.bg, fg: meta?.fg, icon: meta?.icon, category: cat } : null;
                   })
                   .filter(Boolean);
                 if (!previewItems.length) return null;
@@ -1488,7 +1413,9 @@ export default function MainPage() {
                         onClick={() => navigateToPolicyDetail(item.id)}
                         style={{ display: "flex", alignItems: "center", gap: 12, background: "#f7f8fc", borderRadius: 12, padding: "12px 16px", minWidth: 220, cursor: "pointer" }}
                       >
-                        <div style={{ width: 36, height: 36, borderRadius: 10, background: item.bg, flexShrink: 0 }} />
+                        <div style={{ width: 36, height: 36, borderRadius: 10, background: item.bg, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <CategoryIcon name={item.icon} size={20} color={item.fg} />
+                        </div>
                         <div style={{ minWidth: 0 }}>
                           <div style={{ fontSize: 13, fontWeight: 700, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 160 }}>{item.title}</div>
                           <div style={{ fontSize: 12, color: A, fontWeight: 600, marginTop: 1 }}>{item.category}</div>
@@ -1501,6 +1428,13 @@ export default function MainPage() {
             </div>
           )}
         </section>
+
+        {/* 관심 분야로 찾기 (카테고리) — 맞춤 추천 아래로 이동 */}
+        <div style={{ marginTop: 48, marginBottom: -16 }}>
+          <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", color: INK }}>관심 분야로 찾기</div>
+          <div style={{ fontSize: 13, color: INK3, marginTop: 4 }}>분야를 선택해 전체 정책을 둘러보세요</div>
+        </div>
+        <CategoryBar counts={categoryCounts} navigate={navigate} />
 
         {isLoggedIn && (
           <RecentViewedRail
