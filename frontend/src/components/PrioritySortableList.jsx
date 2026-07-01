@@ -16,6 +16,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
+import CategoryIcon from "./CategoryIcon";
 
 const A = "#2563eb";
 const AS = "#e8efff";
@@ -50,7 +51,9 @@ function SortableRow({ id, index, meta, onRemove, compact }) {
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
       <DragIndicatorIcon sx={{ fontSize: compact ? 18 : 20, color: INK3, flexShrink: 0 }} />
       <span style={{ width: badgeSize, height: badgeSize, borderRadius: "50%", background: A, color: WHITE, fontSize: compact ? 11 : 13, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{index + 1}</span>
-      <span style={{ width: 12, height: 12, borderRadius: "50%", background: meta?.fg, flexShrink: 0 }} />
+      <span style={{ width: badgeSize, height: badgeSize, borderRadius: 7, background: (meta?.fg || "#94a3b8") + "20", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <CategoryIcon name={meta?.icon} size={compact ? 15 : 17} color={meta?.fg} />
+      </span>
       <span style={{ fontSize: compact ? 13 : 14, fontWeight: 700, flex: 1, color: INK }}>{meta?.label}</span>
       <button
         type="button"

@@ -6,6 +6,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import api from "../lib/axios";
 import PrivacyPolicyContent from "../components/PrivacyPolicyContent";
 import PrioritySortableList from "../components/PrioritySortableList";
+import CategoryIcon from "../components/CategoryIcon";
 import {
   PROFILE_NOT_APPLICABLE_CODE,
   fetchProfileStandardCodebookOptions,
@@ -41,14 +42,14 @@ const INCOME_ROWS = [
 ];
 
 const PRIORITY_OPTIONS = [
-  { value: "HOUSING",       label: "주거",          fg: "#f59e0b" },
-  { value: "JOB",           label: "일자리",         fg: "#2563eb" },
-  { value: "EDUCATION",     label: "교육·직업훈련",  fg: "#16a34a" },
-  { value: "FINANCE",       label: "금융·생활",      fg: "#db2777" },
-  { value: "CULTURE",       label: "문화·여가",      fg: "#7c3aed" },
-  { value: "PARTICIPATION", label: "참여·기회",      fg: "#ea580c" },
-  { value: "FAMILY",        label: "가족·돌봄",      fg: "#0d9488" },
-  { value: "DEADLINE",      label: "마감임박",        fg: "#dc2626" },
+  { value: "HOUSING",       label: "주거",          fg: "#f59e0b", icon: "housing" },
+  { value: "JOB",           label: "일자리",         fg: "#2563eb", icon: "job" },
+  { value: "EDUCATION",     label: "교육·직업훈련",  fg: "#16a34a", icon: "education" },
+  { value: "FINANCE",       label: "금융·생활",      fg: "#db2777", icon: "finance" },
+  { value: "CULTURE",       label: "문화·여가",      fg: "#7c3aed", icon: "culture" },
+  { value: "PARTICIPATION", label: "참여·기회",      fg: "#ea580c", icon: "participation" },
+  { value: "FAMILY",        label: "가족·돌봄",      fg: "#0d9488", icon: "family" },
+  { value: "DEADLINE",      label: "마감임박",        fg: "#dc2626", icon: "deadline" },
 ];
 
 const EMPLOYMENT_STATUS_OPTIONS = ["재직중", "구직중", "학생", "해당 없음", "기타"];
@@ -733,7 +734,9 @@ export default function SignupPage() {
                         opacity: disabled ? 0.5 : 1,
                         display: "flex", alignItems: "center", gap: 8,
                       }}>
-                      <span style={{ width: 12, height: 12, borderRadius: "50%", background: c.fg, flexShrink: 0 }} />
+                      <span style={{ width: 26, height: 26, borderRadius: 7, background: c.fg + "20", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <CategoryIcon name={c.icon} size={16} color={c.fg} />
+                      </span>
                       <div style={{ fontSize: 13, fontWeight: 700, color: active ? AI : INK, letterSpacing: "-0.02em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{c.label}</div>
                       {active && (
                         <span style={{ position: "absolute", top: 6, right: 6, width: 18, height: 18, borderRadius: "50%", background: A, color: WHITE, fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -754,7 +757,7 @@ export default function SignupPage() {
                     onRemove={removePriority}
                     getMeta={(val) => {
                       const c = PRIORITY_OPTIONS.find(o => o.value === val);
-                      return { label: c?.label, fg: c?.fg };
+                      return { label: c?.label, fg: c?.fg, icon: c?.icon };
                     }}
                     compact
                   />

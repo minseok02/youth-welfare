@@ -6,6 +6,7 @@ import {
 } from "@mui/material";
 import Header from "../components/Header";
 import FloatingNav from "../components/FloatingNav";
+import CategoryIcon from "../components/CategoryIcon";
 import IncomeCalculatorModal from "../components/IncomeCalculatorModal";
 import api from "../lib/axios";
 import { buildSafeReturnLocation, resolveSafeInternalPath } from "../lib/safeNavigation";
@@ -54,14 +55,14 @@ const INCOME_ROWS = [
 ];
 
 const PRIORITY_OPTIONS = [
-  { value: "HOUSING",       label: "주거",          bg: "#fef3c7" },
-  { value: "JOB",           label: "일자리",         bg: "#dbeafe" },
-  { value: "EDUCATION",     label: "교육·직업훈련",  bg: "#dcfce7" },
-  { value: "FINANCE",       label: "금융·생활",      bg: "#fce7f3" },
-  { value: "CULTURE",       label: "문화·여가",      bg: "#ede9fe" },
-  { value: "PARTICIPATION", label: "참여·기회",      bg: "#fed7aa" },
-  { value: "FAMILY",        label: "가족·돌봄",      bg: "#d1fae5" },
-  { value: "DEADLINE",      label: "마감임박",        bg: "#fee2e2" },
+  { value: "HOUSING",       label: "주거",          icon: "housing",       bg: "#fef3c7", fg: "#f59e0b" },
+  { value: "JOB",           label: "일자리",         icon: "job",           bg: "#dbeafe", fg: "#2563eb" },
+  { value: "EDUCATION",     label: "교육·직업훈련",  icon: "education",     bg: "#dcfce7", fg: "#16a34a" },
+  { value: "FINANCE",       label: "금융·생활",      icon: "finance",       bg: "#fce7f3", fg: "#db2777" },
+  { value: "CULTURE",       label: "문화·여가",      icon: "culture",       bg: "#ede9fe", fg: "#9333ea" },
+  { value: "PARTICIPATION", label: "참여·기회",      icon: "participation", bg: "#fed7aa", fg: "#7c3aed" },
+  { value: "FAMILY",        label: "가족·돌봄",      icon: "family",        bg: "#d1fae5", fg: "#059669" },
+  { value: "DEADLINE",      label: "마감임박",        icon: "deadline",      bg: "#fee2e2", fg: "#dc2626" },
 ];
 
 const EMPLOYMENT_STATUS_OPTIONS = ["재직중", "구직중", "학생", "해당 없음", "기타"];
@@ -83,12 +84,12 @@ const EMPTY_PROFILE_CODE_OPTIONS = {
 
 const TAB_IDS = ['info', 'pref', 'bookmark', 'noti', 'filter', 'account'];
 const TAB_META = {
-  info:     { l: "내 정보",      sub: "기본 인적사항",  color: "#2563eb" },
-  pref:     { l: "우선순위",     sub: "관심 카테고리",  color: "#7c3aed" },
-  bookmark: { l: "북마크",       sub: "저장한 정책",    color: "#f59e0b" },
-  noti:     { l: "알림 설정",    sub: "이메일·푸시",    color: "#ef4444" },
-  filter:   { l: "필터 기본값",  sub: "메인 화면 필터", color: "#059669" },
-  account:  { l: "계정",         sub: "비밀번호·탈퇴",  color: "#374151" },
+  info:     { l: "내 정보",      sub: "기본 인적사항",  color: "#2563eb", icon: "person" },
+  pref:     { l: "우선순위",     sub: "관심 카테고리",  color: "#7c3aed", icon: "star" },
+  bookmark: { l: "북마크",       sub: "저장한 정책",    color: "#f59e0b", icon: "bookmark" },
+  noti:     { l: "알림 설정",    sub: "이메일·푸시",    color: "#ef4444", icon: "bell" },
+  filter:   { l: "필터 기본값",  sub: "메인 화면 필터", color: "#059669", icon: "filter" },
+  account:  { l: "계정",         sub: "비밀번호·탈퇴",  color: "#374151", icon: "lock" },
 };
 const TAB_TITLES = {
   info:     { t: "내 정보",      d: "정확한 정보는 더 잘 맞는 정책 추천으로 이어져요" },
@@ -641,7 +642,9 @@ function SidebarNav({ active, onChange, bookmarkCount, alertUnreadCount }) {
             borderRadius: 12, textAlign: "left", cursor: "pointer",
             color: isActive ? AI : INK,
           }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: isActive ? m.color : m.color + "20", flexShrink: 0 }} />
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: isActive ? m.color : m.color + "20", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <CategoryIcon name={m.icon} size={20} color={isActive ? WHITE : m.color} />
+            </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
                 {m.l}
@@ -706,7 +709,8 @@ export default function MyPage() {
     }
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set("tab", nextTabIndex);
-    setSearchParams(nextParams, { replace: true });
+    // 탭 전환을 히스토리에 push → 뒤로가기 시 이전 탭으로 복귀(마이페이지 밖으로 안 튐)
+    setSearchParams(nextParams, { replace: false });
   }, [searchParams, setSearchParams]);
 
   useEffect(() => {
@@ -1942,7 +1946,9 @@ export default function MyPage() {
                               {idx + 1}
                             </span>
                           )}
-                          <div style={{ width: 40, height: 40, borderRadius: 12, background: c.bg, margin: "0 auto 10px" }} />
+                          <div style={{ width: 40, height: 40, borderRadius: 12, background: c.bg, margin: "0 auto 10px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <CategoryIcon name={c.icon} size={22} color={c.fg} />
+                          </div>
                           <div style={{ fontSize: 13, fontWeight: 700, color: active ? AI : INK }}>{c.label}</div>
                         </button>
                       );
@@ -1966,7 +1972,9 @@ export default function MyPage() {
                             }}>
                             <span style={{ color: INK3, fontSize: 16 }}>⋮⋮</span>
                             <span style={{ width: 28, height: 28, borderRadius: "50%", background: A, color: WHITE, fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{i + 1}</span>
-                            <div style={{ width: 28, height: 28, borderRadius: 8, background: c?.bg, flexShrink: 0 }} />
+                            <div style={{ width: 28, height: 28, borderRadius: 8, background: c?.bg, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <CategoryIcon name={c?.icon} size={16} color={c?.fg} />
+                            </div>
                             <span style={{ fontSize: 14, fontWeight: 700, flex: 1, color: INK }}>{c?.label}</span>
                             <button onClick={() => removePriority(val)} style={{ background: "transparent", border: 0, color: INK3, fontSize: 16, cursor: "pointer", padding: "4px 8px" }}>✕</button>
                           </div>
