@@ -1,0 +1,11 @@
+# robots.txt — 검색엔진 크롤러 접근 규칙
+User-agent: *
+Allow: /
+
+# 로그인 전용 / 관리 / 일회용 토큰 경로는 색인 제외
+Disallow: /mypage
+Disallow: /alerts
+Disallow: /chat
+Disallow: /admin
+Disallow: /reset-password
+Disallow: /notifications/unsubscribe
