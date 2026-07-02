@@ -23,7 +23,7 @@ const AS = "#e8efff";
 const BG = "#f7f8fc";
 const WHITE = "#fff";
 const INK = "#11131a";
-const INK3 = "#8b91a0";
+const INK3 = "#6b7280";
 const LINE = "#e5e7eb";
 
 function SortableRow({ id, index, meta, onRemove, compact }) {
