@@ -191,7 +191,7 @@ export default function GuidePage() {
     <div style={{ minHeight: "100vh", background: BG }}>
       <Header />
 
-      <main style={{ maxWidth: 1160, margin: "0 auto", padding: isMobile ? "22px 16px 110px" : "28px 24px 120px" }}>
+      <div style={{ maxWidth: 1160, margin: "0 auto", padding: isMobile ? "22px 16px 110px" : "28px 24px 120px" }}>
         <section
           style={{
             position: "relative",
@@ -422,7 +422,7 @@ export default function GuidePage() {
             </div>
           </div>
         </section>
-      </main>
+      </div>
 
       <FloatingNav />
     </div>

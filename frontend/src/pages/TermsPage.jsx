@@ -42,7 +42,7 @@ export default function TermsPage() {
   const navigate = useNavigate();
 
   return (
-    <main style={{ minHeight: "100vh", background: BG }}>
+    <div style={{ minHeight: "100vh", background: BG }}>
       <div style={{ maxWidth: 960, margin: "0 auto", padding: "40px 16px 72px" }}>
         <button
           onClick={() => navigate(-1)}
@@ -184,6 +184,6 @@ export default function TermsPage() {
           </p>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

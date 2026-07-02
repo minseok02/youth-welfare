@@ -6,7 +6,7 @@ export default function NavLayout({ children }) {
   return (
     <>
       <ServerErrorBanner />
-      {children}
+      <main>{children}</main>
       <Box sx={{ height: { xs: 56, lg: 0 } }} aria-hidden="true" />
       <MobileBottomNav />
     </>

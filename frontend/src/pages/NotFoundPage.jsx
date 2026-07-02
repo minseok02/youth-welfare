@@ -16,7 +16,7 @@ export default function NotFoundPage() {
   return (
     <div style={{ minHeight: "100vh", background: BG }}>
       <Header />
-      <main
+      <div
         style={{
           maxWidth: 960,
           margin: "0 auto",
@@ -103,7 +103,7 @@ export default function NotFoundPage() {
             </button>
           </div>
         </section>
-      </main>
+      </div>
       <FloatingNav />
     </div>
   );

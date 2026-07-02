@@ -801,7 +801,7 @@ export default function PolicyDetailPage() {
             className="policy-detail-layout"
             style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 340px", gap: 36, alignItems: "flex-start" }}
           >
-            <main>
+            <div>
               {/* Detail Header */}
               <header style={{ padding: "12px 0 28px", borderBottom: `1px solid ${LINE}` }}>
                 <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
@@ -1149,7 +1149,7 @@ export default function PolicyDetailPage() {
                   </div>
                 </section>
               )}
-            </main>
+            </div>
 
             {/* Sidebar */}
             <aside className="policy-detail-aside" style={{ position: "sticky", top: 76 }}>
