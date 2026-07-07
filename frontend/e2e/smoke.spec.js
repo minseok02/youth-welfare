@@ -962,7 +962,7 @@ test("메인 재추천 CTA는 우선순위가 없으면 마이페이지 우선�
   await page.goto("/login");
   await loginThroughForm(page, userCredentials);
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByText("추천 품질 우선 개선", { exact: true })).toBeVisible();
+  await expect(page.getByText("아직 추천 우선순위를 설정하지 않았어요", { exact: true })).toBeVisible();
   await clickAndWaitForUrl(
     page.getByRole("button", { name: "맞춤 재추천 →", exact: true }),
     page,
@@ -1206,7 +1206,7 @@ test("로그인 사용자 핵심 흐름은 메인에서 가이드와 추천 보�
   await loginThroughForm(page, userCredentials);
 
   await expect(page.getByText("처음 시작 가이드", { exact: true })).toBeVisible();
-  await expect(page.getByText("추천 품질 우선 개선", { exact: true })).toBeVisible();
+  await expect(page.getByText("아직 추천 우선순위를 설정하지 않았어요", { exact: true })).toBeVisible();
 
   await clickAndWaitForUrl(
     page.getByRole("button", { name: "이용가이드 보기 →", exact: true }),
@@ -1218,7 +1218,7 @@ test("로그인 사용자 핵심 흐름은 메인에서 가이드와 추천 보�
     page.waitForURL(/\/$/, { timeout: 15_000 }),
     page.goBack(),
   ]);
-  await expect(page.getByText("추천 품질 우선 개선", { exact: true })).toBeVisible();
+  await expect(page.getByText("아직 추천 우선순위를 설정하지 않았어요", { exact: true })).toBeVisible();
   await clickAndWaitForUrl(
     page.getByRole("button", { name: "맞춤 재추천 →", exact: true }),
     page,

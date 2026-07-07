@@ -43,6 +43,9 @@ class PolicyPresentationReadServiceTest {
                 recommendationProjectionReadService,
                 serviceRegionRepository
         );
+        // 상태 라벨("진행중")은 오늘 날짜 기준으로 계산되므로 상대 날짜로 고정 (날짜 하드코딩 시 마감 후 종료로 바뀌어 실패)
+        LocalDate applyStart = LocalDate.now().minusDays(10);
+        LocalDate applyEnd = LocalDate.now().plusDays(20);
         WelfareService policy = WelfareService.builder()
                 .id(11L)
                 .sourceType(WelfareService.SourceType.YOUTH)
@@ -52,8 +55,8 @@ class PolicyPresentationReadServiceTest {
                 .hostOrg("서울시")
                 .operatingOrg("서울청년센터")
                 .status(WelfareService.ServiceStatus.ACTIVE)
-                .applyStartDate(LocalDate.of(2026, 6, 1))
-                .applyEndDate(LocalDate.of(2026, 6, 30))
+                .applyStartDate(applyStart)
+                .applyEndDate(applyEnd)
                 .apiViewCount(120L)
                 .viewCount(3)
                 .registeredAt(LocalDateTime.of(2026, 5, 1, 10, 0))
@@ -87,7 +90,7 @@ class PolicyPresentationReadServiceTest {
         assertThat(result.getContent().get(0).getProviderName()).isEqualTo("서울시");
         assertThat(result.getContent().get(0).getRegionLabel()).isEqualTo("서울특별시 강남구");
         assertThat(result.getContent().get(0).getSido()).isEqualTo("서울특별시");
-        assertThat(result.getContent().get(0).getApplicationPeriod()).isEqualTo("2026-06-01 ~ 2026-06-30");
+        assertThat(result.getContent().get(0).getApplicationPeriod()).isEqualTo(applyStart + " ~ " + applyEnd);
         assertThat(result.getContent().get(0).getStatusLabel()).isEqualTo("진행중");
         assertThat(result.getContent().get(0).getYouthMajorLabel()).isEqualTo("주거");
         assertThat(result.getContent().get(0).getApiViewCount()).isEqualTo(120L);
