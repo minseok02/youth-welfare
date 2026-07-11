@@ -8,7 +8,7 @@
 - 유형: 졸업 프로젝트
 - 팀 규모: 2명
 - 현재 단계: 기능 추가 중단 후 안정화/회귀 방지 단계
-- 운영 서버: EC2 Docker Compose app + Redis, RDS PostgreSQL
+- 운영 서버: EC2 Docker Compose app, ElastiCache Valkey, RDS PostgreSQL
 
 ## 주요 기술
 
@@ -30,9 +30,28 @@
 ### Data / Infra
 
 - PostgreSQL 16 + `pgvector`
-- Redis
+- ElastiCache Valkey 9.1.0, Redis protocol compatible
 - Docker Compose
 - `youth_welfare` / `youth_welfare_pii` 2 schema 분리
+
+### 운영 캐시
+
+- Service: Amazon ElastiCache
+- Engine: Valkey 9.1.0
+- Cluster mode: disabled
+- Shards: 1
+- Nodes: 1
+- Node type: `cache.t4g.micro`
+- Multi-AZ: disabled
+- Automatic failover: disabled
+- Encryption in transit: disabled
+- Encryption at rest: enabled
+- Parameter group: `default.valkey9`
+- App connection: primary endpoint via `REDIS_HOST`, `REDIS_PORT=6379`
+- Reader endpoint: app runtime에서 사용하지 않음. 인증 토큰, rate limit, 이메일 인증, 비밀번호 재설정 등 Redis write 경로가 있기 때문.
+- Identifiers excluded from this spec: endpoint hostname, ARN, AWS account ID
+- HA decision: 현재 단일 EC2 운영에서는 단일 노드로 유지한다. ALB/다중 EC2 전환 시 replica, Multi-AZ, automatic failover를 다시 연다.
+- Security decision: 현재는 VPC 내부 접근 + at-rest encryption 기준으로 운영한다. TLS/Auth token을 켜는 경우 Spring Redis `ssl`, `password` env 지원을 먼저 추가한다.
 
 ## 로컬 개발 환경 기준
 

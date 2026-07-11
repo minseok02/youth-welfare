@@ -1,0 +1,37 @@
+x-json-logging: &json-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  app:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: youth-welfare-app
+    ports:
+      - "127.0.0.1:8082:8080"
+    env_file:
+      - ${APP_RUNTIME_ENV_FILE:-.env.runtime.production}
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+    user: "10001:10001"
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    pids_limit: 256
+    mem_limit: 1g
+    logging: *json-logging
+    restart: unless-stopped

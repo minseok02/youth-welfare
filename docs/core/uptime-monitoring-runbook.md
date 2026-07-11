@@ -83,6 +83,25 @@ bash deploy/ops/create-route53-uptime-healthcheck.sh
 
 SNS 이메일 구독 확인 메일을 눌러야 실제 알림이 옵니다.
 
+ElastiCache Valkey는 단일 노드 기준으로 아래 알람을 만듭니다. `ALERT_EMAIL` 을 비워도 기존 SNS topic action만 연결하며, 새 이메일 구독이 필요하면 함께 넘깁니다.
+
+```bash
+AWS_REGION='ap-northeast-2' \
+REPLICATION_GROUP_ID='youth-welfare-prod-redis-valkey' \
+CACHE_CLUSTER_ID='youth-welfare-prod-redis-valkey-001' \
+CACHE_NODE_ID='0001' \
+bash deploy/ops/create-elasticache-valkey-alarms.sh
+```
+
+생성되는 알람:
+
+- `EngineCPUUtilization >= 80`
+- `DatabaseMemoryUsagePercentage >= 80`
+- `FreeableMemory <= 50MiB`
+- `Evictions >= 1`
+- `CurrConnections >= 200`
+- `NewConnections >= 100`
+
 비용 사고 방지용 billing alarm은 us-east-1 CloudWatch Billing metric으로 만듭니다.
 
 ```bash
@@ -112,6 +131,7 @@ deploy/ops/aws-ops-monitor-role-policy.json
 ```bash
 aws sts get-caller-identity --region ap-northeast-2
 aws cloudwatch describe-alarms --region ap-northeast-2 --alarm-names youth-welfare-ec2-status-check-failed
+aws cloudwatch describe-alarms --region ap-northeast-2 --alarm-name-prefix youth-welfare-elasticache-
 aws cloudwatch describe-alarms --region us-east-1 --alarm-names youth-welfare-route53-uptime-unhealthy
 aws route53 get-health-check --health-check-id 5645ef15-90f4-4b7d-899f-52879da4f61d
 ```

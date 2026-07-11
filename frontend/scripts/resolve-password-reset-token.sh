@@ -25,12 +25,8 @@ if [[ -z "${user_key}" ]]; then
   exit 1
 fi
 
-redis_container_name="${REDIS_CONTAINER_NAME:-youth-welfare-redis}"
-smoke_require_command docker
-
 token="$(
-  docker exec "${redis_container_name}" \
-    redis-cli GET "password-reset:user:${user_key}" | tr -d '\r'
+  smoke_redis_cli GET "password-reset:user:${user_key}" | tr -d '\r'
 )"
 
 if [[ -z "${token}" ]]; then

@@ -23,6 +23,7 @@ cross-cutting 문서가 흩어져 있어도
 - [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)
 - [server-runtime-drift-checklist.md](./server-runtime-drift-checklist.md)
 - [uptime-monitoring-runbook.md](./uptime-monitoring-runbook.md)
+- [alb-multi-ec2-rollout-plan.md](./alb-multi-ec2-rollout-plan.md)
 - [log-alert-thresholds.md](./log-alert-thresholds.md)
 - [admin-dashboard-alert-surface-contract.md](./admin-dashboard-alert-surface-contract.md)
 - [project-spec.md](../project-spec.md)
@@ -65,6 +66,8 @@ cross-cutting 문서가 흩어져 있어도
 `final-ops-closeout-checklist.md` 는 안정화 작업을 PR/배포/운영 handoff 전에 어떤 명령 순서로 닫을지 고정합니다.
 
 `uptime-monitoring-runbook.md` 는 Healthchecks.io ping, 서버 내부 watchdog, AWS Route53/CloudWatch 알람을 운영 서버에 붙이는 순서를 정리합니다.
+
+`alb-multi-ec2-rollout-plan.md` 는 현재 EC2 1대 + RDS 구조를 유지한 채 EC2 web 노드를 2대로 늘리고 ALB/공유 Redis/scheduler 단일 실행 경계를 붙이는 전환 계획입니다.
 
 `log-alert-thresholds.md` 는 app/nginx 로그와 운영 dashboard 지표의 warning/critical 기준을 고정합니다.
 
@@ -170,11 +173,12 @@ cross-cutting 문서가 흩어져 있어도
 3. 보안 현재 상태는 [security-hardening-current-state.md](./security-hardening-current-state.md) 를 봅니다.
 4. 로컬/통합 검증 진입점은 [local-validation-docs-index.md](./local-validation-docs-index.md), [testing.md](./testing.md), [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md) 를 봅니다.
 5. 서버 다운 감지는 [uptime-monitoring-runbook.md](./uptime-monitoring-runbook.md) 를 봅니다.
-6. 운영 warning/critical 기준은 [log-alert-thresholds.md](./log-alert-thresholds.md) 를 보고, dashboard 화면에서 어떤 raw field로 확인하는지는 [admin-dashboard-alert-surface-contract.md](./admin-dashboard-alert-surface-contract.md) 를 봅니다.
-7. 구조와 contract는 [project-spec.md](../project-spec.md), [architecture.md](../architecture.md), [api-mapping.md](./api-mapping.md) 부터 봅니다.
-8. DB/schema 판단은 [db-migration.md](./db-migration.md), [user-data-separation-design.md](./user-data-separation-design.md), [pii-key-rotation-runbook.md](./pii-key-rotation-runbook.md) 를 봅니다.
-9. 챗봇과 OpenAI 경계는 [chatbot-plan.md](./chatbot-plan.md), [openai-runtime-contract.md](./openai-runtime-contract.md) 를 같이 봅니다.
-10. ops observation은 [ops-observation-runbook.md](./ops-observation-runbook.md) 를 봅니다.
-11. 알림 채널 확장은 [notification-channel-expansion-plan.md](./notification-channel-expansion-plan.md) 부터 봅니다.
-12. backlog 운영 triage는 [notification-backlog-audit-runbook.md](./notification-backlog-audit-runbook.md) 를 봅니다.
-13. 실제 작업 범위는 [notification-channel-expansion-checklist.md](./notification-channel-expansion-checklist.md) 로 고정합니다.
+6. EC2 web 이중화/ALB 전환은 [alb-multi-ec2-rollout-plan.md](./alb-multi-ec2-rollout-plan.md) 를 봅니다.
+7. 운영 warning/critical 기준은 [log-alert-thresholds.md](./log-alert-thresholds.md) 를 보고, dashboard 화면에서 어떤 raw field로 확인하는지는 [admin-dashboard-alert-surface-contract.md](./admin-dashboard-alert-surface-contract.md) 를 봅니다.
+8. 구조와 contract는 [project-spec.md](../project-spec.md), [architecture.md](../architecture.md), [api-mapping.md](./api-mapping.md) 부터 봅니다.
+9. DB/schema 판단은 [db-migration.md](./db-migration.md), [user-data-separation-design.md](./user-data-separation-design.md), [pii-key-rotation-runbook.md](./pii-key-rotation-runbook.md) 를 봅니다.
+10. 챗봇과 OpenAI 경계는 [chatbot-plan.md](./chatbot-plan.md), [openai-runtime-contract.md](./openai-runtime-contract.md) 를 같이 봅니다.
+11. ops observation은 [ops-observation-runbook.md](./ops-observation-runbook.md) 를 봅니다.
+12. 알림 채널 확장은 [notification-channel-expansion-plan.md](./notification-channel-expansion-plan.md) 부터 봅니다.
+13. backlog 운영 triage는 [notification-backlog-audit-runbook.md](./notification-backlog-audit-runbook.md) 를 봅니다.
+14. 실제 작업 범위는 [notification-channel-expansion-checklist.md](./notification-channel-expansion-checklist.md) 로 고정합니다.

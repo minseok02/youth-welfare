@@ -14,6 +14,12 @@ class AdminDashboardAlertSurfaceContractTest {
     private static final Path SURFACE_DOC = Path.of("../docs/core/admin-dashboard-alert-surface-contract.md");
     private static final Path VERIFY_SCRIPT = Path.of("../deploy/smoke/verify-admin-dashboard-alert-surface.sh");
     private static final Path ADMIN_PAGE = Path.of("../frontend/src/pages/AdminDashboardPage.jsx");
+    private static final Path ADMIN_API = Path.of("../frontend/src/lib/adminDashboardApi.js");
+    private static final Path ADMIN_UI = Path.of("../frontend/src/components/adminDashboard/AdminDashboardUi.jsx");
+    private static final Path ADMIN_COLLECT_SECTION = Path.of("../frontend/src/components/adminDashboard/AdminCollectTriageSection.jsx");
+    private static final Path ADMIN_SEARCH_SECTION = Path.of("../frontend/src/components/adminDashboard/AdminSearchTriageSection.jsx");
+    private static final Path ADMIN_RECOMMENDATION_RUN_SECTION = Path.of("../frontend/src/components/adminDashboard/AdminRecommendationRunSummarySection.jsx");
+    private static final Path ADMIN_NOTIFICATION_ATTEMPT_SECTION = Path.of("../frontend/src/components/adminDashboard/AdminNotificationAttemptSummarySection.jsx");
     private static final Path COLLECT_DTO = Path.of("../backend/src/main/java/com/example/welfare/admin/dashboard/dto/AdminCollectFailureResponse.java");
     private static final Path SEARCH_DTO = Path.of("../backend/src/main/java/com/example/welfare/admin/dashboard/dto/AdminSearchFailureResponse.java");
     private static final Path RECOMMENDATION_DTO = Path.of("../backend/src/main/java/com/example/welfare/admin/dashboard/dto/AdminRecommendationRunSummaryResponse.java");
@@ -61,9 +67,17 @@ class AdminDashboardAlertSurfaceContractTest {
     @Test
     @DisplayName("admin dashboard page는 alert surface 문서의 섹션과 API를 유지한다")
     void dashboardPageKeepsAlertSurfaceSectionsAndApis() throws IOException {
-        String page = Files.readString(ADMIN_PAGE);
+        String dashboardSurface = String.join("\n",
+                Files.readString(ADMIN_PAGE),
+                Files.readString(ADMIN_API),
+                Files.readString(ADMIN_UI),
+                Files.readString(ADMIN_COLLECT_SECTION),
+                Files.readString(ADMIN_SEARCH_SECTION),
+                Files.readString(ADMIN_RECOMMENDATION_RUN_SECTION),
+                Files.readString(ADMIN_NOTIFICATION_ATTEMPT_SECTION)
+        );
 
-        assertThat(page)
+        assertThat(dashboardSurface)
                 .contains("/api/admin/dashboard/collect-failures")
                 .contains("/api/admin/dashboard/search-failures")
                 .contains("/api/admin/dashboard/recommendation-run-summary")

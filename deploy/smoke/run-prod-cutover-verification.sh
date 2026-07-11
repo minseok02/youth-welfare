@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
 
 ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env.production}"
-COMPOSE_FILE="${COMPOSE_FILE:-${ROOT_DIR}/docker-compose.prod.yml}"
+COMPOSE_FILE="${COMPOSE_FILE:-${ROOT_DIR}/docker-compose.prod.elasticache.yml}"
 PUBLIC_BASE_URL="${PUBLIC_BASE_URL:-https://youthmoa.kr}"
 VERIFY_RUNTIME_ENV_RENDER="${VERIFY_RUNTIME_ENV_RENDER:-true}"
 VERIFY_DB="${VERIFY_DB:-true}"
