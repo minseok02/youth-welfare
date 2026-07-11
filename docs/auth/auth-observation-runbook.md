@@ -11,6 +11,7 @@ daily operator가 auth/session smoke 묶음 전체를 다시 해석하지 않아
 
 - `bash deploy/smoke/run-local-auth-observation-suite.sh`
 - 운영 서버/RDS:
+  - 전체 운영 smoke 기준: `bash deploy/smoke/run-prod-runtime-smoke-suite.sh`
   - `ENV_FILE=.env.production SMOKE_DB_MODE=postgres ALLOW_ADMIN_JWT_MINT=true APP_BASE_URL='http://127.0.0.1:8082' SMOKE_TRUSTED_ORIGIN='https://youthmoa.kr' SMOKE_TRUSTED_REFERER='https://youthmoa.kr/' bash deploy/smoke/run-local-auth-observation-suite.sh`
 
 운영 서버에서는 `ENV_FILE=.env.production` 을 넘기면 Redis smoke helper가 ElastiCache `REDIS_HOST`/`REDIS_PORT` 를 읽습니다. 로컬 PC에서는 ElastiCache에 직접 붙지 않고 `docker-compose.yml` 의 Redis 컨테이너를 사용합니다.

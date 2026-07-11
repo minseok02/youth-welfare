@@ -211,6 +211,15 @@ direct admin smoke에도 동일하게 적용됩니다. 따라서 서버 검증�
 `SECURITY_ADMIN_EMAILS` allowlist 안 실제 admin 계정 + 그 비밀번호를
 `ADMIN_EMAIL`/`ADMIN_PASSWORD` 또는 `/tmp` 파일로 맞춰 실행해야 합니다.
 
+운영 EC2에서는 긴 env를 매번 직접 나열하지 말고 아래 wrapper를 우선 사용합니다.
+이 wrapper는 `ENV_FILE=.env.production`, `SMOKE_DB_MODE=postgres`,
+`APP_BASE_URL=http://127.0.0.1:8082`, `SMOKE_TRUSTED_ORIGIN=https://youthmoa.kr`
+기본값으로 cutover verify, runtime API smoke, auth observation을 순서대로 실행합니다.
+
+```bash
+bash deploy/smoke/run-prod-runtime-smoke-suite.sh
+```
+
 ```bash
 deploy/smoke/run-local-validation-from-env.sh --quick
 deploy/smoke/run-local-validation-from-env.sh --full --skip-replay

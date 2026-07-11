@@ -255,7 +255,24 @@ bash deploy/nginx/verify-edge-baseline.sh
 
 ## 9. 운영 smoke 최소 순서
 
-운영 cutover는 아래 순서로 고정한다.
+운영 서버에서 ElastiCache/RDS 전환 뒤 다시 확인할 때는 아래 wrapper를 우선 사용한다.
+이 wrapper는 `.env.production` 을 읽고, API는 EC2 내부 `http://127.0.0.1:8082`,
+브라우저 origin은 `https://youthmoa.kr` 기준으로 고정한다. endpoint/ARN/account id는
+문서나 명령줄에 반복하지 않는다.
+
+```bash
+bash deploy/smoke/run-prod-runtime-smoke-suite.sh
+```
+
+필요하면 단계별로 끌 수 있다.
+
+```bash
+RUN_CUTOVER_VERIFY=false bash deploy/smoke/run-prod-runtime-smoke-suite.sh
+RUN_RUNTIME_API_SMOKE=false bash deploy/smoke/run-prod-runtime-smoke-suite.sh
+RUN_AUTH_OBSERVATION=false bash deploy/smoke/run-prod-runtime-smoke-suite.sh
+```
+
+wrapper가 실패했거나 특정 단계만 분리해서 볼 때는 아래 순서로 쪼갠다.
 
 1. runtime env 렌더링
 
@@ -300,10 +317,10 @@ PUBLIC_BASE_URL='https://youthmoa.kr' \
 bash deploy/nginx/verify-edge-baseline.sh
 ```
 
-`run-prod-cutover-verification.sh` 는 1번의 strict render 가능성 확인과 2, 3, 5번을 한 번에 묶는 wrapper다.
+`run-prod-cutover-verification.sh` 는 1번의 strict render 가능성 확인과 2, 3, 5번을 한 번에 묶는 하위 wrapper다.
 실제 `.env.runtime.production` 을 덮어쓰지 않고 임시 0600 파일로 렌더 가능성만 확인한 뒤 삭제한다.
 각 단계 stdout/stderr는 token/password/API key/cookie/JDBC URL/email/userKey 계열 값을 redaction한 뒤 artifact로 남기고, 보존 artifact는 cleanup에서도 다시 sanitizer를 통과한다.
-app/redis 재기동과 runtime API smoke는 포함하지 않으므로 별도로 실행한다.
+app/redis 재기동과 runtime API smoke는 포함하지 않는다. 전체 운영 smoke는 `run-prod-runtime-smoke-suite.sh` 로 묶어 실행한다.
 
 ```bash
 ENV_FILE=.env.production \
