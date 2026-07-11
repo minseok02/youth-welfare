@@ -40,21 +40,22 @@
 
 ## 현재 빠른 스냅샷
 
-2026-07-11T08:00Z 기준 quick sample:
+2026-07-11T12:04Z 기준 quick sample:
 
 | 항목 | 값 |
 | --- | --- |
-| git head | `9e4f0a55c5418f4bc0b0066b0851bbff2b636644` |
-| EC2 uptime | `3 days, 22 hours, 56 minutes` |
+| git head | `6f1010776cfab2e26d96d70394ccb64747e8c857` |
+| EC2 uptime | `3 days, 23 hours, 30 minutes` |
 | root disk | `19G total / 13G used / 5.8G available / 69%` |
 | memory | `3.7Gi total / 2.4Gi available` |
 | app container | `Up 7 hours (healthy)` |
+| local DB container | 없음 |
 | redis container | 없음 |
-| app memory | `600.9MiB / 1GiB` |
+| app memory | `603.3MiB / 1GiB` |
 | redis runtime | ElastiCache Valkey primary endpoint |
-| internal health | 재측정 필요 |
-| external `/` | 재측정 필요 |
-| external `/api/policies` | 재측정 필요 |
+| internal health | `200`, avg `20.6ms`, p95 `31.5ms`, max `33.4ms` |
+| external `/` | `200`, avg `71.8ms`, p95 `101.1ms`, max `109.0ms` |
+| external `/api/policies` | `200`, avg `158.2ms`, p95 `220.7ms`, max `253.1ms` |
 
 이 값은 짧은 현장 스냅샷이다. 전환 전 최종 기준선은 아래의 full command set으로 다시 저장한다.
 
