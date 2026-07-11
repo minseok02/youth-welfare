@@ -317,10 +317,10 @@ PUBLIC_BASE_URL='https://youthmoa.kr' \
 bash deploy/nginx/verify-edge-baseline.sh
 ```
 
-`run-prod-cutover-verification.sh` 는 1번의 strict render 가능성 확인과 2, 3, 5번을 한 번에 묶는 하위 wrapper다.
+`run-prod-cutover-verification.sh` 는 1번의 strict render 가능성 확인과 2, 3, 5번을 한 번에 묶는 wrapper다.
 실제 `.env.runtime.production` 을 덮어쓰지 않고 임시 0600 파일로 렌더 가능성만 확인한 뒤 삭제한다.
 각 단계 stdout/stderr는 token/password/API key/cookie/JDBC URL/email/userKey 계열 값을 redaction한 뒤 artifact로 남기고, 보존 artifact는 cleanup에서도 다시 sanitizer를 통과한다.
-app/redis 재기동과 runtime API smoke는 포함하지 않는다. 전체 운영 smoke는 `run-prod-runtime-smoke-suite.sh` 로 묶어 실행한다.
+app/redis 재기동과 runtime API smoke는 포함하지 않으므로 별도로 실행한다. 전체 운영 smoke는 `run-prod-runtime-smoke-suite.sh` 로 묶어 실행한다.
 
 ```bash
 ENV_FILE=.env.production \
