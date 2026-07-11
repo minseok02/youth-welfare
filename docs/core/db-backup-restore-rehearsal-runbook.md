@@ -19,12 +19,12 @@
 - 복원 대상 DB 접속 정보는 별도 `.env.restore` 같은 파일에 둔다.
 - 운영 앱의 `DB_URL`은 리허설 중 변경하지 않는다.
 
-2026-06-29 현재 blocker:
+2026-07-11 현재 사전 확인:
 
-- 실행 역할 `arn:aws:sts::857721769929:assumed-role/youth-welfare-ops-monitor-v2-role/...` 에 실제 `rds:DescribeDBInstances` 권한이 아직 없다.
-- 2026-06-29 09:06 UTC 재확인에서도 `arn:aws:rds:ap-northeast-2:857721769929:db:youth-welfare-prod-db` 대상 `DescribeDBInstances` 가 `AccessDenied` 로 실패했다.
-- 같은 역할로 `iam:PutRolePolicy` 도 `AccessDenied` 이므로 현재 세션에서 직접 정책 반영이 불가능하다.
-- repo의 `deploy/ops/aws-ops-monitor-role-policy.json` 에 `rds:DescribeDBInstances` 는 추가되어 있으므로, privileged AWS actor가 실제 `youth-welfare-ops-monitor-v2-role` 정책에 반영한 뒤 이 런북을 진행한다.
+- 실행 역할 `arn:aws:sts::857721769929:assumed-role/youth-welfare-ops-monitor-v2-role/...` 에 `deploy/ops/aws-ops-monitor-role-policy.json` 기준 inline policy가 반영됐다.
+- 같은 역할로 `rds:DescribeDBInstances` 조회가 통과한다.
+- 운영 RDS `youth-welfare-prod-db` 는 `available`, backup retention `7`, latest restorable time `2026-07-11T14:50:26Z`, deletion protection `true`, storage encrypted `true`, Multi-AZ `false`, public access `false` 로 확인됐다.
+- 이제 권한 blocker는 없지만, 실제 restore rehearsal은 별도 RDS instance를 생성하는 비용 발생 작업이라 현재 보류한다. 명시 승인 후 target DB identifier, subnet group, restore security group을 정한 뒤 진행한다.
 
 ## 1. 운영 RDS 백업 상태 확인
 

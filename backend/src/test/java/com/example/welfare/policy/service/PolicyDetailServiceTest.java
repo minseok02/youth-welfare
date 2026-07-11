@@ -37,6 +37,8 @@ class PolicyDetailServiceTest {
     @Test
     @DisplayName("정책 상세 조회는 lookup/read 경계를 통해 상세 aggregate를 조립한다")
     void getDetailUsesLookupAndDetailReadBoundary() {
+        LocalDate applyStartDate = LocalDate.now().minusDays(10);
+        LocalDate applyEndDate = LocalDate.now().plusDays(30);
         WelfareService service = WelfareService.builder()
                 .id(11L)
                 .sourceType(WelfareService.SourceType.YOUTH)
@@ -45,8 +47,8 @@ class PolicyDetailServiceTest {
                 .status(WelfareService.ServiceStatus.ACTIVE)
                 .hostOrg("서울시")
                 .operatingOrg("서울청년센터")
-                .applyStartDate(LocalDate.of(2026, 6, 1))
-                .applyEndDate(LocalDate.of(2026, 6, 30))
+                .applyStartDate(applyStartDate)
+                .applyEndDate(applyEndDate)
                 .viewCount(7)
                 .build();
         WelfareServiceDetail detail = WelfareServiceDetail.builder()
@@ -98,7 +100,7 @@ class PolicyDetailServiceTest {
         assertEquals(8, response.getViewCount());
         assertEquals("서울시", response.getProviderName());
         assertEquals("서울특별시 강남구", response.getRegionLabel());
-        assertEquals("2026-06-01 ~ 2026-06-30", response.getApplicationPeriod());
+        assertEquals(applyStartDate + " ~ " + applyEndDate, response.getApplicationPeriod());
         assertEquals("진행중", response.getStatusLabel());
         assertEquals("소득 심사", response.getSelectionCriteria());
         assertEquals("분기별", response.getSupportCycle());

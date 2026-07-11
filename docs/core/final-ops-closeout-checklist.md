@@ -8,14 +8,14 @@
 
 판단 기준은 [stabilization-checklist.md](./stabilization-checklist.md) 를 따르고, 이 문서는 실제 실행 순서만 짧게 둡니다.
 
-2026-06-29 현재 반복 closeout 기준:
+2026-07-11 현재 반복 closeout 기준:
 
-- attention warning은 `0` 이고, 정보성 `standard-code-backlog`, `notification-backlog` 만 남습니다.
+- attention warning은 `0` 입니다. 정보성 `standard-code-backlog` 만 관찰 항목으로 남아 있습니다.
 - 표준코드는 `safe_reconcile_candidate_rows=0`, `conflicting_value_gap_rows=0` 이면 직접 DB 보정하지 않습니다.
-- 알림은 `stale_unread_14d=0`, `NO_STALE_TARGETS`, failed notification `0` 이면 hide/retry 하지 않습니다.
+- 알림은 2026-07-11 bounded hide 이후 `unread_total=0`, `NO_STALE_TARGETS`, failed notification `0` 이면 hide/retry 하지 않습니다.
 - 추천은 `KEEP_BASELINE_MONITORING`, `WAIT_FOR_REAL_USER_TRAFFIC` 이면 score/weight/prompt를 다시 열지 않습니다.
-- 정책은 `policy_error_open_reports=0`, `policy_duplicate_open_groups=0`, `policy_link_open_reviews=0` 이면 raw 후보를 관찰값으로만 둡니다.
-- RDS backup/restore rehearsal은 현재 AWS role의 `rds:DescribeDBInstances` 권한이 반영된 뒤에만 진행합니다.
+- 정책 duplicate queue는 2026-07-11에 `exact -> mirror -> drift -> title-only` 순서로 6개 그룹/12개 row를 review 처리했고, 최신 기준은 `policy_duplicate_open_groups=0`, `policy_duplicate_open_rows=0`, `policy_error_open_reports=0`, `policy_link_open_reviews=0` 입니다. raw duplicate/link 후보는 관찰값으로 두고 새 OPEN queue가 생길 때만 review합니다.
+- RDS backup/restore 사전 확인 권한은 반영됐습니다. 실제 restore rehearsal은 별도 RDS instance 생성 비용이 있으므로 현재 보류하고, 명시 승인 전에는 진행하지 않습니다.
 
 ## 1. 작업 전 상태 확인
 
@@ -37,6 +37,7 @@ curl -fsS http://127.0.0.1:8082/actuator/health
 ENV_FILE=.env.production \
 SMOKE_DB_MODE=postgres \
 APP_BASE_URL='http://127.0.0.1:8082' \
+ALLOW_ADMIN_JWT_MINT=true \
 RUN_RECOMMENDATION_STANDARD_CODE_OBSERVATION=false \
 bash deploy/smoke/run-local-ops-observation-suite.sh
 ```
@@ -77,7 +78,7 @@ bash deploy/smoke/run-local-notification-stale-target-audit.sh
 - failed notification이 있으면 채널/재시도부터 처리
 - `stale_14d_total > 0` 이면 target 단위 `hide-stale` 후보
 - 현재처럼 `stale_unread_14d=0`, `NO_STALE_TARGETS` 이면 digest/reminder cadence 관찰
-- 2026-06-29 기준 `unread_total=20`, `unread_digest=20`, `stale_unread_7d=12`, failed notification `0`
+- 2026-07-11 bounded hide 이후 기준 `unread_total=0`, failed notification `0`, `NO_STALE_TARGETS`
 
 ## 4. 정책 raw backlog 확인
 

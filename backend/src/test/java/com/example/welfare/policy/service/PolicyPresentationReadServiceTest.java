@@ -38,6 +38,8 @@ class PolicyPresentationReadServiceTest {
     @Test
     @DisplayName("정책 목록 페이지는 북마크와 projection additive field를 합쳐 summary 응답으로 조립한다")
     void buildSummaryPageBuildsSummaries() {
+        LocalDate applyStartDate = LocalDate.now().minusDays(10);
+        LocalDate applyEndDate = LocalDate.now().plusDays(30);
         PolicyPresentationReadService service = new PolicyPresentationReadService(
                 recommendationBookmarkReadService,
                 recommendationProjectionReadService,
@@ -52,8 +54,8 @@ class PolicyPresentationReadServiceTest {
                 .hostOrg("서울시")
                 .operatingOrg("서울청년센터")
                 .status(WelfareService.ServiceStatus.ACTIVE)
-                .applyStartDate(LocalDate.of(2026, 6, 1))
-                .applyEndDate(LocalDate.of(2026, 6, 30))
+                .applyStartDate(applyStartDate)
+                .applyEndDate(applyEndDate)
                 .apiViewCount(120L)
                 .viewCount(3)
                 .registeredAt(LocalDateTime.of(2026, 5, 1, 10, 0))
@@ -87,7 +89,7 @@ class PolicyPresentationReadServiceTest {
         assertThat(result.getContent().get(0).getProviderName()).isEqualTo("서울시");
         assertThat(result.getContent().get(0).getRegionLabel()).isEqualTo("서울특별시 강남구");
         assertThat(result.getContent().get(0).getSido()).isEqualTo("서울특별시");
-        assertThat(result.getContent().get(0).getApplicationPeriod()).isEqualTo("2026-06-01 ~ 2026-06-30");
+        assertThat(result.getContent().get(0).getApplicationPeriod()).isEqualTo(applyStartDate + " ~ " + applyEndDate);
         assertThat(result.getContent().get(0).getStatusLabel()).isEqualTo("진행중");
         assertThat(result.getContent().get(0).getYouthMajorLabel()).isEqualTo("주거");
         assertThat(result.getContent().get(0).getApiViewCount()).isEqualTo(120L);
