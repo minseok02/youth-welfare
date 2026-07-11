@@ -40,7 +40,7 @@ deploy/smoke/run-local-similar-users-viewed-smoke.sh
 deploy/smoke/run-local-similar-users-viewed-audit.sh
 ```
 
-서버/RDS에서는 `ENV_FILE=.env.runtime.production SMOKE_DB_MODE=postgres KEEP_ARTIFACTS=true` 를 붙입니다.
+서버/RDS에서는 `ENV_FILE=.env.production SMOKE_DB_MODE=postgres KEEP_ARTIFACTS=true` 를 붙입니다. 운영 CORS profile에서는 필요하면 `SMOKE_TRUSTED_ORIGIN='https://youthmoa.kr' SMOKE_TRUSTED_REFERER='https://youthmoa.kr/'` 도 함께 넘깁니다.
 해석 기준은 [recommendation-similar-users-viewed-audit-runbook.md](../recommendation/recommendation-similar-users-viewed-audit-runbook.md) 를 봅니다.
 
 `@example.com` 이 아닌 bounded local seed를 하나 만들어 `BOUNDED_LOCAL` cohort가 비지 않는지 같이 보고 싶으면 아래 스크립트를 사용합니다.
@@ -72,7 +72,7 @@ deploy/smoke/run-local-admin-authorization-smoke.sh
 알림 채널 설정과 dispatch 경계는 아래 스크립트를 우선 사용합니다.
 
 ```bash
-ENV_FILE=.env.runtime.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' \
+ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' \
 deploy/smoke/run-local-notification-channel-smoke.sh
 ```
 

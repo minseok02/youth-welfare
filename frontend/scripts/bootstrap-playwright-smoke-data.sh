@@ -46,11 +46,13 @@ reset_login_account_state() {
 }
 
 clear_login_rate_limit_keys() {
-  local redis_container_name="${REDIS_CONTAINER_NAME:-youth-welfare-redis}"
+  local key
 
-  smoke_require_command docker
-  docker exec "${redis_container_name}" sh -lc \
-    "redis-cli --scan --pattern 'auth:rate-limit:login:*' | xargs -r redis-cli DEL >/dev/null"
+  while IFS= read -r key; do
+    if [[ -n "${key}" ]]; then
+      smoke_redis_cli DEL "${key}" >/dev/null
+    fi
+  done < <(smoke_redis_cli --scan --pattern 'auth:rate-limit:login:*')
 }
 
 ensure_signup_user() {

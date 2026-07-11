@@ -18,6 +18,24 @@
       ]
     },
     {
+      "Sid": "ListYouthWelfareCloudWatchAlarms",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:DescribeAlarms"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ReadYouthWelfareCloudWatchMetrics",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:GetMetricData",
+        "cloudwatch:GetMetricStatistics",
+        "cloudwatch:ListMetrics"
+      ],
+      "Resource": "*"
+    },
+    {
       "Sid": "ManageYouthWelfareSnsAlertTopics",
       "Effect": "Allow",
       "Action": [
@@ -51,6 +69,15 @@
       "Effect": "Allow",
       "Action": [
         "ec2:DescribeInstances"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ReadYouthWelfareElastiCacheMetadata",
+      "Effect": "Allow",
+      "Action": [
+        "elasticache:DescribeCacheClusters",
+        "elasticache:DescribeReplicationGroups"
       ],
       "Resource": "*"
     },

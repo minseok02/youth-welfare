@@ -1305,30 +1305,69 @@ smoke_resolve_recommendation_local_target_family_ids_csv() {
   printf '%s' "${result}"
 }
 
+smoke_redis_cli() {
+  local redis_host="${REDIS_HOST:-}"
+  local redis_port="${REDIS_PORT:-6379}"
+  local redis_tls="${REDIS_TLS:-}"
+  local redis_password="${REDIS_PASSWORD:-}"
+  local redis_container_name="${REDIS_CONTAINER_NAME:-youth-welfare-redis}"
+  local env_file
+  local -a redis_args=()
+
+  env_file="$(smoke_resolve_env_file "${ENV_FILE:-$(smoke_default_root_dir)/.env}")"
+  if [[ -z "${redis_host}" ]]; then
+    redis_host="$(smoke_load_env_value "${env_file}" REDIS_HOST)"
+  fi
+  if [[ "${redis_port}" == "6379" ]]; then
+    redis_port="$(smoke_load_env_value "${env_file}" REDIS_PORT 6379)"
+  fi
+  if [[ -z "${redis_tls}" ]]; then
+    redis_tls="$(smoke_load_env_value "${env_file}" REDIS_TLS false)"
+  fi
+  if [[ -z "${redis_password}" ]]; then
+    redis_password="$(smoke_load_env_value "${env_file}" REDIS_PASSWORD)"
+  fi
+
+  if [[ "${redis_tls}" == "true" ]]; then
+    redis_args+=(--tls)
+  fi
+  if [[ -n "${redis_password}" ]]; then
+    redis_args+=(-a "${redis_password}" --no-auth-warning)
+  fi
+
+  if [[ -n "${redis_host}" && "${redis_host}" != "redis" && "${redis_host}" != "localhost" && "${redis_host}" != "127.0.0.1" ]]; then
+    if command -v redis-cli >/dev/null 2>&1; then
+      redis-cli "${redis_args[@]}" -h "${redis_host}" -p "${redis_port}" "$@"
+      return
+    fi
+
+    smoke_require_command docker
+    docker run --rm redis:7-alpine redis-cli "${redis_args[@]}" -h "${redis_host}" -p "${redis_port}" "$@"
+    return
+  fi
+
+  smoke_require_command docker
+  docker exec "${redis_container_name}" redis-cli "${redis_args[@]}" "$@"
+}
+
 smoke_seed_verified_email() {
   local raw_email="$1"
-  local redis_container_name="${REDIS_CONTAINER_NAME:-youth-welfare-redis}"
   local verified_ttl_seconds="${EMAIL_VERIFIED_TTL_SECONDS:-900}"
   local hash
 
-  smoke_require_command docker
   hash="$(smoke_sha256_hex "${raw_email}")"
 
-  docker exec "${redis_container_name}" \
-    redis-cli SETEX "email-verify:verified:${hash}" "${verified_ttl_seconds}" 1 >/dev/null
+  smoke_redis_cli SETEX "email-verify:verified:${hash}" "${verified_ttl_seconds}" 1 >/dev/null
 }
 
 smoke_clear_recommendation_refresh_rate_limit() {
   local user_key="$1"
-  local redis_container_name="${REDIS_CONTAINER_NAME:-youth-welfare-redis}"
 
   if [[ -z "${user_key}" ]]; then
     return 0
   fi
 
-  smoke_require_command docker
-
-  docker exec "${redis_container_name}" redis-cli DEL \
+  smoke_redis_cli DEL \
     "recommend:rate-limit:refresh:personal:${user_key}" \
     "recommend:rate-limit:refresh:shared:${user_key}" >/dev/null
 }

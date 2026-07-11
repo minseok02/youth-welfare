@@ -25,17 +25,12 @@ if [[ -z "${user_key}" ]]; then
   exit 1
 fi
 
-redis_container_name="${REDIS_CONTAINER_NAME:-youth-welfare-redis}"
-smoke_require_command docker
-
 previous_token="$(
-  docker exec "${redis_container_name}" \
-    redis-cli GET "password-reset:user:${user_key}" | tr -d '\r'
+  smoke_redis_cli GET "password-reset:user:${user_key}" | tr -d '\r'
 )"
 
 if [[ -n "${previous_token}" ]]; then
-  docker exec "${redis_container_name}" \
-    redis-cli DEL "password-reset:${previous_token}" "password-reset:user:${user_key}" >/dev/null
+  smoke_redis_cli DEL "password-reset:${previous_token}" "password-reset:user:${user_key}" >/dev/null
 fi
 
 token="$(python3 - <<'PY'
@@ -46,9 +41,7 @@ PY
 
 ttl_seconds="${PASSWORD_RESET_TTL_SECONDS:-1800}"
 
-docker exec "${redis_container_name}" \
-  redis-cli SETEX "password-reset:${token}" "${ttl_seconds}" "${user_key}" >/dev/null
-docker exec "${redis_container_name}" \
-  redis-cli SETEX "password-reset:user:${user_key}" "${ttl_seconds}" "${token}" >/dev/null
+smoke_redis_cli SETEX "password-reset:${token}" "${ttl_seconds}" "${user_key}" >/dev/null
+smoke_redis_cli SETEX "password-reset:user:${user_key}" "${ttl_seconds}" "${token}" >/dev/null
 
 printf '%s\n' "${token}"
