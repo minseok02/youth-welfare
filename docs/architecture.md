@@ -18,7 +18,10 @@ React
 
 ## 배포 토폴로지
 
-현재 로컬 검증/저비용 운영 기준 토폴로지는 아래와 같다.
+현재 운영은 RDS/ElastiCache를 분리한 EC2 app-only 구조이며, 제출/시연 시점에는 ALB 뒤 EC2 2대 HA 구조를 사용한다.
+운영 EC2 web node 상세 스펙은 [aws-instance-specs.md](core/aws-instance-specs.md)를 기준으로 한다.
+
+로컬 검증/초기 단일 서버 기준 토폴로지는 아래와 같다.
 
 ```text
 EC2 1대
@@ -31,6 +34,7 @@ EC2 1대
 
 사이징 메모:
 
+- 제출/시연용 web node는 `t3.medium`, Ubuntu 24.04 LTS, root volume 20GiB gp3 기준이다.
 - `app + db + redis` 동시 운영을 한 호스트에서 유지할 경우 권장 최소 사양은 `t3.medium`(x86_64, 4GB RAM)
 - 2026-04-25 로컬 Docker 실측에서 조회 부하 + 수집 배치 구간 기준 `app`은 약 `1.12GiB`, `db`는 약 `498MiB`까지 관측됨
 - `t3.small`은 DB까지 같은 호스트에 둘 때 메모리 여유가 부족하므로 비권장

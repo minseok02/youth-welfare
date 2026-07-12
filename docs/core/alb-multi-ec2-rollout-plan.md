@@ -82,14 +82,17 @@ EC2-1이 내려가면 사이트/API는 EC2-2로 계속 처리한다. 이때 sche
 
 - 기존 EC2-1: 유지
 - 신규 EC2-2: `t3.medium`, x86_64, Ubuntu 24.04 LTS
-- Root volume: `gp3 30GiB` 이상
+- Root volume: 제출/시연은 기존 EC2-1과 맞춰 `gp3 20GiB`, 다음 재생성/확장 시 `30GiB` 우선 검토
 - AZ: 가능하면 EC2-1과 다른 AZ
 
 근거:
 
 - 현재 프로젝트는 Spring Boot app, Docker build/cache, nginx, frontend artifact, smoke/ops script가 같은 서버에 있다.
-- 기존 문서의 EC2 단일 구조 측정에서 root disk 여유가 작았던 이력이 있으므로 신규 노드는 20GiB보다 30GiB 이상으로 시작한다.
+- 기존 문서의 EC2 단일 구조 측정에서 root disk 여유가 작았던 이력이 있으므로 장기 운영/재생성 시에는 30GiB가 더 안전하다.
+- 다만 제출용 EC2-2는 기존 EC2-1과 같은 20GiB gp3로 맞추고, Docker cache 정리와 사용률 관찰을 운영 조건으로 둔다.
 - `t3.small` 도 web-only로는 가능하지만 운영 smoke, Docker build, JVM 여유를 감안해 `t3.medium` 을 기본값으로 둔다.
+
+현재 EC2-1/EC2-2의 실제 스펙 표는 [aws-instance-specs.md](./aws-instance-specs.md)를 기준으로 한다.
 
 권장 host 패키지:
 

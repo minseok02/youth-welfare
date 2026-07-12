@@ -28,6 +28,7 @@
 - Local DB container: `youth-welfare-db` 가 떠 있을 수 있으나, 현재 app runtime datasource는 RDS다.
 
 비교 대상 전환 계획은 [alb-multi-ec2-rollout-plan.md](./alb-multi-ec2-rollout-plan.md) 를 기준으로 한다.
+EC2 web node별 인스턴스 타입, AZ, root volume, scheduler role은 [aws-instance-specs.md](./aws-instance-specs.md)를 기준으로 기록한다.
 
 ## 측정 원칙
 

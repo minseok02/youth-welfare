@@ -33,6 +33,7 @@
 - ElastiCache Valkey 9.1.0, Redis protocol compatible
 - Docker Compose
 - `youth_welfare` / `youth_welfare_pii` 2 schema 분리
+- 운영 EC2 web node 스펙: [aws-instance-specs.md](core/aws-instance-specs.md)
 
 ### 운영 캐시
 
@@ -73,6 +74,7 @@
 - 시스템 문서군 진입점: [system-docs-index.md](core/system-docs-index.md)
 - 인수인계: [stabilization-handoff.md](./stabilization-handoff.md)
 - 구조: [architecture.md](./architecture.md)
+- 운영 EC2 스펙: [aws-instance-specs.md](core/aws-instance-specs.md)
 - 요구사항: [srs-v2.10.md](core/srs-v2.10.md)
 - 로컬 검증: [local-validation-docs-index.md](core/local-validation-docs-index.md)
 - 진행 상황: [phase-plan.md](./phase-plan.md)
