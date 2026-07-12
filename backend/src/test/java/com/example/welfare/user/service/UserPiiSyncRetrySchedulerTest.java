@@ -1,5 +1,7 @@
 package com.example.welfare.user.service;
 
+import com.example.welfare.global.service.AppSchedulerGate;
+import org.junit.jupiter.api.BeforeEach;
 import com.example.welfare.user.dto.response.UserPiiSyncReplayResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -10,6 +12,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -18,10 +21,19 @@ class UserPiiSyncRetrySchedulerTest {
     @Mock
     private UserPiiSyncReplayService userPiiSyncReplayService;
 
+    @Mock
+    private AppSchedulerGate appSchedulerGate;
+
+    @BeforeEach
+    void setUpSchedulerGate() {
+        lenient().when(appSchedulerGate.shouldRun("UserPiiSyncRetryScheduler.retryQueuedUserPiiSync"))
+                .thenReturn(true);
+    }
+
     @Test
     @DisplayName("자동 retry가 활성화되면 batch size 기준으로 replay를 호출한다")
     void retryQueuedUserPiiSyncCallsReplayWhenEnabled() {
-        UserPiiSyncRetryScheduler scheduler = new UserPiiSyncRetryScheduler(userPiiSyncReplayService);
+        UserPiiSyncRetryScheduler scheduler = new UserPiiSyncRetryScheduler(userPiiSyncReplayService, appSchedulerGate);
         ReflectionTestUtils.setField(scheduler, "enabled", true);
         ReflectionTestUtils.setField(scheduler, "batchSize", 25);
         when(userPiiSyncReplayService.replay(null, 25))
@@ -35,9 +47,23 @@ class UserPiiSyncRetrySchedulerTest {
     @Test
     @DisplayName("자동 retry가 비활성화되면 replay를 호출하지 않는다")
     void retryQueuedUserPiiSyncSkipsWhenDisabled() {
-        UserPiiSyncRetryScheduler scheduler = new UserPiiSyncRetryScheduler(userPiiSyncReplayService);
+        UserPiiSyncRetryScheduler scheduler = new UserPiiSyncRetryScheduler(userPiiSyncReplayService, appSchedulerGate);
         ReflectionTestUtils.setField(scheduler, "enabled", false);
         ReflectionTestUtils.setField(scheduler, "batchSize", 25);
+
+        scheduler.retryQueuedUserPiiSync();
+
+        verify(userPiiSyncReplayService, never()).replay(null, 25);
+    }
+
+    @Test
+    @DisplayName("scheduler가 비활성화된 노드에서는 PII retry를 실행하지 않는다")
+    void retryQueuedUserPiiSyncSkipsWhenSchedulerDisabled() {
+        UserPiiSyncRetryScheduler scheduler = new UserPiiSyncRetryScheduler(userPiiSyncReplayService, appSchedulerGate);
+        ReflectionTestUtils.setField(scheduler, "enabled", true);
+        ReflectionTestUtils.setField(scheduler, "batchSize", 25);
+        when(appSchedulerGate.shouldRun("UserPiiSyncRetryScheduler.retryQueuedUserPiiSync"))
+                .thenReturn(false);
 
         scheduler.retryQueuedUserPiiSync();
 

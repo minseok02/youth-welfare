@@ -1,5 +1,7 @@
 package com.example.welfare.collect.service;
 
+import com.example.welfare.global.service.AppSchedulerGate;
+import org.junit.jupiter.api.BeforeEach;
 import com.example.welfare.collect.repository.StatusUpdateReadRepository;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.recommend.repository.ClusterAiResultCommandRepository;
@@ -18,6 +20,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
 class StatusUpdateServiceTest {
@@ -28,8 +32,27 @@ class StatusUpdateServiceTest {
     @Mock
     private ClusterAiResultCommandRepository clusterAiResultCommandRepository;
 
+    @Mock
+    private AppSchedulerGate appSchedulerGate;
+
     @InjectMocks
     private StatusUpdateService statusUpdateService;
+
+    @BeforeEach
+    void setUpSchedulerGate() {
+        lenient().when(appSchedulerGate.shouldRun("StatusUpdateService.updateStatuses")).thenReturn(true);
+    }
+
+    @Test
+    @DisplayName("scheduler가 비활성화된 노드에서는 자동 status update를 실행하지 않는다")
+    void updateStatusesSkipsWhenSchedulerDisabled() {
+        given(appSchedulerGate.shouldRun("StatusUpdateService.updateStatuses")).willReturn(false);
+
+        statusUpdateService.updateStatuses();
+
+        then(statusUpdateReadRepository).should(never()).findActiveServices();
+        then(clusterAiResultCommandRepository).should(never()).deleteExpiredBefore(any(LocalDateTime.class));
+    }
 
     @Test
     @DisplayName("status update는 상태 갱신 후 만료된 cluster ai cache 삭제를 command repository로 위임한다")

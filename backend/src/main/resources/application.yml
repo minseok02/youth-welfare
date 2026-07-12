@@ -59,6 +59,8 @@ observability:
 
 app:
   base-url: ${APP_BASE_URL:http://localhost:5173}
+  scheduler:
+    enabled: ${APP_SCHEDULER_ENABLED:true}
   mail:
     provider: ${MAIL_PROVIDER:smtp}
     from-address: ${MAIL_FROM_ADDRESS:${MAIL_USERNAME:${GMAIL_USERNAME:}}}

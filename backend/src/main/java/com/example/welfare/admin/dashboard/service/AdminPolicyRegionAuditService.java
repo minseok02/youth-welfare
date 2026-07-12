@@ -2,6 +2,7 @@ package com.example.welfare.admin.dashboard.service;
 
 import com.example.welfare.admin.dashboard.dto.AdminPolicyRegionAuditResponse;
 import com.example.welfare.admin.dashboard.dto.AdminPolicyRegionCorrectionResponse;
+import com.example.welfare.global.service.AppSchedulerGate;
 import com.example.welfare.global.util.RegionCodeUtil;
 import com.example.welfare.policy.entity.PolicyErrorReport;
 import com.example.welfare.policy.entity.WelfareService;
@@ -31,9 +32,13 @@ public class AdminPolicyRegionAuditService {
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final WelfareServiceRepository welfareServiceRepository;
     private final PolicyErrorReportRepository policyErrorReportRepository;
+    private final AppSchedulerGate appSchedulerGate;
 
     @Scheduled(cron = "0 20 5 ? * MON", zone = "Asia/Seoul")
     public void runScheduledRegionAudit() {
+        if (!appSchedulerGate.shouldRun("AdminPolicyRegionAuditService.runScheduledRegionAudit")) {
+            return;
+        }
         try {
             AdminPolicyRegionAuditResponse response = runRegionAudit(DEFAULT_SCAN_LIMIT);
             log.info("[PolicyRegionAudit] scheduled completed scanned={} candidates={} created={} skippedExisting={}",

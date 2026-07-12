@@ -1,5 +1,6 @@
 package com.example.welfare.collect.service;
 
+import com.example.welfare.global.service.AppSchedulerGate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,6 +28,7 @@ public class CollectBatchService {
     private final CollectSourceExecutionService collectSourceExecutionService;
     private final CollectListDiffService collectListDiffService;
     private final CollectListChangePolicy collectListChangePolicy;
+    private final AppSchedulerGate appSchedulerGate;
 
     @Value("${collect.list.rotation.bokjiro-detail-max-calls-per-run:100}")
     private int bokjiroDetailRotationMaxCalls;
@@ -42,6 +44,9 @@ public class CollectBatchService {
 
     @Scheduled(cron = SCHEDULE_CRON, zone = SCHEDULE_ZONE)
     public void collectAll() {
+        if (!appSchedulerGate.shouldRun("CollectBatchService.collectAll")) {
+            return;
+        }
         collectAllNow();
     }
 

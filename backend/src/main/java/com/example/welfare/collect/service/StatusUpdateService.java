@@ -1,5 +1,6 @@
 package com.example.welfare.collect.service;
 
+import com.example.welfare.global.service.AppSchedulerGate;
 import com.example.welfare.collect.repository.StatusUpdateReadRepository;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.recommend.repository.ClusterAiResultCommandRepository;
@@ -20,6 +21,7 @@ public class StatusUpdateService {
 
     private final StatusUpdateReadRepository statusUpdateReadRepository;
     private final ClusterAiResultCommandRepository clusterAiResultCommandRepository;
+    private final AppSchedulerGate appSchedulerGate;
 
     /**
      * 매일 새벽 3시 — 종료된 정책 CLOSED 처리 + CLOSED 정책 후처리
@@ -28,6 +30,9 @@ public class StatusUpdateService {
     @Scheduled(cron = "0 0 3 * * *", zone = "Asia/Seoul")
     @Transactional
     public void updateStatuses() {
+        if (!appSchedulerGate.shouldRun("StatusUpdateService.updateStatuses")) {
+            return;
+        }
         runStatusSync();
     }
 

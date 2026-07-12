@@ -1,5 +1,7 @@
 package com.example.welfare.collect.service;
 
+import com.example.welfare.global.service.AppSchedulerGate;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -33,9 +36,26 @@ class CollectBatchServiceTest {
     private CollectListDiffService collectListDiffService;
     @Mock
     private CollectListChangePolicy collectListChangePolicy;
+    @Mock
+    private AppSchedulerGate appSchedulerGate;
 
     @InjectMocks
     private CollectBatchService collectBatchService;
+
+    @BeforeEach
+    void setUpSchedulerGate() {
+        lenient().when(appSchedulerGate.shouldRun("CollectBatchService.collectAll")).thenReturn(true);
+    }
+
+    @Test
+    @DisplayName("scheduler가 비활성화된 노드에서는 자동 collect를 실행하지 않는다")
+    void collectAllSkipsWhenSchedulerDisabled() {
+        when(appSchedulerGate.shouldRun("CollectBatchService.collectAll")).thenReturn(false);
+
+        collectBatchService.collectAll();
+
+        verify(collectExecutionGuard, never()).runExclusive(eq("collect-all"), any(Runnable.class));
+    }
 
     @Test
     @DisplayName("collectAllNow 는 고정된 source 순서대로 실행하고 중간 실패가 있어도 다음 source 를 계속 처리한다")

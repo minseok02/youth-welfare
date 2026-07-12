@@ -1,5 +1,6 @@
 package com.example.welfare.notification.service;
 
+import com.example.welfare.global.service.AppSchedulerGate;
 import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.notification.dto.NotificationTarget;
 import com.example.welfare.user.entity.User.NotificationPeriod;
@@ -27,11 +28,15 @@ public class NotificationScheduleService {
     private final DeadlineReminderDispatchService deadlineReminderDispatchService;
     private final NotificationRetryService notificationRetryService;
     private final NotificationExecutionGuard notificationExecutionGuard;
+    private final AppSchedulerGate appSchedulerGate;
     @Value("${notification.deadline-reminder.days:3}")
     private int deadlineReminderDays;
 
     @Scheduled(cron = "0 0 8 * * *", zone = "Asia/Seoul")
     public void sendDailyNotifications() {
+        if (!appSchedulerGate.shouldRun("NotificationScheduleService.sendDailyNotifications")) {
+            return;
+        }
         notificationExecutionGuard.runIfAvailable(
                 DAILY_LOCK_NAME,
                 () -> sendNotifications(NotificationPeriod.DAILY, "일간")
@@ -40,6 +45,9 @@ public class NotificationScheduleService {
 
     @Scheduled(cron = "0 0 8 * * MON", zone = "Asia/Seoul")
     public void sendWeeklyNotifications() {
+        if (!appSchedulerGate.shouldRun("NotificationScheduleService.sendWeeklyNotifications")) {
+            return;
+        }
         notificationExecutionGuard.runIfAvailable(
                 WEEKLY_LOCK_NAME,
                 () -> sendNotifications(NotificationPeriod.WEEKLY, "주간")
@@ -48,6 +56,9 @@ public class NotificationScheduleService {
 
     @Scheduled(cron = "0 30 8 * * *", zone = "Asia/Seoul")
     public void sendDailyDeadlineReminders() {
+        if (!appSchedulerGate.shouldRun("NotificationScheduleService.sendDailyDeadlineReminders")) {
+            return;
+        }
         notificationExecutionGuard.runIfAvailable(
                 DEADLINE_DAILY_LOCK_NAME,
                 () -> sendDeadlineReminders(NotificationPeriod.DAILY, deadlineReminderDays, "일간 마감임박")
@@ -56,6 +67,9 @@ public class NotificationScheduleService {
 
     @Scheduled(cron = "0 */30 * * * *", zone = "Asia/Seoul")
     public void retryFailedNotifications() {
+        if (!appSchedulerGate.shouldRun("NotificationScheduleService.retryFailedNotifications")) {
+            return;
+        }
         notificationExecutionGuard.runIfAvailable(RETRY_LOCK_NAME, () -> {
             NotificationRetryService.RetryRunResult result = notificationRetryService.retryFailedNotifications();
             log.info("[NotificationScheduleService] retry 실행 due={} claimed={} skippedClaim={} sent={} rescheduled={} terminalFailed={}",

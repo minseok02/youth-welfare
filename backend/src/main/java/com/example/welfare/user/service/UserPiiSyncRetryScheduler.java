@@ -1,5 +1,6 @@
 package com.example.welfare.user.service;
 
+import com.example.welfare.global.service.AppSchedulerGate;
 import com.example.welfare.user.dto.response.UserPiiSyncReplayResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Component;
 public class UserPiiSyncRetryScheduler {
 
     private final UserPiiSyncReplayService userPiiSyncReplayService;
+    private final AppSchedulerGate appSchedulerGate;
 
     @Value("${user.pii-sync.retry.enabled:true}")
     private boolean enabled;
@@ -25,6 +27,9 @@ public class UserPiiSyncRetryScheduler {
             initialDelayString = "${user.pii-sync.retry.initial-delay-ms:60000}"
     )
     public void retryQueuedUserPiiSync() {
+        if (!appSchedulerGate.shouldRun("UserPiiSyncRetryScheduler.retryQueuedUserPiiSync")) {
+            return;
+        }
         if (!enabled) {
             log.debug("[UserPiiSyncRetryScheduler] automatic retry disabled");
             return;

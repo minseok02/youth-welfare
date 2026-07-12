@@ -1,5 +1,7 @@
 package com.example.welfare.notification.service;
 
+import com.example.welfare.global.service.AppSchedulerGate;
+import org.junit.jupiter.api.BeforeEach;
 import com.example.welfare.notification.dto.NotificationTarget;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.service.UserNotificationReadService;
@@ -16,6 +18,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -39,8 +42,30 @@ class NotificationScheduleServiceTest {
     @Mock
     private NotificationExecutionGuard notificationExecutionGuard;
 
+    @Mock
+    private AppSchedulerGate appSchedulerGate;
+
     @InjectMocks
     private NotificationScheduleService notificationScheduleService;
+
+    @BeforeEach
+    void setUpSchedulerGate() {
+        lenient().when(appSchedulerGate.shouldRun("NotificationScheduleService.sendDailyNotifications")).thenReturn(true);
+        lenient().when(appSchedulerGate.shouldRun("NotificationScheduleService.sendWeeklyNotifications")).thenReturn(true);
+        lenient().when(appSchedulerGate.shouldRun("NotificationScheduleService.sendDailyDeadlineReminders")).thenReturn(true);
+        lenient().when(appSchedulerGate.shouldRun("NotificationScheduleService.retryFailedNotifications")).thenReturn(true);
+    }
+
+    @Test
+    @DisplayName("scheduler가 비활성화된 노드에서는 알림 자동 발송을 시작하지 않는다")
+    void sendDailyNotificationsSkipsWhenSchedulerDisabled() {
+        given(appSchedulerGate.shouldRun("NotificationScheduleService.sendDailyNotifications")).willReturn(false);
+
+        notificationScheduleService.sendDailyNotifications();
+
+        verify(notificationExecutionGuard, never()).runIfAvailable(any(), any());
+        verify(userNotificationReadService, never()).getNotificationTargets(User.NotificationPeriod.DAILY);
+    }
 
     @Test
     @DisplayName("일간 스케줄은 DAILY 대상 목록을 읽어 dispatch service에 위임한다")

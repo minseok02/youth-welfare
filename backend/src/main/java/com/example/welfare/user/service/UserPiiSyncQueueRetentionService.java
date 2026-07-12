@@ -1,5 +1,6 @@
 package com.example.welfare.user.service;
 
+import com.example.welfare.global.service.AppSchedulerGate;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,6 +15,7 @@ import java.time.LocalDateTime;
 public class UserPiiSyncQueueRetentionService {
 
     private final UserPiiSyncQueueService userPiiSyncQueueService;
+    private final AppSchedulerGate appSchedulerGate;
     private final Clock clock;
 
     @Value("${user.pii-sync.retention.enabled:true}")
@@ -23,12 +25,16 @@ public class UserPiiSyncQueueRetentionService {
     private int syncedRetentionDays;
 
     @Autowired
-    public UserPiiSyncQueueRetentionService(UserPiiSyncQueueService userPiiSyncQueueService) {
-        this(userPiiSyncQueueService, Clock.systemUTC());
+    public UserPiiSyncQueueRetentionService(UserPiiSyncQueueService userPiiSyncQueueService,
+                                            AppSchedulerGate appSchedulerGate) {
+        this(userPiiSyncQueueService, appSchedulerGate, Clock.systemUTC());
     }
 
-    UserPiiSyncQueueRetentionService(UserPiiSyncQueueService userPiiSyncQueueService, Clock clock) {
+    UserPiiSyncQueueRetentionService(UserPiiSyncQueueService userPiiSyncQueueService,
+                                     AppSchedulerGate appSchedulerGate,
+                                     Clock clock) {
         this.userPiiSyncQueueService = userPiiSyncQueueService;
+        this.appSchedulerGate = appSchedulerGate;
         this.clock = clock;
     }
 
@@ -37,6 +43,9 @@ public class UserPiiSyncQueueRetentionService {
             zone = "${user.pii-sync.retention.zone:Asia/Seoul}"
     )
     public void cleanupSyncedRows() {
+        if (!appSchedulerGate.shouldRun("UserPiiSyncQueueRetentionService.cleanupSyncedRows")) {
+            return;
+        }
         if (!enabled) {
             log.debug("[UserPiiSyncQueueRetentionService] synced queue retention disabled");
             return;

@@ -12,6 +12,10 @@
 1. EC2 web 노드 1대가 내려가도 사용자 사이트/API가 계속 응답한다.
 2. 기존 보안 경계, RDS runtime role, nginx edge guard, smoke/ops 관측 기준을 깨지 않는다.
 
+프로젝트 제출/시연 기준 목표는 `ALB + EC2 2대` 로 HA 구조와 장애 드릴을 보여주는 것이다.
+졸업작품 제출 이후 장기 운영에서는 비용을 줄이기 위해 EC2 1대 운영 모드로 낮출 수 있다.
+이때도 코드/설정은 2대 scale-out을 다시 받을 수 있게 유지한다.
+
 이 전환은 DB 고가용성 전환이 아니다. RDS 장애까지 포함한 전체 HA는 RDS Multi-AZ/restore rehearsal과 별도 범위로 본다.
 
 ## 현재 기준
@@ -58,6 +62,17 @@ ElastiCache Redis shared
 | ElastiCache Redis | auth/rate-limit/lock 공유 상태 | 해당 없음 |
 
 EC2-1이 내려가면 사이트/API는 EC2-2로 계속 처리한다. 이때 scheduler/ops cron은 멈출 수 있다. 이는 사용자 요청 가용성과 batch/ops 가용성을 분리한 1차 목표다.
+
+운영 모드는 아래처럼 구분한다.
+
+| 모드 | 목적 | ALB target | EC2-1 | EC2-2 | scheduler |
+| --- | --- | --- | --- | --- | --- |
+| 제출/시연 HA | 2대 구성과 장애 대응 증명 | 2개 healthy | running | running | EC2-1 only |
+| 제출 후 저비용 | 비용 절감 운영 | 1개 healthy 또는 ALB 제거 | running | stopped/deregistered | EC2-1 only |
+| 재확장 | 사용자 증가/운영 경험 | 2개 healthy | running | running | EC2-1 only |
+
+제출 후 저비용 모드에서도 EC2-2의 env는 `APP_SCHEDULER_ENABLED=false` 로 유지한다.
+다시 켤 때 scheduler 중복 실행을 막기 위해서다.
 
 ## 리소스 사양
 
@@ -617,6 +632,75 @@ Redis failover:
 - ElastiCache primary failover event 후 app reconnect가 되는지 확인한다.
 - failover 중 일부 auth/rate-limit request 실패 가능성은 관찰한다.
 
+### Phase 8. 제출 후 1대 비용 절감 모드
+
+제출/시연 증빙을 확보한 뒤에는 아래 두 선택지 중 하나로 낮춘다.
+
+#### 선택 A. ALB 유지 + EC2-2 stop
+
+장점:
+
+- Route53/인증서/ALB 구조를 유지하므로 EC2-2를 다시 켜고 target group에 붙이면 재확장이 빠르다.
+- 제출 때 만든 HA 구조를 운영 형태로 계속 보존한다.
+
+단점:
+
+- ALB 비용은 계속 발생한다.
+
+절차:
+
+```bash
+# EC2-2 target deregister 또는 drain 확인 후 stop
+aws elbv2 deregister-targets \
+  --target-group-arn <target-group-arn> \
+  --targets Id=<ec2-2-instance-id>
+
+aws ec2 stop-instances --instance-ids <ec2-2-instance-id>
+```
+
+확인:
+
+```bash
+curl -I https://youthmoa.kr/
+ENV_FILE=.env.production \
+APP_BASE_URL='https://youthmoa.kr' \
+bash deploy/smoke/run-local-runtime-api-smoke.sh
+```
+
+#### 선택 B. ALB 제거 + 단일 EC2 direct edge
+
+장점:
+
+- ALB 비용까지 줄인다.
+
+단점:
+
+- 다시 2대로 늘릴 때 ALB/target/Route53 alias를 다시 구성해야 한다.
+
+절차:
+
+1. Route53 `youthmoa.kr`, `www.youthmoa.kr` 을 기존 EC2 EIP로 되돌린다.
+2. 기존 EC2 nginx를 direct HTTPS 템플릿으로 되돌린다.
+
+```bash
+sudo cp deploy/nginx/youth-welfare.conf /etc/nginx/sites-available/youth-welfare
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+3. EC2-1 runtime env는 유지한다.
+
+```env
+APP_SCHEDULER_ENABLED=true
+REDIS_HOST=<elasticache-primary-endpoint>
+REDIS_PORT=6379
+```
+
+4. EC2-2는 stop 또는 terminate 한다. terminate 전에는 AMI, launch setting, env 작성 절차, 보안그룹 구성을 문서화한다.
+
+이 선택지는 장애 롤백이 아니라 비용 절감 모드다. Redis를 local로 되돌릴 필요는 없다.
+ElastiCache를 계속 유지하면 나중에 ALB/EC2-2를 다시 붙일 때 auth/session/rate-limit 경계가 그대로 이어진다.
+
 ## 운영 후 모니터링
 
 ALB:
@@ -697,6 +781,7 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up -d redis
 
 - Redis를 local로 되돌리면 ElastiCache에 있던 active refresh/reset/email verification token은 끊긴다.
 - rollback 중 세션 reset을 허용할지, Redis key migration을 할지 사전에 정한다.
+- 제출 후 비용 절감 목적의 1대 운영은 위 rollback과 다르다. 장기 운영에서 shared Redis 경계를 유지하려면 `REDIS_HOST=<elasticache-primary-endpoint>` 를 그대로 둔다.
 
 ## 완료 기준
 
@@ -727,4 +812,6 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up -d redis
 9. Route53 alias 전환
 10. smoke/ops 검증
 11. EC2 장애 드릴
-12. rollback 경로 보존 상태 확인
+12. 제출 증빙 저장
+13. 제출 후 1대 비용 절감 모드 선택
+14. rollback 경로 보존 상태 확인

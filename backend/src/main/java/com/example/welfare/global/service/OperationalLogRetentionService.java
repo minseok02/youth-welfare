@@ -17,6 +17,7 @@ public class OperationalLogRetentionService {
 
     private final RecommendationRunLogCommandRepository recommendationRunLogCommandRepository;
     private final NotificationAttemptLogCommandRepository notificationAttemptLogCommandRepository;
+    private final AppSchedulerGate appSchedulerGate;
 
     @Value("${observability.log-retention.days:90}")
     private int retentionDays;
@@ -26,6 +27,9 @@ public class OperationalLogRetentionService {
             zone = "${observability.log-retention.zone:Asia/Seoul}"
     )
     public void cleanupOldOperationalLogs() {
+        if (!appSchedulerGate.shouldRun("OperationalLogRetentionService.cleanupOldOperationalLogs")) {
+            return;
+        }
         int effectiveRetentionDays = Math.max(retentionDays, 1);
         LocalDateTime before = LocalDateTime.now().minusDays(effectiveRetentionDays);
         try {
