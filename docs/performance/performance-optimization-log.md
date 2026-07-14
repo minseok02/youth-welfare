@@ -13,69 +13,6 @@ This document records what was optimized, which baseline numbers triggered the w
 
 ## Open Batch
 
-### 2026-07-14: active policy list count cache
-
-Reason for opening:
-
-- after the policy list fast path and sort indexes, RDS `EXPLAIN` showed list select queries under `1ms`, while active count remained around `10ms`.
-- default public list requests still use Spring Data `Page`, so the native fast-path methods execute the same `COUNT(*)` on each request.
-- this count is identical across `LATEST`, `DEADLINE`, and `VIEWS` for the default `ACTIVE_ONLY` list, and can safely tolerate a short TTL.
-
-Planned implementation:
-
-1. Keep filtered/region/Gov24/tag/income lists on the existing exact `Page` query path.
-2. For default `ACTIVE_ONLY` fast path only:
-   - query rows with a native `List<WelfareService>` method
-   - resolve total from Redis key `policy:list:active-only:count:v1`
-   - on cache miss, run the exact count once and write it with a short TTL
-   - build `PageImpl` with the cached/exact total
-3. Safety constraints:
-   - Redis count cache failure must fall back to exact DB count
-   - TTL default should stay short and configurable
-   - sort-specific row ordering must remain unchanged
-4. Verification:
-   - repository unit tests should prove fast path uses row query plus cached/exact count
-   - policy list tests should remain green
-   - post-deploy measurement should verify Redis key/TTL and public list latency
-
-Expected impact:
-
-| Scenario | Current behavior | Expected after count cache |
-| --- | --- | --- |
-| first default list request after TTL | row query + exact count | same as current, then cache count |
-| repeated default list request within TTL | row query + exact count | row query + Redis count |
-| filtered list request | exact filtered count | unchanged |
-
-Implementation status:
-
-- row-only native methods added for default `ACTIVE_ONLY` latest/deadline/views list fast paths
-- exact active count moved to `countActiveOnlyVisibleList()`
-- `WelfareServiceReadRepositoryImpl` now builds `PageImpl` from fast-path rows plus cached/exact total
-- Redis key: `policy:list:active-only:count:v1`
-- TTL is configurable through `POLICY_ACTIVE_LIST_COUNT_CACHE_TTL_SECONDS`, default `30`
-- Redis read/write failures log `errorType` and fall back to exact DB count
-
-Verification:
-
-```bash
-cd backend
-./gradlew test \
-  --tests 'com.example.welfare.policy.repository.WelfareServiceReadRepositoryImplTest' \
-  --tests 'com.example.welfare.policy.service.PolicyListServiceTest' \
-  --no-daemon
-
-./gradlew test --tests 'com.example.welfare.policy.*' --no-daemon
-```
-
-Result: `BUILD SUCCESSFUL`.
-
-Remaining acceptance:
-
-- deploy to both ALB targets
-- run public `GET /api/policies?page=0&size=20` repeatedly through `https://youthmoa.kr`
-- verify Redis count key and TTL
-- rerun default external latency baseline and compare list p95
-
 ### 2026-07-14: 정책 목록 API fast path + 정렬 인덱스 계획
 
 Trigger values from the 2026-07-14 ALB measurement:
@@ -270,6 +207,109 @@ Status:
 - to close this batch, deploy the same commit to both ALB targets and rerun the valid API baseline against `https://youthmoa.kr`
 
 ## Closed Batch
+
+### 2026-07-14: active policy list count cache
+
+Trigger:
+
+- after the policy list fast path and sort indexes, RDS `EXPLAIN` showed list select queries under `1ms`, while active count remained around `10ms`.
+- default public list requests still used Spring Data `Page`, so the native fast-path methods executed the same `COUNT(*)` on each request.
+- this count is identical across `LATEST`, `DEADLINE`, and `VIEWS` for the default `ACTIVE_ONLY` list, and can safely tolerate a short TTL.
+
+Why this was changed:
+
+- the previous fast path made row selection cheap, but left repeated active-count work in the request path
+- default public list count is shared across ALB targets and across the three supported fast-path sort modes
+- filtered/region/Gov24/tag/income lists still need exact per-filter counts and remain unchanged
+
+Implemented changes:
+
+1. `WelfareServiceRepository`
+   - added row-only native methods for default `ACTIVE_ONLY` latest/deadline/views list fast paths
+   - added `countActiveOnlyVisibleList()` for the exact default active count
+2. `WelfareServiceReadRepositoryImpl`
+   - default `ACTIVE_ONLY` fast path now builds `PageImpl` from row query plus cached/exact total
+   - Redis key: `policy:list:active-only:count:v1`
+   - Redis miss runs exact count once and writes it with TTL
+   - Redis read/write failures log `errorType` and fall back to exact DB count
+3. Config
+   - TTL is configurable through `POLICY_ACTIVE_LIST_COUNT_CACHE_TTL_SECONDS`
+   - default TTL is `30` seconds
+
+Verification:
+
+```bash
+cd backend
+./gradlew test \
+  --tests 'com.example.welfare.policy.repository.WelfareServiceReadRepositoryImplTest' \
+  --tests 'com.example.welfare.policy.service.PolicyListServiceTest' \
+  --no-daemon
+
+./gradlew test --tests 'com.example.welfare.policy.*' --no-daemon
+```
+
+Result: `BUILD SUCCESSFUL`.
+
+Deployment:
+
+- commit: `6d4aaadd Cache active policy list count`
+- pushed to `origin/refactor/admin-dashboard-sections`
+- primary node (`i-0b8d95e454df5e0f0`) rebuilt locally with `docker compose --env-file .env.production -f docker-compose.prod.elasticache.yml up -d --build app`
+- secondary node (`i-0e8a4cc599c1148c8`) deployed through SSM and fast-forwarded to `6d4aaadde5fae782c976e6a1e0d9e600e0548a63`
+- secondary SSM deployment command reported `Failed` with response code `1`, but stdout showed successful build plus `health_attempt=9 container=healthy http=200`
+- separate secondary verification command returned `Status=Success`, `container_health="healthy"`, and `actuator={"status":"UP"}`
+- ALB target group `youth-welfare-web-tg` after deploy:
+  - `i-0b8d95e454df5e0f0`: `healthy`
+  - `i-0e8a4cc599c1148c8`: `healthy`
+
+Post-deploy Redis verification:
+
+```bash
+curl -fsS -o /dev/null -w 'list_status=%{http_code} time=%{time_total}\n' \
+  'https://youthmoa.kr/api/policies?page=0&size=20'
+redis-cli get policy:list:active-only:count:v1
+redis-cli ttl policy:list:active-only:count:v1
+```
+
+Result:
+
+- `list_status=200 time=0.118898`
+- `count_value=13334`
+- `count_ttl=30`
+
+Post-deploy measurement:
+
+```bash
+sleep 70
+RUNS=20 WARMUP_RUNS=2 API_LATENCY_DELAY_SECONDS=1 \
+  API_LATENCY_ROOT=tmp/performance/active-list-count-cache-external-clean-20260714 \
+  APP_BASE_URL=https://youthmoa.kr \
+  bash deploy/performance/run-local-api-latency-baseline.sh
+```
+
+Result:
+
+- artifact: `tmp/performance/active-list-count-cache-external-clean-20260714/20260714T112956Z`
+- `api_latency_baseline=passed`
+- `sample_count=100`
+- all default public scenarios had `errors=0` and `rate_limited=0`
+- an earlier immediate run after manual list probing hit `policy_list_active_only` rate limits, so the accepted run waited for the 60-second list window and used `API_LATENCY_DELAY_SECONDS=1`
+
+External latency summary:
+
+| Scenario | p50 | p95 | p99 | Errors | Rate limited |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `policy_list_default` | 124.1ms | 321.3ms | 1412.4ms | 0/20 | 0 |
+| `policy_list_active_only` | 108.6ms | 121.3ms | 126.5ms | 0/20 | 0 |
+| `policy_search_keyword` | 57.4ms | 107.7ms | 190.2ms | 0/20 | 0 |
+| `policy_suggestions` | 77.7ms | 106.2ms | 200.6ms | 0/20 | 0 |
+| `policy_search_filtered` | 55.3ms | 60.5ms | 61.7ms | 0/20 | 0 |
+
+Interpretation:
+
+- Redis count cache is working and removes repeated exact `COUNT(*)` from the default active list path within the TTL
+- `policy_list_active_only` p95 improved materially in the accepted run, from the prior post-Redis-cache run's `220.9ms` to `121.3ms`
+- `policy_list_default` still saw an external network/runtime outlier in this sample, so it should be watched in the next measurement rather than treated as a DB-count regression
 
 ### 2026-07-14: Redis shared cache for public search and ranking
 
