@@ -91,6 +91,54 @@ Acceptance target:
 - no content/total regression for existing filters
 - no increase in 4xx/5xx outside rate-limit noise from repeated measurements
 
+Post-implementation measurement:
+
+- commit: `4744eae9 Add fast path for default policy lists`
+- deployed to both ALB targets on 2026-07-14
+- ALB target health after deploy: both targets `healthy`
+- runtime RDS indexes applied manually with the RDS master account
+
+Verification commands:
+
+```bash
+cd backend
+./gradlew test --no-daemon
+
+RUNS=20 WARMUP_RUNS=2 \
+  API_LATENCY_ROOT=tmp/performance/policy-list-fast-path-20260714 \
+  APP_BASE_URL=http://127.0.0.1:8082 \
+  bash deploy/performance/run-local-api-latency-baseline.sh
+
+RUNS=20 WARMUP_RUNS=2 \
+  API_LATENCY_ROOT=tmp/performance/policy-list-fast-path-external-20260714 \
+  APP_BASE_URL=https://youthmoa.kr \
+  bash deploy/performance/run-local-api-latency-baseline.sh
+```
+
+Verification result:
+
+- unit test suite: `BUILD SUCCESSFUL`
+- integration test attempt for `PolicyListFastPathIntegrationTest` was blocked by local integration runtime preflight because local PostgreSQL `127.0.0.1:5433` and Redis `6379` were not running
+- direct RDS `EXPLAIN (ANALYZE, BUFFERS)` confirmed native query execution and index usage:
+  - latest list select: `Execution Time 0.278ms`
+  - deadline list select: `Execution Time 0.801ms`
+  - views list select: `Execution Time 0.241ms`
+  - active count remained `Execution Time 10.323ms`
+
+Observed API deltas:
+
+| Scenario | Before | After local target | After external URL | Notes |
+| --- | ---: | ---: | ---: | --- |
+| `GET /api/policies` p95 | `165.2ms` | `146.6ms` | `149.0ms` | accepted minimum target met |
+| `GET /api/policies?statusFilter=ACTIVE_ONLY` p95 | not separately tracked | `91.7ms` | `182.9ms` | external run had higher network/target variance |
+
+Interpretation:
+
+- fast path and indexes are worth keeping
+- DB select is no longer the meaningful list bottleneck for first-page default lists
+- exact `COUNT(*)` and response assembly/network now dominate the remaining `GET /api/policies` latency
+- next list-specific step, if needed, should evaluate a bounded count cache rather than adding more sort indexes
+
 ### 2026-07-13: ALB 전환 후 자동완성 fallback 경량화
 
 Trigger values from the ALB baseline:
