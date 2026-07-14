@@ -179,6 +179,46 @@ Interpretation:
 - list p95 was higher in this API sample, but this batch did not change list code; keep watching it in the next general baseline
 - the next search-specific improvement should probably avoid recomputing `to_tsvector`/rank from raw text, for example with generated search vector/text fields, but that is a larger schema batch
 
+Regression closeout before the next batch:
+
+```bash
+cd backend
+./gradlew test --no-daemon
+
+RUNS=3 WARMUP_RUNS=1 API_LATENCY_DELAY_SECONDS=1 \
+  INCLUDE_RATE_LIMIT_SENSITIVE_ENDPOINTS=true \
+  API_LATENCY_ROOT=tmp/performance/search-cold-miss-regression-api-20260714 \
+  APP_BASE_URL=https://youthmoa.kr \
+  bash deploy/performance/run-local-api-latency-baseline.sh
+```
+
+Result:
+
+- backend full test suite: `BUILD SUCCESSFUL`
+- API regression artifact: `tmp/performance/search-cold-miss-regression-api-20260714/20260714T160652Z`
+- `api_latency_baseline=passed`
+- `sample_count=24`
+- all checked scenarios had `errors=0/3` and `rate_limited=0`
+
+Regression scenario summary:
+
+| Scenario | p50 | p95 | Max | Errors | Rate limited |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `policy_list_default` | 225.8ms | 295.1ms | 302.8ms | 0/3 | 0 |
+| `policy_list_active_only` | 222.5ms | 294.5ms | 302.6ms | 0/3 | 0 |
+| `policy_search_keyword` | 110.6ms | 204.0ms | 214.3ms | 0/3 | 0 |
+| `policy_search_filtered` | 50.5ms | 67.7ms | 69.6ms | 0/3 | 0 |
+| `policy_suggestions` | 75.3ms | 88.1ms | 89.5ms | 0/3 | 0 |
+| `policy_trending` | 52.5ms | 54.4ms | 54.6ms | 0/3 | 0 |
+| `policy_ranking` | 50.5ms | 62.7ms | 64.1ms | 0/3 | 0 |
+| `policy_detail_first` | 79.1ms | 135.7ms | 142.0ms | 0/3 | 0 |
+
+Interpretation:
+
+- existing public list/search/suggestion/trending/ranking/detail flows still return successful responses after the search cold-miss change
+- this smoke run is for regression coverage, not a replacement for the 20-run latency baseline
+- no blocker remains before starting the next optimization batch
+
 ### 2026-07-14: current production performance rebaseline after cache/query batches
 
 Trigger:
