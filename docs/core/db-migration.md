@@ -239,12 +239,55 @@ overlap service 는 `17`건이었고, 샘플은 `여성청소년 생리용품 �
 ## 적용 전 체크리스트
 
 - 현재 저장소는 Flyway 자동 적용이 없으므로, 기존 Docker DB/운영 DB/통합 테스트용 고정 DB에는 새 migration SQL을 수동 적용해야 한다.
+- 운영 RDS에서 기존 테이블을 `ALTER TABLE` 하거나 기존 테이블에 index를 추가하는 migration은 먼저 `deploy/postgres/apply-rds-migration-file.sh` 로 DB를 pre-apply 한다.
+  - `migration_admin` 은 `welfare_services` 같은 기존 owner 테이블 DDL에 실패할 수 있다.
+  - 앱 코드가 generated column 또는 새 index를 즉시 참조하는 경우, DB pre-apply 없이 앱을 먼저 배포하면 새 컨테이너가 정상 boot 되더라도 첫 요청에서 SQL 오류가 날 수 있다.
+  - 적용 순서는 `DB pre-apply -> RDS schema/history verification -> app deploy -> API smoke` 를 기본값으로 둔다.
 - 최신 백엔드가 `user_recommendations`, `recommendation_logs`, `notifications`, `chat_sessions`, `service_view_logs` 를 모두 `user_key` 기준으로 읽고 쓰는지 확인
 - `user_attributes`, `user_priorities` 의 저장/삭제 경로가 더 이상 `userId` 에 의존하지 않는지 확인
 - 최신 백엔드가 request-path `user_pii` sync 를 `user_pii_sync_queue -> app_pii_rw` 경로로 수행하는지 확인
 - `schema.sql` 과 엔티티 `@Table(indexes=...)` 정의를 drop 후 구조와 같이 수정
 - 운영 DB에서 `user_key IS NULL` row 가 없는지 확인
 - 운영 DB에 `app_core_rw`, `app_pii_rw`, `notification_pii_ro`, `migration_admin` 계정과 권한이 준비됐는지 확인
+
+## 운영 RDS 단일 migration pre-apply
+
+DDL이 앱 코드보다 먼저 반영돼야 하는 운영 RDS migration은 아래 wrapper를 쓴다.
+
+```bash
+ENV_FILE=.env.production \
+  deploy/postgres/apply-rds-migration-file.sh --dry-run \
+  backend/src/main/resources/db/migration/VYYYY_MM_DD_NN__description.sql
+
+ENV_FILE=.env.production NOTE='pre-apply before app deploy <commit>' \
+  deploy/postgres/apply-rds-migration-file.sh \
+  backend/src/main/resources/db/migration/VYYYY_MM_DD_NN__description.sql
+```
+
+이 wrapper가 하는 일:
+
+- `RDS_MASTER_USERNAME` / `RDS_MASTER_PASSWORD` 로 RDS owner 계정 접속
+- migration filename에서 `schema_migration_history.version` 과 description 계산
+- script SHA-256 계산
+- migration SQL 적용
+- `schema_migration_history` 에 script name, SHA, 적용 계정, note upsert
+- 이력 row가 남았는지 검증
+
+성능/안전성 비교 기준:
+
+| 항목 | 기존 방식 | wrapper 방식 |
+| --- | --- | --- |
+| DDL 권한 확인 | 배포 중 실패해야 알 수 있음 | `--dry-run` 에서 owner 접속/history 존재 확인 |
+| 앱/DB 순서 | 앱이 먼저 떠 새 컬럼 참조 가능 | DB pre-apply 후 앱 deploy |
+| broken-request window | 수동 진단/복구 동안 발생 가능 | pre-apply 성공 후 배포하므로 기대값 `0` |
+| 이력 기록 | 수동 insert 누락 가능 | 적용 직후 자동 upsert |
+| rollback 판단 | 어떤 SQL/sha가 적용됐는지 확인 필요 | `schema_migration_history` 에 script/sha/note 고정 |
+
+2026-07-14 generated search field 배포에서 확인한 실제 리스크:
+
+- `migration_admin` 으로 `V2026_07_14_02__add_policy_search_generated_fields.sql` 적용 시 `must be owner of table welfare_services` 로 실패했다.
+- 같은 SQL은 RDS master 계정 `masteradmin` 으로 정상 적용됐다.
+- 이 변경 이후 같은 유형의 migration은 앱 배포 전에 위 wrapper로 pre-apply 하는 것을 기준으로 둔다.
 
 ## 적용 후 검증 쿼리 (legacy MySQL examples)
 

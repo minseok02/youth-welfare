@@ -13,9 +13,112 @@ This document records what was optimized, which baseline numbers triggered the w
 
 ## Open Batch
 
-_No active performance optimization batch after the generated search field deployment._
+_No active performance optimization batch after the RDS migration pre-apply guard._
 
 ## Closed Batch
+
+### 2026-07-14: RDS migration pre-apply safety guard
+
+Trigger:
+
+- The generated search field deployment showed a schema/app ordering risk:
+  - app deployment finished before the generated columns were present
+  - `migration_admin` failed to apply `ALTER TABLE welfare_services` with `must be owner of table welfare_services`
+  - RDS master account was required for the DDL
+- This is not a request latency optimization. It is an operational performance/safety batch: reduce deployment diagnosis time and prevent broken-request windows for DDL-backed app changes.
+
+Plan:
+
+1. Add a reusable wrapper for one-file RDS migration pre-apply.
+   - input: `backend/src/main/resources/db/migration/VYYYY_MM_DD_NN__description.sql`
+   - account: `RDS_MASTER_USERNAME` / `RDS_MASTER_PASSWORD`
+   - output: deterministic stdout fields for version, script name, SHA, dry-run/apply result
+2. Record `schema_migration_history` automatically after successful apply.
+3. Document the required order for DDL-backed deployments:
+   - DB pre-apply
+   - schema/history verification
+   - app deploy
+   - API smoke
+4. Validate the wrapper without changing schema first using `--dry-run`.
+5. Run the wrapper against the already-applied generated-search migration to verify idempotent operation and history upsert behavior.
+
+Expected impact:
+
+| Metric | Before | Expected after guard | Interpretation |
+| --- | ---: | ---: | --- |
+| API latency | unchanged | unchanged | this is not a query-path optimization |
+| DDL permission discovery | during deploy/failure | before deploy via dry-run | faster failure mode |
+| broken-request window for new-column code | possible until manual DB fix | expected `0` when pre-apply is followed | DB schema exists before app code reads it |
+| manual history record time | ad hoc `psql` insert | wrapper-managed | lower operator error |
+| recovery/diagnosis time for owner mismatch | roughly minutes | seconds to one dry-run failure | practical deployment safety gain |
+
+Acceptance checks:
+
+```bash
+bash -n deploy/postgres/apply-rds-migration-file.sh
+ENV_FILE=.env.production deploy/postgres/apply-rds-migration-file.sh --dry-run \
+  backend/src/main/resources/db/migration/V2026_07_14_02__add_policy_search_generated_fields.sql
+ENV_FILE=.env.production NOTE='idempotent verification after generated search deployment' \
+  deploy/postgres/apply-rds-migration-file.sh \
+  backend/src/main/resources/db/migration/V2026_07_14_02__add_policy_search_generated_fields.sql
+```
+
+Acceptance target:
+
+- wrapper does not print secrets
+- dry-run verifies master connection and migration metadata without applying SQL
+- idempotent apply succeeds on an already-applied migration
+- `schema_migration_history` contains the expected script name and SHA
+
+Implementation:
+
+- added `deploy/postgres/apply-rds-migration-file.sh`
+- documented the DB pre-apply flow in `docs/core/db-migration.md`
+
+Actual verification:
+
+```bash
+bash -n deploy/postgres/apply-rds-migration-file.sh
+ENV_FILE=.env.production deploy/postgres/apply-rds-migration-file.sh --dry-run \
+  backend/src/main/resources/db/migration/V2026_07_14_02__add_policy_search_generated_fields.sql
+ENV_FILE=.env.production NOTE='idempotent verification after generated search deployment' \
+  deploy/postgres/apply-rds-migration-file.sh \
+  backend/src/main/resources/db/migration/V2026_07_14_02__add_policy_search_generated_fields.sql
+```
+
+Observed result:
+
+- syntax check passed
+- dry-run returned:
+  - `db_user=masteradmin`
+  - `history_existing_rows=1`
+  - `dry_run_result=planned`
+  - no secret values printed
+- idempotent apply returned `apply_result=ok`
+- already-applied columns/indexes were skipped by PostgreSQL `IF NOT EXISTS` notices
+- `schema_migration_history` verification:
+  - version `2026.07.14.02`
+  - script `V2026_07_14_02__add_policy_search_generated_fields.sql`
+  - SHA `47ef3bbca32efe6365340aa64a6af881888279d61292af0445671a1de5466295`
+  - applied by `masteradmin`
+- schema verification:
+  - generated columns present count: `3`
+  - generated-field indexes present count: `3`
+
+Actual impact:
+
+| Metric | Before | After | Result |
+| --- | --- | --- | --- |
+| DDL owner mismatch detection | during deploy/manual attempt | dry-run before app deploy | improved |
+| history record | manual ad hoc SQL | wrapper-managed upsert | improved |
+| broken-request risk for new-column code | possible if app deploy wins race | avoided when wrapper runs first | improved |
+| API latency | unchanged | unchanged | not a query optimization |
+| idempotent re-run | manual judgement | verified with existing migration | improved |
+
+Interpretation:
+
+- This guard turns the `migration_admin` owner mismatch from a deployment-time surprise into a pre-deploy check.
+- It should be used before the next schema-backed app change, especially any change where Java SQL references new columns or indexes immediately.
 
 ### 2026-07-14: generated search text/vector feasibility plan
 
