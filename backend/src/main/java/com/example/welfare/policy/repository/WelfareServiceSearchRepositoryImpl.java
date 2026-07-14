@@ -35,6 +35,10 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
     private static final String SEARCH_KEYWORD_TRGM_SQL = "similarity(lower(coalesce(ws.keyword, '')), :normalizedKeyword)";
     private static final String SEARCH_TITLE_LIKE_SQL = "lower(coalesce(ws.title, '')) LIKE :normalizedKeywordLike";
     private static final String SEARCH_KEYWORD_LIKE_SQL = "lower(coalesce(ws.keyword, '')) LIKE :normalizedKeywordLike";
+    private static final String SEARCH_TITLE_LIKE_INDEXABLE_SQL = "lower(ws.title) LIKE :normalizedKeywordLike";
+    private static final String SEARCH_KEYWORD_LIKE_INDEXABLE_SQL = "lower(ws.keyword) LIKE :normalizedKeywordLike";
+    private static final String SEARCH_TITLE_TRGM_OPERATOR_SQL = "lower(ws.title) % :normalizedKeyword";
+    private static final String SEARCH_KEYWORD_TRGM_OPERATOR_SQL = "lower(ws.keyword) % :normalizedKeyword";
     private static final String SEARCH_VECTOR_SQL = "to_tsvector('simple', " + SEARCH_DOCUMENT_SQL + ")";
     private static final String SEARCH_QUERY_SQL = "to_tsquery('simple', :tsQuery)";
     private static final String SEARCH_MATCH_SQL = """
@@ -74,6 +78,14 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
             SEARCH_KEYWORD_TRGM_SQL
     );
     private static final String ACTIVE_UPCOMING_STATUS_SQL = "ws.status IN ('ACTIVE', 'UPCOMING')";
+    private static final String ACTIVE_ONLY_VISIBLE_STATUS_SQL = """
+            ws.status IN ('ACTIVE', 'UPCOMING')
+            AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURRENT_DATE)
+            """;
+    private static final String DEFAULT_SEARCH_FAST_PATH_BASE_SQL = """
+            %s
+            AND ws.search_youth_relevant IS TRUE
+            """.formatted(ACTIVE_ONLY_VISIBLE_STATUS_SQL);
     private static final String STATUS_FILTER_SQL = """
             (
                 (:status IS NULL AND (
@@ -172,6 +184,63 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
             )
             AND (:incomeMaxWon IS NULL OR ws.max_income IS NULL OR ws.max_income = 0 OR ws.max_income > :incomeMaxWon)
             """;
+    private static final String DEFAULT_RELEVANCE_SEARCH_SQL = """
+            WITH trgm_threshold AS MATERIALIZED (
+                SELECT set_config('pg_trgm.similarity_threshold', :trigramThresholdText, true)
+            ),
+            matched_ids AS MATERIALIZED (
+                SELECT ws.id
+                FROM welfare_services ws
+                CROSS JOIN trgm_threshold
+                WHERE %s
+                  AND %s @@ %s
+                UNION
+                SELECT ws.id
+                FROM welfare_services ws
+                CROSS JOIN trgm_threshold
+                WHERE %s
+                  AND %s
+                UNION
+                SELECT ws.id
+                FROM welfare_services ws
+                CROSS JOIN trgm_threshold
+                WHERE %s
+                  AND %s
+                UNION
+                SELECT ws.id
+                FROM welfare_services ws
+                CROSS JOIN trgm_threshold
+                WHERE %s
+                  AND %s
+                UNION
+                SELECT ws.id
+                FROM welfare_services ws
+                CROSS JOIN trgm_threshold
+                WHERE %s
+                  AND %s
+            )
+            SELECT ws.id,
+                   COUNT(*) OVER() AS total_count
+            FROM welfare_services ws
+            JOIN matched_ids mi ON mi.id = ws.id
+            ORDER BY %s DESC,
+                     COALESCE(ws.last_modified_at, ws.registered_at, ws.created_at) DESC,
+                     ws.id DESC
+            LIMIT :limit OFFSET :offset
+            """.formatted(
+            DEFAULT_SEARCH_FAST_PATH_BASE_SQL,
+            SEARCH_VECTOR_SQL,
+            SEARCH_QUERY_SQL,
+            DEFAULT_SEARCH_FAST_PATH_BASE_SQL,
+            SEARCH_TITLE_LIKE_INDEXABLE_SQL,
+            DEFAULT_SEARCH_FAST_PATH_BASE_SQL,
+            SEARCH_KEYWORD_LIKE_INDEXABLE_SQL,
+            DEFAULT_SEARCH_FAST_PATH_BASE_SQL,
+            SEARCH_TITLE_TRGM_OPERATOR_SQL,
+            DEFAULT_SEARCH_FAST_PATH_BASE_SQL,
+            SEARCH_KEYWORD_TRGM_OPERATOR_SQL,
+            SEARCH_RANK_SQL
+    );
 
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final WelfareServiceRepository welfareServiceRepository;
@@ -184,7 +253,9 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
         }
 
         MapSqlParameterSource params = policyParams(condition, keyword);
-        SearchSqlParts sqlParts = buildPolicySearchSql(condition);
+        SearchSqlParts sqlParts = shouldUseDefaultRelevanceSearchFastPath(condition, pageable)
+                ? new SearchSqlParts(DEFAULT_RELEVANCE_SEARCH_SQL)
+                : buildPolicySearchSql(condition);
         boolean applyGov24DiscoveryBalance = shouldApplyGov24DiscoveryBalance(condition, pageable);
         int pageSize = pageable.getPageSize();
         int queryLimit = applyGov24DiscoveryBalance ? discoveryBalanceQueryLimit(pageSize) : pageSize;
@@ -441,7 +512,27 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
                 .addValue("normalizedKeyword", keyword.normalizedText(), Types.VARCHAR)
                 .addValue("normalizedKeywordLike", "%" + keyword.normalizedText() + "%", Types.VARCHAR)
                 .addValue("tsQuery", keyword.tsQuery(), Types.VARCHAR)
+                .addValue("trigramThresholdText", Double.toString(TRIGRAM_THRESHOLD), Types.VARCHAR)
                 .addValue("trigramThreshold", TRIGRAM_THRESHOLD, Types.DOUBLE);
+    }
+
+    private boolean shouldUseDefaultRelevanceSearchFastPath(PolicySearchReadCondition condition, Pageable pageable) {
+        String sort = condition.sort() == null ? "RELEVANCE" : condition.sort();
+        String statusFilter = condition.statusFilter() == null ? "ACTIVE_ONLY" : condition.statusFilter();
+        return pageable.getOffset() == 0
+                && "RELEVANCE".equals(sort)
+                && condition.status() == null
+                && "ACTIVE_ONLY".equals(statusFilter)
+                && condition.category() == null
+                && condition.sourceType() == null
+                && condition.onlineApply() == null
+                && condition.sido() == null
+                && condition.sgg() == null
+                && condition.incomeMaxWon() == null
+                && condition.targetGroup() == null
+                && condition.gov24ServiceField() == null
+                && condition.gov24UserType() == null
+                && condition.gov24BenefitType() == null;
     }
 
     private Boolean toBoolean(Integer onlineApply) {

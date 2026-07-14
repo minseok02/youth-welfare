@@ -13,7 +13,107 @@ This document records what was optimized, which baseline numbers triggered the w
 
 ## Open Batch
 
-_No active performance optimization batch after the current production rebaseline._
+### 2026-07-14: public search cold-miss query shape optimization
+
+Trigger:
+
+- Current production rebaseline identified the representative search query as the next DB-side bottleneck:
+  - `policy_search_keyword_api_shape`: `316.053ms`
+  - artifact: `tmp/performance/current-prod-rebaseline-db-20260714/20260714T142103Z`
+- Redis shared cache keeps repeated public search fast, but the first request for a new public search key can still pay the cold-miss query cost.
+
+Breakdown artifacts:
+
+- current query decomposition: `tmp/performance/search-cold-miss-breakdown-20260714/20260714T143614Z`
+- `%` operator alternatives: `tmp/performance/search-cold-miss-alternatives-20260714/20260714T143756Z`
+- `UNION` candidate alternatives: `tmp/performance/search-cold-miss-union-20260714/20260714T143859Z`
+- materialized field alternatives: `tmp/performance/search-cold-miss-materialized-20260714/20260714T143958Z`
+- `set_config` CTE validation: `tmp/performance/search-cold-miss-setconfig-20260714/20260714T144047Z`
+
+Observed decomposition:
+
+| Query shape | Execution | Interpretation |
+| --- | ---: | --- |
+| FTS-only count | 4.341ms | `idx_ws_search_document_fts` is effective |
+| title LIKE count | 9.317ms | cheap alone |
+| keyword LIKE count | 7.620ms | cheap alone |
+| title similarity count | 26.256ms | `similarity(...) >= 0.2` does not use trigram GIN in current shape |
+| full match count | 155.565ms | OR predicate falls back to scanning `idx_ws_search_youth` candidates |
+| full match rank limit 100 | 267.301ms | rank/sort over broad candidates dominates |
+| actual default search limit 100 + `COUNT OVER` | 276.401ms | current first-page default relevance shape |
+| `UNION` matched IDs + light rank + `COUNT OVER` | 182.895ms | best low-risk candidate in dry run |
+| `UNION` matched IDs + current full rank + `set_config` CTE | 191.763ms | preserves current rank formula and uses FTS/trigram indexes |
+
+Planned implementation:
+
+1. Add an optimized default relevance path inside `WelfareServiceSearchRepositoryImpl`.
+   - only when `status == null`
+   - `statusFilter == ACTIVE_ONLY`
+   - `sort == RELEVANCE`
+   - no category/source/online/income/target/Gov24 filters
+   - no sido/sgg region filters
+2. Keep all filtered, regional, non-relevance sort, and taxonomy searches on the existing query builder.
+3. Build matched candidate IDs with a `UNION` of:
+   - FTS document match
+   - title LIKE
+   - keyword LIKE
+   - title trigram `%`
+   - keyword trigram `%`
+4. Use `set_config('pg_trgm.similarity_threshold', '0.2', true)` through a CTE so trigram `%` matches the existing `similarity >= 0.2` threshold without leaking session state.
+5. Preserve the existing final rank formula and `COUNT(*) OVER()` result shape.
+
+Implementation note:
+
+- optimized default relevance SQL added in `WelfareServiceSearchRepositoryImpl`
+- branch guard added so filtered/regional/non-relevance searches keep the existing general query
+- repository unit coverage added for:
+  - default first-page relevance search uses `matched_ids AS MATERIALIZED`
+  - filtered search falls back to the existing general query
+
+Expected impact:
+
+| Metric | Current | Expected after optimized default path | Notes |
+| --- | ---: | ---: | --- |
+| default search DB execution | 276.401ms | 180~210ms | dry-run best compatible shape was 191.763ms |
+| representative baseline query | 316.053ms | 190~230ms | depends on exact baseline SQL and cache state |
+| public cached API p95 | 66.0ms | similar | Redis hit path already fast |
+| cold-miss public search | high variance | lower by roughly 25~35% DB-side | first request for a new cache key |
+
+Acceptance checks:
+
+```bash
+cd backend
+./gradlew test --tests '*PolicySearch*' --no-daemon
+
+ENV_FILE=.env.production SMOKE_DB_MODE=postgres \
+  DB_BASELINE_ROOT=tmp/performance/search-cold-miss-optimized-db-20260714 \
+  bash deploy/performance/run-local-db-query-baseline.sh
+
+RUNS=20 WARMUP_RUNS=2 API_LATENCY_DELAY_SECONDS=1 \
+  API_LATENCY_ROOT=tmp/performance/search-cold-miss-optimized-api-20260714 \
+  APP_BASE_URL=https://youthmoa.kr \
+  bash deploy/performance/run-local-api-latency-baseline.sh
+```
+
+Acceptance target:
+
+- existing `PolicySearch` tests pass
+- optimized default search explain uses FTS/trigram indexes in the matched-ID CTE
+- representative default search DB execution moves toward the `180~230ms` band
+- no API error/rate-limit regression in the public latency baseline
+
+Pre-deploy verification:
+
+```bash
+cd backend
+./gradlew test --tests '*PolicySearch*' \
+  --tests 'com.example.welfare.policy.repository.WelfareServiceSearchRepositoryImplTest' \
+  --no-daemon
+
+./gradlew test --no-daemon
+```
+
+Result: `BUILD SUCCESSFUL` for both runs.
 
 ## Closed Batch
 
