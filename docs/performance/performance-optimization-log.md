@@ -163,6 +163,80 @@ Interpretation:
 
 ## Closed Batch
 
+### 2026-07-14: Redis cache namespace observability script
+
+Trigger:
+
+- Redis shared cache now affects public search, ranking, and active list count paths.
+- The existing Redis observability script captured server-wide Redis metrics, slowlog, command stats, and sampled key prefixes, but did not directly answer whether the app cache namespaces were populated and carrying expected TTLs.
+- Manual `redis-cli` checks were used after the previous Redis batches, so the same evidence needed to be repeatable as a scripted artifact.
+
+Implemented changes:
+
+1. `deploy/performance/run-local-redis-observability-baseline.sh`
+   - now uses the shared `smoke_redis_cli` helper instead of only `docker exec youth-welfare-redis`
+   - local Redis remains supported through the existing container path
+   - production ElastiCache/Valkey can be selected through `ENV_FILE=.env.production`
+   - connection failure now records a skipped artifact with `reason=redis_unreachable`
+2. Added cache namespace TTL/count summaries for:
+   - `policy:search:public:v1:*`
+   - `policy:ranking:v1:*`
+   - `policy:list:active-only:count:v1`
+3. The namespace artifact records only counts and TTL aggregates.
+   - Redis values are not read or dumped
+   - namespace key names are not written to artifact files
+   - Redis `SCAN` + `TTL` aggregation runs server-side through one `EVAL` call per namespace to avoid slow per-key client calls
+4. `deploy/performance/run-local-performance-deep-observation-suite.sh` now passes `ENV_FILE=.env.production` to Redis observability by default, matching the DB observability path used for production measurements.
+
+Verification:
+
+```bash
+bash -n deploy/performance/run-local-redis-observability-baseline.sh
+bash -n deploy/performance/run-local-performance-deep-observation-suite.sh
+
+curl -sS -o /tmp/youthmoa-policy-list-warm.json \
+  'https://youthmoa.kr/api/policies?page=0&size=20'
+curl -sS -o /tmp/youthmoa-ranking-warm.json \
+  'https://youthmoa.kr/api/policies/ranking?size=20'
+curl -sS -o /tmp/youthmoa-search-warm.json \
+  -H 'Content-Type: application/json' \
+  --data '{"keyword":"청년","page":0,"size":20}' \
+  'https://youthmoa.kr/api/policies/search'
+
+ENV_FILE=.env.production \
+  REDIS_OBSERVABILITY_ROOT=tmp/performance/redis-cache-observability-20260714 \
+  bash deploy/performance/run-local-redis-observability-baseline.sh
+```
+
+Result:
+
+- artifact: `tmp/performance/redis-cache-observability-20260714/20260714T130250Z`
+- `redis_observability_baseline=passed`
+- `dbsize=42`
+- `keyspace_hit_rate=0.643979`
+- `slowlog_len=0`
+- `latency_event_lines=0`
+- `connected_clients=9`
+- `blocked_clients=0`
+- `used_memory_human=6.76M`
+- `used_memory_peak_human=6.89M`
+- `evicted_keys=0`
+- `rejected_connections=0`
+- cache namespace summary:
+
+| Namespace | Pattern | Keys sampled | Expiring TTLs | TTL min | TTL max | TTL avg |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| public search | `policy:search:public:v1:*` | 1 | 1 | 12s | 12s | 12.0s |
+| ranking | `policy:ranking:v1:*` | 1 | 1 | 11s | 11s | 11.0s |
+| active list count | `policy:list:active-only:count:v1` | 1 | 1 | 9s | 9s | 9.0s |
+
+Interpretation:
+
+- the script now replaces the manual Redis cache checks used in earlier batches
+- all three app cache families were visible after warm-up and had expiring TTLs
+- low TTL values are expected because the caches use short 30-second windows and the observability command ran after warm-up calls completed
+- no app redeploy was required because this batch changed only scripts and documentation
+
 ### 2026-07-14: ALB autocomplete fallback lightweight path closeout
 
 Trigger:

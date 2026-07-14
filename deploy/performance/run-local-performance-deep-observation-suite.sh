@@ -50,7 +50,7 @@ if [[ "${RUN_REDIS_OBSERVABILITY}" == "true" ]]; then
   run_deep_step \
     "redis_observability" \
     "${ARTIFACT_DIR}/redis-observability.out" \
-    env ARTIFACT_DIR="${ARTIFACT_DIR}/redis-observability" \
+    env ENV_FILE="${ENV_FILE:-.env.production}" ARTIFACT_DIR="${ARTIFACT_DIR}/redis-observability" \
       bash "${ROOT_DIR}/deploy/performance/run-local-redis-observability-baseline.sh"
 fi
 
