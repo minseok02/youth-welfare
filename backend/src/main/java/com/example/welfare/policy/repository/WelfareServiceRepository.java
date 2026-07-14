@@ -667,6 +667,54 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
     // 목록 조회 native SQL — 지역 선택 시 해당 지역 정책을 먼저 표시 후 전국 정책 표시 (region-first)
     @Query(value = """
             SELECT ws.* FROM welfare_services ws
+            WHERE ws.status IN ('ACTIVE', 'UPCOMING')
+              AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURRENT_DATE)
+            ORDER BY
+                COALESCE(ws.last_modified_at, ws.registered_at, ws.created_at) DESC,
+                ws.id DESC
+            """,
+            countQuery = """
+            SELECT COUNT(*) FROM welfare_services ws
+            WHERE ws.status IN ('ACTIVE', 'UPCOMING')
+              AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURRENT_DATE)
+            """, nativeQuery = true)
+    Page<WelfareService> findActiveOnlyLatestList(Pageable pageable);
+
+    @Query(value = """
+            SELECT ws.* FROM welfare_services ws
+            WHERE ws.status IN ('ACTIVE', 'UPCOMING')
+              AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURRENT_DATE)
+            ORDER BY
+                COALESCE(ws.apply_end_date, DATE '9999-12-31') ASC,
+                COALESCE(ws.last_modified_at, ws.registered_at, ws.created_at) DESC,
+                ws.id DESC
+            """,
+            countQuery = """
+            SELECT COUNT(*) FROM welfare_services ws
+            WHERE ws.status IN ('ACTIVE', 'UPCOMING')
+              AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURRENT_DATE)
+            """, nativeQuery = true)
+    Page<WelfareService> findActiveOnlyDeadlineList(Pageable pageable);
+
+    @Query(value = """
+            SELECT ws.* FROM welfare_services ws
+            WHERE ws.status IN ('ACTIVE', 'UPCOMING')
+              AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURRENT_DATE)
+            ORDER BY
+                COALESCE(ws.api_view_count, 0) DESC,
+                COALESCE(ws.view_count, 0) DESC,
+                COALESCE(ws.last_modified_at, ws.registered_at, ws.created_at) DESC,
+                ws.id DESC
+            """,
+            countQuery = """
+            SELECT COUNT(*) FROM welfare_services ws
+            WHERE ws.status IN ('ACTIVE', 'UPCOMING')
+              AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURRENT_DATE)
+            """, nativeQuery = true)
+    Page<WelfareService> findActiveOnlyViewsList(Pageable pageable);
+
+    @Query(value = """
+            SELECT ws.* FROM welfare_services ws
             WHERE (
                     (
                         :status IS NULL AND (

@@ -11,7 +11,7 @@ public record PolicyListReadCondition(
         String sido,
         String sgg,
         Boolean onlineApply,
-        // LATEST / VIEWS / NAME
+        // LATEST / VIEWS / DEADLINE / NAME
         String sort,
         // 소득분위 → 변환된 연소득 상한 (만원 단위), null이면 미선택
         Integer incomeMaxWon,

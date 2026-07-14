@@ -48,10 +48,22 @@ Planned implementation:
    - active views list
 3. Keep all filtered, region-first, Gov24, tag, income, `ALL`, and `EXPIRED_ONLY` cases on the existing `findListWithFilters()` query.
 4. Add partial/expression sort indexes for active/upcoming rows:
-   - latest sort: `status`, `coalesce(last_modified_at, registered_at, created_at) desc`, `id desc`
-   - deadline sort: `status`, `coalesce(apply_end_date, DATE '9999-12-31') asc`, latest tiebreaker, `id desc`
-   - views sort: `status`, `coalesce(api_view_count, 0) desc`, `coalesce(view_count, 0) desc`, latest tiebreaker, `id desc`
+   - latest sort: `coalesce(last_modified_at, registered_at, created_at) desc`, `id desc`
+   - deadline sort: `coalesce(apply_end_date, DATE '9999-12-31') asc`, latest tiebreaker, `id desc`
+   - views sort: `coalesce(api_view_count, 0) desc`, `coalesce(view_count, 0) desc`, latest tiebreaker, `id desc`
+   - `status IN ('ACTIVE', 'UPCOMING')` is kept as the partial-index predicate rather than the leading key so the index order matches the list `ORDER BY`
 5. Keep exact `COUNT(*)` in the first batch. Consider a short TTL count cache only if post-change measurements still show count as material.
+
+Implementation note:
+
+- code path implemented in `WelfareServiceReadRepositoryImpl`
+- dedicated native queries added to `WelfareServiceRepository`
+- fresh schema and migration file added as `V2026_07_14_01__add_policy_list_fast_path_indexes.sql`
+- runtime RDS index application required the RDS master account because `DB_MIGRATION_USERNAME` is not the owner of `welfare_services`
+- after manual index application, `EXPLAIN` changed from `Seq Scan + Sort` to:
+  - `Index Scan using idx_ws_active_latest_list_sort`
+  - `Index Scan using idx_ws_active_deadline_list_sort`
+  - `Index Scan using idx_ws_active_views_list_sort`
 
 Expected impact:
 
