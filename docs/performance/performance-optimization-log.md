@@ -13,6 +13,96 @@ This document records what was optimized, which baseline numbers triggered the w
 
 ## Open Batch
 
+_No active performance optimization batch after the current production rebaseline._
+
+## Closed Batch
+
+### 2026-07-14: current production performance rebaseline after cache/query batches
+
+Trigger:
+
+- Recent production batches changed the public read path:
+  - Redis shared cache for public search and ranking
+  - Redis active list count cache
+  - autocomplete fallback lightweight query path
+  - Redis cache namespace observability
+  - policy list fast path and sort indexes
+- The next optimization should be chosen from a fresh, same-day baseline rather than from pre-change numbers.
+
+Measurement commands:
+
+```bash
+RUNS=20 WARMUP_RUNS=2 API_LATENCY_DELAY_SECONDS=1 \
+  API_LATENCY_ROOT=tmp/performance/current-prod-rebaseline-api-20260714 \
+  APP_BASE_URL=https://youthmoa.kr \
+  bash deploy/performance/run-local-api-latency-baseline.sh
+
+ENV_FILE=.env.production SMOKE_DB_MODE=postgres \
+  DB_BASELINE_ROOT=tmp/performance/current-prod-rebaseline-db-20260714 \
+  bash deploy/performance/run-local-db-query-baseline.sh
+
+ENV_FILE=.env.production \
+  REDIS_OBSERVABILITY_ROOT=tmp/performance/current-prod-rebaseline-redis-20260714 \
+  bash deploy/performance/run-local-redis-observability-baseline.sh
+
+APP_BASE_URL=http://127.0.0.1:8082 \
+  JVM_RUNTIME_ROOT=tmp/performance/current-prod-rebaseline-jvm-20260714 \
+  bash deploy/performance/run-local-jvm-runtime-baseline.sh
+
+ENV_FILE=.env.production \
+  REDIS_OBSERVABILITY_ROOT=tmp/performance/current-prod-rebaseline-redis-warm-20260714 \
+  bash deploy/performance/run-local-redis-observability-baseline.sh
+```
+
+Artifacts:
+
+- API latency: `tmp/performance/current-prod-rebaseline-api-20260714/20260714T141843Z`
+- DB query: `tmp/performance/current-prod-rebaseline-db-20260714/20260714T142103Z`
+- Redis server snapshot: `tmp/performance/current-prod-rebaseline-redis-20260714/20260714T142103Z`
+- Redis warmed cache namespace snapshot: `tmp/performance/current-prod-rebaseline-redis-warm-20260714/20260714T142211Z`
+- JVM/container runtime: `tmp/performance/current-prod-rebaseline-jvm-20260714/20260714T142103Z`
+
+API latency result:
+
+| Scenario | p50 | p95 | p99 | Max | Errors | Rate limited |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `policy_list_default` | 101.4ms | 135.0ms | 260.0ms | 291.2ms | 0/20 | 0 |
+| `policy_list_active_only` | 100.9ms | 121.3ms | 143.4ms | 149.0ms | 0/20 | 0 |
+| `policy_search_keyword` | 50.4ms | 66.0ms | 70.7ms | 71.9ms | 0/20 | 0 |
+| `policy_suggestions` | 71.4ms | 80.1ms | 85.7ms | 87.1ms | 0/20 | 0 |
+| `policy_search_filtered` | 50.3ms | 119.2ms | 677.8ms | 817.5ms | 0/20 | 0 |
+
+DB query result:
+
+| Representative query | Execution | Planning | Scan note |
+| --- | ---: | ---: | --- |
+| `policy_detail_first` | 0.096ms | 1.675ms | index scan |
+| `admin_collect_failures_recent` | 0.671ms | 0.529ms | small seq scan |
+| `recent_policy_views_user` | 0.171ms | 0.502ms | small seq scan |
+| `recommendation_logs_recent_window` | 9.454ms | 0.590ms | seq scan |
+| `policy_list_created_at` | 10.642ms | 1.613ms | seq scan |
+| `policy_search_keyword_api_shape` | 316.053ms | 3.655ms | index scan, expensive ranking/filter shape |
+
+Redis/JVM result:
+
+- Redis server snapshot: `redis_observability_baseline=passed`
+- Redis warmed cache snapshot:
+  - public search: 1 key, TTL 12s
+  - ranking: 1 key, TTL 11s
+  - active list count: 1 key, TTL 9s
+- Redis health signals: `slowlog_len=0`, `latency_event_lines=0`, `evicted_keys=0`, `rejected_connections=0`
+- JVM/container snapshot: `jvm_runtime_baseline=passed`
+- actuator health: `200`
+- actuator metrics endpoint: `401`, so detailed actuator metrics remain unavailable to the baseline script
+- container stats: CPU `0.14%`, memory `581.3MiB / 1GiB`, restart count `0`, recent log exception count `0`
+
+Interpretation:
+
+- This batch did not require an app code change or redeploy.
+- Current public list latency is acceptable for the latest measurement: default p95 `135.0ms`, active-only p95 `121.3ms`.
+- The visible API outlier is `policy_search_filtered` p99/max, but the DB-side expensive representative is `policy_search_keyword_api_shape` at `316.053ms`.
+- Next optimization candidate should be the public search cold-miss query shape and ranking/filter work, not Redis server health or basic list indexes.
+
 ### 2026-07-14: 정책 목록 API fast path + 정렬 인덱스 계획
 
 Trigger values from the 2026-07-14 ALB measurement:
