@@ -13,6 +13,10 @@ This document records what was optimized, which baseline numbers triggered the w
 
 ## Open Batch
 
+_No active performance optimization batch after the generated search field deployment._
+
+## Closed Batch
+
 ### 2026-07-14: generated search text/vector feasibility plan
 
 Trigger:
@@ -146,14 +150,47 @@ cd backend
 
 Both commands passed before deployment.
 
-Open follow-up:
+Deployment closeout:
 
-- deploy the app so Flyway applies `V2026_07_14_02`
-- verify RDS has the generated columns and indexes
-- rerun public search functional correctness for representative keywords
-- rerun post-deploy search DB/API latency comparison before closing this batch
+- commit: `d08753b5ba9efc6176d7033dd6717b84376d084d`
+- primary instance `i-0b8d95e454df5e0f0` deployed with `docker-compose.prod.elasticache.yml`; health `UP`
+- secondary instance `i-0e8a4cc599c1148c8` deployed with the same commit through SSM; health `UP`
+- ALB target group `youth-welfare-web-tg` showed both targets `healthy`
+- runtime RDS migration required the RDS master account because `migration_admin` is not the owner of `welfare_services`
+  - first attempt with `migration_admin` failed with `must be owner of table welfare_services`
+  - applied `V2026_07_14_02__add_policy_search_generated_fields.sql` with `masteradmin`
+  - recorded `schema_migration_history` version `2026.07.14.02`
+- RDS verification confirmed:
+  - generated columns: `title_l`, `keyword_l`, `search_document_vector`
+  - indexes: `idx_ws_title_l_trgm`, `idx_ws_keyword_l_trgm`, `idx_ws_search_document_vector_gin`
+- public API functional verification through `https://youthmoa.kr`:
+  - `청년`: total `1474`, first 6 IDs `844,471,2393,2399,472,1076`
+  - `월세`: total `83`, first 6 IDs `7584,11600,9099,531,11160,12245`
 
-## Closed Batch
+Post-deploy DB comparison:
+
+- artifact: `tmp/performance/generated-search-postdeploy-20260714/20260714T164502Z`
+
+| Keyword | Raw expr avg | Generated fields avg | Saved | Improvement | Same total | Same top 10 |
+| --- | ---: | ---: | ---: | ---: | --- | --- |
+| `월세` | `37.387ms` | `25.556ms` | `11.831ms` | `31.6%` | yes, `83` | yes |
+| `청년` | `211.005ms` | `57.851ms` | `153.154ms` | `72.6%` | yes, `1474` | yes |
+
+Post-deploy public API spot check:
+
+- artifact: `tmp/performance/generated-search-api-postdeploy-20260714/20260714T164524Z`
+
+| Label | Count | Status | p50 | p95 | Max |
+| --- | ---: | --- | ---: | ---: | ---: |
+| `월세` | `12` | `200` | `64.2ms` | `86.4ms` | `500.7ms` |
+| `청년` | `12` | `200` | `68.5ms` | `194.9ms` | `546.1ms` |
+
+Interpretation:
+
+- The DB-side read improvement is material and preserves representative result ordering/counts.
+- Public API spot checks stayed successful; max values include external HTTPS/ALB/application path and should be read as a quick smoke, not as a full latency baseline.
+- Keep the old expression indexes for now because filtered/general/chat/suggestion paths still use raw expressions.
+
 
 ### 2026-07-14: public search cold-miss query shape optimization
 
