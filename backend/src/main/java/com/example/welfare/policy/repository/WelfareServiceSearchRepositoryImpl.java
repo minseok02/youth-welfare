@@ -35,11 +35,14 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
     private static final String SEARCH_KEYWORD_TRGM_SQL = "similarity(lower(coalesce(ws.keyword, '')), :normalizedKeyword)";
     private static final String SEARCH_TITLE_LIKE_SQL = "lower(coalesce(ws.title, '')) LIKE :normalizedKeywordLike";
     private static final String SEARCH_KEYWORD_LIKE_SQL = "lower(coalesce(ws.keyword, '')) LIKE :normalizedKeywordLike";
-    private static final String SEARCH_TITLE_LIKE_INDEXABLE_SQL = "lower(ws.title) LIKE :normalizedKeywordLike";
-    private static final String SEARCH_KEYWORD_LIKE_INDEXABLE_SQL = "lower(ws.keyword) LIKE :normalizedKeywordLike";
-    private static final String SEARCH_TITLE_TRGM_OPERATOR_SQL = "lower(ws.title) % :normalizedKeyword";
-    private static final String SEARCH_KEYWORD_TRGM_OPERATOR_SQL = "lower(ws.keyword) % :normalizedKeyword";
     private static final String SEARCH_VECTOR_SQL = "to_tsvector('simple', " + SEARCH_DOCUMENT_SQL + ")";
+    private static final String GENERATED_SEARCH_VECTOR_SQL = "ws.search_document_vector";
+    private static final String GENERATED_SEARCH_TITLE_TRGM_SQL = "similarity(ws.title_l, :normalizedKeyword)";
+    private static final String GENERATED_SEARCH_KEYWORD_TRGM_SQL = "similarity(ws.keyword_l, :normalizedKeyword)";
+    private static final String GENERATED_SEARCH_TITLE_LIKE_SQL = "ws.title_l LIKE :normalizedKeywordLike";
+    private static final String GENERATED_SEARCH_KEYWORD_LIKE_SQL = "ws.keyword_l LIKE :normalizedKeywordLike";
+    private static final String GENERATED_SEARCH_TITLE_TRGM_OPERATOR_SQL = "ws.title_l % :normalizedKeyword";
+    private static final String GENERATED_SEARCH_KEYWORD_TRGM_OPERATOR_SQL = "ws.keyword_l % :normalizedKeyword";
     private static final String SEARCH_QUERY_SQL = "to_tsquery('simple', :tsQuery)";
     private static final String SEARCH_MATCH_SQL = """
             (
@@ -76,6 +79,26 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
             SEARCH_KEYWORD_LIKE_SQL,
             SEARCH_TITLE_TRGM_SQL,
             SEARCH_KEYWORD_TRGM_SQL
+    );
+    private static final String GENERATED_SEARCH_RANK_SQL = """
+            (
+                CASE
+                    WHEN %s @@ %s THEN ts_rank_cd(%s, %s)
+                    ELSE 0
+                END
+                + CASE WHEN %s THEN 2.5 ELSE 0 END
+                + CASE WHEN %s THEN 1.5 ELSE 0 END
+                + greatest(%s, %s)
+            )
+            """.formatted(
+            GENERATED_SEARCH_VECTOR_SQL,
+            SEARCH_QUERY_SQL,
+            GENERATED_SEARCH_VECTOR_SQL,
+            SEARCH_QUERY_SQL,
+            GENERATED_SEARCH_TITLE_LIKE_SQL,
+            GENERATED_SEARCH_KEYWORD_LIKE_SQL,
+            GENERATED_SEARCH_TITLE_TRGM_SQL,
+            GENERATED_SEARCH_KEYWORD_TRGM_SQL
     );
     private static final String ACTIVE_UPCOMING_STATUS_SQL = "ws.status IN ('ACTIVE', 'UPCOMING')";
     private static final String ACTIVE_ONLY_VISIBLE_STATUS_SQL = """
@@ -229,17 +252,17 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
             LIMIT :limit OFFSET :offset
             """.formatted(
             DEFAULT_SEARCH_FAST_PATH_BASE_SQL,
-            SEARCH_VECTOR_SQL,
+            GENERATED_SEARCH_VECTOR_SQL,
             SEARCH_QUERY_SQL,
             DEFAULT_SEARCH_FAST_PATH_BASE_SQL,
-            SEARCH_TITLE_LIKE_INDEXABLE_SQL,
+            GENERATED_SEARCH_TITLE_LIKE_SQL,
             DEFAULT_SEARCH_FAST_PATH_BASE_SQL,
-            SEARCH_KEYWORD_LIKE_INDEXABLE_SQL,
+            GENERATED_SEARCH_KEYWORD_LIKE_SQL,
             DEFAULT_SEARCH_FAST_PATH_BASE_SQL,
-            SEARCH_TITLE_TRGM_OPERATOR_SQL,
+            GENERATED_SEARCH_TITLE_TRGM_OPERATOR_SQL,
             DEFAULT_SEARCH_FAST_PATH_BASE_SQL,
-            SEARCH_KEYWORD_TRGM_OPERATOR_SQL,
-            SEARCH_RANK_SQL
+            GENERATED_SEARCH_KEYWORD_TRGM_OPERATOR_SQL,
+            GENERATED_SEARCH_RANK_SQL
     );
 
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;

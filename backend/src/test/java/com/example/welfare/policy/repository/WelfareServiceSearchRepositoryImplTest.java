@@ -44,8 +44,10 @@ class WelfareServiceSearchRepositoryImplTest {
                 .contains("set_config('pg_trgm.similarity_threshold', :trigramThresholdText, true)")
                 .contains("matched_ids AS MATERIALIZED")
                 .contains("UNION")
-                .contains("lower(ws.title) % :normalizedKeyword")
-                .contains("lower(ws.keyword) % :normalizedKeyword")
+                .contains("ws.search_document_vector @@ to_tsquery('simple', :tsQuery)")
+                .contains("ws.title_l % :normalizedKeyword")
+                .contains("ws.keyword_l % :normalizedKeyword")
+                .contains("ts_rank_cd(ws.search_document_vector, to_tsquery('simple', :tsQuery))")
                 .contains("COUNT(*) OVER() AS total_count");
         assertThat(paramsCaptor.getValue().getValue("limit")).isEqualTo(100);
         assertThat(paramsCaptor.getValue().getValue("trigramThresholdText")).isEqualTo("0.2");

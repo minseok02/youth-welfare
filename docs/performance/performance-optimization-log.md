@@ -13,7 +13,145 @@ This document records what was optimized, which baseline numbers triggered the w
 
 ## Open Batch
 
-_No active performance optimization batch after the public search cold-miss optimization._
+### 2026-07-14: generated search text/vector feasibility plan
+
+Trigger:
+
+- The public search cold-miss batch reduced the current app query shape to `235.428ms`, but rank/sort still recomputes search document text, `to_tsvector`, and `similarity` from raw `title/description/support_content/keyword`.
+- The next search-specific improvement should be evaluated as a schema batch, not a quick query rewrite.
+- Production DB is PostgreSQL `16.14`; `welfare_services` currently has about `15101` rows.
+
+Current constraints:
+
+- existing expression indexes:
+  - `idx_ws_search_document_fts`
+  - `idx_ws_search_document_trgm`
+  - `idx_ws_title_trgm`
+  - `idx_ws_keyword_trgm`
+- current optimized search uses `UNION` matched IDs and keeps final rank computation from raw fields.
+- function volatility check:
+  - `to_tsvector(regconfig,text)` is immutable
+  - `lower(text)` is immutable
+  - `similarity(text,text)` is immutable
+  - `concat_ws(text, any)` is stable, so generated expressions should keep explicit `coalesce(...) || ...` concatenation.
+
+Candidate designs to compare before implementation:
+
+1. Stored generated search document text only.
+   - column: `search_document_text`
+   - expression: lower concatenation of title/description/support_content/keyword
+   - indexes: GIN trigram on `search_document_text`
+   - expected benefit: removes repeated text concatenation/lower work and simplifies trigram/document matching
+2. Stored generated search vector only.
+   - column: `search_document_vector`
+   - expression: `to_tsvector('simple', lower(...))`
+   - indexes: GIN on `search_document_vector`
+   - expected benefit: removes repeated `to_tsvector` work and simplifies FTS rank condition
+3. Stored generated text + vector.
+   - use text for LIKE/trigram/similarity
+   - use vector for FTS match/rank
+   - expected benefit: largest read-side reduction, highest write/migration overhead
+4. No generated column yet; keep current optimized `UNION` query.
+   - expected benefit: no migration risk
+   - downside: cold-miss query still spends CPU on derived text/vector/rank computation
+
+Feasibility and risk checks:
+
+- use a session-local temporary table copied from `welfare_services` to estimate read-side gains without touching production schema
+- compare query shapes for `청년` and `월세`
+- verify whether generated columns preserve the same top IDs as current production query
+- estimate migration cost:
+  - adding STORED generated columns rewrites/computes table data
+  - GIN indexes should be created concurrently for production safety if implemented outside Flyway transactional migration
+  - rollback should drop new indexes first, then generated columns
+- do not implement schema changes in this batch until the comparison shows enough upside to justify the migration risk.
+
+Acceptance checks for this planning batch:
+
+```bash
+# temporary-table experiment only; no production schema changes
+ENV_FILE=.env.production SMOKE_DB_MODE=postgres \
+  bash <generated search feasibility experiment>
+```
+
+Acceptance target:
+
+- generated text/vector candidate produces the same representative top IDs as current production query
+- measured temp-table query execution shows whether expected DB improvement is material enough
+- document includes expected performance, migration risk, and rollback recommendation before any schema implementation
+
+Experiment result:
+
+- artifact: `tmp/performance/generated-search-feasibility-20260714/20260714T162903Z`
+- comparison shape:
+  - `raw_expr`: current default relevance fast path query shape, using expression indexes but recomputing `to_tsvector(...)`, `lower(...)`, and `similarity(...)` from raw columns during final rank/sort
+  - `generated_fields`: same query shape and same temp data, but using stored generated `search_document_vector`, `title_l`, and `keyword_l` for match/rank
+- no production schema was changed; all generated columns and indexes were created on a session-local temporary table.
+
+| Keyword | Raw expr avg | Generated fields avg | Saved | Improvement | Same total | Same top 10 |
+| --- | ---: | ---: | ---: | ---: | --- | --- |
+| `월세` | `48.828ms` | `37.479ms` | `11.350ms` | `23.2%` | yes, `83` | yes |
+| `청년` | `216.032ms` | `85.471ms` | `130.562ms` | `60.4%` | yes, `1474` | yes |
+
+Representative top IDs stayed identical:
+
+- `월세`: `7584,11600,9099,531,11160,12245,3394,5207,2971,3112`
+- `청년`: `844,471,2393,2399,472,1076,2372,897,2394,1879`
+
+Recommendation before implementation:
+
+- implement the schema batch only for generated fields that the current app fast path actually uses:
+  - `search_document_vector tsvector`
+  - `title_l text`
+  - `keyword_l text`
+- keep `search_document_text` out of the first implementation unless a separate query path starts using document-wide trigram/LIKE directly. It was useful for feasibility reasoning, but the current default relevance fast path does not need it after `search_document_vector` exists.
+- update `WelfareServiceSearchRepositoryImpl` constants to read generated fields on the default relevance fast path first; then decide separately whether chat/suggestion/general filtered search should also move to the generated fields.
+- migration risk is acceptable for the current row count (`15101`) but still a schema change:
+  - adding STORED generated columns computes values for existing rows
+  - new GIN indexes should be created with production lock behavior in mind
+  - if Flyway runs this as a normal transaction, avoid `CREATE INDEX CONCURRENTLY`; if using manual/ops SQL, prefer concurrent index creation for lower lock impact
+- rollback order:
+  - drop generated-field indexes first
+  - revert repository SQL constants to raw expressions
+  - drop generated columns after traffic is confirmed back on raw expressions
+
+Implementation gate:
+
+- proceed only if we accept a schema migration plus app query change for a measured DB-side gain of roughly `23%` on narrower search and `60%` on broader search in the representative temp-table run.
+
+Implementation selected:
+
+- migration: `backend/src/main/resources/db/migration/V2026_07_14_02__add_policy_search_generated_fields.sql`
+  - adds stored generated `title_l`
+  - adds stored generated `keyword_l`
+  - adds stored generated `search_document_vector`
+  - adds GIN indexes `idx_ws_title_l_trgm`, `idx_ws_keyword_l_trgm`, `idx_ws_search_document_vector_gin`
+- schema snapshot: `backend/src/main/resources/db/schema.sql`
+- app query: `WelfareServiceSearchRepositoryImpl` default first-page relevance fast path now uses generated fields for match/rank.
+- unchanged in this batch:
+  - filtered/general policy search
+  - regional policy search
+  - chat candidate search
+  - suggestion title candidate search
+  - old expression indexes, because the unchanged paths still use raw expressions.
+
+Pre-deploy verification:
+
+```bash
+cd backend
+./gradlew test --tests 'com.example.welfare.policy.repository.WelfareServiceSearchRepositoryImplTest' \
+  --tests 'com.example.welfare.global.config.PostgresRuntimeContractTest' --no-daemon
+./gradlew test --no-daemon
+```
+
+Both commands passed before deployment.
+
+Open follow-up:
+
+- deploy the app so Flyway applies `V2026_07_14_02`
+- verify RDS has the generated columns and indexes
+- rerun public search functional correctness for representative keywords
+- rerun post-deploy search DB/API latency comparison before closing this batch
 
 ## Closed Batch
 

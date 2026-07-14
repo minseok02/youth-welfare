@@ -215,6 +215,16 @@ CREATE TABLE IF NOT EXISTS welfare_services (
     category_main        VARCHAR(100),
     category_sub         VARCHAR(100),
     keyword              VARCHAR(200),
+    title_l              TEXT GENERATED ALWAYS AS (lower(coalesce(title, ''))) STORED,
+    keyword_l            TEXT GENERATED ALWAYS AS (lower(coalesce(keyword, ''))) STORED,
+    search_document_vector TSVECTOR GENERATED ALWAYS AS (
+        to_tsvector('simple'::regconfig, lower(
+            coalesce(title, '')
+            || ' ' || coalesce(description, '')
+            || ' ' || coalesce(support_content, '')
+            || ' ' || coalesce(keyword, '')
+        ))
+    ) STORED,
     min_age              INTEGER,
     max_age              INTEGER,
     min_income           INTEGER,
@@ -296,6 +306,15 @@ CREATE INDEX IF NOT EXISTS idx_ws_support_content_trgm
 CREATE INDEX IF NOT EXISTS idx_ws_keyword_trgm
     ON welfare_services
     USING GIN (lower(keyword) gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_ws_title_l_trgm
+    ON welfare_services
+    USING GIN (title_l gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_ws_keyword_l_trgm
+    ON welfare_services
+    USING GIN (keyword_l gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_ws_search_document_vector_gin
+    ON welfare_services
+    USING GIN (search_document_vector);
 CREATE INDEX IF NOT EXISTS idx_ws_search_document_trgm
     ON welfare_services
     USING GIN (lower(
