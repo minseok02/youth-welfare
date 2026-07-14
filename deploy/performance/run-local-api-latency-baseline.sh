@@ -10,6 +10,7 @@ WARMUP_RUNS="${WARMUP_RUNS:-1}"
 API_LATENCY_DELAY_SECONDS="${API_LATENCY_DELAY_SECONDS:-0.2}"
 INCLUDE_RATE_LIMIT_SENSITIVE_ENDPOINTS="${INCLUDE_RATE_LIMIT_SENSITIVE_ENDPOINTS:-false}"
 INCLUDE_ACTUATOR_HEALTH="${INCLUDE_ACTUATOR_HEALTH:-auto}"
+RATE_LIMIT_WARNING_RUNS="${RATE_LIMIT_WARNING_RUNS:-15}"
 API_LATENCY_ROOT="${API_LATENCY_ROOT:-${ROOT_DIR}/tmp/performance/api-latency}"
 RUN_TS_UTC="$(perf_now_ts_utc)"
 ARTIFACT_DIR="${ARTIFACT_DIR:-${API_LATENCY_ROOT}/${RUN_TS_UTC}}"
@@ -30,11 +31,22 @@ perf_write_run_context "${CONTEXT_TXT}"
   echo "api_latency_delay_seconds=${API_LATENCY_DELAY_SECONDS}"
   echo "include_rate_limit_sensitive_endpoints=${INCLUDE_RATE_LIMIT_SENSITIVE_ENDPOINTS}"
   echo "include_actuator_health=${INCLUDE_ACTUATOR_HEALTH}"
+  echo "rate_limit_warning_runs=${RATE_LIMIT_WARNING_RUNS}"
 } >> "${CONTEXT_TXT}"
 
 if (( RUNS < 1 )); then
   echo "RUNS must be >= 1" >&2
   exit 1
+fi
+
+is_external_app_base_url() {
+  [[ "${APP_BASE_URL}" != http://127.0.0.1:* && "${APP_BASE_URL}" != http://localhost:* ]]
+}
+
+if is_external_app_base_url && (( RUNS > RATE_LIMIT_WARNING_RUNS )); then
+  {
+    echo "rate_limit_warning=external RUNS=${RUNS} exceeds RATE_LIMIT_WARNING_RUNS=${RATE_LIMIT_WARNING_RUNS}; interpret 429 separately or increase API_LATENCY_DELAY_SECONDS"
+  } >> "${CONTEXT_TXT}"
 fi
 
 should_include_actuator_health() {
@@ -233,10 +245,17 @@ for row in measured:
     groups.setdefault(row["scenario"], []).append(row)
 
 summary = []
+total_errors = 0
+total_rate_limited = 0
+total_non_rate_limit_errors = 0
 for scenario, group in groups.items():
     latencies = [float(r["time_total_ms"]) for r in group]
     errors = [r for r in group if not (200 <= int(r["http_code"]) < 400)]
     rate_limited = [r for r in group if r["http_code"] == "429"]
+    non_rate_limit_errors = [r for r in errors if r["http_code"] != "429"]
+    total_errors += len(errors)
+    total_rate_limited += len(rate_limited)
+    total_non_rate_limit_errors += len(non_rate_limit_errors)
     summary.append({
         "scenario": scenario,
         "method": group[0]["method"],
@@ -256,6 +275,12 @@ for scenario, group in groups.items():
     })
 
 summary.sort(key=lambda item: item["p95_ms"], reverse=True)
+if total_non_rate_limit_errors > 0:
+    decision = "failed"
+elif total_rate_limited > 0:
+    decision = "passed_with_rate_limit"
+else:
+    decision = "passed"
 
 with summary_tsv_path.open("w", encoding="utf-8") as fp:
     headers = ["scenario", "runs", "success_count", "error_count", "rate_limited_count", "error_rate", "p50_ms", "p90_ms", "p95_ms", "p99_ms", "max_ms", "avg_ms", "method", "path", "auth"]
@@ -269,9 +294,24 @@ for line in context_path.read_text(encoding="utf-8").splitlines():
         k, v = line.split("=", 1)
         context[k] = v
 
-summary_json_path.write_text(json.dumps({"context": context, "summary": summary}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+summary_json_path.write_text(json.dumps({
+    "context": context,
+    "decision": decision,
+    "total_errors": total_errors,
+    "total_rate_limited": total_rate_limited,
+    "total_non_rate_limit_errors": total_non_rate_limit_errors,
+    "summary": summary,
+}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
-lines = ["api_latency_baseline=passed", f"sample_count={len(measured)}"]
+lines = [
+    f"api_latency_baseline={decision}",
+    f"sample_count={len(measured)}",
+    f"total_errors={total_errors}",
+    f"total_rate_limited={total_rate_limited}",
+    f"total_non_rate_limit_errors={total_non_rate_limit_errors}",
+]
+if context.get("rate_limit_warning"):
+    lines.append(f"rate_limit_warning={context['rate_limit_warning']}")
 for item in summary[:20]:
     lines.append(
         f"{item['scenario']} p50_ms={item['p50_ms']:.1f} p95_ms={item['p95_ms']:.1f} "

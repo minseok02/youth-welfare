@@ -13,9 +13,107 @@ This document records what was optimized, which baseline numbers triggered the w
 
 ## Open Batch
 
-_No active performance optimization batch after the RDS migration pre-apply guard._
+_No active performance optimization batch after the API latency rate-limit decision classification._
 
 ## Closed Batch
+
+### 2026-07-14: API latency rate-limit decision classification
+
+Trigger:
+
+- API latency script already reports per-scenario `rate_limited_count`, but the top-level text summary still always starts with `api_latency_baseline=passed`.
+- When a bounded measurement intentionally includes rate-limit-sensitive endpoints or uses high external `RUNS`, 429 samples can look like normal successful latency data unless the operator manually reads every row.
+
+Plan:
+
+1. Keep current endpoint contract and default rate-limit-sensitive exclusions.
+2. Add top-level decision classes:
+   - `passed`
+   - `passed_with_rate_limit`
+   - `failed`
+3. Add external-run warning context when `APP_BASE_URL` is public/external and `RUNS` is above the default warning threshold.
+4. Verify the script with a normal external run and a bounded rate-limit-sensitive run.
+
+Expected impact:
+
+| Metric | Before | Expected after change | Interpretation |
+| --- | --- | --- | --- |
+| API latency | unchanged | unchanged | measurement script only |
+| 429 interpretation | manual per-row reading | top-level `passed_with_rate_limit` | lower false alarm risk |
+| contract/non-429 errors | mixed with 429 | top-level `failed` when present | clearer regression signal |
+| high external RUNS | no warning | context warning | avoids accidental rate-limit-heavy baselines |
+
+Implementation:
+
+- `deploy/performance/run-local-api-latency-baseline.sh`
+  - adds `RATE_LIMIT_WARNING_RUNS`, default `15`
+  - writes external high-RUNS warning into run context
+  - adds top-level `decision`, `total_errors`, `total_rate_limited`, `total_non_rate_limit_errors` to JSON
+  - changes text summary first line to one of:
+    - `api_latency_baseline=passed`
+    - `api_latency_baseline=passed_with_rate_limit`
+    - `api_latency_baseline=failed`
+
+Actual verification:
+
+```bash
+bash -n deploy/performance/run-local-api-latency-baseline.sh
+
+RUNS=3 WARMUP_RUNS=0 \
+  API_LATENCY_ROOT=tmp/performance/api-latency-decision-normal-20260714 \
+  APP_BASE_URL=https://youthmoa.kr \
+  bash deploy/performance/run-local-api-latency-baseline.sh
+
+RUNS=3 WARMUP_RUNS=0 INCLUDE_RATE_LIMIT_SENSITIVE_ENDPOINTS=true \
+  API_LATENCY_ROOT=tmp/performance/api-latency-decision-sensitive-20260714 \
+  APP_BASE_URL=https://youthmoa.kr \
+  bash deploy/performance/run-local-api-latency-baseline.sh
+
+RUNS=16 WARMUP_RUNS=0 \
+  API_LATENCY_ROOT=tmp/performance/api-latency-decision-warning-20260714 \
+  APP_BASE_URL=https://youthmoa.kr \
+  bash deploy/performance/run-local-api-latency-baseline.sh
+
+EDGE_ROOT=tmp/performance/edge-current-contract-20260714 \
+  EXTERNAL_BASE_URL=https://youthmoa.kr \
+  bash deploy/performance/run-local-edge-baseline.sh
+```
+
+Observed result:
+
+- normal external artifact: `tmp/performance/api-latency-decision-normal-20260714/20260714T165915Z`
+  - `api_latency_baseline=passed`
+  - `total_errors=0`
+  - `total_rate_limited=0`
+- sensitive external artifact: `tmp/performance/api-latency-decision-sensitive-20260714/20260714T165926Z`
+  - `api_latency_baseline=passed`
+  - `total_errors=0`
+  - `total_rate_limited=0`
+  - `policy_ranking` showed a tail sample: p95 `1221.4ms`, max `1348.6ms`
+- high-RUNS external artifact: `tmp/performance/api-latency-decision-warning-20260714/20260714T165952Z`
+  - `api_latency_baseline=passed`
+  - `total_errors=0`
+  - `total_rate_limited=0`
+  - warning emitted: `external RUNS=16 exceeds RATE_LIMIT_WARNING_RUNS=15`
+- edge contract artifact: `tmp/performance/edge-current-contract-20260714/20260714T170036Z`
+  - `edge_baseline=passed`
+  - `policy_search_keyword POST /api/policies/search status=200 total_ms=71.740`
+
+Actual impact:
+
+| Metric | Before | After | Result |
+| --- | --- | --- | --- |
+| normal external baseline | `passed` | `passed` with aggregate error counters | clearer |
+| high external RUNS | no top-level warning | warning emitted | improved |
+| 429 classification | per-scenario only | top-level decision-ready counters | improved |
+| current edge search contract | already POST | verified POST `200` | confirmed |
+| API latency | unchanged | unchanged | measurement-only change |
+
+Interpretation:
+
+- No runtime app change was needed.
+- Current edge script is already aligned with the POST search contract.
+- Future measurements with 429s will now surface as `passed_with_rate_limit` unless non-429 failures are also present.
 
 ### 2026-07-14: RDS migration pre-apply safety guard
 
