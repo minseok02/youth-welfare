@@ -161,15 +161,20 @@ Interpretation:
 - exact `COUNT(*)` and response assembly/network now dominate the remaining `GET /api/policies` latency
 - next list-specific step, if needed, should evaluate a bounded count cache rather than adding more sort indexes
 
-### 2026-07-13: ALB 전환 후 자동완성 fallback 경량화
+## Closed Batch
 
-Trigger values from the ALB baseline:
+### 2026-07-14: ALB autocomplete fallback lightweight path closeout
 
-- `POST /api/policies/search/suggestions`: `p50 275.2ms`, `p95 378.3ms`, `max 396.6ms`
-- browser policy search flow: `action_wall_ms=696`
+Trigger:
+
+- ALB baseline before this change showed `POST /api/policies/search/suggestions` as a visible public latency hotspot:
+  - `p50=275.2ms`
+  - `p95=378.3ms`
+  - `max=396.6ms`
+- browser policy search flow wall time was `action_wall_ms=696`
 - artifact: `tmp/performance/alb-valid-api-baseline-20260713T170710Z`
 
-Breakdown measurement showed the slow part was not `search_logs`.
+Breakdown:
 
 | Query slice | Before execution |
 | --- | ---: |
@@ -178,11 +183,20 @@ Breakdown measurement showed the slow part was not `search_logs`.
 | policy fallback candidates, `청` | 352.222ms |
 | policy fallback candidates, `청년` | 318.474ms |
 
-Implemented code change:
+Why this was changed:
 
-1. Add `WelfareServiceSearchRepository.searchSuggestionTitleCandidates()`
-2. Keep the existing full `searchChatCandidates()` path unchanged
-3. Make policy search suggestions use the new title/keyword-only fallback instead of full-document search/ranking
+- search log suggestions were not the slow part
+- fallback policy candidates used a heavier full-document search/ranking path than suggestions need
+- autocomplete only needs title/keyword-like candidates, not full chat/search relevance ranking
+
+Implemented changes:
+
+1. `WelfareServiceSearchRepository.searchSuggestionTitleCandidates()`
+   - title/keyword-only fallback candidate query
+   - keeps the full `searchChatCandidates()` path unchanged
+2. `PolicySearchKeywordReadService`
+   - uses the lightweight title candidate path only when log suggestions do not fill the requested limit
+   - still merges and ranks log-derived suggestions before policy fallback candidates
 
 DB-level remeasurement of the new fallback query shape:
 
@@ -191,22 +205,45 @@ DB-level remeasurement of the new fallback query shape:
 | light policy fallback candidates, `청` | 19.251ms |
 | light policy fallback candidates, `청년` | 16.931ms |
 
-Local verification:
+Verification:
 
 ```bash
 cd backend
-./gradlew test --tests 'com.example.welfare.policy.service.PolicySearchKeywordReadServiceTest'
+./gradlew test --tests 'com.example.welfare.policy.service.PolicySearchKeywordReadServiceTest' --no-daemon
 ```
 
 Result: `BUILD SUCCESSFUL`.
 
-Status:
+Production measurement:
 
-- code/test change is ready
-- production API after measurement is pending
-- to close this batch, deploy the same commit to both ALB targets and rerun the valid API baseline against `https://youthmoa.kr`
+```bash
+sleep 70
+RUNS=20 WARMUP_RUNS=2 API_LATENCY_DELAY_SECONDS=1 \
+  API_LATENCY_ROOT=tmp/performance/suggestion-fallback-external-20260714 \
+  APP_BASE_URL=https://youthmoa.kr \
+  bash deploy/performance/run-local-api-latency-baseline.sh
+```
 
-## Closed Batch
+Result:
+
+- artifact: `tmp/performance/suggestion-fallback-external-20260714/20260714T123006Z`
+- `api_latency_baseline=passed`
+- `sample_count=100`
+- all default public scenarios had `errors=0` and `rate_limited=0`
+
+Observed delta:
+
+| Scenario | Before | After production | Delta |
+| --- | ---: | ---: | ---: |
+| `POST /api/policies/search/suggestions` p50 | `275.2ms` | `71.8ms` | `-203.4ms` |
+| `POST /api/policies/search/suggestions` p95 | `378.3ms` | `94.4ms` | `-283.9ms` |
+| `POST /api/policies/search/suggestions` max | `396.6ms` | `302.6ms` | `-94.0ms` |
+
+Interpretation:
+
+- autocomplete fallback lightweight path is accepted and should stay
+- p95 dropped below `100ms` in the accepted production run
+- no additional code change is needed for this batch
 
 ### 2026-07-14: policy list default outlier triage
 
