@@ -7,6 +7,7 @@ source "${ROOT_DIR}/deploy/performance/perf-common.sh"
 APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:8082}"
 DURATION_SECONDS="${DURATION_SECONDS:-20}"
 CONCURRENCY="${CONCURRENCY:-4}"
+API_LOAD_REQUEST_DELAY_SECONDS="${API_LOAD_REQUEST_DELAY_SECONDS:-0}"
 REQUEST_TIMEOUT_SECONDS="${REQUEST_TIMEOUT_SECONDS:-10}"
 API_LOAD_ROOT="${API_LOAD_ROOT:-${ROOT_DIR}/tmp/performance/api-load}"
 RUN_TS_UTC="$(perf_now_ts_utc)"
@@ -23,6 +24,7 @@ LATEST_SUMMARY_JSON="${API_LOAD_ROOT}/latest-api-load-summary.json"
 perf_require_python
 mkdir -p "${ARTIFACT_DIR}/responses"
 perf_write_run_context "${CONTEXT_TXT}"
+echo "api_load_request_delay_seconds=${API_LOAD_REQUEST_DELAY_SECONDS}" >> "${CONTEXT_TXT}"
 
 if (( DURATION_SECONDS < 1 )); then
   echo "DURATION_SECONDS must be >= 1" >&2
@@ -66,6 +68,7 @@ python3 - \
   "${APP_BASE_URL}" \
   "${DURATION_SECONDS}" \
   "${CONCURRENCY}" \
+  "${API_LOAD_REQUEST_DELAY_SECONDS}" \
   "${REQUEST_TIMEOUT_SECONDS}" \
   "${SCENARIOS_TSV}" \
   "${SAMPLES_TSV}" \
@@ -82,9 +85,10 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-base_url, duration_s, concurrency, timeout_s, scenarios_path, samples_path, summary_txt, summary_json, context_path = sys.argv[1:10]
+base_url, duration_s, concurrency, request_delay_s, timeout_s, scenarios_path, samples_path, summary_txt, summary_json, context_path = sys.argv[1:11]
 duration_s = int(duration_s)
 concurrency = int(concurrency)
+request_delay_s = float(request_delay_s)
 timeout_s = int(timeout_s)
 scenarios = list(csv.DictReader(open(scenarios_path, encoding="utf-8"), delimiter="\t"))
 if not scenarios:
@@ -130,6 +134,8 @@ def worker(worker_id):
                 scenario["scenario"], scenario["method"], scenario["path"], worker_id, run_index,
                 code, f"{duration_ms:.3f}", size, error,
             ])
+        if request_delay_s > 0:
+            time.sleep(request_delay_s)
 
 threads = [threading.Thread(target=worker, args=(i,), daemon=True) for i in range(concurrency)]
 started_wall = time.perf_counter()
@@ -158,11 +164,13 @@ for scenario in sorted({row["scenario"] for row in rows}):
     group = [row for row in rows if row["scenario"] == scenario]
     latencies = [float(row["duration_ms"]) for row in group]
     errors = [row for row in group if not (row["http_code"].isdigit() and 200 <= int(row["http_code"]) < 400)]
+    rate_limited = [row for row in group if row["http_code"] == "429"]
     summary_rows.append({
         "scenario": scenario,
         "requests": len(group),
         "success_count": len(group) - len(errors),
         "error_count": len(errors),
+        "rate_limited_count": len(rate_limited),
         "error_rate": len(errors) / len(group) if group else 0,
         "throughput_rps": len(group) / elapsed if elapsed > 0 else 0,
         "p50_ms": pct(latencies, 0.50),
@@ -182,6 +190,7 @@ for line in Path(context_path).read_text(encoding="utf-8").splitlines():
 context.update({
     "duration_seconds": duration_s,
     "concurrency": concurrency,
+    "request_delay_seconds": request_delay_s,
     "actual_elapsed_seconds": round(elapsed, 3),
 })
 
@@ -198,6 +207,7 @@ lines = [
     f"api_load_baseline={'failed' if failed else 'passed'}",
     f"duration_seconds={duration_s}",
     f"concurrency={concurrency}",
+    f"request_delay_seconds={request_delay_s}",
     f"total_requests={len(rows)}",
     f"total_throughput_rps={payload['total_throughput_rps']:.3f}",
 ]
@@ -206,7 +216,7 @@ for item in summary_rows:
         f"{item['scenario']} requests={item['requests']} rps={item['throughput_rps']:.3f} "
         f"p50_ms={item['p50_ms']:.1f} p95_ms={item['p95_ms']:.1f} "
         f"p99_ms={item['p99_ms']:.1f} max_ms={item['max_ms']:.1f} "
-        f"errors={item['error_count']}/{item['requests']}"
+        f"errors={item['error_count']}/{item['requests']} rate_limited={item['rate_limited_count']}"
     )
 Path(summary_txt).write_text("\n".join(lines) + "\n", encoding="utf-8")
 print(Path(summary_txt).read_text(encoding="utf-8"), end="")

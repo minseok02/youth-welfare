@@ -208,6 +208,76 @@ Status:
 
 ## Closed Batch
 
+### 2026-07-14: measurement scripts rate-limit-friendly cleanup
+
+Trigger:
+
+- repeated API measurements produced rate-limit noise:
+  - repeated `policy_detail_first` calls against the same service ID could return `429`
+  - ranking/trending/detail buckets can be consumed during tight sequential measurement loops
+  - external `/actuator/health` is not a valid public edge health scenario and fails when `APP_BASE_URL=https://youthmoa.kr`
+- this mixed contract errors, rate-limit errors, and real latency in the same summary.
+
+Why this was changed:
+
+- bounded before/after latency baselines should measure normal public list/search/suggestion behavior by default
+- rate-limit-sensitive endpoints should still be measurable, but only when explicitly requested
+- load tests should be able to run either as pressure tests or as lower-rate controlled runs
+
+Implemented changes:
+
+1. `deploy/performance/run-local-api-latency-baseline.sh`
+   - added `API_LATENCY_DELAY_SECONDS`, default `0.2`, between warmup and measured requests
+   - added `INCLUDE_RATE_LIMIT_SENSITIVE_ENDPOINTS=false` by default
+   - default latency runs now exclude `policy_detail_first`, `policy_ranking`, and `policy_trending`
+   - added `INCLUDE_ACTUATOR_HEALTH=auto`; health is included for local URLs and excluded for public URLs by default
+   - summary TSV/JSON/text now reports `rate_limited_count`
+2. `deploy/performance/run-local-api-load-baseline.sh`
+   - added `API_LOAD_REQUEST_DELAY_SECONDS`, default `0`, as an optional per-worker delay
+   - summary JSON/text now reports `rate_limited_count`
+   - context output records the configured request delay
+
+Verification:
+
+```bash
+bash -n deploy/performance/run-local-api-latency-baseline.sh
+bash -n deploy/performance/run-local-api-load-baseline.sh
+
+RUNS=20 WARMUP_RUNS=2 \
+  API_LATENCY_ROOT=tmp/performance/rate-limit-friendly-latency-20260714 \
+  APP_BASE_URL=https://youthmoa.kr \
+  bash deploy/performance/run-local-api-latency-baseline.sh
+
+DURATION_SECONDS=2 CONCURRENCY=1 API_LOAD_REQUEST_DELAY_SECONDS=0.2 \
+  API_LOAD_ROOT=tmp/performance/rate-limit-friendly-load-20260714 \
+  APP_BASE_URL=http://127.0.0.1:8082 \
+  bash deploy/performance/run-local-api-load-baseline.sh
+```
+
+Result:
+
+- external latency artifact: `tmp/performance/rate-limit-friendly-latency-20260714/20260714T104734Z`
+- local load artifact: `tmp/performance/rate-limit-friendly-load-20260714/20260714T104833Z`
+- external default latency run measured 100 requests across 5 normal public scenarios
+- default external run excluded `/actuator/health`, detail, ranking, and trending
+- all default external latency scenarios had `errors=0` and `rate_limited=0`
+
+External latency summary:
+
+| Scenario | p50 | p95 | p99 | Errors | Rate limited |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `policy_search_filtered` | 54.3ms | 321.8ms | 446.2ms | 0/20 | 0 |
+| `policy_list_active_only` | 109.8ms | 157.9ms | 185.1ms | 0/20 | 0 |
+| `policy_list_default` | 111.6ms | 135.1ms | 156.1ms | 0/20 | 0 |
+| `policy_suggestions` | 70.6ms | 77.5ms | 78.0ms | 0/20 | 0 |
+| `policy_search_keyword` | 52.3ms | 55.8ms | 55.9ms | 0/20 | 0 |
+
+Operational note:
+
+- use `INCLUDE_RATE_LIMIT_SENSITIVE_ENDPOINTS=true` only when the goal is to inspect detail/ranking/trending behavior
+- use `INCLUDE_ACTUATOR_HEALTH=true` only for local/internal runs where `/actuator/health` is expected to be reachable
+- use `API_LOAD_REQUEST_DELAY_SECONDS` when a load run should avoid turning into a rate-limit test
+
 ### 2026-07-14: performance baseline scripts aligned to current search API contract
 
 Trigger:

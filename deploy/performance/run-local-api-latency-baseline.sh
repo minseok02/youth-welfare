@@ -7,6 +7,9 @@ source "${ROOT_DIR}/deploy/performance/perf-common.sh"
 APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:8082}"
 RUNS="${RUNS:-7}"
 WARMUP_RUNS="${WARMUP_RUNS:-1}"
+API_LATENCY_DELAY_SECONDS="${API_LATENCY_DELAY_SECONDS:-0.2}"
+INCLUDE_RATE_LIMIT_SENSITIVE_ENDPOINTS="${INCLUDE_RATE_LIMIT_SENSITIVE_ENDPOINTS:-false}"
+INCLUDE_ACTUATOR_HEALTH="${INCLUDE_ACTUATOR_HEALTH:-auto}"
 API_LATENCY_ROOT="${API_LATENCY_ROOT:-${ROOT_DIR}/tmp/performance/api-latency}"
 RUN_TS_UTC="$(perf_now_ts_utc)"
 ARTIFACT_DIR="${ARTIFACT_DIR:-${API_LATENCY_ROOT}/${RUN_TS_UTC}}"
@@ -23,11 +26,42 @@ smoke_require_command curl
 perf_require_python
 mkdir -p "${ARTIFACT_DIR}/responses"
 perf_write_run_context "${CONTEXT_TXT}"
+{
+  echo "api_latency_delay_seconds=${API_LATENCY_DELAY_SECONDS}"
+  echo "include_rate_limit_sensitive_endpoints=${INCLUDE_RATE_LIMIT_SENSITIVE_ENDPOINTS}"
+  echo "include_actuator_health=${INCLUDE_ACTUATOR_HEALTH}"
+} >> "${CONTEXT_TXT}"
 
 if (( RUNS < 1 )); then
   echo "RUNS must be >= 1" >&2
   exit 1
 fi
+
+should_include_actuator_health() {
+  case "${INCLUDE_ACTUATOR_HEALTH}" in
+    true) return 0 ;;
+    false) return 1 ;;
+    auto)
+      [[ "${APP_BASE_URL}" == http://127.0.0.1:* || "${APP_BASE_URL}" == http://localhost:* ]]
+      return
+      ;;
+    *)
+      echo "INCLUDE_ACTUATOR_HEALTH must be one of: auto, true, false" >&2
+      exit 1
+      ;;
+  esac
+}
+
+should_include_rate_limit_sensitive_endpoints() {
+  case "${INCLUDE_RATE_LIMIT_SENSITIVE_ENDPOINTS}" in
+    true) return 0 ;;
+    false) return 1 ;;
+    *)
+      echo "INCLUDE_RATE_LIMIT_SENSITIVE_ENDPOINTS must be one of: true, false" >&2
+      exit 1
+      ;;
+  esac
+}
 
 admin_token=""
 smoke_resolve_admin_credentials "${ROOT_DIR}"
@@ -79,18 +113,28 @@ PY
   )"
 fi
 
-declare -a ENDPOINTS=(
-  "health|GET|/actuator/health|none|"
+declare -a ENDPOINTS=()
+
+if should_include_actuator_health; then
+  ENDPOINTS+=("health|GET|/actuator/health|none|")
+fi
+
+ENDPOINTS+=(
   "policy_list_default|GET|/api/policies?page=0&size=20|none|"
   "policy_list_active_only|GET|/api/policies?page=0&size=20&statusFilter=ACTIVE_ONLY|none|"
   "policy_search_keyword|POST|/api/policies/search|none|{\"keyword\":\"청년\",\"page\":0,\"size\":20}"
   "policy_search_filtered|POST|/api/policies/search|none|{\"keyword\":\"청년\",\"page\":0,\"size\":20,\"statusFilter\":\"ACTIVE_ONLY\",\"sort\":\"DEADLINE\"}"
   "policy_suggestions|POST|/api/policies/search/suggestions|none|{\"keyword\":\"청년\",\"limit\":10}"
-  "policy_trending|GET|/api/policies/search/trending?limit=10|none|"
-  "policy_ranking|GET|/api/policies/ranking?size=20|none|"
 )
 
-if [[ -n "${first_policy_id}" ]]; then
+if should_include_rate_limit_sensitive_endpoints; then
+  ENDPOINTS+=(
+  "policy_trending|GET|/api/policies/search/trending?limit=10|none|"
+  "policy_ranking|GET|/api/policies/ranking?size=20|none|"
+  )
+fi
+
+if [[ -n "${first_policy_id}" ]] && should_include_rate_limit_sensitive_endpoints; then
   ENDPOINTS+=("policy_detail_first|GET|/api/policies/${first_policy_id}|none|")
 fi
 
@@ -157,9 +201,11 @@ for endpoint in "${ENDPOINTS[@]}"; do
   IFS='|' read -r scenario method path auth body_json <<< "${endpoint}"
   for ((i = 1; i <= WARMUP_RUNS; i++)); do
     measure_endpoint "${scenario}" "${method}" "${path}" "${auth}" "${body_json}" "${i}" "warmup"
+    sleep "${API_LATENCY_DELAY_SECONDS}"
   done
   for ((i = 1; i <= RUNS; i++)); do
     measure_endpoint "${scenario}" "${method}" "${path}" "${auth}" "${body_json}" "${i}" "measure"
+    sleep "${API_LATENCY_DELAY_SECONDS}"
   done
 done
 
@@ -190,6 +236,7 @@ summary = []
 for scenario, group in groups.items():
     latencies = [float(r["time_total_ms"]) for r in group]
     errors = [r for r in group if not (200 <= int(r["http_code"]) < 400)]
+    rate_limited = [r for r in group if r["http_code"] == "429"]
     summary.append({
         "scenario": scenario,
         "method": group[0]["method"],
@@ -198,6 +245,7 @@ for scenario, group in groups.items():
         "runs": len(group),
         "success_count": len(group) - len(errors),
         "error_count": len(errors),
+        "rate_limited_count": len(rate_limited),
         "error_rate": len(errors) / len(group) if group else 0,
         "p50_ms": pct(latencies, 0.50),
         "p90_ms": pct(latencies, 0.90),
@@ -210,7 +258,7 @@ for scenario, group in groups.items():
 summary.sort(key=lambda item: item["p95_ms"], reverse=True)
 
 with summary_tsv_path.open("w", encoding="utf-8") as fp:
-    headers = ["scenario", "runs", "success_count", "error_count", "error_rate", "p50_ms", "p90_ms", "p95_ms", "p99_ms", "max_ms", "avg_ms", "method", "path", "auth"]
+    headers = ["scenario", "runs", "success_count", "error_count", "rate_limited_count", "error_rate", "p50_ms", "p90_ms", "p95_ms", "p99_ms", "max_ms", "avg_ms", "method", "path", "auth"]
     fp.write("\t".join(headers) + "\n")
     for item in summary:
         fp.write("\t".join(str(round(item[h], 3)) if isinstance(item[h], float) else str(item[h]) for h in headers) + "\n")
@@ -227,7 +275,8 @@ lines = ["api_latency_baseline=passed", f"sample_count={len(measured)}"]
 for item in summary[:20]:
     lines.append(
         f"{item['scenario']} p50_ms={item['p50_ms']:.1f} p95_ms={item['p95_ms']:.1f} "
-        f"p99_ms={item['p99_ms']:.1f} max_ms={item['max_ms']:.1f} errors={item['error_count']}/{item['runs']}"
+        f"p99_ms={item['p99_ms']:.1f} max_ms={item['max_ms']:.1f} "
+        f"errors={item['error_count']}/{item['runs']} rate_limited={item['rate_limited_count']}"
     )
 summary_txt_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 print(summary_txt_path.read_text(encoding="utf-8"), end="")
