@@ -168,6 +168,11 @@ chat:
     max-preferred-terms-in-search-keyword: ${CHAT_RETRIEVAL_MAX_PREFERRED_TERMS_IN_SEARCH_KEYWORD:3}
 
 policy:
+  cache:
+    public-search:
+      ttl-seconds: ${POLICY_PUBLIC_SEARCH_CACHE_TTL_SECONDS:30}
+    ranking:
+      ttl-seconds: ${POLICY_RANKING_CACHE_TTL_SECONDS:30}
   rate-limit:
     search:
       max-requests: ${POLICY_SEARCH_RATE_LIMIT_MAX_REQUESTS:60}

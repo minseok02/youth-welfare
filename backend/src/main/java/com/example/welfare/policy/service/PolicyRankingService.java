@@ -4,11 +4,17 @@ import com.example.welfare.policy.dto.PolicyRankingResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.PolicyRankingReadRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -23,6 +29,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class PolicyRankingService {
 
     private static final int DEFAULT_SIZE = 20;
@@ -31,24 +38,54 @@ public class PolicyRankingService {
     private static final int EXPLORE_SLOT_COUNT = 2;
     private static final int EXPLORE_WINDOW_DAYS = 14;
     private static final long RANKING_CACHE_TTL_MILLIS = 30_000L;
+    private static final String RANKING_CACHE_PREFIX = "policy:ranking:v1:";
+    private static final TypeReference<List<PolicyRankingResponse>> RANKING_RESPONSE_LIST_TYPE = new TypeReference<>() {
+    };
 
     private final PolicyRankingReadRepository policyRankingReadRepository;
     private final PolicyPresentationReadService policyPresentationReadService;
     private final Clock clock;
+    private final RedisTemplate<String, String> redisTemplate;
+    private final ObjectMapper objectMapper;
+    private final Duration rankingCacheTtl;
     private final Map<Integer, CachedRanking> rankingCache = new ConcurrentHashMap<>();
 
     @Autowired
     public PolicyRankingService(PolicyRankingReadRepository policyRankingReadRepository,
-                                PolicyPresentationReadService policyPresentationReadService) {
-        this(policyRankingReadRepository, policyPresentationReadService, Clock.systemUTC());
+                                PolicyPresentationReadService policyPresentationReadService,
+                                RedisTemplate<String, String> redisTemplate,
+                                ObjectMapper objectMapper,
+                                @Value("${policy.cache.ranking.ttl-seconds:30}") long rankingCacheTtlSeconds) {
+        this(
+                policyRankingReadRepository,
+                policyPresentationReadService,
+                Clock.systemUTC(),
+                redisTemplate,
+                objectMapper,
+                Duration.ofSeconds(rankingCacheTtlSeconds)
+        );
     }
 
     PolicyRankingService(PolicyRankingReadRepository policyRankingReadRepository,
                          PolicyPresentationReadService policyPresentationReadService,
                          Clock clock) {
+        this(policyRankingReadRepository, policyPresentationReadService, clock, null, null, Duration.ofMillis(RANKING_CACHE_TTL_MILLIS));
+    }
+
+    PolicyRankingService(PolicyRankingReadRepository policyRankingReadRepository,
+                         PolicyPresentationReadService policyPresentationReadService,
+                         Clock clock,
+                         RedisTemplate<String, String> redisTemplate,
+                         ObjectMapper objectMapper,
+                         Duration rankingCacheTtl) {
         this.policyRankingReadRepository = policyRankingReadRepository;
         this.policyPresentationReadService = policyPresentationReadService;
         this.clock = clock;
+        this.redisTemplate = redisTemplate;
+        this.objectMapper = objectMapper;
+        this.rankingCacheTtl = rankingCacheTtl.isNegative() || rankingCacheTtl.isZero()
+                ? Duration.ofMillis(RANKING_CACHE_TTL_MILLIS)
+                : rankingCacheTtl;
     }
 
     @Transactional(readOnly = true)
@@ -56,13 +93,58 @@ public class PolicyRankingService {
         int limit = normalizeSize(size);
         CachedRanking cachedRanking = rankingCache.get(limit);
         long nowMillis = clock.millis();
-        if (cachedRanking != null && nowMillis - cachedRanking.cachedAtMillis() < RANKING_CACHE_TTL_MILLIS) {
+        if (cachedRanking != null && nowMillis - cachedRanking.cachedAtMillis() < rankingCacheTtl.toMillis()) {
             return cachedRanking.responses();
+        }
+        List<PolicyRankingResponse> redisCached = getRedisCachedRanking(limit);
+        if (redisCached != null) {
+            cacheRankingLocal(limit, redisCached);
+            return redisCached;
         }
 
         List<PolicyRankingResponse> computed = computeRanking(limit);
-        rankingCache.put(limit, new CachedRanking(nowMillis, computed));
+        cacheRankingLocal(limit, computed);
+        cacheRankingRedis(limit, computed);
         return computed;
+    }
+
+    private List<PolicyRankingResponse> getRedisCachedRanking(int limit) {
+        if (redisTemplate == null || objectMapper == null) {
+            return null;
+        }
+        try {
+            String cached = redisTemplate.opsForValue().get(redisCacheKey(limit));
+            if (cached == null || cached.isBlank()) {
+                return null;
+            }
+            return objectMapper.readValue(cached, RANKING_RESPONSE_LIST_TYPE);
+        } catch (Exception e) {
+            log.warn("[PolicyRankingService] Redis ranking cache read failed errorType={}", e.getClass().getSimpleName());
+            return null;
+        }
+    }
+
+    private void cacheRankingLocal(int limit, List<PolicyRankingResponse> responses) {
+        rankingCache.put(limit, new CachedRanking(clock.millis(), responses));
+    }
+
+    private void cacheRankingRedis(int limit, List<PolicyRankingResponse> responses) {
+        if (redisTemplate == null || objectMapper == null) {
+            return;
+        }
+        try {
+            redisTemplate.opsForValue().set(
+                    redisCacheKey(limit),
+                    objectMapper.writeValueAsString(responses),
+                    rankingCacheTtl
+            );
+        } catch (Exception e) {
+            log.warn("[PolicyRankingService] Redis ranking cache write failed errorType={}", e.getClass().getSimpleName());
+        }
+    }
+
+    private String redisCacheKey(int limit) {
+        return RANKING_CACHE_PREFIX + limit;
     }
 
     private List<PolicyRankingResponse> computeRanking(int limit) {

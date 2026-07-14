@@ -1,5 +1,6 @@
 package com.example.welfare.policy.service;
 
+import com.example.welfare.global.config.JacksonConfig;
 import com.example.welfare.policy.dto.PolicyRankingResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.PolicyRankingReadRepository;
@@ -8,11 +9,13 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -20,10 +23,12 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class PolicyRankingServiceTest {
@@ -32,9 +37,6 @@ class PolicyRankingServiceTest {
     private PolicyRankingReadRepository policyRankingReadRepository;
     @Mock
     private PolicyPresentationReadService policyPresentationReadService;
-
-    @InjectMocks
-    private PolicyRankingService policyRankingService;
 
     private PolicyRankingService fixedClockService() {
         return new PolicyRankingService(
@@ -215,6 +217,42 @@ class PolicyRankingServiceTest {
         verify(policyRankingReadRepository, times(1)).findUniqueViewCountsSinceForStatuses(any(), any());
         verify(policyRankingReadRepository, times(1)).findServicesByIds(List.of(1L));
         verify(policyPresentationReadService, times(1)).findProjections(List.of(service));
+    }
+
+    @Test
+    @DisplayName("랭킹은 Redis shared cache hit 시 repository를 호출하지 않는다")
+    void rankingUsesRedisSharedCacheHit() throws Exception {
+        RedisTemplate<String, String> redisTemplate = org.mockito.Mockito.mock(RedisTemplate.class);
+        ValueOperations<String, String> valueOperations = org.mockito.Mockito.mock(ValueOperations.class);
+        var objectMapper = new JacksonConfig().objectMapper();
+        PolicyRankingService policyRankingService = new PolicyRankingService(
+                policyRankingReadRepository,
+                policyPresentationReadService,
+                Clock.fixed(Instant.parse("2026-05-30T00:00:00Z"), ZoneOffset.UTC),
+                redisTemplate,
+                objectMapper,
+                Duration.ofSeconds(30)
+        );
+        List<PolicyRankingResponse> cached = List.of(PolicyRankingResponse.builder()
+                .serviceId(77L)
+                .title("캐시 랭킹 정책")
+                .sourceType("YOUTH")
+                .uniqueViewCount7d(3L)
+                .viewCount(10L)
+                .apiViewCount(100L)
+                .rankingScore(0.9)
+                .build());
+
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        given(valueOperations.get("policy:ranking:v1:20")).willReturn(objectMapper.writeValueAsString(cached));
+
+        List<PolicyRankingResponse> result = policyRankingService.getRanking(20);
+
+        assertEquals(1, result.size());
+        assertEquals(77L, result.get(0).getServiceId());
+        verifyNoInteractions(policyRankingReadRepository, policyPresentationReadService);
+        verify(valueOperations).get("policy:ranking:v1:20");
+        verify(valueOperations, org.mockito.Mockito.never()).set(anyString(), anyString(), any(Duration.class));
     }
 
     private PolicyRankingReadRepository.RankableServiceSnapshot snapshot(WelfareService service) {

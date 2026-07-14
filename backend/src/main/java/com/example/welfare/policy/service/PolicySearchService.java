@@ -3,6 +3,7 @@ package com.example.welfare.policy.service;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.util.RegionCodeUtil;
+import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.global.util.SearchKeywordSupport;
 import com.example.welfare.policy.dto.PolicySearchResponse;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
@@ -13,14 +14,18 @@ import com.example.welfare.policy.support.Gov24BenefitTypeSupport;
 import com.example.welfare.policy.support.Gov24ServiceFieldSupport;
 import com.example.welfare.policy.support.Gov24UserTypeSupport;
 import com.example.welfare.policy.support.WelfareSourceTypeSupport;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -37,24 +42,52 @@ public class PolicySearchService {
     private static final long SEARCH_WARN_DURATION_MS = 500L;
     private static final long PUBLIC_SEARCH_CACHE_TTL_MILLIS = 30_000L;
     private static final int MAX_PUBLIC_SEARCH_CACHE_ENTRIES = 256;
+    private static final String PUBLIC_SEARCH_CACHE_PREFIX = "policy:search:public:v1:";
 
     private final WelfareServiceReadRepository welfareServiceReadRepository;
     private final PolicyPresentationReadService policyPresentationReadService;
     private final Clock clock;
+    private final RedisTemplate<String, String> redisTemplate;
+    private final ObjectMapper objectMapper;
+    private final Duration publicSearchCacheTtl;
     private final Map<SearchCacheKey, CachedSearchResponse> publicSearchCache = new ConcurrentHashMap<>();
 
     @Autowired
     public PolicySearchService(WelfareServiceReadRepository welfareServiceReadRepository,
-                               PolicyPresentationReadService policyPresentationReadService) {
-        this(welfareServiceReadRepository, policyPresentationReadService, Clock.systemUTC());
+                               PolicyPresentationReadService policyPresentationReadService,
+                               RedisTemplate<String, String> redisTemplate,
+                               ObjectMapper objectMapper,
+                               @Value("${policy.cache.public-search.ttl-seconds:30}") long publicSearchCacheTtlSeconds) {
+        this(
+                welfareServiceReadRepository,
+                policyPresentationReadService,
+                Clock.systemUTC(),
+                redisTemplate,
+                objectMapper,
+                Duration.ofSeconds(publicSearchCacheTtlSeconds)
+        );
     }
 
     PolicySearchService(WelfareServiceReadRepository welfareServiceReadRepository,
                         PolicyPresentationReadService policyPresentationReadService,
                         Clock clock) {
+        this(welfareServiceReadRepository, policyPresentationReadService, clock, null, null, Duration.ofMillis(PUBLIC_SEARCH_CACHE_TTL_MILLIS));
+    }
+
+    PolicySearchService(WelfareServiceReadRepository welfareServiceReadRepository,
+                        PolicyPresentationReadService policyPresentationReadService,
+                        Clock clock,
+                        RedisTemplate<String, String> redisTemplate,
+                        ObjectMapper objectMapper,
+                        Duration publicSearchCacheTtl) {
         this.welfareServiceReadRepository = welfareServiceReadRepository;
         this.policyPresentationReadService = policyPresentationReadService;
         this.clock = clock;
+        this.redisTemplate = redisTemplate;
+        this.objectMapper = objectMapper;
+        this.publicSearchCacheTtl = publicSearchCacheTtl.isNegative() || publicSearchCacheTtl.isZero()
+                ? Duration.ofMillis(PUBLIC_SEARCH_CACHE_TTL_MILLIS)
+                : publicSearchCacheTtl;
     }
 
     @Transactional(readOnly = true)
@@ -259,21 +292,69 @@ public class PolicySearchService {
     private PolicySearchResponse getCachedPublicSearch(SearchCacheKey cacheKey) {
         CachedSearchResponse cached = publicSearchCache.get(cacheKey);
         if (cached == null) {
-            return null;
+            PolicySearchResponse redisCached = getRedisCachedPublicSearch(cacheKey);
+            if (redisCached != null) {
+                cachePublicSearchLocal(cacheKey, redisCached);
+            }
+            return redisCached;
         }
         long nowMillis = clock.millis();
-        if (nowMillis - cached.cachedAtMillis() >= PUBLIC_SEARCH_CACHE_TTL_MILLIS) {
+        if (nowMillis - cached.cachedAtMillis() >= publicSearchCacheTtl.toMillis()) {
             publicSearchCache.remove(cacheKey, cached);
-            return null;
+            PolicySearchResponse redisCached = getRedisCachedPublicSearch(cacheKey);
+            if (redisCached != null) {
+                cachePublicSearchLocal(cacheKey, redisCached);
+            }
+            return redisCached;
         }
         return cached.response();
     }
 
     private void cachePublicSearch(SearchCacheKey cacheKey, PolicySearchResponse response) {
+        cachePublicSearchLocal(cacheKey, response);
+        cachePublicSearchRedis(cacheKey, response);
+    }
+
+    private void cachePublicSearchLocal(SearchCacheKey cacheKey, PolicySearchResponse response) {
         if (publicSearchCache.size() >= MAX_PUBLIC_SEARCH_CACHE_ENTRIES) {
             publicSearchCache.clear();
         }
         publicSearchCache.put(cacheKey, new CachedSearchResponse(clock.millis(), response));
+    }
+
+    private PolicySearchResponse getRedisCachedPublicSearch(SearchCacheKey cacheKey) {
+        if (redisTemplate == null || objectMapper == null) {
+            return null;
+        }
+        try {
+            String cached = redisTemplate.opsForValue().get(redisCacheKey(cacheKey));
+            if (cached == null || cached.isBlank()) {
+                return null;
+            }
+            return objectMapper.readValue(cached, PolicySearchResponse.class);
+        } catch (Exception e) {
+            log.warn("[PolicySearchService] Redis public search cache read failed errorType={}", e.getClass().getSimpleName());
+            return null;
+        }
+    }
+
+    private void cachePublicSearchRedis(SearchCacheKey cacheKey, PolicySearchResponse response) {
+        if (redisTemplate == null || objectMapper == null) {
+            return;
+        }
+        try {
+            redisTemplate.opsForValue().set(
+                    redisCacheKey(cacheKey),
+                    objectMapper.writeValueAsString(response),
+                    publicSearchCacheTtl
+            );
+        } catch (Exception e) {
+            log.warn("[PolicySearchService] Redis public search cache write failed errorType={}", e.getClass().getSimpleName());
+        }
+    }
+
+    private String redisCacheKey(SearchCacheKey cacheKey) {
+        return PUBLIC_SEARCH_CACHE_PREFIX + RedisKeyHash.sha256Hex(cacheKey.cacheMaterial());
     }
 
     private void logSearchObservation(PolicySearchResponse response,
@@ -456,6 +537,30 @@ public class PolicySearchService {
             int page,
             int size
     ) {
+        private String cacheMaterial() {
+            return String.join("|",
+                    value(keyword),
+                    value(status),
+                    value(statusFilter),
+                    value(category),
+                    value(sourceType),
+                    value(onlineApply),
+                    value(sido),
+                    value(sgg),
+                    value(sort),
+                    value(incomeMaxWon),
+                    value(targetGroup),
+                    value(gov24ServiceField),
+                    value(gov24UserType),
+                    value(gov24BenefitType),
+                    Integer.toString(page),
+                    Integer.toString(size)
+            );
+        }
+
+        private static String value(Object value) {
+            return value == null ? "" : value.toString();
+        }
     }
 
     private record CachedSearchResponse(long cachedAtMillis, PolicySearchResponse response) {

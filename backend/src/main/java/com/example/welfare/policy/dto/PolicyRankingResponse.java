@@ -2,11 +2,14 @@ package com.example.welfare.policy.dto;
 
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import lombok.Builder;
 import lombok.Getter;
 
 @Getter
 @Builder
+@JsonDeserialize(builder = PolicyRankingResponse.PolicyRankingResponseBuilder.class)
 public class PolicyRankingResponse {
 
     private Long serviceId;
@@ -23,6 +26,10 @@ public class PolicyRankingResponse {
     private Long viewCount;
     private Long apiViewCount;
     private double rankingScore;
+
+    @JsonPOJOBuilder(withPrefix = "")
+    public static class PolicyRankingResponseBuilder {
+    }
 
     public static PolicyRankingResponse of(WelfareService service, long uniqueViewCount7d, double score) {
         return of(service, uniqueViewCount7d, score, null);

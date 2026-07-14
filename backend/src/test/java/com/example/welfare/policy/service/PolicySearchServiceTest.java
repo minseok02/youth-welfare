@@ -1,5 +1,6 @@
 package com.example.welfare.policy.service;
 
+import com.example.welfare.global.config.JacksonConfig;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.policy.dto.PolicySearchResponse;
@@ -14,9 +15,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
+import java.time.Duration;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -25,9 +29,12 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -294,6 +301,50 @@ class PolicySearchServiceTest {
                 any(PageRequest.class)
         );
         verify(policyPresentationReadService).buildSummaryPage(eq(null), any(org.springframework.data.domain.Page.class));
+    }
+
+    @Test
+    @DisplayName("비로그인 공개 검색은 Redis shared cache hit 시 repository를 호출하지 않는다")
+    void publicSearchUsesRedisSharedCacheHit() throws Exception {
+        RedisTemplate<String, String> redisTemplate = org.mockito.Mockito.mock(RedisTemplate.class);
+        ValueOperations<String, String> valueOperations = org.mockito.Mockito.mock(ValueOperations.class);
+        var objectMapper = new JacksonConfig().objectMapper();
+        PolicySearchService service = new PolicySearchService(
+                welfareServiceReadRepository,
+                policyPresentationReadService,
+                Clock.fixed(Instant.parse("2026-05-30T00:00:00Z"), ZoneOffset.UTC),
+                redisTemplate,
+                objectMapper,
+                Duration.ofSeconds(30)
+        );
+        PolicySearchResponse cached = PolicySearchResponse.builder()
+                .content(List.of(PolicySummaryResponse.builder()
+                        .id(99L)
+                        .title("청년 캐시 정책")
+                        .status("ACTIVE")
+                        .statusLabel("진행중")
+                        .bookmarked(false)
+                        .build()))
+                .totalElements(1)
+                .totalPages(1)
+                .pageNumber(0)
+                .pageSize(10)
+                .hasNext(false)
+                .build();
+
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        given(valueOperations.get(anyString())).willReturn(objectMapper.writeValueAsString(cached));
+
+        PolicySearchResponse result = service.search(null, "청년", null, null, null, null, null, null, null, null, null, null, null, null, null, 0, 10);
+
+        assertThat(result.getContent()).extracting(PolicySummaryResponse::getId).containsExactly(99L);
+        verifyNoInteractions(welfareServiceReadRepository, policyPresentationReadService);
+        ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
+        verify(valueOperations).get(keyCaptor.capture());
+        assertThat(keyCaptor.getValue())
+                .startsWith("policy:search:public:v1:")
+                .doesNotContain("청년");
+        verify(valueOperations, never()).set(anyString(), anyString(), any(Duration.class));
     }
 
     @Test

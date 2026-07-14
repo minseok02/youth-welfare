@@ -2,6 +2,8 @@ package com.example.welfare.policy.dto;
 
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -12,6 +14,7 @@ import java.util.List;
 
 @Getter
 @Builder
+@JsonDeserialize(builder = PolicySummaryResponse.PolicySummaryResponseBuilder.class)
 public class PolicySummaryResponse {
 
     private Long id;
@@ -51,6 +54,10 @@ public class PolicySummaryResponse {
     private LocalDateTime registeredAt;
     private LocalDateTime lastModifiedAt;
     private boolean bookmarked;
+
+    @JsonPOJOBuilder(withPrefix = "")
+    public static class PolicySummaryResponseBuilder {
+    }
 
     public static PolicySummaryResponse from(WelfareService ws, boolean bookmarked) {
         return from(ws, bookmarked, null, null);
