@@ -219,6 +219,42 @@ Interpretation:
 - this smoke run is for regression coverage, not a replacement for the 20-run latency baseline
 - no blocker remains before starting the next optimization batch
 
+Functional correctness verification:
+
+```bash
+# DB legacy-vs-optimized search comparison and external API value checks
+# artifact: tmp/performance/search-functional-correctness-20260714/20260714T161455Z
+```
+
+Result:
+
+- artifact: `tmp/performance/search-functional-correctness-20260714/20260714T161455Z`
+- `functional_correctness=passed`
+- DB legacy-vs-optimized search comparison:
+  - `월세`: legacy count `83`, optimized count `83`
+  - `월세`: top 10 IDs matched exactly: `7584,11600,9099,531,11160,12245,3394,5207,2971,3112`
+  - `월세`: legacy minus optimized `0`, optimized minus legacy `0`
+  - `청년`: legacy count `1474`, optimized count `1474`
+  - `청년`: top 10 IDs matched exactly: `844,471,2393,2399,472,1076,2372,897,2394,1879`
+  - `청년`: legacy minus optimized `0`, optimized minus legacy `0`
+- External API value checks:
+  - `POST /api/policies/search`, keyword `월세`, size `6`: API IDs matched DB expected IDs exactly: `7584,11600,9099,531,11160,12245`
+  - `POST /api/policies/search`, keyword `청년`, size `6`: API IDs matched DB expected IDs exactly: `844,471,2393,2399,472,1076`
+  - `월세` search total was `83`; `청년` search total was `1474`
+  - filtered deadline search returned 10 active/upcoming rows and non-null deadlines were sorted ascending
+  - default and active list responses returned 5 active/upcoming rows with required `id/title/status` fields and positive totals
+  - detail response returned the requested policy ID with required `title/status` fields
+  - ranking response returned 5 rows with required `serviceId/title` fields and descending `rankingScore`
+  - trending response returned non-empty unique keyword strings
+  - suggestions response returned non-empty unique suggestion strings
+
+Interpretation:
+
+- the optimized search path preserves the legacy candidate set and top ordering for representative `월세` and `청년` searches
+- the external API search response matches the DB-expected optimized order for default first-page searches that do not trigger discovery balancing
+- list/detail/ranking/trending/suggestion flows return coherent values after the change
+- this closes the functional verification requested before starting the next optimization batch
+
 ### 2026-07-14: current production performance rebaseline after cache/query batches
 
 Trigger:
