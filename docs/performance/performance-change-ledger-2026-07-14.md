@@ -213,6 +213,17 @@ Do next:
 3. Measure the live endpoint again with the same cold/warm cache-tail script.
 4. Only then choose the first ranking optimization.
 
+Rerun note:
+
+- `performance-next-checkpoint-2026-07-14.md` reran the cache-tail and ranking breakdown checks at commit `3931195678e5a27e077f904b06d97fecad627dc0`.
+- Ranking cold tail repeated:
+  - local ranking cold p95 `804.2ms`
+  - local ranking warm p95 `6.9ms`
+  - edge ranking cold p95 `828.5ms`
+  - edge ranking warm p95 `20.8ms`
+- App errors/warnings stayed at `0`; Redis slowlog stayed `0`.
+- The next step remains ranking app-side timing instrumentation, not a behavior-changing optimization.
+
 Likely first optimization after instrumentation:
 
 - If unique-view aggregation is cheap in app too, do not optimize it first.

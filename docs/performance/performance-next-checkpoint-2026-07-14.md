@@ -4,9 +4,9 @@
 
 Current performance work is closed for now.
 
-- latest runtime commit measured: `1b6b893cd7f94d909fce56811e7391b1a1ed1e30`
+- latest runtime commit measured: `3931195678e5a27e077f904b06d97fecad627dc0`
 - current decision: do not make another behavior-changing optimization immediately
-- next step after a later remeasurement: ranking app-side timing instrumentation, if ranking cold tail still repeats
+- next step after remeasurement: ranking app-side timing instrumentation
 
 ## What Was Completed
 
@@ -55,6 +55,72 @@ Ranking:
 | unique-view aggregation EXPLAIN | 0.278ms |
 | projection base EXPLAIN | 60.108ms |
 | scoring/sorting simulation | 128.302ms |
+
+## Rerun Result
+
+Rerun date: `2026-07-14`
+
+Rerun commit:
+
+- `3931195678e5a27e077f904b06d97fecad627dc0`
+
+Artifacts:
+
+- local cache tail: `tmp/stability/policy-cache-tail-local-rerun-20260714/20260714T182328Z`
+- edge cache tail: `tmp/stability/policy-cache-tail-edge-rerun-20260714/20260714T182518Z`
+- app log: `tmp/stability/app-log-rerun-20260714/20260714T182649Z`
+- nginx log: `tmp/stability/nginx-log-rerun-20260714/20260714T182649Z`
+- Redis: `tmp/stability/redis-rerun-20260714/20260714T182649Z`
+- DB-only ranking breakdown: `tmp/stability/ranking-cold-breakdown-rerun-20260714/20260714T182719Z`
+
+Cache-tail rerun:
+
+| Endpoint | Local cold p95 | Local warm p95 | Edge cold p95 | Edge warm p95 | Decision |
+| --- | ---: | ---: | ---: | ---: | --- |
+| ranking | 804.2ms | 6.9ms | 828.5ms | 20.8ms | cold tail repeats |
+| search keyword | 201.4ms | 12.5ms | 198.6ms | 36.6ms | lower priority |
+
+Observability after rerun:
+
+| Signal | Value | Interpretation |
+| --- | ---: | --- |
+| app raw error lines | 0 | no app error during rerun |
+| app raw warn lines | 0 | no app warning during rerun |
+| app API 200 | 25 | all observed app API requests succeeded |
+| app API p95 | 776ms | driven by ranking cold samples |
+| Redis slowlog | 0 | Redis is not the visible bottleneck |
+| Redis blocked clients | 0 | no Redis blocking signal |
+| nginx request p95 | 0.040050s | aggregate tail still dominated by static/health traffic mix |
+| nginx 429 in top paths | not present | no rate-limit signal from rerun |
+
+DB-only ranking breakdown rerun:
+
+| Step | Rerun value |
+| --- | ---: |
+| rankable snapshot rows | 13340 |
+| unique-view service rows | 5 |
+| projection term rows | 86 |
+| projection fact rows | 242 |
+| scoring/sorting simulation | 130.580ms |
+| rankable snapshot EXPLAIN | 12.783ms |
+| unique-view aggregation EXPLAIN | 0.287ms |
+| selected services EXPLAIN | 0.405ms |
+| projection base EXPLAIN | 50.214ms |
+| projection terms EXPLAIN | 0.475ms |
+| projection facts EXPLAIN | 0.417ms |
+
+Rerun interpretation:
+
+- The original conclusion holds.
+- Ranking cold remains the strongest repeatable tail.
+- Search cold is not the first optimization target.
+- DB-only ranking pieces remain too small to explain endpoint cold p95 by themselves.
+- No app, nginx, Redis, ALB, or rate-limit issue was observed during the rerun.
+
+Updated decision:
+
+- Open ranking app-side timing instrumentation next if continuing performance work.
+- Do not change ranking behavior before seeing live substep timings.
 
 ## What To Recheck Later
 
