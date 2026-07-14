@@ -1,6 +1,6 @@
 # Performance Optimization Log
 
-Last updated: 2026-07-13
+Last updated: 2026-07-14
 
 This document records what was optimized, which baseline numbers triggered the work, and whether the follow-up measurement is accepted or still pending.
 
@@ -12,6 +12,72 @@ This document records what was optimized, which baseline numbers triggered the w
 - `Comparison Table`: one-line before/after ledger for fast review across multiple batches
 
 ## Open Batch
+
+### 2026-07-14: 정책 목록 API fast path + 정렬 인덱스 계획
+
+Trigger values from the 2026-07-14 ALB measurement:
+
+- `GET /api/policies`: `p50 145.6ms`, `p95 165.2ms`, `p99 194.1ms`, `max 205.9ms`
+- `GET /api/policies?sort=DEADLINE`: success-only `p50 140.3ms`, `p95 165.6ms`, `p99 186.4ms`, `max 193.0ms`
+- DB representative `policy_list_created_at`: `execution 14.756ms`, `planning 4.152ms`, `seq scan`
+- simplified latest/deadline explains observed during triage were roughly `21~23ms`, with count around `9~15ms`
+- artifact: `docs/performance/alb-measurement-2026-07-14.md`
+
+Current read path:
+
+1. `PolicyListService.getList()` normalizes all request filters into `PolicyListReadCondition`.
+2. `WelfareServiceReadRepositoryImpl.findList()` always delegates to `WelfareServiceRepository.findListWithFilters()`.
+3. `findListWithFilters()` is one large native SQL query that handles default list, category/source/status/region/Gov24/tag/income filters, count, and all sort modes through `CASE WHEN :sort = ...`.
+
+Problem:
+
+- the default list path pays for a query shape designed for every optional filter
+- `:param IS NULL OR ...` predicates and `ORDER BY CASE WHEN :sort ...` make planner/index behavior harder
+- this is not the largest current latency hotspot, but it is a growth-risk path because it is a high-traffic public list API
+
+Planned implementation:
+
+1. Add a conservative fast-path predicate in `WelfareServiceReadRepositoryImpl`.
+   - only apply when `status == null`
+   - `statusFilter == ACTIVE_ONLY`
+   - no category/source/region/onlineApply/income/targetGroup/Gov24 filters
+   - sort is one of `LATEST`, `DEADLINE`, `VIEWS`
+2. Add dedicated repository methods for:
+   - active latest list
+   - active deadline list
+   - active views list
+3. Keep all filtered, region-first, Gov24, tag, income, `ALL`, and `EXPIRED_ONLY` cases on the existing `findListWithFilters()` query.
+4. Add partial/expression sort indexes for active/upcoming rows:
+   - latest sort: `status`, `coalesce(last_modified_at, registered_at, created_at) desc`, `id desc`
+   - deadline sort: `status`, `coalesce(apply_end_date, DATE '9999-12-31') asc`, latest tiebreaker, `id desc`
+   - views sort: `status`, `coalesce(api_view_count, 0) desc`, `coalesce(view_count, 0) desc`, latest tiebreaker, `id desc`
+5. Keep exact `COUNT(*)` in the first batch. Consider a short TTL count cache only if post-change measurements still show count as material.
+
+Expected impact:
+
+| Metric | Current | Expected after fast path + indexes | Interpretation |
+| --- | ---: | ---: | --- |
+| `GET /api/policies` p95 | `165.2ms` | `135~155ms` | modest user-facing reduction |
+| `GET /api/policies?sort=DEADLINE` p95 | `165.6ms` | `135~155ms` | similar reduction |
+| list select DB time | `15~23ms` | `3~8ms` | material DB-side reduction |
+| full API p95 reduction | - | `10~30ms` | API includes app mapping, JSON, network, ALB |
+
+Acceptance checks:
+
+```bash
+cd backend
+./gradlew test --tests '*PolicyList*' --no-daemon
+
+RUNS=30 WARMUP_RUNS=2 bash deploy/performance/run-local-api-latency-baseline.sh
+bash deploy/performance/run-local-db-query-baseline.sh
+```
+
+Acceptance target:
+
+- basic list p95 at or below roughly `140ms`, with `150ms` as the minimum useful target
+- deadline list p95 at or below roughly `140~150ms`
+- no content/total regression for existing filters
+- no increase in 4xx/5xx outside rate-limit noise from repeated measurements
 
 ### 2026-07-13: ALB 전환 후 자동완성 fallback 경량화
 
@@ -59,6 +125,83 @@ Status:
 - to close this batch, deploy the same commit to both ALB targets and rerun the valid API baseline against `https://youthmoa.kr`
 
 ## Closed Batch
+
+### 2026-07-14: performance baseline scripts aligned to current search API contract
+
+Trigger:
+
+- 2026-07-14 ALB measurement exposed that some performance scripts still used legacy search endpoints:
+  - `GET /api/policies/search?keyword=...`
+  - `GET /api/policies/search/suggestions?keyword=...`
+- the current backend contract is:
+  - `POST /api/policies/search` with `PolicySearchRequest` JSON body
+  - `POST /api/policies/search/suggestions` with `PolicySearchSuggestionRequest` JSON body
+  - `GET /api/policies/search/trending` remains unchanged
+- the same scripts also carried old list/search filter values:
+  - `statusFilter=open`
+  - `sort=deadline`
+- current accepted values are uppercase API values:
+  - `statusFilter=ACTIVE_ONLY`
+  - `sort=DEADLINE`
+
+Why this was changed:
+
+- the measurement layer must exercise the same API contract as the production frontend
+- legacy GET calls created false 400/405-style failures and mixed real performance data with contract drift
+- old lowercase filter values created false `C001` validation failures
+- without this fix, later before/after latency comparisons for search/list work would not be trustworthy
+
+Implemented changes:
+
+1. `deploy/performance/run-local-api-latency-baseline.sh`
+   - endpoint table now includes an optional JSON body column
+   - `policy_search_keyword` now calls `POST /api/policies/search`
+   - `policy_search_filtered` now calls `POST /api/policies/search` with `ACTIVE_ONLY` and `DEADLINE`
+   - `policy_suggestions` now calls `POST /api/policies/search/suggestions`
+   - sample TSV records the request body used for POST scenarios
+2. `deploy/performance/run-local-edge-baseline.sh`
+   - replaced the legacy search GET path with a named POST request scenario
+   - summary output now includes scenario and method, not just path
+3. `deploy/performance/run-local-api-load-baseline.sh`
+   - scenario TSV now has a `body_json` column
+   - Python load worker sends JSON body and `Content-Type: application/json` when required
+   - filtered search uses current uppercase API values
+4. `docs/performance/alb-measurement-2026-07-14.md`
+   - recorded the 2-EC2 ALB measurement context, artifacts, ALB/DNS state, and observed API/DB/log metrics before opening the next optimization batch
+
+Verification:
+
+```bash
+bash -n deploy/performance/run-local-api-latency-baseline.sh
+bash -n deploy/performance/run-local-edge-baseline.sh
+bash -n deploy/performance/run-local-api-load-baseline.sh
+
+RUNS=1 WARMUP_RUNS=0 \
+  API_LATENCY_ROOT=tmp/performance/api-latency-script-fix-2 \
+  APP_BASE_URL=http://127.0.0.1:8082 \
+  bash deploy/performance/run-local-api-latency-baseline.sh
+
+DURATION_SECONDS=4 CONCURRENCY=1 \
+  API_LOAD_ROOT=tmp/performance/api-load-script-fix-2 \
+  APP_BASE_URL=http://127.0.0.1:8082 \
+  bash deploy/performance/run-local-api-load-baseline.sh
+
+EDGE_ROOT=tmp/performance/edge-script-fix \
+  EXTERNAL_BASE_URL=https://youthmoa.kr \
+  bash deploy/performance/run-local-edge-baseline.sh
+```
+
+Observed verification result:
+
+- syntax checks passed
+- short API latency run passed with `errors=0/1` for all measured scenarios
+- short API load run passed with `errors=0` across `43` total requests
+- edge baseline passed with `POST /api/policies/search status=200`
+
+Commit:
+
+- `6bcf0fdb Update performance baselines for current search API`
+- pushed to `origin/refactor/admin-dashboard-sections`
 
 ### 2026-05-30: wrapper artifact isolation + search/ranking read-path reduction
 

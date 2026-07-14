@@ -15,6 +15,7 @@
 ### 현재 baseline과 실행 순서
 
 - [alb-current-baseline-2026-07-13.md](./alb-current-baseline-2026-07-13.md)
+- [alb-measurement-2026-07-14.md](./alb-measurement-2026-07-14.md)
 - [performance-baseline-current.md](./performance-baseline-current.md)
 - [performance-optimization-log.md](./performance-optimization-log.md)
 - [performance-measurement-plan.md](./performance-measurement-plan.md)
@@ -33,6 +34,7 @@
 ### 1. 현재 baseline
 
 - [alb-current-baseline-2026-07-13.md](./alb-current-baseline-2026-07-13.md)
+- [alb-measurement-2026-07-14.md](./alb-measurement-2026-07-14.md)
 - [performance-baseline-current.md](./performance-baseline-current.md)
 - [performance-optimization-log.md](./performance-optimization-log.md)
 
