@@ -13,6 +13,10 @@ This document records what was optimized, which baseline numbers triggered the w
 
 ## Open Batch
 
+_No active performance optimization batch after the public search cold-miss optimization._
+
+## Closed Batch
+
 ### 2026-07-14: public search cold-miss query shape optimization
 
 Trigger:
@@ -115,7 +119,65 @@ cd backend
 
 Result: `BUILD SUCCESSFUL` for both runs.
 
-## Closed Batch
+Deployment:
+
+- commit: `4cb75ba8 Optimize default public search cold misses`
+- pushed to `origin/refactor/admin-dashboard-sections`
+- primary node rebuilt locally with `docker compose --env-file .env.production -f docker-compose.prod.elasticache.yml up -d --build app`
+- secondary node deployed through SSM and fast-forwarded to `4cb75ba83ed087afb8682e135a7accd2e8850a5b`
+- secondary SSM deployment command reported `Failed` with response code `1`, but stdout showed successful build and `health_attempt=9 container=healthy http=200`
+- separate secondary verification command returned `Status=Success`, `container_health="healthy"`, and `actuator={"status":"UP"}`
+- ALB target group `youth-welfare-web-tg` after deploy:
+  - `i-0b8d95e454df5e0f0`: `healthy`
+  - `i-0e8a4cc599c1148c8`: `healthy`
+
+Post-deploy measurement:
+
+```bash
+ENV_FILE=.env.production SMOKE_DB_MODE=postgres \
+  DB_BASELINE_ROOT=tmp/performance/search-cold-miss-optimized-db-20260714 \
+  bash deploy/performance/run-local-db-query-baseline.sh
+
+RUNS=20 WARMUP_RUNS=2 API_LATENCY_DELAY_SECONDS=1 \
+  API_LATENCY_ROOT=tmp/performance/search-cold-miss-optimized-api-20260714 \
+  APP_BASE_URL=https://youthmoa.kr \
+  bash deploy/performance/run-local-api-latency-baseline.sh
+```
+
+Result:
+
+- DB artifact: `tmp/performance/search-cold-miss-optimized-db-20260714/20260714T145227Z`
+- API artifact: `tmp/performance/search-cold-miss-optimized-api-20260714/20260714T145423Z`
+- modified DB baseline now records:
+  - `policy_search_keyword_api_shape`: current optimized app query shape
+  - `policy_search_keyword_legacy_or_shape`: old OR/similarity comparison shape
+
+DB observed delta:
+
+| Query shape | Before | After | Delta |
+| --- | ---: | ---: | ---: |
+| representative pre-change search query | 316.053ms | - | - |
+| legacy OR shape with current active visibility predicate | - | 288.959ms | comparison only |
+| current optimized app shape | 276.401ms dry run | 235.428ms | accepted partial improvement |
+
+API latency result:
+
+| Scenario | p50 | p95 | p99 | Max | Errors | Rate limited |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `policy_search_keyword` | 59.2ms | 64.5ms | 70.1ms | 71.5ms | 0/20 | 0 |
+| `policy_search_filtered` | 59.7ms | 134.0ms | 247.5ms | 275.9ms | 0/20 | 0 |
+| `policy_suggestions` | 81.9ms | 101.5ms | 118.9ms | 123.3ms | 0/20 | 0 |
+| `policy_list_default` | 134.6ms | 169.8ms | 179.1ms | 181.4ms | 0/20 | 0 |
+| `policy_list_active_only` | 126.9ms | 176.5ms | 286.7ms | 314.2ms | 0/20 | 0 |
+
+Interpretation:
+
+- search DB cold-miss shape improved, but not as much as the most optimistic dry run
+- the accepted DB delta is roughly `288.959ms -> 235.428ms` against the legacy shape in the same post-deploy baseline, about an 18.5% reduction
+- public cached keyword search remains stable at p95 `64.5ms`
+- filtered search max improved materially versus the current rebaseline max `817.5ms`, though this is still partly affected by ALB/runtime variance
+- list p95 was higher in this API sample, but this batch did not change list code; keep watching it in the next general baseline
+- the next search-specific improvement should probably avoid recomputing `to_tsvector`/rank from raw text, for example with generated search vector/text fields, but that is a larger schema batch
 
 ### 2026-07-14: current production performance rebaseline after cache/query batches
 

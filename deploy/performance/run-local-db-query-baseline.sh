@@ -22,7 +22,23 @@ SEARCH_VECTOR_SQL="to_tsvector('simple', ${SEARCH_DOCUMENT_SQL})"
 SEARCH_QUERY_SQL="to_tsquery('simple', '청년:*')"
 SEARCH_TITLE_LIKE_SQL="lower(coalesce(title, '')) like '%청년%'"
 SEARCH_KEYWORD_LIKE_SQL="lower(coalesce(keyword, '')) like '%청년%'"
+SEARCH_TITLE_LIKE_INDEXABLE_SQL="lower(title) like '%청년%'"
+SEARCH_KEYWORD_LIKE_INDEXABLE_SQL="lower(keyword) like '%청년%'"
+SEARCH_TITLE_TRGM_OPERATOR_SQL="lower(title) % '청년'"
+SEARCH_KEYWORD_TRGM_OPERATOR_SQL="lower(keyword) % '청년'"
 SEARCH_RANK_SQL="(case when ${SEARCH_VECTOR_SQL} @@ ${SEARCH_QUERY_SQL} then ts_rank_cd(${SEARCH_VECTOR_SQL}, ${SEARCH_QUERY_SQL}) else 0 end + case when ${SEARCH_TITLE_LIKE_SQL} then 2.5 else 0 end + case when ${SEARCH_KEYWORD_LIKE_SQL} then 1.5 else 0 end + greatest(similarity(lower(coalesce(title, '')), '청년'), similarity(lower(coalesce(keyword, '')), '청년')))"
+SEARCH_ACTIVE_VISIBLE_SQL="status in ('ACTIVE', 'UPCOMING') and (apply_end_date is null or apply_end_date >= current_date) and search_youth_relevant is true"
+SEARCH_OPTIMIZED_MATCHED_IDS_SQL="with trgm_threshold as materialized (select set_config('pg_trgm.similarity_threshold', '0.2', true)), matched_ids as materialized (
+  select id from welfare_services cross join trgm_threshold where ${SEARCH_ACTIVE_VISIBLE_SQL} and ${SEARCH_VECTOR_SQL} @@ ${SEARCH_QUERY_SQL}
+  union
+  select id from welfare_services cross join trgm_threshold where ${SEARCH_ACTIVE_VISIBLE_SQL} and ${SEARCH_TITLE_LIKE_INDEXABLE_SQL}
+  union
+  select id from welfare_services cross join trgm_threshold where ${SEARCH_ACTIVE_VISIBLE_SQL} and ${SEARCH_KEYWORD_LIKE_INDEXABLE_SQL}
+  union
+  select id from welfare_services cross join trgm_threshold where ${SEARCH_ACTIVE_VISIBLE_SQL} and ${SEARCH_TITLE_TRGM_OPERATOR_SQL}
+  union
+  select id from welfare_services cross join trgm_threshold where ${SEARCH_ACTIVE_VISIBLE_SQL} and ${SEARCH_KEYWORD_TRGM_OPERATOR_SQL}
+)"
 
 mkdir -p "${ARTIFACT_DIR}" "${EXPLAIN_DIR}"
 perf_write_run_context "${CONTEXT_TXT}"
@@ -97,7 +113,8 @@ run_explain() {
 }
 
 run_explain "policy_list_created_at" "select id, title, created_at from welfare_services order by created_at desc limit 20;"
-run_explain "policy_search_keyword_api_shape" "select id, title from welfare_services where search_youth_relevant is true and status in ('ACTIVE', 'UPCOMING') and ( ${SEARCH_VECTOR_SQL} @@ ${SEARCH_QUERY_SQL} or ${SEARCH_TITLE_LIKE_SQL} or ${SEARCH_KEYWORD_LIKE_SQL} or similarity(lower(coalesce(title, '')), '청년') >= 0.2 or similarity(lower(coalesce(keyword, '')), '청년') >= 0.2 ) order by ${SEARCH_RANK_SQL} desc, coalesce(last_modified_at, registered_at, created_at) desc, id desc limit 20;"
+run_explain "policy_search_keyword_legacy_or_shape" "select id, title from welfare_services where search_youth_relevant is true and status in ('ACTIVE', 'UPCOMING') and (apply_end_date is null or apply_end_date >= current_date) and ( ${SEARCH_VECTOR_SQL} @@ ${SEARCH_QUERY_SQL} or ${SEARCH_TITLE_LIKE_SQL} or ${SEARCH_KEYWORD_LIKE_SQL} or similarity(lower(coalesce(title, '')), '청년') >= 0.2 or similarity(lower(coalesce(keyword, '')), '청년') >= 0.2 ) order by ${SEARCH_RANK_SQL} desc, coalesce(last_modified_at, registered_at, created_at) desc, id desc limit 100;"
+run_explain "policy_search_keyword_api_shape" "${SEARCH_OPTIMIZED_MATCHED_IDS_SQL} select welfare_services.id, title, count(*) over() as total_count from welfare_services join matched_ids on matched_ids.id = welfare_services.id order by ${SEARCH_RANK_SQL} desc, coalesce(last_modified_at, registered_at, created_at) desc, welfare_services.id desc limit 100 offset 0;"
 run_explain "policy_detail_first" "select ws.id, ws.title, wsd.target_detail, wsd.support_detail from welfare_services ws left join welfare_service_details wsd on wsd.service_id = ws.id order by ws.id limit 1;"
 run_explain "recommendation_logs_recent_window" "select user_key, count(*) from recommendation_logs where sent_at >= now() - interval '14 days' group by user_key order by count(*) desc limit 20;"
 run_explain "admin_collect_failures_recent" "select job_name, status, count(*) from api_sync_logs where started_at >= now() - interval '14 days' group by job_name, status order by count(*) desc limit 20;"
