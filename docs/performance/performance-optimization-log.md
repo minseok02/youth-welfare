@@ -208,6 +208,104 @@ Status:
 
 ## Closed Batch
 
+### 2026-07-14: policy list default outlier triage
+
+Trigger:
+
+- after the active list count cache deploy, the accepted external latency run showed `policy_list_active_only` improving to `p95=121.3ms`, but `policy_list_default` still had an outlier:
+  - `p50=124.1ms`
+  - `p95=321.3ms`
+  - `p99=1412.4ms`
+  - `max=1685.2ms`
+- DB row select and count paths had already been optimized, so this batch checked whether the remaining outlier was reproducible and where it appeared.
+
+Plan executed:
+
+1. Confirm ALB target health before measurement.
+2. Wait for policy list rate-limit buckets to clear.
+3. Run public ALB baseline with `API_LATENCY_DELAY_SECONDS=1`.
+4. Run primary direct local baseline with `APP_BASE_URL=http://127.0.0.1:8082`.
+5. Run secondary direct local baseline through SSM with the same local target URL.
+6. Avoid code changes unless the outlier reproduced in a concrete application-side path.
+
+Verification context:
+
+- ALB target group `youth-welfare-web-tg` was healthy before and after:
+  - `i-0b8d95e454df5e0f0`: `healthy`
+  - `i-0e8a4cc599c1148c8`: `healthy`
+- primary container health: `healthy`
+- secondary measurement command returned `Status=Success`
+
+Public ALB measurement:
+
+```bash
+sleep 70
+RUNS=20 WARMUP_RUNS=2 API_LATENCY_DELAY_SECONDS=1 \
+  API_LATENCY_ROOT=tmp/performance/policy-list-default-outlier-public-20260714 \
+  APP_BASE_URL=https://youthmoa.kr \
+  bash deploy/performance/run-local-api-latency-baseline.sh
+```
+
+Result:
+
+- artifact: `tmp/performance/policy-list-default-outlier-public-20260714/20260714T121742Z`
+- `api_latency_baseline=passed`
+- `sample_count=100`
+- all scenarios had `errors=0` and `rate_limited=0`
+
+| Scenario | p50 | p95 | p99 | Max |
+| --- | ---: | ---: | ---: | ---: |
+| `policy_list_default` | 110.6ms | 150.7ms | 284.1ms | 317.5ms |
+| `policy_list_active_only` | 105.0ms | 125.0ms | 142.4ms | 146.7ms |
+
+Primary direct local measurement:
+
+```bash
+RUNS=20 WARMUP_RUNS=2 API_LATENCY_DELAY_SECONDS=1 \
+  API_LATENCY_ROOT=tmp/performance/policy-list-default-outlier-primary-local-20260714 \
+  APP_BASE_URL=http://127.0.0.1:8082 \
+  bash deploy/performance/run-local-api-latency-baseline.sh
+```
+
+Result:
+
+- artifact: `tmp/performance/policy-list-default-outlier-primary-local-20260714/20260714T121955Z`
+- `api_latency_baseline=passed`
+- `sample_count=120`
+
+| Scenario | p50 | p95 | p99 | Max |
+| --- | ---: | ---: | ---: | ---: |
+| `policy_list_default` | 70.0ms | 90.1ms | 90.4ms | 90.4ms |
+| `policy_list_active_only` | 74.3ms | 140.9ms | 319.2ms | 363.7ms |
+
+Secondary direct local measurement:
+
+```bash
+RUNS=20 WARMUP_RUNS=2 API_LATENCY_DELAY_SECONDS=1 \
+  API_LATENCY_ROOT=tmp/performance/policy-list-default-outlier-secondary-local-20260714 \
+  APP_BASE_URL=http://127.0.0.1:8082 \
+  bash deploy/performance/run-local-api-latency-baseline.sh
+```
+
+Result:
+
+- artifact on secondary: `tmp/performance/policy-list-default-outlier-secondary-local-20260714/20260714T122232Z`
+- `api_latency_baseline=passed`
+- `sample_count=120`
+
+| Scenario | p50 | p95 | p99 | Max |
+| --- | ---: | ---: | ---: | ---: |
+| `policy_list_default` | 70.2ms | 104.5ms | 188.9ms | 210.0ms |
+| `policy_list_active_only` | 64.9ms | 104.1ms | 122.5ms | 127.1ms |
+
+Interpretation:
+
+- the previous `policy_list_default max=1685.2ms` outlier did not reproduce
+- direct local measurements on both targets were materially lower than the public ALB path
+- this points to transient edge/network/runtime variance rather than a repeatable DB or application query regression
+- no code change is warranted from this batch
+- continue watching `policy_list_default` in future external baselines, but do not prioritize it above open functional/performance work unless the outlier repeats
+
 ### 2026-07-14: active policy list count cache
 
 Trigger:
