@@ -253,7 +253,48 @@ app log 최근 샘플:
 | `recent_policy_views` | 69 |
 | `chat_messages` | 36 |
 
-`policy_search_keyword_api_shape` 는 여전히 DB query baseline에서 무겁지만, 실제 운영 `POST /api/policies/search` p95는 `61.2ms` 로 빠르다. 이 baseline SQL이 실제 hot path와 완전히 같은지 별도 확인이 필요하다.
+`policy_search_keyword_api_shape` 는 여전히 DB query baseline에서 무겁지만, 실제 운영 `POST /api/policies/search` p95는 `61.2ms` 로 빠르다. 이후 확인 결과 이 시점의 DB baseline SQL은 실제 generated-field fast path와 완전히 같지 않았다.
+
+## 최신 generated-search rebaseline
+
+실행 기준:
+
+- commit: `0ce85660ed656f91ee71ad2e5a93aadd1dfb1346`
+- 긴 load test 제외
+- local API/DB/edge/app log/nginx log 관측
+
+초기 재측정:
+
+| 항목 | 결과 |
+| --- | ---: |
+| local API `policy_search_keyword` p95 | 18.9ms |
+| local API `policy_list_default` p95 | 76.7ms |
+| DB `policy_search_keyword_api_shape` | 249.283ms |
+| DB `policy_search_keyword_legacy_or_shape` | 290.632ms |
+| edge `POST /api/policies/search` | 300.144ms |
+| app log API p95 | 207ms |
+| nginx upstream p95 | 84ms |
+
+판정:
+
+- local API 검색은 public search cache warm 영향이 있어 DB uncached 비용과 직접 비교하면 안 된다.
+- 기존 DB `policy_search_keyword_api_shape` representative는 raw `to_tsvector(...)`/`lower(...)` 계산이 남아 있어 현재 앱 fast path와 어긋났다.
+- `run-local-edge-baseline.sh` 는 이미 현재 계약인 `POST /api/policies/search` 를 사용하고 있다.
+
+대표 DB baseline 정렬 후:
+
+| 항목 | 전 | 후 | 판정 |
+| --- | ---: | ---: | --- |
+| DB `policy_search_keyword_api_shape` | 249.283ms | 105.263ms | generated-field path로 정렬됨 |
+| DB `policy_search_keyword_legacy_or_shape` | 290.632ms | 398.957ms | raw 비교 경로로 유지 |
+
+최신 artifact:
+
+- suite: `tmp/performance/latest-rebaseline-suite-20260714/20260714T170401Z`
+- edge: `tmp/performance/latest-rebaseline-edge-20260714/20260714T170523Z`
+- app log: `tmp/performance/latest-rebaseline-app-log-20260714/20260714T170523Z`
+- nginx log: `tmp/performance/latest-rebaseline-nginx-log-20260714/20260714T170523Z`
+- aligned DB: `tmp/performance/db-query-generated-aligned-20260714/20260714T170706Z`
 
 ## 오늘 판정
 
@@ -273,7 +314,8 @@ app log 최근 샘플:
 ## 다음 측정 때 조정
 
 1. rate limit 영향이 있는 endpoint는 run 수를 `10~15` 로 낮추거나 측정 간격을 늘린다.
-2. `run-local-edge-baseline.sh` 의 legacy 검색 endpoint를 현재 `POST /api/policies/search` 계약으로 고친다.
-3. `policy_search_keyword_api_shape` baseline SQL과 실제 운영 search repository query가 같은지 확인한다.
-4. 장애 드릴은 점검창에 EC2-1/EC2-2 각각 app stop 방식으로 분리해서 측정한다.
-5. EC2 내부 `www.youthmoa.kr` DNS stale 응답은 계속 관찰하되, 운영 사용자 기준 측정은 authoritative/public 또는 `--resolve` ALB IP 기준으로 수행한다.
+2. 검색 측정은 cache cold/warm을 분리한다.
+3. uncached search 대표 쿼리의 최종 rank/window 비용을 줄일 수 있는지 별도 계획으로 비교한다.
+4. `GET /api/policies/ranking` tail latency를 더 큰 샘플로 확인한다.
+5. 장애 드릴은 점검창에 EC2-1/EC2-2 각각 app stop 방식으로 분리해서 측정한다.
+6. EC2 내부 `www.youthmoa.kr` DNS stale 응답은 계속 관찰하되, 운영 사용자 기준 측정은 authoritative/public 또는 `--resolve` ALB IP 기준으로 수행한다.

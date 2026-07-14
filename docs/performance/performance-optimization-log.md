@@ -13,9 +13,143 @@ This document records what was optimized, which baseline numbers triggered the w
 
 ## Open Batch
 
-_No active performance optimization batch after the API latency rate-limit decision classification._
+_No active performance optimization batch after the latest generated-search rebaseline._
 
 ## Closed Batch
+
+### 2026-07-14: latest generated-search rebaseline and DB representative realignment
+
+Trigger:
+
+- After the generated search field deployment and migration pre-apply guard, the next optimization target needed a fresh baseline.
+- The first latest-commit DB rerun showed `policy_search_keyword_api_shape=249.283ms`, while the local API baseline showed `policy_search_keyword p95=18.9ms`.
+- Code inspection confirmed the DB representative still used raw `to_tsvector(...)`, `lower(...)`, and raw title/keyword expressions for the `api_shape` case, while the deployed fast path uses generated `search_document_vector`, `title_l`, and `keyword_l`.
+- API search samples are also warm-cache influenced because `PolicySearchService` keeps public search responses in local/Redis cache.
+
+Plan:
+
+1. Run a low-impact rebaseline without long load tests:
+   - local API latency
+   - DB query EXPLAIN
+   - Redis baseline
+   - public edge contract
+   - app/nginx log observability
+2. Treat the initial DB result as a measurement-contract issue, not an app regression.
+3. Align `policy_search_keyword_api_shape` with the generated-field app fast path.
+4. Keep the raw OR/rank query as `policy_search_keyword_legacy_or_shape` for comparison.
+5. Rerun DB baseline and use the corrected numbers for the next bottleneck decision.
+
+Expected impact:
+
+| Metric | Before | Expected after change | Interpretation |
+| --- | ---: | ---: | --- |
+| Runtime API latency | unchanged | unchanged | measurement script only |
+| DB representative accuracy | raw expression path | generated-field path | should match current app contract better |
+| `policy_search_keyword_api_shape` EXPLAIN | 249.283ms on stale representative | lower, still not necessarily equal to cached API | uncached DB cost becomes clearer |
+| legacy/raw comparison | mixed into api shape | retained separately | easier before/after review |
+
+Initial latest-commit rebaseline:
+
+```bash
+ENV_FILE=.env.production SMOKE_DB_MODE=postgres \
+  APP_BASE_URL=http://127.0.0.1:8082 RUNS=7 WARMUP_RUNS=1 \
+  PERFORMANCE_ROOT=tmp/performance/latest-rebaseline-suite-20260714 \
+  bash deploy/performance/run-local-performance-baseline-suite.sh
+
+EDGE_ROOT=tmp/performance/latest-rebaseline-edge-20260714 \
+  EXTERNAL_BASE_URL=https://youthmoa.kr \
+  bash deploy/performance/run-local-edge-baseline.sh
+
+APP_LOG_COMPOSE_FILE=docker-compose.prod.elasticache.yml APP_LOG_SINCE=30m \
+  APP_LOG_COMPOSE_SERVICE=app \
+  APP_LOG_ROOT=tmp/performance/latest-rebaseline-app-log-20260714 \
+  bash deploy/performance/run-local-app-log-observability-baseline.sh
+
+NGINX_LOG_ROOT=tmp/performance/latest-rebaseline-nginx-log-20260714 \
+  bash deploy/performance/run-local-nginx-log-observability-baseline.sh
+```
+
+Initial observed result:
+
+- suite artifact: `tmp/performance/latest-rebaseline-suite-20260714/20260714T170401Z`
+- API latency:
+  - `api_latency_baseline=passed`
+  - `sample_count=42`
+  - `total_errors=0`
+  - `total_rate_limited=0`
+  - `policy_search_keyword p95=18.9ms`
+  - `policy_list_default p95=76.7ms`
+  - `policy_suggestions p95=37.8ms`
+- DB query before representative alignment:
+  - `policy_search_keyword_api_shape=249.283ms`
+  - `policy_search_keyword_legacy_or_shape=290.632ms`
+- Redis baseline:
+  - `redis_baseline=skipped`
+  - `reason=container_not_running`
+- edge artifact: `tmp/performance/latest-rebaseline-edge-20260714/20260714T170523Z`
+  - `edge_baseline=passed`
+  - `policy_search_keyword POST /api/policies/search status=200 total_ms=300.144`
+  - `policy_list_default GET /api/policies... status=200 total_ms=212.932`
+- app log artifact: `tmp/performance/latest-rebaseline-app-log-20260714/20260714T170523Z`
+  - `raw_error_lines=0`
+  - `raw_warn_lines=2`
+  - API duration p95 `207ms`, p99 `1088ms`, max `1308ms`
+  - `POST /api/policies/search` p95 `241.8ms`, p99 `1045.2ms`, max `1110ms`
+  - `GET /api/policies/ranking` had only 2 samples but one slow tail, max `1308ms`
+- nginx log artifact: `tmp/performance/latest-rebaseline-nginx-log-20260714/20260714T170523Z`
+  - request p95 `0.046s`
+  - upstream p95 `0.084s`
+  - tail included 9 historical `502 GET /alb-health` entries and 3 `429 GET /api/policies`
+  - current edge baseline requests themselves returned `200`
+
+Implementation:
+
+- `deploy/performance/run-local-db-query-baseline.sh`
+  - `policy_search_keyword_api_shape` now uses:
+    - `search_document_vector`
+    - `title_l`
+    - `keyword_l`
+  - `policy_search_keyword_legacy_or_shape` still keeps the raw expression/rank path for comparison.
+
+Actual verification:
+
+```bash
+bash -n deploy/performance/run-local-db-query-baseline.sh
+
+ENV_FILE=.env.production SMOKE_DB_MODE=postgres \
+  DB_BASELINE_ROOT=tmp/performance/db-query-generated-aligned-20260714 \
+  bash deploy/performance/run-local-db-query-baseline.sh
+```
+
+Observed result after representative alignment:
+
+- artifact: `tmp/performance/db-query-generated-aligned-20260714/20260714T170706Z`
+- `db_query_baseline=passed`
+- `welfare_services_rows=15104`
+- `policy_search_keyword_api_shape=105.263ms`
+- `policy_search_keyword_legacy_or_shape=398.957ms`
+- `recommendation_logs_recent_window=10.617ms`
+- `policy_list_created_at=21.273ms`
+
+Actual impact:
+
+| Metric | Before | After | Result |
+| --- | ---: | ---: | --- |
+| API latency script | passed | passed | unchanged |
+| local warm-cache `policy_search_keyword` p95 | 18.9ms | unchanged | app runtime not changed |
+| DB `policy_search_keyword_api_shape` | 249.283ms | 105.263ms | representative corrected |
+| DB legacy/raw shape | 290.632ms initial run | 398.957ms aligned rerun | still expensive comparison path |
+| public edge search | 300.144ms | unchanged | network/ALB/browser-facing path |
+
+Interpretation:
+
+- The generated-field app path is materially better than the stale DB representative suggested, but uncached DB search still costs about `105ms`.
+- Warm API samples should not be used as proof that the uncached DB path is solved.
+- The next likely performance candidates are:
+  - split search measurement into cold vs warm cache contracts
+  - reduce uncached search final ranking/window cost
+  - investigate `GET /api/policies/ranking` slow tail with a larger controlled sample
+  - separate historical deploy/health-check 502s from current nginx log baselines
 
 ### 2026-07-14: API latency rate-limit decision classification
 
