@@ -13,6 +13,69 @@ This document records what was optimized, which baseline numbers triggered the w
 
 ## Open Batch
 
+### 2026-07-14: active policy list count cache
+
+Reason for opening:
+
+- after the policy list fast path and sort indexes, RDS `EXPLAIN` showed list select queries under `1ms`, while active count remained around `10ms`.
+- default public list requests still use Spring Data `Page`, so the native fast-path methods execute the same `COUNT(*)` on each request.
+- this count is identical across `LATEST`, `DEADLINE`, and `VIEWS` for the default `ACTIVE_ONLY` list, and can safely tolerate a short TTL.
+
+Planned implementation:
+
+1. Keep filtered/region/Gov24/tag/income lists on the existing exact `Page` query path.
+2. For default `ACTIVE_ONLY` fast path only:
+   - query rows with a native `List<WelfareService>` method
+   - resolve total from Redis key `policy:list:active-only:count:v1`
+   - on cache miss, run the exact count once and write it with a short TTL
+   - build `PageImpl` with the cached/exact total
+3. Safety constraints:
+   - Redis count cache failure must fall back to exact DB count
+   - TTL default should stay short and configurable
+   - sort-specific row ordering must remain unchanged
+4. Verification:
+   - repository unit tests should prove fast path uses row query plus cached/exact count
+   - policy list tests should remain green
+   - post-deploy measurement should verify Redis key/TTL and public list latency
+
+Expected impact:
+
+| Scenario | Current behavior | Expected after count cache |
+| --- | --- | --- |
+| first default list request after TTL | row query + exact count | same as current, then cache count |
+| repeated default list request within TTL | row query + exact count | row query + Redis count |
+| filtered list request | exact filtered count | unchanged |
+
+Implementation status:
+
+- row-only native methods added for default `ACTIVE_ONLY` latest/deadline/views list fast paths
+- exact active count moved to `countActiveOnlyVisibleList()`
+- `WelfareServiceReadRepositoryImpl` now builds `PageImpl` from fast-path rows plus cached/exact total
+- Redis key: `policy:list:active-only:count:v1`
+- TTL is configurable through `POLICY_ACTIVE_LIST_COUNT_CACHE_TTL_SECONDS`, default `30`
+- Redis read/write failures log `errorType` and fall back to exact DB count
+
+Verification:
+
+```bash
+cd backend
+./gradlew test \
+  --tests 'com.example.welfare.policy.repository.WelfareServiceReadRepositoryImplTest' \
+  --tests 'com.example.welfare.policy.service.PolicyListServiceTest' \
+  --no-daemon
+
+./gradlew test --tests 'com.example.welfare.policy.*' --no-daemon
+```
+
+Result: `BUILD SUCCESSFUL`.
+
+Remaining acceptance:
+
+- deploy to both ALB targets
+- run public `GET /api/policies?page=0&size=20` repeatedly through `https://youthmoa.kr`
+- verify Redis count key and TTL
+- rerun default external latency baseline and compare list p95
+
 ### 2026-07-14: 정책 목록 API fast path + 정렬 인덱스 계획
 
 Trigger values from the 2026-07-14 ALB measurement:

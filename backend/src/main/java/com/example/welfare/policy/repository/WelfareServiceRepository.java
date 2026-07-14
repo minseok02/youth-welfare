@@ -685,6 +685,16 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             WHERE ws.status IN ('ACTIVE', 'UPCOMING')
               AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURRENT_DATE)
             ORDER BY
+                COALESCE(ws.last_modified_at, ws.registered_at, ws.created_at) DESC,
+                ws.id DESC
+            """, nativeQuery = true)
+    List<WelfareService> findActiveOnlyLatestListRows(Pageable pageable);
+
+    @Query(value = """
+            SELECT ws.* FROM welfare_services ws
+            WHERE ws.status IN ('ACTIVE', 'UPCOMING')
+              AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURRENT_DATE)
+            ORDER BY
                 COALESCE(ws.apply_end_date, DATE '9999-12-31') ASC,
                 COALESCE(ws.last_modified_at, ws.registered_at, ws.created_at) DESC,
                 ws.id DESC
@@ -695,6 +705,17 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
               AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURRENT_DATE)
             """, nativeQuery = true)
     Page<WelfareService> findActiveOnlyDeadlineList(Pageable pageable);
+
+    @Query(value = """
+            SELECT ws.* FROM welfare_services ws
+            WHERE ws.status IN ('ACTIVE', 'UPCOMING')
+              AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURRENT_DATE)
+            ORDER BY
+                COALESCE(ws.apply_end_date, DATE '9999-12-31') ASC,
+                COALESCE(ws.last_modified_at, ws.registered_at, ws.created_at) DESC,
+                ws.id DESC
+            """, nativeQuery = true)
+    List<WelfareService> findActiveOnlyDeadlineListRows(Pageable pageable);
 
     @Query(value = """
             SELECT ws.* FROM welfare_services ws
@@ -712,6 +733,25 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
               AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURRENT_DATE)
             """, nativeQuery = true)
     Page<WelfareService> findActiveOnlyViewsList(Pageable pageable);
+
+    @Query(value = """
+            SELECT ws.* FROM welfare_services ws
+            WHERE ws.status IN ('ACTIVE', 'UPCOMING')
+              AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURRENT_DATE)
+            ORDER BY
+                COALESCE(ws.api_view_count, 0) DESC,
+                COALESCE(ws.view_count, 0) DESC,
+                COALESCE(ws.last_modified_at, ws.registered_at, ws.created_at) DESC,
+                ws.id DESC
+            """, nativeQuery = true)
+    List<WelfareService> findActiveOnlyViewsListRows(Pageable pageable);
+
+    @Query(value = """
+            SELECT COUNT(*) FROM welfare_services ws
+            WHERE ws.status IN ('ACTIVE', 'UPCOMING')
+              AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURRENT_DATE)
+            """, nativeQuery = true)
+    long countActiveOnlyVisibleList();
 
     @Query(value = """
             SELECT ws.* FROM welfare_services ws
