@@ -80,51 +80,56 @@ PY
 fi
 
 declare -a ENDPOINTS=(
-  "health|GET|/actuator/health|none"
-  "policy_list_default|GET|/api/policies?page=0&size=20|none"
-  "policy_list_status_open|GET|/api/policies?page=0&size=20&statusFilter=open|none"
-  "policy_search_keyword|GET|/api/policies/search?keyword=%EC%B2%AD%EB%85%84&page=0&size=20|none"
-  "policy_search_filtered|GET|/api/policies/search?keyword=%EC%B2%AD%EB%85%84&page=0&size=20&statusFilter=open&sort=deadline|none"
-  "policy_suggestions|GET|/api/policies/search/suggestions?keyword=%EC%B2%AD%EB%85%84&limit=10|none"
-  "policy_trending|GET|/api/policies/search/trending?limit=10|none"
-  "policy_ranking|GET|/api/policies/ranking?size=20|none"
+  "health|GET|/actuator/health|none|"
+  "policy_list_default|GET|/api/policies?page=0&size=20|none|"
+  "policy_list_active_only|GET|/api/policies?page=0&size=20&statusFilter=ACTIVE_ONLY|none|"
+  "policy_search_keyword|POST|/api/policies/search|none|{\"keyword\":\"청년\",\"page\":0,\"size\":20}"
+  "policy_search_filtered|POST|/api/policies/search|none|{\"keyword\":\"청년\",\"page\":0,\"size\":20,\"statusFilter\":\"ACTIVE_ONLY\",\"sort\":\"DEADLINE\"}"
+  "policy_suggestions|POST|/api/policies/search/suggestions|none|{\"keyword\":\"청년\",\"limit\":10}"
+  "policy_trending|GET|/api/policies/search/trending?limit=10|none|"
+  "policy_ranking|GET|/api/policies/ranking?size=20|none|"
 )
 
 if [[ -n "${first_policy_id}" ]]; then
-  ENDPOINTS+=("policy_detail_first|GET|/api/policies/${first_policy_id}|none")
+  ENDPOINTS+=("policy_detail_first|GET|/api/policies/${first_policy_id}|none|")
 fi
 
 if [[ -n "${admin_token}" ]]; then
   ENDPOINTS+=(
-    "admin_dashboard_summary|GET|/api/admin/dashboard/summary?summaryWindowDays=14&trendWindowDays=1&trendWindowDays=7&trendWindowDays=30|admin"
-    "admin_collect_failures|GET|/api/admin/dashboard/collect-failures?summaryWindowDays=14&limit=5|admin"
-    "admin_recommendation_breakdowns|GET|/api/admin/dashboard/recommendation-breakdowns?summaryWindowDays=14&limit=5|admin"
+    "admin_dashboard_summary|GET|/api/admin/dashboard/summary?summaryWindowDays=14&trendWindowDays=1&trendWindowDays=7&trendWindowDays=30|admin|"
+    "admin_collect_failures|GET|/api/admin/dashboard/collect-failures?summaryWindowDays=14&limit=5|admin|"
+    "admin_recommendation_breakdowns|GET|/api/admin/dashboard/recommendation-breakdowns?summaryWindowDays=14&limit=5|admin|"
   )
 fi
 
-printf 'scenario\tmethod\tpath\tauth\trun_index\tphase\thttp_code\ttime_total_ms\ttime_connect_ms\ttime_starttransfer_ms\tsize_download_bytes\tresponse_file\n' > "${SAMPLES_TSV}"
+printf 'scenario\tmethod\tpath\tauth\trun_index\tphase\thttp_code\ttime_total_ms\ttime_connect_ms\ttime_starttransfer_ms\tsize_download_bytes\trequest_body\tresponse_file\n' > "${SAMPLES_TSV}"
 
 measure_endpoint() {
   local scenario="$1"
   local method="$2"
   local path="$3"
   local auth="$4"
-  local run_index="$5"
-  local phase="$6"
+  local body_json="$5"
+  local run_index="$6"
+  local phase="$7"
   local response_file="${ARTIFACT_DIR}/responses/${scenario}-${phase}-${run_index}.body"
   local curl_out
   local curl_exit
   local auth_args=()
+  local body_args=()
 
   if [[ "${auth}" == "admin" ]]; then
     auth_args=(-H "Authorization: Bearer ${admin_token}")
+  fi
+  if [[ -n "${body_json}" ]]; then
+    body_args=(-H 'Content-Type: application/json' --data-binary "${body_json}")
   fi
 
   set +e
   curl_out="$(
     curl -sS -o "${response_file}" \
       -w "%{http_code}\t%{time_total}\t%{time_connect}\t%{time_starttransfer}\t%{size_download}" \
-      -X "${method}" "${APP_BASE_URL}${path}" "${auth_args[@]}"
+      -X "${method}" "${APP_BASE_URL}${path}" "${auth_args[@]}" "${body_args[@]}"
   )"
   curl_exit=$?
   set -e
@@ -132,9 +137,9 @@ measure_endpoint() {
     curl_out=$'000\t0\t0\t0\t0'
   fi
 
-  python3 - "${scenario}" "${method}" "${path}" "${auth}" "${run_index}" "${phase}" "${response_file}" "${curl_out}" >> "${SAMPLES_TSV}" <<'PY'
+  python3 - "${scenario}" "${method}" "${path}" "${auth}" "${run_index}" "${phase}" "${body_json}" "${response_file}" "${curl_out}" >> "${SAMPLES_TSV}" <<'PY'
 import sys
-scenario, method, path, auth, run_index, phase, response_file, raw = sys.argv[1:9]
+scenario, method, path, auth, run_index, phase, body_json, response_file, raw = sys.argv[1:10]
 parts = raw.split("\t")
 code = parts[0] if len(parts) > 0 else "000"
 total = float(parts[1]) * 1000 if len(parts) > 1 else 0.0
@@ -143,18 +148,18 @@ starttransfer = float(parts[3]) * 1000 if len(parts) > 3 else 0.0
 size = parts[4] if len(parts) > 4 else "0"
 print("\t".join([
     scenario, method, path, auth, run_index, phase, code,
-    f"{total:.3f}", f"{connect:.3f}", f"{starttransfer:.3f}", size, response_file
+    f"{total:.3f}", f"{connect:.3f}", f"{starttransfer:.3f}", size, body_json, response_file
 ]))
 PY
 }
 
 for endpoint in "${ENDPOINTS[@]}"; do
-  IFS='|' read -r scenario method path auth <<< "${endpoint}"
+  IFS='|' read -r scenario method path auth body_json <<< "${endpoint}"
   for ((i = 1; i <= WARMUP_RUNS; i++)); do
-    measure_endpoint "${scenario}" "${method}" "${path}" "${auth}" "${i}" "warmup"
+    measure_endpoint "${scenario}" "${method}" "${path}" "${auth}" "${body_json}" "${i}" "warmup"
   done
   for ((i = 1; i <= RUNS; i++)); do
-    measure_endpoint "${scenario}" "${method}" "${path}" "${auth}" "${i}" "measure"
+    measure_endpoint "${scenario}" "${method}" "${path}" "${auth}" "${body_json}" "${i}" "measure"
   done
 done
 

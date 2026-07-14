@@ -50,15 +50,15 @@ PY
 fi
 
 {
-  printf 'scenario\tmethod\tpath\n'
-  printf 'health\tGET\t/actuator/health\n'
-  printf 'policy_list_default\tGET\t/api/policies?page=0&size=20\n'
-  printf 'policy_search_keyword\tGET\t/api/policies/search?keyword=%%EC%%B2%%AD%%EB%%85%%84&page=0&size=20\n'
-  printf 'policy_search_filtered\tGET\t/api/policies/search?keyword=%%EC%%B2%%AD%%EB%%85%%84&page=0&size=20&statusFilter=open&sort=deadline\n'
-  printf 'policy_suggestions\tGET\t/api/policies/search/suggestions?keyword=%%EC%%B2%%AD%%EB%%85%%84&limit=10\n'
-  printf 'policy_ranking\tGET\t/api/policies/ranking?size=20\n'
+  printf 'scenario\tmethod\tpath\tbody_json\n'
+  printf 'health\tGET\t/actuator/health\t\n'
+  printf 'policy_list_default\tGET\t/api/policies?page=0&size=20\t\n'
+  printf 'policy_search_keyword\tPOST\t/api/policies/search\t{"keyword":"청년","page":0,"size":20}\n'
+  printf 'policy_search_filtered\tPOST\t/api/policies/search\t{"keyword":"청년","page":0,"size":20,"statusFilter":"ACTIVE_ONLY","sort":"DEADLINE"}\n'
+  printf 'policy_suggestions\tPOST\t/api/policies/search/suggestions\t{"keyword":"청년","limit":10}\n'
+  printf 'policy_ranking\tGET\t/api/policies/ranking?size=20\t\n'
   if [[ -n "${first_policy_id}" ]]; then
-    printf 'policy_detail_first\tGET\t/api/policies/%s\n' "${first_policy_id}"
+    printf 'policy_detail_first\tGET\t/api/policies/%s\t\n' "${first_policy_id}"
   fi
 } > "${SCENARIOS_TSV}"
 
@@ -107,7 +107,10 @@ def worker(worker_id):
         size = 0
         error = ""
         try:
-            request = urllib.request.Request(url, method=scenario["method"])
+            body_json = scenario.get("body_json") or ""
+            data = body_json.encode("utf-8") if body_json else None
+            headers = {"Content-Type": "application/json"} if body_json else {}
+            request = urllib.request.Request(url, data=data, headers=headers, method=scenario["method"])
             with urllib.request.urlopen(request, timeout=timeout_s) as response:
                 body = response.read()
                 code = str(response.status)

@@ -27,28 +27,35 @@ perf_require_python
 mkdir -p "${ARTIFACT_DIR}"
 perf_write_run_context "${CONTEXT_TXT}"
 
-paths=(
-  "/"
-  "/policies"
-  "/api/policies?page=0&size=20"
-  "/api/policies/search?keyword=%EC%B2%AD%EB%85%84&page=0&size=20"
+requests=(
+  "home|GET|/|"
+  "policies_page|GET|/policies|"
+  "policy_list_default|GET|/api/policies?page=0&size=20|"
+  "policy_search_keyword|POST|/api/policies/search|{\"keyword\":\"청년\",\"page\":0,\"size\":20}"
 )
 
-printf 'path\thttp_code\ttime_namelookup_ms\ttime_connect_ms\ttime_appconnect_ms\ttime_starttransfer_ms\ttime_total_ms\tsize_download_bytes\n' > "${CURL_SAMPLES_TSV}"
-for path in "${paths[@]}"; do
+printf 'scenario\tmethod\tpath\thttp_code\ttime_namelookup_ms\ttime_connect_ms\ttime_appconnect_ms\ttime_starttransfer_ms\ttime_total_ms\tsize_download_bytes\n' > "${CURL_SAMPLES_TSV}"
+for request in "${requests[@]}"; do
+  IFS='|' read -r scenario method path body_json <<< "${request}"
+  body_args=()
+  if [[ -n "${body_json}" ]]; then
+    body_args=(-H 'Content-Type: application/json' --data-binary "${body_json}")
+  fi
   curl_out="$(
     curl -sS -o /dev/null \
       -w "%{http_code}\t%{time_namelookup}\t%{time_connect}\t%{time_appconnect}\t%{time_starttransfer}\t%{time_total}\t%{size_download}" \
-      "${EXTERNAL_BASE_URL}${path}" || printf '000\t0\t0\t0\t0\t0\t0'
+      -X "${method}" "${EXTERNAL_BASE_URL}${path}" "${body_args[@]}" || printf '000\t0\t0\t0\t0\t0\t0'
   )"
-  python3 - "${path}" "${curl_out}" >> "${CURL_SAMPLES_TSV}" <<'PY'
+  python3 - "${scenario}" "${method}" "${path}" "${curl_out}" >> "${CURL_SAMPLES_TSV}" <<'PY'
 import sys
-path, raw = sys.argv[1:3]
+scenario, method, path, raw = sys.argv[1:5]
 parts = raw.split("\t")
 while len(parts) < 7:
     parts.append("0")
 code, namelookup, connect, appconnect, starttransfer, total, size = parts[:7]
 print("\t".join([
+    scenario,
+    method,
     path,
     code,
     f"{float(namelookup) * 1000:.3f}",
@@ -158,7 +165,7 @@ failed = bool(curl_failed)
 lines = [f"edge_baseline={'failed' if failed else 'passed'}"]
 for row in curl_rows:
     lines.append(
-        f"{row['path']} status={row['http_code']} total_ms={row['time_total_ms']} "
+        f"{row['scenario']} {row['method']} {row['path']} status={row['http_code']} total_ms={row['time_total_ms']} "
         f"ttfb_ms={row['time_starttransfer_ms']} tls_ms={row['time_appconnect_ms']} size={row['size_download_bytes']}"
     )
 for label, present in header_presence.items():
