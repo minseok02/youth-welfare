@@ -62,7 +62,7 @@ public class PolicySearchKeywordReadService {
                 .toList();
 
         List<String> policyTitleSuggestions = logSuggestions.size() < normalizedLimit
-                ? welfareServiceSearchRepository.searchChatCandidates(normalizedInput, POLICY_CANDIDATE_LIMIT).stream()
+                ? welfareServiceSearchRepository.searchSuggestionTitleCandidates(normalizedInput, POLICY_CANDIDATE_LIMIT).stream()
                     .map(WelfareService::getTitle)
                     .filter(title -> title != null && !title.isBlank())
                     .map(String::trim)

@@ -11,4 +11,6 @@ public interface WelfareServiceSearchRepository {
     Page<WelfareService> search(PolicySearchReadCondition condition, Pageable pageable);
 
     List<WelfareService> searchChatCandidates(String keyword, int limit);
+
+    List<WelfareService> searchSuggestionTitleCandidates(String keyword, int limit);
 }

@@ -162,11 +162,15 @@
 다만 `EC2 + RDS` 전환을 실제로 준비할 때 바로 쓸 수 있도록 배포 문서를 다시 추가했다.
 
 - [deployment.md](./deployment.md)
+- [core/alb-demo-switch-runbook.md](core/alb-demo-switch-runbook.md)
+- [core/alb-route53-cutover-2026-07-13.md](core/alb-route53-cutover-2026-07-13.md)
 
 해석:
 
 - 평소에는 로컬 smoke와 코드/구조 문서를 먼저 본다.
 - `EC2 + RDS` 를 실제로 준비하거나 실행할 때만 `deployment.md` 를 연다.
+- 평소 1대 운영과 시연용 `ALB + EC2 2대` 운영을 오갈 때는 `core/alb-demo-switch-runbook.md` 를 기준으로 한다.
+- 2026-07-13 실제 Route53/ALB 전환 기록과 장애 해결 이력은 `core/alb-route53-cutover-2026-07-13.md` 에 남겼다.
 
 ## 5. 추천 읽기 순서
 

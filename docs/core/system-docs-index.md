@@ -24,6 +24,8 @@ cross-cutting 문서가 흩어져 있어도
 - [server-runtime-drift-checklist.md](./server-runtime-drift-checklist.md)
 - [uptime-monitoring-runbook.md](./uptime-monitoring-runbook.md)
 - [alb-multi-ec2-rollout-plan.md](./alb-multi-ec2-rollout-plan.md)
+- [alb-demo-switch-runbook.md](./alb-demo-switch-runbook.md)
+- [alb-route53-cutover-2026-07-13.md](./alb-route53-cutover-2026-07-13.md)
 - [log-alert-thresholds.md](./log-alert-thresholds.md)
 - [admin-dashboard-alert-surface-contract.md](./admin-dashboard-alert-surface-contract.md)
 - [project-spec.md](../project-spec.md)
@@ -68,6 +70,10 @@ cross-cutting 문서가 흩어져 있어도
 `uptime-monitoring-runbook.md` 는 Healthchecks.io ping, 서버 내부 watchdog, AWS Route53/CloudWatch 알람을 운영 서버에 붙이는 순서를 정리합니다.
 
 `alb-multi-ec2-rollout-plan.md` 는 현재 EC2 1대 + RDS 구조를 유지한 채 EC2 web 노드를 2대로 늘리고 ALB/공유 Redis/scheduler 단일 실행 경계를 붙이는 전환 계획입니다.
+
+`alb-demo-switch-runbook.md` 는 평소 1대 운영과 시연용 ALB 2대 운영을 Route53 레코드 전환으로 오가는 실제 실행 절차입니다.
+
+`alb-route53-cutover-2026-07-13.md` 는 2026-07-13에 수행한 신규 EC2 연결, ALB/ACM/Route53 전환, frontend asset 불일치 장애와 해결 기록입니다.
 
 `log-alert-thresholds.md` 는 app/nginx 로그와 운영 dashboard 지표의 warning/critical 기준을 고정합니다.
 
@@ -173,7 +179,7 @@ cross-cutting 문서가 흩어져 있어도
 3. 보안 현재 상태는 [security-hardening-current-state.md](./security-hardening-current-state.md) 를 봅니다.
 4. 로컬/통합 검증 진입점은 [local-validation-docs-index.md](./local-validation-docs-index.md), [testing.md](./testing.md), [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md) 를 봅니다.
 5. 서버 다운 감지는 [uptime-monitoring-runbook.md](./uptime-monitoring-runbook.md) 를 봅니다.
-6. EC2 web 이중화/ALB 전환은 [alb-multi-ec2-rollout-plan.md](./alb-multi-ec2-rollout-plan.md) 를 봅니다.
+6. EC2 web 이중화/ALB 전환 계획은 [alb-multi-ec2-rollout-plan.md](./alb-multi-ec2-rollout-plan.md) 를 보고, 실제 전환/복구는 [alb-demo-switch-runbook.md](./alb-demo-switch-runbook.md) 를 봅니다.
 7. 운영 warning/critical 기준은 [log-alert-thresholds.md](./log-alert-thresholds.md) 를 보고, dashboard 화면에서 어떤 raw field로 확인하는지는 [admin-dashboard-alert-surface-contract.md](./admin-dashboard-alert-surface-contract.md) 를 봅니다.
 8. 구조와 contract는 [project-spec.md](../project-spec.md), [architecture.md](../architecture.md), [api-mapping.md](./api-mapping.md) 부터 봅니다.
 9. DB/schema 판단은 [db-migration.md](./db-migration.md), [user-data-separation-design.md](./user-data-separation-design.md), [pii-key-rotation-runbook.md](./pii-key-rotation-runbook.md) 를 봅니다.

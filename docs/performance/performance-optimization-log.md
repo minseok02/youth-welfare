@@ -1,6 +1,6 @@
 # Performance Optimization Log
 
-Last updated: 2026-06-02
+Last updated: 2026-07-13
 
 This document records what was optimized, which baseline numbers triggered the work, and whether the follow-up measurement is accepted or still pending.
 
@@ -10,6 +10,53 @@ This document records what was optimized, which baseline numbers triggered the w
 - `Observed deltas`: the concrete before/after numbers that justified keeping or replacing the change
 - `Interpretation`: whether the batch is actually closed or only partially useful
 - `Comparison Table`: one-line before/after ledger for fast review across multiple batches
+
+## Open Batch
+
+### 2026-07-13: ALB 전환 후 자동완성 fallback 경량화
+
+Trigger values from the ALB baseline:
+
+- `POST /api/policies/search/suggestions`: `p50 275.2ms`, `p95 378.3ms`, `max 396.6ms`
+- browser policy search flow: `action_wall_ms=696`
+- artifact: `tmp/performance/alb-valid-api-baseline-20260713T170710Z`
+
+Breakdown measurement showed the slow part was not `search_logs`.
+
+| Query slice | Before execution |
+| --- | ---: |
+| log suggestions, `청` | 14.186ms |
+| log suggestions, `청년` | 7.842ms |
+| policy fallback candidates, `청` | 352.222ms |
+| policy fallback candidates, `청년` | 318.474ms |
+
+Implemented code change:
+
+1. Add `WelfareServiceSearchRepository.searchSuggestionTitleCandidates()`
+2. Keep the existing full `searchChatCandidates()` path unchanged
+3. Make policy search suggestions use the new title/keyword-only fallback instead of full-document search/ranking
+
+DB-level remeasurement of the new fallback query shape:
+
+| Query slice | After execution |
+| --- | ---: |
+| light policy fallback candidates, `청` | 19.251ms |
+| light policy fallback candidates, `청년` | 16.931ms |
+
+Local verification:
+
+```bash
+cd backend
+./gradlew test --tests 'com.example.welfare.policy.service.PolicySearchKeywordReadServiceTest'
+```
+
+Result: `BUILD SUCCESSFUL`.
+
+Status:
+
+- code/test change is ready
+- production API after measurement is pending
+- to close this batch, deploy the same commit to both ALB targets and rerun the valid API baseline against `https://youthmoa.kr`
 
 ## Closed Batch
 

@@ -239,6 +239,48 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
         return loadOrderedServices(ids);
     }
 
+    @Override
+    public List<WelfareService> searchSuggestionTitleCandidates(String keyword, int limit) {
+        SearchKeyword normalizedKeyword = SearchKeyword.from(keyword);
+        if (normalizedKeyword.isEmpty() || limit <= 0) {
+            return List.of();
+        }
+
+        MapSqlParameterSource params = baseKeywordParams(normalizedKeyword)
+                .addValue("limit", limit);
+        List<Long> ids = namedParameterJdbcTemplate.query("""
+                        SELECT ws.id
+                        FROM welfare_services ws
+                        WHERE %s
+                          AND ws.search_youth_relevant IS TRUE
+                          AND (
+                              %s
+                              OR %s
+                          )
+                        ORDER BY CASE
+                                     WHEN lower(COALESCE(ws.title, '')) = :normalizedKeyword THEN 4
+                                     WHEN lower(COALESCE(ws.title, '')) LIKE CONCAT(:normalizedKeyword, '%%') THEN 3
+                                     WHEN %s THEN 2
+                                     WHEN %s THEN 1
+                                     ELSE 0
+                                 END DESC,
+                                 COALESCE(ws.api_view_count, 0) DESC,
+                                 COALESCE(ws.view_count, 0) DESC,
+                                 COALESCE(ws.last_modified_at, ws.registered_at, ws.created_at) DESC,
+                                 ws.id DESC
+                        LIMIT :limit
+                        """.formatted(
+                        ACTIVE_UPCOMING_STATUS_SQL,
+                        SEARCH_TITLE_LIKE_SQL,
+                        SEARCH_KEYWORD_LIKE_SQL,
+                        SEARCH_TITLE_LIKE_SQL,
+                        SEARCH_KEYWORD_LIKE_SQL
+                ),
+                params,
+                (rs, rowNum) -> rs.getLong("id"));
+        return loadOrderedServices(ids);
+    }
+
     private SearchSqlParts buildPolicySearchSql(PolicySearchReadCondition condition) {
         StringBuilder whereSql = new StringBuilder()
                 .append(STATUS_FILTER_SQL)

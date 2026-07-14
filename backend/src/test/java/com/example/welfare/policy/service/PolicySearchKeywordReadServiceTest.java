@@ -60,7 +60,7 @@ class PolicySearchKeywordReadServiceTest {
     @Test
     @DisplayName("검색 자동완성은 입력과 limit을 정규화해 조회한다")
     void getSuggestionsNormalizesKeywordAndLimit() {
-        given(welfareServiceSearchRepository.searchChatCandidates(eq("월세 지원"), eq(5)))
+        given(welfareServiceSearchRepository.searchSuggestionTitleCandidates(eq("월세 지원"), eq(5)))
                 .willReturn(List.of(
                         WelfareService.builder().title("청년 월세 지원").build(),
                         WelfareService.builder().title("월세 지원").build()
@@ -72,14 +72,14 @@ class PolicySearchKeywordReadServiceTest {
 
         then(policySearchKeywordReadRepository).should()
                 .findSuggestions(eq("월세 지원"), any(LocalDateTime.class), eq(2), eq(8));
-        then(welfareServiceSearchRepository).should().searchChatCandidates(eq("월세 지원"), eq(5));
+        then(welfareServiceSearchRepository).should().searchSuggestionTitleCandidates(eq("월세 지원"), eq(5));
         assertThat(response).containsExactly("월세 지원", "청년 월세 지원", "월세 긴급 지원");
     }
 
     @Test
     @DisplayName("검색 자동완성은 로그 후보를 우선하고 부족한 자리를 정책 title 후보로 보강한다")
     void getSuggestionsMergesPolicyCandidatesAndLogSuggestions() {
-        given(welfareServiceSearchRepository.searchChatCandidates(eq("청년"), eq(5)))
+        given(welfareServiceSearchRepository.searchSuggestionTitleCandidates(eq("청년"), eq(5)))
                 .willReturn(List.of(
                         WelfareService.builder().title("청년 월세 지원").build(),
                         WelfareService.builder().title("청년 도약계좌").build(),
@@ -101,7 +101,7 @@ class PolicySearchKeywordReadServiceTest {
     @Test
     @DisplayName("검색 자동완성은 더 정확히 맞는 정책 title 후보를 로그 후보보다 먼저 올린다")
     void getSuggestionsPromotesBetterMatchingPolicyTitle() {
-        given(welfareServiceSearchRepository.searchChatCandidates(eq("국민취업지원제도"), eq(5)))
+        given(welfareServiceSearchRepository.searchSuggestionTitleCandidates(eq("국민취업지원제도"), eq(5)))
                 .willReturn(List.of(
                         WelfareService.builder().title("국민 취업 지원 제도").build(),
                         WelfareService.builder().title("국민 취업 지원 프로그램").build()
@@ -127,7 +127,7 @@ class PolicySearchKeywordReadServiceTest {
 
         List<String> response = policySearchKeywordReadService.getSuggestions("청년", 3);
 
-        then(welfareServiceSearchRepository).should(never()).searchChatCandidates(eq("청년"), eq(5));
+        then(welfareServiceSearchRepository).should(never()).searchSuggestionTitleCandidates(eq("청년"), eq(5));
         assertThat(response).containsExactly(
                 "청년 도약계좌",
                 "청년 취업 지원",

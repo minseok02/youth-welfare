@@ -14,6 +14,7 @@
 
 ### 현재 baseline과 실행 순서
 
+- [alb-current-baseline-2026-07-13.md](./alb-current-baseline-2026-07-13.md)
 - [performance-baseline-current.md](./performance-baseline-current.md)
 - [performance-optimization-log.md](./performance-optimization-log.md)
 - [performance-measurement-plan.md](./performance-measurement-plan.md)
@@ -31,11 +32,13 @@
 
 ### 1. 현재 baseline
 
+- [alb-current-baseline-2026-07-13.md](./alb-current-baseline-2026-07-13.md)
 - [performance-baseline-current.md](./performance-baseline-current.md)
 - [performance-optimization-log.md](./performance-optimization-log.md)
 
 이 문서는
 
+- ALB 전환 후 외부 기준 URL의 accepted baseline
 - 현재 accepted baseline 명령
 - latest artifact 경로
 - 현재 수치 요약

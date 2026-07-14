@@ -12,6 +12,8 @@
 - [docker-compose.prod.yml](../docker-compose.prod.yml) 은 local Redis rollback/단일 서버 호환 경로로 남긴다.
 - 운영 DB는 Docker 컨테이너가 아니라 `Amazon RDS for PostgreSQL 16` 이다.
 - EC2 web 노드를 2대로 늘리고 ALB/공유 Redis를 붙이는 후속 계획은 [alb-multi-ec2-rollout-plan.md](./core/alb-multi-ec2-rollout-plan.md) 를 기준으로 한다.
+- 평소 1대 운영과 시연용 `ALB + EC2 2대` 운영을 오가는 실제 실행 절차는 [alb-demo-switch-runbook.md](./core/alb-demo-switch-runbook.md) 를 기준으로 한다.
+- 2026-07-13 실제 Route53/ALB 전환 완료 기록은 [alb-route53-cutover-2026-07-13.md](./core/alb-route53-cutover-2026-07-13.md) 에 있다.
 
 ## 1. 구조 차이
 
