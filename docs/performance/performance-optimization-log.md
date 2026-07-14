@@ -13,69 +13,6 @@ This document records what was optimized, which baseline numbers triggered the w
 
 ## Open Batch
 
-### 2026-07-14: Redis shared cache for public search and ranking
-
-Reason for opening:
-
-- `PolicySearchService` already has a 30-second JVM-local public search cache, but with two ALB targets each EC2 warms that cache independently.
-- `PolicyRankingService` also has a 30-second JVM-local ranking cache, so repeated `/api/policies/ranking` calls can still recompute on the other target.
-- ElastiCache/Valkey is already part of production runtime, so short-lived public read cache can be shared without adding a new service dependency.
-
-Planned implementation:
-
-1. `PolicySearchService`
-   - keep caching only for unauthenticated public searches
-   - read local L1 cache first, then Redis shared cache
-   - write successful public responses to both local L1 and Redis
-   - keep logged-in searches uncached because bookmark state is user-specific
-2. `PolicyRankingService`
-   - read local L1 cache first, then Redis shared cache by normalized ranking size
-   - write computed ranking responses to both local L1 and Redis
-3. Safety constraints
-   - TTL stays short at 30 seconds by default
-   - Redis read/write/serialization failures must not fail the API request
-   - Redis keys must use hashed request material for search so raw keywords are not stored in key names
-4. Verification
-   - unit tests for Redis hit/reuse behavior
-   - existing policy search/ranking tests remain green
-   - follow-up latency measurement after deploy should compare two-target ALB behavior rather than only one local node
-
-Expected impact:
-
-| Scenario | Current behavior | Expected after Redis shared cache |
-| --- | --- | --- |
-| repeated public search across ALB targets | each node warms separately | second node can reuse shared Redis value |
-| repeated ranking across ALB targets | each node recomputes once per TTL | ranking recompute frequency drops to roughly once per TTL cluster-wide |
-| Redis unavailable | local cache/DB compute path remains | API stays available with no cache benefit |
-
-Implementation status:
-
-- code implemented in `PolicySearchService` and `PolicyRankingService`
-- response DTOs now declare explicit Jackson builder deserialization so Redis JSON can be read back safely
-- `policy.cache.public-search.ttl-seconds` and `policy.cache.ranking.ttl-seconds` are configurable through:
-  - `POLICY_PUBLIC_SEARCH_CACHE_TTL_SECONDS`
-  - `POLICY_RANKING_CACHE_TTL_SECONDS`
-- public search Redis key shape: `policy:search:public:v1:{sha256(request material)}`
-- ranking Redis key shape: `policy:ranking:v1:{normalized size}`
-- local JVM cache remains the first lookup layer; Redis is the shared second layer
-- Redis failures are logged as `errorType` only and fall back to compute path
-
-Verification:
-
-```bash
-cd backend
-./gradlew test --tests 'com.example.welfare.policy.service.*' --no-daemon
-```
-
-Result: `BUILD SUCCESSFUL`.
-
-Remaining acceptance:
-
-- deploy this commit to both ALB targets
-- run repeated public search/ranking requests through `https://youthmoa.kr`
-- verify Redis key creation/TTL from one target can be reused by the other target
-- compare API p95 and DB query/log volume before closing this batch
-
 ### 2026-07-14: 정책 목록 API fast path + 정렬 인덱스 계획
 
 Trigger values from the 2026-07-14 ALB measurement:
@@ -270,6 +207,103 @@ Status:
 - to close this batch, deploy the same commit to both ALB targets and rerun the valid API baseline against `https://youthmoa.kr`
 
 ## Closed Batch
+
+### 2026-07-14: Redis shared cache for public search and ranking
+
+Trigger:
+
+- `PolicySearchService` already had a 30-second JVM-local public search cache, but with two ALB targets each EC2 warmed that cache independently.
+- `PolicyRankingService` also had a 30-second JVM-local ranking cache, so repeated `/api/policies/ranking` calls could recompute on the other target.
+- ElastiCache/Valkey was already part of production runtime, so short-lived public read cache could be shared without adding a new service dependency.
+
+Why this was changed:
+
+- repeated public search/ranking traffic should not pay one warmup per EC2 target
+- login-specific search remains uncached because bookmark state differs by user
+- Redis must be a performance layer only; Redis read/write/serialization failures must not fail the API request
+
+Implemented changes:
+
+1. `PolicySearchService`
+   - local JVM cache remains L1
+   - Redis shared cache is now L2 for unauthenticated public search only
+   - successful public search responses write to both local L1 and Redis
+   - Redis key shape is `policy:search:public:v1:{sha256(request material)}` so raw keywords are not stored in key names
+2. `PolicyRankingService`
+   - local JVM cache remains L1
+   - Redis shared cache is now L2 by normalized ranking size
+   - successful ranking responses write to both local L1 and Redis
+   - Redis key shape is `policy:ranking:v1:{normalized size}`
+3. DTO/config
+   - public policy response DTOs declare explicit Jackson builder deserialization for Redis JSON reads
+   - TTL settings are configurable through:
+     - `POLICY_PUBLIC_SEARCH_CACHE_TTL_SECONDS`
+     - `POLICY_RANKING_CACHE_TTL_SECONDS`
+   - defaults remain 30 seconds
+
+Verification:
+
+```bash
+cd backend
+./gradlew test --tests 'com.example.welfare.policy.service.*' --no-daemon
+```
+
+Result: `BUILD SUCCESSFUL`.
+
+Deployment:
+
+- commit: `6c606362 Add Redis shared cache for public policy reads`
+- pushed to `origin/refactor/admin-dashboard-sections`
+- primary node (`i-0b8d95e454df5e0f0`) rebuilt locally with `docker compose --env-file .env.production -f docker-compose.prod.elasticache.yml up -d --build app`
+- secondary node (`i-0e8a4cc599c1148c8`) deployed through SSM and fast-forwarded to `6c60636277c3099aff3370e37a44ef8062c0dd49`
+- first secondary SSM deployment command reported `Failed` with response code `1`, but its stdout showed successful build plus `health_attempt=10 container=healthy http=200`
+- separate secondary verification command returned `Status=Success`, `container_health="healthy"`, and `actuator={"status":"UP"}`
+- ALB target group `youth-welfare-web-tg` after deploy:
+  - `i-0b8d95e454df5e0f0`: `healthy`
+  - `i-0e8a4cc599c1148c8`: `healthy`
+
+Post-deploy measurement:
+
+```bash
+RUNS=20 WARMUP_RUNS=2 \
+  API_LATENCY_ROOT=tmp/performance/redis-shared-cache-external-20260714 \
+  APP_BASE_URL=https://youthmoa.kr \
+  bash deploy/performance/run-local-api-latency-baseline.sh
+```
+
+Result:
+
+- artifact: `tmp/performance/redis-shared-cache-external-20260714/20260714T111243Z`
+- `api_latency_baseline=passed`
+- `sample_count=100`
+- all default public scenarios had `errors=0` and `rate_limited=0`
+
+External latency summary:
+
+| Scenario | p50 | p95 | p99 | Errors | Rate limited |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `policy_list_active_only` | 118.7ms | 220.9ms | 224.7ms | 0/20 | 0 |
+| `policy_list_default` | 125.9ms | 166.8ms | 169.9ms | 0/20 | 0 |
+| `policy_search_keyword` | 59.0ms | 121.4ms | 207.2ms | 0/20 | 0 |
+| `policy_suggestions` | 77.7ms | 101.1ms | 103.2ms | 0/20 | 0 |
+| `policy_search_filtered` | 56.7ms | 79.0ms | 80.8ms | 0/20 | 0 |
+
+Repeated public search/ranking check:
+
+- 10 alternating calls to `POST /api/policies/search` and `GET /api/policies/ranking?size=20` through `https://youthmoa.kr`
+- first ranking call: `0.944s`, subsequent ranking calls: roughly `45~77ms`
+- first search call: `0.436s`, subsequent search calls: roughly `52~84ms`
+- Redis verification immediately after the run:
+  - `search_keys=1`
+  - `ranking_keys=1`
+  - `search_ttl=17`
+  - `ranking_ttl=18`
+
+Interpretation:
+
+- Redis shared cache is working for the public search and ranking paths
+- repeated ALB-facing requests no longer need one recompute per instance once a shared key exists
+- this change is worth keeping; remaining list latency is now more related to list count/network variance than ranking/search recomputation
 
 ### 2026-07-14: measurement scripts rate-limit-friendly cleanup
 
