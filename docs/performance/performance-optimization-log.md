@@ -23,6 +23,8 @@ One-page change ledger: [performance-change-ledger-2026-07-14.md](performance-ch
 
 Latest ranking breakdown measurement: [ranking-cold-breakdown-measurement-2026-07-14.md](ranking-cold-breakdown-measurement-2026-07-14.md)
 
+Next checkpoint / closure: [performance-next-checkpoint-2026-07-14.md](performance-next-checkpoint-2026-07-14.md)
+
 ## Closed Batch
 
 ### 2026-07-14: latest generated-search rebaseline and DB representative realignment
