@@ -262,6 +262,11 @@ Do next:
    - split search/ranking cold and warm cache measurements
    - then decide whether to optimize ranking or uncached search rank/window cost
 
+Follow-up completed:
+
+- [policy-cache-tail-measurement-2026-07-14.md](policy-cache-tail-measurement-2026-07-14.md) split search/ranking cold and warm cache behavior.
+- Result: ranking cold compute is the next stronger bottleneck candidate; search should not be optimized first from the current evidence.
+
 Do not do next:
 
 - do not immediately rewrite ranking/search code solely from this check

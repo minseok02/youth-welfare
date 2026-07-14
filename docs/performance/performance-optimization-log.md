@@ -13,9 +13,11 @@ This document records what was optimized, which baseline numbers triggered the w
 
 ## Open Batch
 
-_No active performance optimization batch after the latest generated-search rebaseline._
+_No active performance optimization batch after the policy cache tail measurement._
 
 Post-optimization stability check: [post-optimization-stability-check-2026-07-14.md](post-optimization-stability-check-2026-07-14.md)
+
+Latest cache-tail measurement: [policy-cache-tail-measurement-2026-07-14.md](policy-cache-tail-measurement-2026-07-14.md)
 
 ## Closed Batch
 
