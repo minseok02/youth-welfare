@@ -94,9 +94,23 @@ Acceptance target:
 Post-implementation measurement:
 
 - commit: `4744eae9 Add fast path for default policy lists`
+- follow-up doc commit: `6843a9a7 Record policy list fast path results`
 - deployed to both ALB targets on 2026-07-14
 - ALB target health after deploy: both targets `healthy`
 - runtime RDS indexes applied manually with the RDS master account
+
+Deployment notes:
+
+- primary node (`i-0b8d95e454df5e0f0`) was rebuilt locally with `docker compose --env-file .env.production -f docker-compose.prod.elasticache.yml up -d --build app`
+- secondary node (`i-0e8a4cc599c1148c8`) was deployed through SSM
+- first secondary SSM attempt failed before deployment because `AWS-RunShellScript` ran under `/bin/sh` and did not support `set -o pipefail`
+- second secondary SSM attempt failed before deployment because the root SSM context hit git `safe.directory`
+- third secondary SSM attempt ran as `ubuntu`, fast-forwarded `9a9f36ec -> 4744eae9`, rebuilt the image, and reached `health_attempt=19 status=healthy`
+- SSM reported that third command as failed with exit code `1`, but a separate verification command confirmed:
+  - secondary git head `4744eae96afd74e7375130599ba3297b92f6d79f`
+  - secondary container health `healthy`
+  - secondary actuator health `{"status":"UP"}`
+- after the doc-only follow-up commit, secondary was fast-forwarded to `6843a9a7`; no app rebuild was required for that doc-only commit
 
 Verification commands:
 
@@ -118,12 +132,20 @@ RUNS=20 WARMUP_RUNS=2 \
 Verification result:
 
 - unit test suite: `BUILD SUCCESSFUL`
+- primary container health after deploy: `healthy`
+- secondary container health after deploy: `healthy`
+- ALB target group `youth-welfare-web-tg` target health after deploy:
+  - `i-0b8d95e454df5e0f0`: `healthy`
+  - `i-0e8a4cc599c1148c8`: `healthy`
 - integration test attempt for `PolicyListFastPathIntegrationTest` was blocked by local integration runtime preflight because local PostgreSQL `127.0.0.1:5433` and Redis `6379` were not running
 - direct RDS `EXPLAIN (ANALYZE, BUFFERS)` confirmed native query execution and index usage:
   - latest list select: `Execution Time 0.278ms`
   - deadline list select: `Execution Time 0.801ms`
   - views list select: `Execution Time 0.241ms`
   - active count remained `Execution Time 10.323ms`
+- API latency artifacts:
+  - local target: `tmp/performance/policy-list-fast-path-20260714/20260714T103543Z`
+  - external URL: `tmp/performance/policy-list-fast-path-external-20260714/20260714T103633Z`
 
 Observed API deltas:
 
