@@ -15,6 +15,8 @@ This document records what was optimized, which baseline numbers triggered the w
 
 _No active performance optimization batch after the latest generated-search rebaseline._
 
+Post-optimization stability check: [post-optimization-stability-check-2026-07-14.md](post-optimization-stability-check-2026-07-14.md)
+
 ## Closed Batch
 
 ### 2026-07-14: latest generated-search rebaseline and DB representative realignment
