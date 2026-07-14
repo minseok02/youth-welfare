@@ -18,6 +18,10 @@
 - [alb-measurement-2026-07-14.md](./alb-measurement-2026-07-14.md)
 - [performance-baseline-current.md](./performance-baseline-current.md)
 - [performance-optimization-log.md](./performance-optimization-log.md)
+- [performance-change-ledger-2026-07-14.md](./performance-change-ledger-2026-07-14.md)
+- [post-optimization-stability-check-2026-07-14.md](./post-optimization-stability-check-2026-07-14.md)
+- [policy-cache-tail-measurement-2026-07-14.md](./policy-cache-tail-measurement-2026-07-14.md)
+- [ranking-cold-breakdown-measurement-2026-07-14.md](./ranking-cold-breakdown-measurement-2026-07-14.md)
 - [performance-measurement-plan.md](./performance-measurement-plan.md)
 
 ### 같이 보면 좋은 문서
@@ -51,6 +55,7 @@
 ### 1-1. 최적화 로그
 
 - [performance-optimization-log.md](./performance-optimization-log.md)
+- [performance-change-ledger-2026-07-14.md](./performance-change-ledger-2026-07-14.md)
 
 이 문서는
 
@@ -59,6 +64,22 @@
 - before/after delta가 서버에서 어떻게 닫혔는지
 
 를 기록하는 change log 입니다.
+
+`performance-change-ledger-2026-07-14.md` 는 여러 문서에 흩어진 2026-07-14 작업을 문제, 변경, 이유, 전/후 수치, 현재 판정으로 압축한 한 장짜리 ledger입니다.
+
+### 1-2. 안정화와 다음 병목 측정
+
+- [post-optimization-stability-check-2026-07-14.md](./post-optimization-stability-check-2026-07-14.md)
+- [policy-cache-tail-measurement-2026-07-14.md](./policy-cache-tail-measurement-2026-07-14.md)
+- [ranking-cold-breakdown-measurement-2026-07-14.md](./ranking-cold-breakdown-measurement-2026-07-14.md)
+
+이 문서는
+
+- 기능/운영 안정성이 유지되는지
+- cache cold/warm 구분 후 다음 병목이 무엇인지
+- ranking cold 비용이 DB/계산/앱 내부 중 어디에 가까운지
+
+를 순서대로 확인하는 문서입니다.
 
 ### 2. 측정 계획
 

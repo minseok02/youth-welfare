@@ -13,11 +13,15 @@ This document records what was optimized, which baseline numbers triggered the w
 
 ## Open Batch
 
-_No active performance optimization batch after the policy cache tail measurement._
+_No active performance optimization batch after the ranking cold breakdown measurement._
 
 Post-optimization stability check: [post-optimization-stability-check-2026-07-14.md](post-optimization-stability-check-2026-07-14.md)
 
 Latest cache-tail measurement: [policy-cache-tail-measurement-2026-07-14.md](policy-cache-tail-measurement-2026-07-14.md)
+
+One-page change ledger: [performance-change-ledger-2026-07-14.md](performance-change-ledger-2026-07-14.md)
+
+Latest ranking breakdown measurement: [ranking-cold-breakdown-measurement-2026-07-14.md](ranking-cold-breakdown-measurement-2026-07-14.md)
 
 ## Closed Batch
 
