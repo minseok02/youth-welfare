@@ -194,6 +194,12 @@ policy:
       min-top3-hit-rate: ${POLICY_RETRIEVAL_GATE_MIN_TOP3_HIT_RATE:0.9}
       min-branch-suggestion-hit-rate: ${POLICY_RETRIEVAL_GATE_MIN_BRANCH_SUGGESTION_HIT_RATE:1.0}
       max-empty-result-count: ${POLICY_RETRIEVAL_GATE_MAX_EMPTY_RESULT_COUNT:0}
+  ranking:
+    cold-timing-log-threshold-ms: ${POLICY_RANKING_COLD_TIMING_LOG_THRESHOLD_MS:300}
+    candidate:
+      enabled: ${POLICY_RANKING_CANDIDATE_ENABLED:false}
+      mode: ${POLICY_RANKING_CANDIDATE_MODE:popular_recent_union}
+      target: ${POLICY_RANKING_CANDIDATE_TARGET:4000}
 
 aes:
   secret-key: ${AES_SECRET_KEY}    # 32바이트 (AES-256)

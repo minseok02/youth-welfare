@@ -89,6 +89,21 @@ Expanded random stress update:
 - Updated first guarded runtime candidate: `popular_recent_union=4000`.
 - `popular_recent_union=3000` remains a possible later reduction only after a 4000-target rollout is measured and accepted.
 
+Runtime implementation update:
+
+- Added guarded runtime candidate mode for ranking with default `POLICY_RANKING_CANDIDATE_ENABLED=false`.
+- Implemented `popular_recent_union=4000` using full-snapshot normalization and candidate-only scoring/sort.
+- Added separate cache variants so full and candidate ranking do not share local/Redis cache entries.
+- Initial request-time candidate selection was rejected because it made cold ranking worse:
+  - full/off initial cold ranking p95 `1005.8ms`
+  - candidate/on first cold ranking p95 `3331.5ms`
+- Optimized candidate selection by precomputing rough scores and then using bounded heaps for rough, recent, and source-quota pools.
+- Final short local comparison:
+  - candidate/on heap cold ranking p50 `896.4ms`, p95 `1432.8ms`, warm p95 `17.2ms`
+  - full/off final cold ranking p50 `945.0ms`, p95 `1777.2ms`, warm p95 `15.4ms`
+- Current local top20 check: candidate/on matched full/off in the same order with `20/20` overlap.
+- Keep production default disabled until a longer comparison confirms p95 improvement. If request-time candidate selection is not consistently better, move this optimization to a precomputed ranking/candidate snapshot.
+
 ### 2026-07-15: ranking app-side timing instrumentation
 
 Trigger:

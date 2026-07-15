@@ -22,6 +22,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.anyCollection;
@@ -244,15 +245,121 @@ class PolicyRankingServiceTest {
                 .build());
 
         given(redisTemplate.opsForValue()).willReturn(valueOperations);
-        given(valueOperations.get("policy:ranking:v1:20")).willReturn(objectMapper.writeValueAsString(cached));
+        given(valueOperations.get("policy:ranking:v1:full:20")).willReturn(objectMapper.writeValueAsString(cached));
 
         List<PolicyRankingResponse> result = policyRankingService.getRanking(20);
 
         assertEquals(1, result.size());
         assertEquals(77L, result.get(0).getServiceId());
         verifyNoInteractions(policyRankingReadRepository, policyPresentationReadService);
-        verify(valueOperations).get("policy:ranking:v1:20");
+        verify(valueOperations).get("policy:ranking:v1:full:20");
         verify(valueOperations, org.mockito.Mockito.never()).set(anyString(), anyString(), any(Duration.class));
+    }
+
+    @Test
+    @DisplayName("후보 모드 Redis 캐시는 full 랭킹 캐시와 다른 키를 사용한다")
+    void rankingCandidateModeUsesSeparateRedisCacheKey() throws Exception {
+        RedisTemplate<String, String> redisTemplate = org.mockito.Mockito.mock(RedisTemplate.class);
+        ValueOperations<String, String> valueOperations = org.mockito.Mockito.mock(ValueOperations.class);
+        var objectMapper = new JacksonConfig().objectMapper();
+        PolicyRankingService policyRankingService = new PolicyRankingService(
+                policyRankingReadRepository,
+                policyPresentationReadService,
+                Clock.fixed(Instant.parse("2026-05-30T00:00:00Z"), ZoneOffset.UTC),
+                redisTemplate,
+                objectMapper,
+                Duration.ofSeconds(30),
+                true,
+                "popular_recent_union",
+                4000
+        );
+        List<PolicyRankingResponse> cached = List.of(PolicyRankingResponse.builder()
+                .serviceId(88L)
+                .title("후보 캐시 랭킹 정책")
+                .sourceType("YOUTH")
+                .uniqueViewCount7d(3L)
+                .viewCount(10L)
+                .apiViewCount(100L)
+                .rankingScore(0.9)
+                .build());
+
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        given(valueOperations.get("policy:ranking:v1:popular_recent_union:4000:20"))
+                .willReturn(objectMapper.writeValueAsString(cached));
+
+        List<PolicyRankingResponse> result = policyRankingService.getRanking(20);
+
+        assertEquals(1, result.size());
+        assertEquals(88L, result.get(0).getServiceId());
+        verifyNoInteractions(policyRankingReadRepository, policyPresentationReadService);
+        verify(valueOperations).get("policy:ranking:v1:popular_recent_union:4000:20");
+    }
+
+    @Test
+    @DisplayName("후보 모드는 rough 상위권 밖의 unique-view 정책과 최신 탐색 정책을 보존한다")
+    void rankingCandidateModeKeepsUniqueViewAndRecentCandidates() {
+        PolicyRankingService policyRankingService = new PolicyRankingService(
+                policyRankingReadRepository,
+                policyPresentationReadService,
+                Clock.fixed(Instant.parse("2026-05-30T00:00:00Z"), ZoneOffset.UTC),
+                null,
+                null,
+                Duration.ofSeconds(30),
+                true,
+                "popular_recent_union",
+                10
+        );
+        LocalDateTime old = LocalDateTime.of(2026, 1, 1, 0, 0);
+        List<WelfareService> services = java.util.stream.LongStream.rangeClosed(1, 58)
+                .mapToObj(id -> WelfareService.builder()
+                        .id(id)
+                        .sourceType(WelfareService.SourceType.YOUTH)
+                        .sourceId("S-" + id)
+                        .title("기존 인기 정책 " + id)
+                        .status(WelfareService.ServiceStatus.ACTIVE)
+                        .viewCount(1000 - (int) id)
+                        .apiViewCount(1000L - id)
+                        .registeredAt(old)
+                        .build())
+                .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new));
+        WelfareService recentLowScore = WelfareService.builder()
+                .id(59L)
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("S-59")
+                .title("최신 저조회 정책")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .viewCount(0)
+                .apiViewCount(0L)
+                .registeredAt(LocalDateTime.of(2026, 5, 29, 0, 0))
+                .build();
+        WelfareService uniqueTail = WelfareService.builder()
+                .id(60L)
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("S-60")
+                .title("고유조회 급등 정책")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .viewCount(0)
+                .apiViewCount(0L)
+                .registeredAt(old)
+                .build();
+        services.add(recentLowScore);
+        services.add(uniqueTail);
+
+        given(policyRankingReadRepository.findRankableSnapshots()).willReturn(services.stream().map(this::snapshot).toList());
+        given(policyRankingReadRepository.findUniqueViewCountsSinceForStatuses(any(), any()))
+                .willReturn(List.of(uniqueCount(60L, 10_000L)));
+        given(policyRankingReadRepository.findServicesByIds(anyCollection())).willAnswer(invocation -> {
+            java.util.Collection<Long> ids = invocation.getArgument(0);
+            return services.stream().filter(service -> ids.contains(service.getId())).toList();
+        });
+        given(policyPresentationReadService.findProjections(any())).willReturn(java.util.Map.of());
+
+        List<PolicyRankingResponse> ranking = policyRankingService.getRanking(10);
+
+        List<Long> ids = ranking.stream().map(PolicyRankingResponse::getServiceId).toList();
+        assertEquals(10, ranking.size());
+        assertTrue(ids.contains(60L));
+        assertTrue(ids.contains(59L));
     }
 
     private PolicyRankingReadRepository.RankableServiceSnapshot snapshot(WelfareService service) {

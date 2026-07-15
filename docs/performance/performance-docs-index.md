@@ -24,6 +24,7 @@
 - [ranking-cold-breakdown-measurement-2026-07-14.md](./ranking-cold-breakdown-measurement-2026-07-14.md)
 - [ranking-app-timing-instrumentation-2026-07-15.md](./ranking-app-timing-instrumentation-2026-07-15.md)
 - [ranking-candidate-mode-evaluation-2026-07-15.md](./ranking-candidate-mode-evaluation-2026-07-15.md)
+- [ranking-candidate-runtime-plan-2026-07-15.md](./ranking-candidate-runtime-plan-2026-07-15.md)
 - [performance-next-checkpoint-2026-07-14.md](./performance-next-checkpoint-2026-07-14.md)
 - [performance-measurement-plan.md](./performance-measurement-plan.md)
 
@@ -77,6 +78,7 @@
 - [ranking-cold-breakdown-measurement-2026-07-14.md](./ranking-cold-breakdown-measurement-2026-07-14.md)
 - [ranking-app-timing-instrumentation-2026-07-15.md](./ranking-app-timing-instrumentation-2026-07-15.md)
 - [ranking-candidate-mode-evaluation-2026-07-15.md](./ranking-candidate-mode-evaluation-2026-07-15.md)
+- [ranking-candidate-runtime-plan-2026-07-15.md](./ranking-candidate-runtime-plan-2026-07-15.md)
 - [performance-next-checkpoint-2026-07-14.md](./performance-next-checkpoint-2026-07-14.md)
 
 이 문서는
@@ -86,6 +88,7 @@
 - ranking cold 비용이 DB/계산/앱 내부 중 어디에 가까운지
 - ranking cold 비용이 live app 내부 어느 단계에 몰리는지
 - ranking 후보 축소가 품질을 보존하는지
+- ranking 후보 축소를 runtime guard 뒤에 어떻게 구현할지
 - 재측정 후 다음 작업을 열지 말지
 
 를 순서대로 확인하는 문서입니다.

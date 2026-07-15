@@ -23,6 +23,7 @@ import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -40,6 +41,8 @@ public class PolicyRankingService {
     private static final int EXPLORE_WINDOW_DAYS = 14;
     private static final long RANKING_CACHE_TTL_MILLIS = 30_000L;
     private static final long DEFAULT_COLD_TIMING_LOG_THRESHOLD_MS = 300L;
+    private static final int DEFAULT_CANDIDATE_TARGET = 4000;
+    private static final String CANDIDATE_MODE_POPULAR_RECENT_UNION = "popular_recent_union";
     private static final String RANKING_CACHE_PREFIX = "policy:ranking:v1:";
     private static final TypeReference<List<PolicyRankingResponse>> RANKING_RESPONSE_LIST_TYPE = new TypeReference<>() {
     };
@@ -51,7 +54,10 @@ public class PolicyRankingService {
     private final ObjectMapper objectMapper;
     private final Duration rankingCacheTtl;
     private final long coldTimingLogThresholdMs;
-    private final Map<Integer, CachedRanking> rankingCache = new ConcurrentHashMap<>();
+    private final boolean candidateModeEnabled;
+    private final String candidateMode;
+    private final int candidateTarget;
+    private final Map<RankingCacheKey, CachedRanking> rankingCache = new ConcurrentHashMap<>();
 
     @Autowired
     public PolicyRankingService(PolicyRankingReadRepository policyRankingReadRepository,
@@ -59,7 +65,10 @@ public class PolicyRankingService {
                                 RedisTemplate<String, String> redisTemplate,
                                 ObjectMapper objectMapper,
                                 @Value("${policy.cache.ranking.ttl-seconds:30}") long rankingCacheTtlSeconds,
-                                @Value("${policy.ranking.cold-timing-log-threshold-ms:300}") long coldTimingLogThresholdMs) {
+                                @Value("${policy.ranking.cold-timing-log-threshold-ms:300}") long coldTimingLogThresholdMs,
+                                @Value("${policy.ranking.candidate.enabled:false}") boolean candidateModeEnabled,
+                                @Value("${policy.ranking.candidate.mode:popular_recent_union}") String candidateMode,
+                                @Value("${policy.ranking.candidate.target:4000}") int candidateTarget) {
         this(
                 policyRankingReadRepository,
                 policyPresentationReadService,
@@ -67,7 +76,10 @@ public class PolicyRankingService {
                 redisTemplate,
                 objectMapper,
                 Duration.ofSeconds(rankingCacheTtlSeconds),
-                coldTimingLogThresholdMs
+                coldTimingLogThresholdMs,
+                candidateModeEnabled,
+                candidateMode,
+                candidateTarget
         );
     }
 
@@ -81,7 +93,10 @@ public class PolicyRankingService {
                 null,
                 null,
                 Duration.ofMillis(RANKING_CACHE_TTL_MILLIS),
-                DEFAULT_COLD_TIMING_LOG_THRESHOLD_MS
+                DEFAULT_COLD_TIMING_LOG_THRESHOLD_MS,
+                false,
+                CANDIDATE_MODE_POPULAR_RECENT_UNION,
+                DEFAULT_CANDIDATE_TARGET
         );
     }
 
@@ -98,7 +113,10 @@ public class PolicyRankingService {
                 redisTemplate,
                 objectMapper,
                 rankingCacheTtl,
-                DEFAULT_COLD_TIMING_LOG_THRESHOLD_MS
+                DEFAULT_COLD_TIMING_LOG_THRESHOLD_MS,
+                false,
+                CANDIDATE_MODE_POPULAR_RECENT_UNION,
+                DEFAULT_CANDIDATE_TARGET
         );
     }
 
@@ -108,7 +126,33 @@ public class PolicyRankingService {
                          RedisTemplate<String, String> redisTemplate,
                          ObjectMapper objectMapper,
                          Duration rankingCacheTtl,
-                         long coldTimingLogThresholdMs) {
+                         boolean candidateModeEnabled,
+                         String candidateMode,
+                         int candidateTarget) {
+        this(
+                policyRankingReadRepository,
+                policyPresentationReadService,
+                clock,
+                redisTemplate,
+                objectMapper,
+                rankingCacheTtl,
+                DEFAULT_COLD_TIMING_LOG_THRESHOLD_MS,
+                candidateModeEnabled,
+                candidateMode,
+                candidateTarget
+        );
+    }
+
+    PolicyRankingService(PolicyRankingReadRepository policyRankingReadRepository,
+                         PolicyPresentationReadService policyPresentationReadService,
+                         Clock clock,
+                         RedisTemplate<String, String> redisTemplate,
+                         ObjectMapper objectMapper,
+                         Duration rankingCacheTtl,
+                         long coldTimingLogThresholdMs,
+                         boolean candidateModeEnabled,
+                         String candidateMode,
+                         int candidateTarget) {
         this.policyRankingReadRepository = policyRankingReadRepository;
         this.policyPresentationReadService = policyPresentationReadService;
         this.clock = clock;
@@ -118,41 +162,45 @@ public class PolicyRankingService {
                 ? Duration.ofMillis(RANKING_CACHE_TTL_MILLIS)
                 : rankingCacheTtl;
         this.coldTimingLogThresholdMs = Math.max(0L, coldTimingLogThresholdMs);
+        this.candidateModeEnabled = candidateModeEnabled;
+        this.candidateMode = normalizeCandidateMode(candidateMode);
+        this.candidateTarget = Math.max(1, candidateTarget);
     }
 
     @Transactional(readOnly = true)
     public List<PolicyRankingResponse> getRanking(int size) {
         int limit = normalizeSize(size);
-        CachedRanking cachedRanking = rankingCache.get(limit);
+        RankingCacheKey cacheKey = rankingCacheKey(limit);
+        CachedRanking cachedRanking = rankingCache.get(cacheKey);
         long nowMillis = clock.millis();
         if (cachedRanking != null && nowMillis - cachedRanking.cachedAtMillis() < rankingCacheTtl.toMillis()) {
             return cachedRanking.responses();
         }
-        List<PolicyRankingResponse> redisCached = getRedisCachedRanking(limit);
+        List<PolicyRankingResponse> redisCached = getRedisCachedRanking(cacheKey);
         if (redisCached != null) {
-            cacheRankingLocal(limit, redisCached);
+            cacheRankingLocal(cacheKey, redisCached);
             return redisCached;
         }
 
         long coldStartedNanos = System.nanoTime();
         RankingComputation computation = computeRanking(limit);
         long localCacheStartedNanos = System.nanoTime();
-        cacheRankingLocal(limit, computation.responses());
+        cacheRankingLocal(cacheKey, computation.responses());
         long localCacheWriteMs = elapsedMs(localCacheStartedNanos);
         long redisCacheStartedNanos = System.nanoTime();
-        cacheRankingRedis(limit, computation.responses());
+        cacheRankingRedis(cacheKey, computation.responses());
         long redisCacheWriteMs = elapsedMs(redisCacheStartedNanos);
         long coldTotalMs = elapsedMs(coldStartedNanos);
         logColdTimingIfSlow(limit, computation, localCacheWriteMs, redisCacheWriteMs, coldTotalMs);
         return computation.responses();
     }
 
-    private List<PolicyRankingResponse> getRedisCachedRanking(int limit) {
+    private List<PolicyRankingResponse> getRedisCachedRanking(RankingCacheKey cacheKey) {
         if (redisTemplate == null || objectMapper == null) {
             return null;
         }
         try {
-            String cached = redisTemplate.opsForValue().get(redisCacheKey(limit));
+            String cached = redisTemplate.opsForValue().get(redisCacheKey(cacheKey));
             if (cached == null || cached.isBlank()) {
                 return null;
             }
@@ -163,17 +211,17 @@ public class PolicyRankingService {
         }
     }
 
-    private void cacheRankingLocal(int limit, List<PolicyRankingResponse> responses) {
-        rankingCache.put(limit, new CachedRanking(clock.millis(), responses));
+    private void cacheRankingLocal(RankingCacheKey cacheKey, List<PolicyRankingResponse> responses) {
+        rankingCache.put(cacheKey, new CachedRanking(clock.millis(), responses));
     }
 
-    private void cacheRankingRedis(int limit, List<PolicyRankingResponse> responses) {
+    private void cacheRankingRedis(RankingCacheKey cacheKey, List<PolicyRankingResponse> responses) {
         if (redisTemplate == null || objectMapper == null) {
             return;
         }
         try {
             redisTemplate.opsForValue().set(
-                    redisCacheKey(limit),
+                    redisCacheKey(cacheKey),
                     objectMapper.writeValueAsString(responses),
                     rankingCacheTtl
             );
@@ -182,8 +230,18 @@ public class PolicyRankingService {
         }
     }
 
-    private String redisCacheKey(int limit) {
-        return RANKING_CACHE_PREFIX + limit;
+    private RankingCacheKey rankingCacheKey(int limit) {
+        CandidateConfig candidateConfig = candidateConfig();
+        return new RankingCacheKey(limit, candidateConfig.cacheVariant());
+    }
+
+    private String redisCacheKey(RankingCacheKey cacheKey) {
+        return RANKING_CACHE_PREFIX + cacheKey.variant() + ":" + cacheKey.limit();
+    }
+
+    private CandidateConfig candidateConfig() {
+        boolean active = candidateModeEnabled && CANDIDATE_MODE_POPULAR_RECENT_UNION.equals(candidateMode);
+        return new CandidateConfig(active, candidateMode, candidateTarget);
     }
 
     private RankingComputation computeRanking(int limit) {
@@ -211,7 +269,6 @@ public class PolicyRankingService {
                 ));
         long uniqueViewMs = elapsedMs(uniqueViewStartedNanos);
 
-        long scoringStartedNanos = System.nanoTime();
         double maxUniqueRaw = snapshots.stream()
                 .mapToDouble(s -> log1p(uniqueViewsByServiceId.getOrDefault(s.getId(), 0L)))
                 .max()
@@ -232,14 +289,30 @@ public class PolicyRankingService {
                     .orElse(0.0);
             maxExternalBySource.put(sourceType, max);
         }
+        RankingNormalizationStats normalizationStats = new RankingNormalizationStats(
+                maxUniqueRaw,
+                maxViewRaw,
+                maxExternalBySource
+        );
 
         long totalUniqueViews = uniqueViewsByServiceId.values().stream()
                 .mapToLong(this::safeLong)
                 .sum();
 
         WeightSet baseWeights = weightSetForTraffic(totalUniqueViews);
+        CandidateConfig candidateConfig = candidateConfig();
+        long candidateSelectionStartedNanos = System.nanoTime();
+        List<PolicyRankingReadRepository.RankableServiceSnapshot> scoringSnapshots = selectScoringSnapshots(
+                snapshots,
+                uniqueViewsByServiceId,
+                normalizationStats,
+                now,
+                candidateConfig
+        );
+        long candidateSelectionMs = elapsedMs(candidateSelectionStartedNanos);
 
-        List<ScoredSnapshot> sortedByScore = snapshots.stream()
+        long scoringStartedNanos = System.nanoTime();
+        List<ScoredSnapshot> sortedByScore = scoringSnapshots.stream()
                 .map(service -> {
                     long uniqueViews = uniqueViewsByServiceId.getOrDefault(service.getId(), 0L);
                     double uniqueNorm = normalize(log1p(uniqueViews), maxUniqueRaw);
@@ -281,7 +354,7 @@ public class PolicyRankingService {
         long scoringSortMs = elapsedMs(scoringStartedNanos);
 
         long explorationStartedNanos = System.nanoTime();
-        List<ScoredSnapshot> selected = applyExplorationSlots(sortedByScore, snapshots, scoredByServiceId, limit);
+        List<ScoredSnapshot> selected = applyExplorationSlots(sortedByScore, scoringSnapshots, scoredByServiceId, limit);
         List<Long> selectedIds = selected.stream()
                 .map(scored -> scored.snapshot().getId())
                 .toList();
@@ -324,12 +397,17 @@ public class PolicyRankingService {
         return new RankingComputation(
                 responses,
                 snapshots.size(),
+                scoringSnapshots.size(),
                 uniqueViewsByServiceId.size(),
                 selected.size(),
                 selectedServices.size(),
                 projections.size(),
+                candidateConfig.active(),
+                candidateConfig.mode(),
+                candidateConfig.target(),
                 rankableSnapshotMs,
                 uniqueViewMs,
+                candidateSelectionMs,
                 scoringSortMs,
                 explorationMs,
                 selectedServiceLoadMs,
@@ -346,17 +424,22 @@ public class PolicyRankingService {
         if (coldTotalMs < coldTimingLogThresholdMs) {
             return;
         }
-        log.info("[PolicyRankingColdTiming] totalMs={} limit={} resultCount={} snapshotCount={} uniqueViewServiceCount={} selectedCount={} selectedServiceCount={} projectionCount={} rankableSnapshotMs={} uniqueViewMs={} scoringSortMs={} explorationMs={} selectedServiceLoadMs={} projectionLoadMs={} dtoBuildMs={} localCacheWriteMs={} redisCacheWriteMs={}",
+        log.info("[PolicyRankingColdTiming] totalMs={} limit={} resultCount={} snapshotCount={} scoringCandidateCount={} uniqueViewServiceCount={} selectedCount={} selectedServiceCount={} projectionCount={} candidateModeEnabled={} candidateMode={} candidateTarget={} rankableSnapshotMs={} uniqueViewMs={} candidateSelectionMs={} scoringSortMs={} explorationMs={} selectedServiceLoadMs={} projectionLoadMs={} dtoBuildMs={} localCacheWriteMs={} redisCacheWriteMs={}",
                 coldTotalMs,
                 limit,
                 computation.responses().size(),
                 computation.snapshotCount(),
+                computation.scoringCandidateCount(),
                 computation.uniqueViewServiceCount(),
                 computation.selectedCount(),
                 computation.selectedServiceCount(),
                 computation.projectionCount(),
+                computation.candidateModeEnabled(),
+                computation.candidateMode(),
+                computation.candidateTarget(),
                 computation.rankableSnapshotMs(),
                 computation.uniqueViewMs(),
+                computation.candidateSelectionMs(),
                 computation.scoringSortMs(),
                 computation.explorationMs(),
                 computation.selectedServiceLoadMs(),
@@ -405,6 +488,268 @@ public class PolicyRankingService {
 
     private double round4(double v) {
         return Math.round(v * 10000.0) / 10000.0;
+    }
+
+    private String normalizeCandidateMode(String value) {
+        if (value == null || value.isBlank()) {
+            return CANDIDATE_MODE_POPULAR_RECENT_UNION;
+        }
+        return value.trim().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    private List<PolicyRankingReadRepository.RankableServiceSnapshot> selectScoringSnapshots(
+            List<PolicyRankingReadRepository.RankableServiceSnapshot> snapshots,
+            Map<Long, Long> uniqueViewsByServiceId,
+            RankingNormalizationStats normalizationStats,
+            LocalDateTime now,
+            CandidateConfig candidateConfig
+    ) {
+        if (!candidateConfig.active() || snapshots.size() <= candidateConfig.target()) {
+            return snapshots;
+        }
+        return popularRecentUnionCandidates(snapshots, uniqueViewsByServiceId, normalizationStats, now, candidateConfig.target());
+    }
+
+    private List<PolicyRankingReadRepository.RankableServiceSnapshot> popularRecentUnionCandidates(
+            List<PolicyRankingReadRepository.RankableServiceSnapshot> snapshots,
+            Map<Long, Long> uniqueViewsByServiceId,
+            RankingNormalizationStats normalizationStats,
+            LocalDateTime now,
+            int target
+    ) {
+        int popularCount = Math.max(1, Math.round(target * 0.55f));
+        int recentCount = Math.max(1, Math.round(target * 0.25f));
+        int quotaCount = Math.max(1, Math.round(target * 0.20f));
+
+        List<RoughRankedSnapshot> roughEntries = snapshots.stream()
+                .map(snapshot -> new RoughRankedSnapshot(
+                        snapshot,
+                        roughPreRankScore(snapshot, uniqueViewsByServiceId, normalizationStats, now)
+                ))
+                .toList();
+        List<PolicyRankingReadRepository.RankableServiceSnapshot> rankedByRough = topRoughSnapshots(roughEntries, target);
+        List<PolicyRankingReadRepository.RankableServiceSnapshot> rankedByRecent = topRecentSnapshots(snapshots, recentCount);
+
+        List<PolicyRankingReadRepository.RankableServiceSnapshot> selected = new ArrayList<>();
+        selected.addAll(rankedByRough.stream().limit(popularCount).toList());
+        selected.addAll(rankedByRecent);
+        selected.addAll(sourceQuotaCandidates(snapshots, roughEntries, rankedByRough, quotaCount));
+
+        Map<Long, PolicyRankingReadRepository.RankableServiceSnapshot> byId = snapshots.stream()
+                .collect(Collectors.toMap(
+                        PolicyRankingReadRepository.RankableServiceSnapshot::getId,
+                        Function.identity(),
+                        (a, b) -> a
+                ));
+        for (Long serviceId : uniqueViewsByServiceId.keySet()) {
+            PolicyRankingReadRepository.RankableServiceSnapshot snapshot = byId.get(serviceId);
+            if (snapshot != null) {
+                selected.add(snapshot);
+            }
+        }
+
+        List<PolicyRankingReadRepository.RankableServiceSnapshot> uniqueSelected = orderedUniqueSnapshots(selected);
+        if (uniqueSelected.size() < target) {
+            uniqueSelected = fillToTarget(uniqueSelected, rankedByRough, target);
+        }
+        return uniqueSelected;
+    }
+
+    private List<PolicyRankingReadRepository.RankableServiceSnapshot> sourceQuotaCandidates(
+            List<PolicyRankingReadRepository.RankableServiceSnapshot> snapshots,
+            List<RoughRankedSnapshot> roughEntries,
+            List<PolicyRankingReadRepository.RankableServiceSnapshot> rankedByRough,
+            int target
+    ) {
+        Map<WelfareService.SourceType, List<RoughRankedSnapshot>> bySource = new EnumMap<>(WelfareService.SourceType.class);
+        for (RoughRankedSnapshot entry : roughEntries) {
+            bySource.computeIfAbsent(entry.snapshot().getSourceType(), ignored -> new ArrayList<>()).add(entry);
+        }
+
+        int total = snapshots.size();
+        int minPerSource = Math.max(25, target / 20);
+        List<PolicyRankingReadRepository.RankableServiceSnapshot> selected = new ArrayList<>();
+        for (WelfareService.SourceType sourceType : WelfareService.SourceType.values()) {
+            List<RoughRankedSnapshot> rows = bySource.get(sourceType);
+            if (rows == null || rows.isEmpty()) {
+                continue;
+            }
+            int proportional = Math.round(target * (rows.size() / (float) total));
+            int quota = Math.min(rows.size(), Math.max(minPerSource, proportional));
+            selected.addAll(topRoughSnapshots(rows, quota));
+        }
+
+        List<PolicyRankingReadRepository.RankableServiceSnapshot> uniqueSelected = orderedUniqueSnapshots(selected);
+        if (uniqueSelected.size() < target) {
+            uniqueSelected = fillToTarget(uniqueSelected, rankedByRough, target);
+        }
+        return uniqueSelected;
+    }
+
+    private List<PolicyRankingReadRepository.RankableServiceSnapshot> topRoughSnapshots(
+            List<RoughRankedSnapshot> entries,
+            int limit
+    ) {
+        if (limit <= 0 || entries.isEmpty()) {
+            return List.of();
+        }
+        PriorityQueue<RoughRankedSnapshot> heap = new PriorityQueue<>(this::compareRoughWorstFirst);
+        for (RoughRankedSnapshot entry : entries) {
+            if (heap.size() < limit) {
+                heap.offer(entry);
+            } else if (isRoughBetter(entry, heap.peek())) {
+                heap.poll();
+                heap.offer(entry);
+            }
+        }
+        return heap.stream()
+                .sorted(this::compareRoughBestFirst)
+                .map(RoughRankedSnapshot::snapshot)
+                .toList();
+    }
+
+    private int compareRoughWorstFirst(RoughRankedSnapshot left, RoughRankedSnapshot right) {
+        int byScore = Double.compare(left.score(), right.score());
+        if (byScore != 0) {
+            return byScore;
+        }
+        return Long.compare(safeServiceId(right.snapshot()), safeServiceId(left.snapshot()));
+    }
+
+    private int compareRoughBestFirst(RoughRankedSnapshot left, RoughRankedSnapshot right) {
+        int byScore = Double.compare(right.score(), left.score());
+        if (byScore != 0) {
+            return byScore;
+        }
+        return Long.compare(safeServiceId(left.snapshot()), safeServiceId(right.snapshot()));
+    }
+
+    private boolean isRoughBetter(RoughRankedSnapshot candidate, RoughRankedSnapshot currentWorst) {
+        return compareRoughBestFirst(candidate, currentWorst) < 0;
+    }
+
+    private List<PolicyRankingReadRepository.RankableServiceSnapshot> topRecentSnapshots(
+            List<PolicyRankingReadRepository.RankableServiceSnapshot> snapshots,
+            int limit
+    ) {
+        if (limit <= 0 || snapshots.isEmpty()) {
+            return List.of();
+        }
+        PriorityQueue<RecentRankedSnapshot> heap = new PriorityQueue<>(this::compareRecentWorstFirst);
+        for (PolicyRankingReadRepository.RankableServiceSnapshot snapshot : snapshots) {
+            RecentRankedSnapshot entry = new RecentRankedSnapshot(snapshot, policyBaseTime(snapshot));
+            if (heap.size() < limit) {
+                heap.offer(entry);
+            } else if (isRecentBetter(entry, heap.peek())) {
+                heap.poll();
+                heap.offer(entry);
+            }
+        }
+        return heap.stream()
+                .sorted(this::compareRecentBestFirst)
+                .map(RecentRankedSnapshot::snapshot)
+                .toList();
+    }
+
+    private int compareRecentWorstFirst(RecentRankedSnapshot left, RecentRankedSnapshot right) {
+        int byTime = compareBaseTimeWorstFirst(left.baseTime(), right.baseTime());
+        if (byTime != 0) {
+            return byTime;
+        }
+        return Long.compare(safeServiceId(right.snapshot()), safeServiceId(left.snapshot()));
+    }
+
+    private int compareRecentBestFirst(RecentRankedSnapshot left, RecentRankedSnapshot right) {
+        int byTime = compareBaseTimeBestFirst(left.baseTime(), right.baseTime());
+        if (byTime != 0) {
+            return byTime;
+        }
+        return Long.compare(safeServiceId(left.snapshot()), safeServiceId(right.snapshot()));
+    }
+
+    private int compareBaseTimeWorstFirst(LocalDateTime left, LocalDateTime right) {
+        if (left == null && right == null) {
+            return 0;
+        }
+        if (left == null) {
+            return -1;
+        }
+        if (right == null) {
+            return 1;
+        }
+        return left.compareTo(right);
+    }
+
+    private int compareBaseTimeBestFirst(LocalDateTime left, LocalDateTime right) {
+        if (left == null && right == null) {
+            return 0;
+        }
+        if (left == null) {
+            return 1;
+        }
+        if (right == null) {
+            return -1;
+        }
+        return right.compareTo(left);
+    }
+
+    private boolean isRecentBetter(RecentRankedSnapshot candidate, RecentRankedSnapshot currentWorst) {
+        return compareRecentBestFirst(candidate, currentWorst) < 0;
+    }
+
+    private long safeServiceId(PolicyRankingReadRepository.RankableServiceSnapshot snapshot) {
+        Long id = snapshot.getId();
+        return id == null ? Long.MAX_VALUE : id;
+    }
+
+    private List<PolicyRankingReadRepository.RankableServiceSnapshot> orderedUniqueSnapshots(
+            List<PolicyRankingReadRepository.RankableServiceSnapshot> snapshots
+    ) {
+        Map<Long, PolicyRankingReadRepository.RankableServiceSnapshot> byId = new LinkedHashMap<>();
+        for (PolicyRankingReadRepository.RankableServiceSnapshot snapshot : snapshots) {
+            byId.putIfAbsent(snapshot.getId(), snapshot);
+        }
+        return new ArrayList<>(byId.values());
+    }
+
+    private List<PolicyRankingReadRepository.RankableServiceSnapshot> fillToTarget(
+            List<PolicyRankingReadRepository.RankableServiceSnapshot> selected,
+            List<PolicyRankingReadRepository.RankableServiceSnapshot> rankedByRough,
+            int target
+    ) {
+        List<PolicyRankingReadRepository.RankableServiceSnapshot> result = new ArrayList<>(selected);
+        Set<Long> selectedIds = result.stream()
+                .map(PolicyRankingReadRepository.RankableServiceSnapshot::getId)
+                .collect(Collectors.toSet());
+        for (PolicyRankingReadRepository.RankableServiceSnapshot snapshot : rankedByRough) {
+            if (result.size() >= target) {
+                break;
+            }
+            if (selectedIds.add(snapshot.getId())) {
+                result.add(snapshot);
+            }
+        }
+        return result;
+    }
+
+    private double roughPreRankScore(PolicyRankingReadRepository.RankableServiceSnapshot snapshot,
+                                     Map<Long, Long> uniqueViewsByServiceId,
+                                     RankingNormalizationStats normalizationStats,
+                                     LocalDateTime now) {
+        double viewNorm = normalize(log1p(snapshot.getViewCount()), normalizationStats.maxViewRaw());
+        double externalNorm = normalize(
+                log1p(snapshot.getApiViewCount()),
+                normalizationStats.maxExternalBySource().getOrDefault(snapshot.getSourceType(), 0.0)
+        );
+        double uniqueNorm = normalize(
+                log1p(uniqueViewsByServiceId.getOrDefault(snapshot.getId(), 0L)),
+                normalizationStats.maxUniqueRaw()
+        );
+        double freshnessNorm = freshnessScore(snapshot, now);
+        return viewNorm * 0.42
+                + externalNorm * 0.25
+                + freshnessNorm * 0.23
+                + uniqueNorm * 0.10;
     }
 
     private List<ScoredSnapshot> applyExplorationSlots(List<ScoredSnapshot> sortedByScore,
@@ -462,14 +807,43 @@ public class PolicyRankingService {
     private record CachedRanking(long cachedAtMillis, List<PolicyRankingResponse> responses) {
     }
 
+    private record RankingCacheKey(int limit, String variant) {
+    }
+
+    private record CandidateConfig(boolean active, String mode, int target) {
+        private String cacheVariant() {
+            if (!active) {
+                return "full";
+            }
+            return mode + ":" + target;
+        }
+    }
+
+    private record RankingNormalizationStats(double maxUniqueRaw,
+                                             double maxViewRaw,
+                                             Map<WelfareService.SourceType, Double> maxExternalBySource) {
+    }
+
+    private record RoughRankedSnapshot(PolicyRankingReadRepository.RankableServiceSnapshot snapshot, double score) {
+    }
+
+    private record RecentRankedSnapshot(PolicyRankingReadRepository.RankableServiceSnapshot snapshot,
+                                        LocalDateTime baseTime) {
+    }
+
     private record RankingComputation(List<PolicyRankingResponse> responses,
                                       int snapshotCount,
+                                      int scoringCandidateCount,
                                       int uniqueViewServiceCount,
                                       int selectedCount,
                                       int selectedServiceCount,
                                       int projectionCount,
+                                      boolean candidateModeEnabled,
+                                      String candidateMode,
+                                      int candidateTarget,
                                       long rankableSnapshotMs,
                                       long uniqueViewMs,
+                                      long candidateSelectionMs,
                                       long scoringSortMs,
                                       long explorationMs,
                                       long selectedServiceLoadMs,
@@ -483,7 +857,12 @@ public class PolicyRankingService {
                     0,
                     0,
                     0,
+                    0,
+                    false,
+                    CANDIDATE_MODE_POPULAR_RECENT_UNION,
+                    DEFAULT_CANDIDATE_TARGET,
                     rankableSnapshotMs,
+                    0L,
                     0L,
                     0L,
                     0L,
