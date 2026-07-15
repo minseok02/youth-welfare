@@ -2,7 +2,7 @@
 
 ## Status
 
-Primary verified. Secondary sync pending.
+Completed.
 
 This is an observability batch, not a ranking behavior optimization.
 
@@ -133,6 +133,25 @@ Functional smoke on primary:
 | `GET /api/policies?size=5` | `5` items, total `13340`, first service `15391` |
 | `GET /actuator/health` | `UP` |
 
+Secondary sync:
+
+- SSM deploy command pulled commit `0d1e209e6537fadd0625f35215aa922c29d49e26`.
+- Docker compose recreated `youth-welfare-app`.
+- Verification command on secondary returned:
+  - git HEAD `0d1e209e6537fadd0625f35215aa922c29d49e26`
+  - compose status `Up ... (healthy)`
+  - `GET /actuator/health` returned `{"status":"UP"}`
+
+ALB/edge smoke after both instances were updated:
+
+| Check | Result |
+| --- | --- |
+| ALB target `i-0e8a4cc599c1148c8` | `healthy` |
+| ALB target `i-0b8d95e454df5e0f0` | `healthy` |
+| `https://youthmoa.kr/api/policies/ranking?size=5` | `5` items, first service `844` |
+| `POST https://youthmoa.kr/api/policies/search` keyword `청년`, size `5` | `5` items, total `1476`, first service `844` |
+| `https://youthmoa.kr/api/policies?size=5` | `5` items, total `13340`, first service `15391` |
+
 ## Primary Measurement
 
 First local cache-tail run after deploy:
@@ -202,6 +221,24 @@ Current conclusion:
 - The largest live app-side cost is scoring/sorting over `13340` rankable snapshots.
 - The next behavior-changing optimization should reduce Java scoring/sorting work or shrink the candidate set before Java scoring.
 
+## Edge Measurement After Secondary Sync
+
+Artifact:
+
+- `tmp/stability/ranking-app-timing-edge-20260715/20260715T073334Z`
+
+| Phase | Ranking p50 | Ranking p95 | Ranking max | Search p95 |
+| --- | ---: | ---: | ---: | ---: |
+| cold | 597.6ms | 633.3ms | 637.3ms | 553.3ms |
+| warm | 24.1ms | 24.6ms | 24.6ms | 35.0ms |
+
+Result:
+
+- `policy_cache_tail_baseline=passed`
+- no non-200 samples
+- ranking warm edge path remains healthy after both instances were updated
+- cold ranking still remains above warm by a large margin, matching the instrumentation conclusion
+
 ## Next Candidate
 
 Plan the next optimization around candidate reduction, not projection first.
@@ -212,4 +249,3 @@ Likely direction:
 2. Load a bounded rankable candidate set from DB using a conservative pre-rank/order expression.
 3. Run the existing Java scoring/exploration only over that bounded candidate set.
 4. Compare ranking overlap/order against the current full-snapshot implementation before accepting.
-

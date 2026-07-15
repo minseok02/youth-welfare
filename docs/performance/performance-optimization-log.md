@@ -65,6 +65,22 @@ Interim conclusion:
 - no ranking behavior change was made
 - next optimization should target Java scoring/sorting candidate volume
 
+Deploy closeout:
+
+- commit deployed: `0d1e209e6537fadd0625f35215aa922c29d49e26`
+- primary health: `UP`
+- secondary health: `UP`
+- ALB targets: `i-0e8a4cc599c1148c8=healthy`, `i-0b8d95e454df5e0f0=healthy`
+- external smoke:
+  - ranking `200`, 5 items
+  - search `200`, 5 items, total `1476`
+  - list `200`, 5 items, total `13340`
+- edge cache-tail artifact: `tmp/stability/ranking-app-timing-edge-20260715/20260715T073334Z`
+  - cold ranking p95 `633.3ms`
+  - warm ranking p95 `24.6ms`
+  - cold search p95 `553.3ms`
+  - warm search p95 `35.0ms`
+
 Post-optimization stability check: [post-optimization-stability-check-2026-07-14.md](post-optimization-stability-check-2026-07-14.md)
 
 Latest cache-tail measurement: [policy-cache-tail-measurement-2026-07-14.md](policy-cache-tail-measurement-2026-07-14.md)
