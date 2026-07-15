@@ -245,6 +245,23 @@ Policy list projection query optimization result:
   - edge p50 `61.7%` lower, p95 `77.3%` lower
 - Decision: accept the change. Do not open another projection SQL change immediately; rerun a broader baseline and inspect remaining first-request/rate-limit/region/edge tail.
 
+Post-projection broader baseline:
+
+- Tracking document: `docs/performance/post-projection-current-baseline-2026-07-15.md`.
+- API latency after projection optimization:
+  - local policy list default p50 `30.3ms`, p95 `40.6ms`
+  - edge policy list default p50 `71.1ms`, p95 `110.0ms`
+  - edge ranking p95 `50.0ms`
+  - edge search keyword p95 `106.4ms`
+- Target-specific list samples:
+  - primary loopback p50 `26.3ms`, p95 `59.2ms`
+  - secondary loopback p50 `28.0ms`, p95 `34.6ms`
+  - edge p50 `38.1ms`, p95 `61.9ms`
+- DB representative checks:
+  - policy list created_at execution `12.804ms`
+  - policy search keyword API shape execution `166.438ms`
+- Decision: stop code changes for this sequence. Policy list default is no longer the clear repeated bottleneck; if continuing performance work, run a longer low-concurrency load/soak check before choosing the next target.
+
 ### 2026-07-15: ranking app-side timing instrumentation
 
 Trigger:

@@ -146,6 +146,7 @@ Decision:
 - Ranking snapshot rollback is documented in [ranking-snapshot-rollback-runbook-2026-07-15.md](./ranking-snapshot-rollback-runbook-2026-07-15.md).
 - Policy list timing instrumentation is documented in [policy-list-timing-instrumentation-2026-07-15.md](./policy-list-timing-instrumentation-2026-07-15.md). It narrowed the repeated warm list cost to presentation projection lookup rather than the default list rows query.
 - Policy list projection query optimization is documented in [policy-list-projection-query-optimization-2026-07-15.md](./policy-list-projection-query-optimization-2026-07-15.md). The accepted warm stability result after deploy was primary loopback p50 `42.4ms` / p95 `108.0ms`, secondary loopback p50 `35.7ms` / p95 `48.2ms`, and edge p50 `46.4ms` / p95 `165.5ms`.
+- Post-projection broader baseline is documented in [post-projection-current-baseline-2026-07-15.md](./post-projection-current-baseline-2026-07-15.md). Current accepted policy list default p95 is local `40.6ms`, edge API `110.0ms`, and target-specific edge `61.9ms`; no immediate next code optimization is recommended from this checkpoint.
 
 Initial accepted server baseline:
 
