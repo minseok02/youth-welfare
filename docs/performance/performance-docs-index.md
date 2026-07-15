@@ -28,6 +28,7 @@
 - [ranking-precomputed-snapshot-plan-2026-07-15.md](./ranking-precomputed-snapshot-plan-2026-07-15.md)
 - [post-snapshot-current-baseline-2026-07-15.md](./post-snapshot-current-baseline-2026-07-15.md)
 - [policy-list-timing-instrumentation-2026-07-15.md](./policy-list-timing-instrumentation-2026-07-15.md)
+- [policy-list-projection-query-optimization-2026-07-15.md](./policy-list-projection-query-optimization-2026-07-15.md)
 - [ranking-snapshot-rollback-runbook-2026-07-15.md](./ranking-snapshot-rollback-runbook-2026-07-15.md)
 - [performance-next-checkpoint-2026-07-14.md](./performance-next-checkpoint-2026-07-14.md)
 - [performance-measurement-plan.md](./performance-measurement-plan.md)
@@ -86,6 +87,7 @@
 - [ranking-precomputed-snapshot-plan-2026-07-15.md](./ranking-precomputed-snapshot-plan-2026-07-15.md)
 - [post-snapshot-current-baseline-2026-07-15.md](./post-snapshot-current-baseline-2026-07-15.md)
 - [policy-list-timing-instrumentation-2026-07-15.md](./policy-list-timing-instrumentation-2026-07-15.md)
+- [policy-list-projection-query-optimization-2026-07-15.md](./policy-list-projection-query-optimization-2026-07-15.md)
 - [ranking-snapshot-rollback-runbook-2026-07-15.md](./ranking-snapshot-rollback-runbook-2026-07-15.md)
 - [performance-next-checkpoint-2026-07-14.md](./performance-next-checkpoint-2026-07-14.md)
 
@@ -100,6 +102,7 @@
 - ranking 계산을 요청 경로 밖으로 빼는 precomputed snapshot을 어떻게 붙일지
 - snapshot 적용 후 현재 baseline에서 다음 병목을 어디로 볼지
 - policy list 기본 목록 tail이 앱 내부 어느 단계에 몰리는지
+- policy list projection SQL을 어떤 근거로 바꾸고 결과가 어땠는지
 - ranking snapshot을 어떻게 되돌릴지
 - 재측정 후 다음 작업을 열지 말지
 

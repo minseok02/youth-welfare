@@ -212,6 +212,17 @@ Policy list timing instrumentation follow-up:
   - projection lookup repeatedly stayed about `47ms` to `114ms`
 - Decision: do not optimize the default list rows query first. Inspect and optimize the projection lookup path used by `PolicyPresentationReadService`.
 
+Policy list projection query optimization plan:
+
+- Tracking document: `docs/performance/policy-list-projection-query-optimization-2026-07-15.md`.
+- Root cause candidate: `CanonicalRecommendationReadModelRepository.baseRows()` aggregates `service_taxonomy_summary_slots` six times by slot key before restricting to the 20 requested service ids.
+- Before SQL measurement on the current first page ids:
+  - current `baseRows()` execution `50.649ms`
+  - filtered single summary-slot aggregate candidate execution `0.340ms`
+  - `taxonomyTermRows()` execution `0.307ms`
+  - `factRows()` execution `0.141ms`
+- Planned change: keep response fields and fallback order unchanged, but constrain summary slots by `service_id IN (:serviceIds)` first and pivot the six labels in one aggregate.
+
 ### 2026-07-15: ranking app-side timing instrumentation
 
 Trigger:
