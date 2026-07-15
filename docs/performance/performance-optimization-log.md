@@ -13,6 +13,28 @@ This document records what was optimized, which baseline numbers triggered the w
 
 ## Open Batch
 
+### 2026-07-15: ranking candidate mode evaluation
+
+Trigger:
+
+- Ranking cold timing showed `scoringSortMs` as the largest live app-side cost.
+- Current ranking cold compute scores and sorts all `13340` rankable snapshots.
+- Candidate reduction is likely required before more data sources increase rankable volume further.
+
+Plan:
+
+1. Keep production ranking behavior unchanged.
+2. Treat the current full-snapshot ranking as the reference answer.
+3. Compare multiple candidate-reduction strategies:
+   - simple pre-rank top K
+   - source type quota
+   - popular + recent + unique-view union
+   - conservative wide candidate sets
+4. Reject any mode that fails full top 20 candidate recall.
+5. Use the measured recall/overlap result to choose the first runtime optimization.
+
+Tracking document: [ranking-candidate-mode-evaluation-2026-07-15.md](ranking-candidate-mode-evaluation-2026-07-15.md)
+
 ### 2026-07-15: ranking app-side timing instrumentation
 
 Trigger:
