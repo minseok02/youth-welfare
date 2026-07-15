@@ -105,6 +105,7 @@ Artifacts:
 - edge stability: `tmp/performance/ranking-snapshot-stability-edge-20260715/20260715T154501Z`
 - public API shape captures: `tmp/performance/ranking-snapshot-stability-correctness-20260715`
 - runtime smoke: `tmp/prod-runtime-smoke/snapshot-stability-20260715-retry-env`
+- post-snapshot broader baseline and next-bottleneck decision: [post-snapshot-current-baseline-2026-07-15.md](./post-snapshot-current-baseline-2026-07-15.md)
 
 Accepted ranking numbers:
 
@@ -141,7 +142,8 @@ Decision:
 
 - Ranking snapshot remains accepted for the `size=20` ranking path.
 - Continue using current ranking p95 from this checkpoint as the baseline before opening the next optimization.
-- The next bottleneck should be chosen from a fresh broader suite, not from pre-snapshot ranking numbers.
+- Broader post-snapshot API/DB/edge measurement selected `policy_list_default` cold/tail as the next bottleneck candidate.
+- Ranking snapshot rollback is documented in [ranking-snapshot-rollback-runbook-2026-07-15.md](./ranking-snapshot-rollback-runbook-2026-07-15.md).
 
 Initial accepted server baseline:
 

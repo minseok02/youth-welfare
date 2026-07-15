@@ -175,6 +175,26 @@ Stability/regression recheck:
   - `tmp/performance/ranking-snapshot-stability-correctness-20260715`
   - `tmp/prod-runtime-smoke/snapshot-stability-20260715-retry-env`
 
+Post-snapshot broader baseline and env formalization:
+
+- Snapshot runtime flags were moved from temporary runtime env files into `.env.runtime.production` on both nodes.
+- Primary backup: `.env.runtime.production.bak-snapshot-20260715T160904Z`.
+- Secondary backup: `.env.runtime.production.bak-snapshot-20260715T160805Z`.
+- Formalized state:
+  - primary: scheduler true, snapshot read true, snapshot refresh true
+  - secondary: scheduler false, snapshot read true, snapshot refresh false
+  - request-time candidate mode false on both nodes
+- Re-ran API latency, DB query, and edge baseline after snapshot was accepted.
+- Current broader result:
+  - local API ranking p95 `10.2ms`
+  - edge API ranking p95 `47.7ms`
+  - edge API `policy_list_default` p95 `751.0ms`, max `927.8ms`
+  - direct primary local list first sample about `755ms`; secondary local list samples stayed about `102ms` to `181ms`
+  - DB representative `policy_list_created_at` execution `15.113ms`
+- Decision: do not optimize ranking/search next. Open the next investigation on policy list default cold/tail and separate app timing, Redis hit/miss, DB, serialization, and target behavior before changing code.
+- Rollback runbook added: `docs/performance/ranking-snapshot-rollback-runbook-2026-07-15.md`.
+- Broader baseline document added: `docs/performance/post-snapshot-current-baseline-2026-07-15.md`.
+
 ### 2026-07-15: ranking app-side timing instrumentation
 
 Trigger:
