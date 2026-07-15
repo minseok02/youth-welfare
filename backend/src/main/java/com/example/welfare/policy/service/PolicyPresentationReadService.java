@@ -8,6 +8,7 @@ import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.service.RecommendationBookmarkReadService;
 import com.example.welfare.recommend.service.RecommendationProjectionReadService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,7 +21,10 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PolicyPresentationReadService {
+
+    private static final long SLOW_SUMMARY_PRESENTATION_THRESHOLD_MS = 50;
 
     private final RecommendationBookmarkReadService recommendationBookmarkReadService;
     private final RecommendationProjectionReadService recommendationProjectionReadService;
@@ -28,14 +32,21 @@ public class PolicyPresentationReadService {
 
     @Transactional(readOnly = true)
     public Page<PolicySummaryResponse> buildSummaryPage(Long userId, Page<WelfareService> page) {
+        long totalStartedNanos = System.nanoTime();
         List<PolicySummaryResponse> responses = buildSummaryResponses(userId, page.getContent());
+        long responseBuildMs = elapsedMs(totalStartedNanos);
+        long mapStartedNanos = System.nanoTime();
         Map<Long, PolicySummaryResponse> responseById = responses.stream()
                 .collect(Collectors.toMap(
                         PolicySummaryResponse::getId,
                         response -> response,
                         (left, right) -> left
                 ));
-        return page.map(service -> responseById.getOrDefault(service.getId(), PolicySummaryResponse.from(service, false)));
+        Page<PolicySummaryResponse> mapped = page.map(service -> responseById.getOrDefault(service.getId(), PolicySummaryResponse.from(service, false)));
+        long mapMs = elapsedMs(mapStartedNanos);
+        long totalMs = elapsedMs(totalStartedNanos);
+        logSummaryPageTimingIfSlow(userId, page, responseBuildMs, mapMs, totalMs);
+        return mapped;
     }
 
     @Transactional(readOnly = true)
@@ -44,11 +55,19 @@ public class PolicyPresentationReadService {
             return List.of();
         }
 
+        long totalStartedNanos = System.nanoTime();
+        long bookmarkStartedNanos = System.nanoTime();
         Set<Long> bookmarkedServiceIds = recommendationBookmarkReadService.findBookmarkedServiceIds(userId, services);
+        long bookmarkMs = elapsedMs(bookmarkStartedNanos);
+        long projectionStartedNanos = System.nanoTime();
         Map<Long, RecommendationCandidateProjection> projections = findProjections(services);
+        long projectionMs = elapsedMs(projectionStartedNanos);
+        long regionStartedNanos = System.nanoTime();
         Map<Long, String> regionLabelMap = buildRegionLabelMap(services);
+        long regionMs = elapsedMs(regionStartedNanos);
 
-        return services.stream()
+        long dtoStartedNanos = System.nanoTime();
+        List<PolicySummaryResponse> responses = services.stream()
                 .map(service -> PolicySummaryResponse.from(
                         service,
                         bookmarkedServiceIds.contains(service.getId()),
@@ -56,6 +75,21 @@ public class PolicyPresentationReadService {
                         regionLabelMap.get(service.getId())
                 ))
                 .toList();
+        long dtoBuildMs = elapsedMs(dtoStartedNanos);
+        long totalMs = elapsedMs(totalStartedNanos);
+        logSummaryResponsesTimingIfSlow(
+                userId,
+                services.size(),
+                bookmarkedServiceIds.size(),
+                projections.size(),
+                regionLabelMap.size(),
+                bookmarkMs,
+                projectionMs,
+                regionMs,
+                dtoBuildMs,
+                totalMs
+        );
+        return responses;
     }
 
     @Transactional(readOnly = true)
@@ -105,5 +139,54 @@ public class PolicyPresentationReadService {
             boolean bookmarked,
             RecommendationCandidateProjection projection
     ) {
+    }
+
+    private void logSummaryPageTimingIfSlow(Long userId,
+                                            Page<WelfareService> page,
+                                            long responseBuildMs,
+                                            long mapMs,
+                                            long totalMs) {
+        if (totalMs < SLOW_SUMMARY_PRESENTATION_THRESHOLD_MS) {
+            return;
+        }
+        log.info("[PolicyListPresentationPageTiming] totalMs={} responseBuildMs={} pageMapMs={} authenticated={} resultCount={} totalElements={} page={} size={}",
+                totalMs,
+                responseBuildMs,
+                mapMs,
+                userId != null,
+                page.getNumberOfElements(),
+                page.getTotalElements(),
+                page.getNumber(),
+                page.getSize());
+    }
+
+    private void logSummaryResponsesTimingIfSlow(Long userId,
+                                                 int serviceCount,
+                                                 int bookmarkedCount,
+                                                 int projectionCount,
+                                                 int regionLabelCount,
+                                                 long bookmarkMs,
+                                                 long projectionMs,
+                                                 long regionMs,
+                                                 long dtoBuildMs,
+                                                 long totalMs) {
+        if (totalMs < SLOW_SUMMARY_PRESENTATION_THRESHOLD_MS) {
+            return;
+        }
+        log.info("[PolicyListPresentationTiming] totalMs={} bookmarkMs={} projectionMs={} regionMs={} dtoBuildMs={} authenticated={} serviceCount={} bookmarkedCount={} projectionCount={} regionLabelCount={}",
+                totalMs,
+                bookmarkMs,
+                projectionMs,
+                regionMs,
+                dtoBuildMs,
+                userId != null,
+                serviceCount,
+                bookmarkedCount,
+                projectionCount,
+                regionLabelCount);
+    }
+
+    private long elapsedMs(long startedNanos) {
+        return Math.max(0, (System.nanoTime() - startedNanos) / 1_000_000);
     }
 }

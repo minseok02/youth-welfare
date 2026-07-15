@@ -21,6 +21,7 @@ public class WelfareServiceReadRepositoryImpl implements WelfareServiceReadRepos
 
     private static final String ACTIVE_ONLY_COUNT_CACHE_KEY = "policy:list:active-only:count:v1";
     private static final Duration DEFAULT_ACTIVE_LIST_COUNT_CACHE_TTL = Duration.ofSeconds(30);
+    private static final long SLOW_POLICY_LIST_REPOSITORY_THRESHOLD_MS = 80;
 
     private final WelfareServiceRepository welfareServiceRepository;
     private final WelfareServiceSearchRepository welfareServiceSearchRepository;
@@ -70,7 +71,8 @@ public class WelfareServiceReadRepositoryImpl implements WelfareServiceReadRepos
         if (shouldUseActiveOnlyListFastPath(condition, sido, regionCode, onlineApplyInt)) {
             return findActiveOnlyList(condition.sort(), unsorted);
         }
-        return welfareServiceRepository.findListWithFilters(
+        long startedNanos = System.nanoTime();
+        Page<WelfareService> result = welfareServiceRepository.findListWithFilters(
                 condition.category(),
                 condition.sourceType() != null ? condition.sourceType().name() : null,
                 condition.status() != null ? condition.status().name() : null,
@@ -88,6 +90,9 @@ public class WelfareServiceReadRepositoryImpl implements WelfareServiceReadRepos
                 condition.gov24BenefitType(),
                 unsorted
         );
+        long totalMs = elapsedMs(startedNanos);
+        logGeneralListTimingIfSlow(condition, unsorted, result, totalMs);
+        return result;
     }
 
     @Override
@@ -120,23 +125,36 @@ public class WelfareServiceReadRepositoryImpl implements WelfareServiceReadRepos
     }
 
     private Page<WelfareService> findActiveOnlyList(String sort, Pageable pageable) {
+        long totalStartedNanos = System.nanoTime();
+        long rowsStartedNanos = System.nanoTime();
         List<WelfareService> rows = switch (sort) {
             case "DEADLINE" -> welfareServiceRepository.findActiveOnlyDeadlineListRows(pageable);
             case "VIEWS" -> welfareServiceRepository.findActiveOnlyViewsListRows(pageable);
             case "LATEST" -> welfareServiceRepository.findActiveOnlyLatestListRows(pageable);
             default -> throw new IllegalArgumentException("Unsupported active list fast-path sort: " + sort);
         };
-        return new PageImpl<>(rows, pageable, activeOnlyVisibleCount());
+        long rowsMs = elapsedMs(rowsStartedNanos);
+        ActiveOnlyCountTiming countTiming = activeOnlyVisibleCount();
+        PageImpl<WelfareService> result = new PageImpl<>(rows, pageable, countTiming.count());
+        long totalMs = elapsedMs(totalStartedNanos);
+        logActiveOnlyListTimingIfSlow(sort, pageable, rows, countTiming, rowsMs, totalMs);
+        return result;
     }
 
-    private long activeOnlyVisibleCount() {
+    private ActiveOnlyCountTiming activeOnlyVisibleCount() {
+        long cacheReadStartedNanos = System.nanoTime();
         Long cached = readActiveOnlyVisibleCountCache();
+        long cacheReadMs = elapsedMs(cacheReadStartedNanos);
         if (cached != null) {
-            return cached;
+            return new ActiveOnlyCountTiming(cached, "redis", cacheReadMs, 0, 0);
         }
+        long dbStartedNanos = System.nanoTime();
         long count = welfareServiceRepository.countActiveOnlyVisibleList();
+        long dbCountMs = elapsedMs(dbStartedNanos);
+        long cacheWriteStartedNanos = System.nanoTime();
         writeActiveOnlyVisibleCountCache(count);
-        return count;
+        long cacheWriteMs = elapsedMs(cacheWriteStartedNanos);
+        return new ActiveOnlyCountTiming(count, "db", cacheReadMs, dbCountMs, cacheWriteMs);
     }
 
     private Long readActiveOnlyVisibleCountCache() {
@@ -166,5 +184,69 @@ public class WelfareServiceReadRepositoryImpl implements WelfareServiceReadRepos
             log.warn("[WelfareServiceReadRepositoryImpl] Redis active list count cache write failed errorType={}",
                     e.getClass().getSimpleName());
         }
+    }
+
+    private void logActiveOnlyListTimingIfSlow(String sort,
+                                               Pageable pageable,
+                                               List<WelfareService> rows,
+                                               ActiveOnlyCountTiming countTiming,
+                                               long rowsMs,
+                                               long totalMs) {
+        if (totalMs < SLOW_POLICY_LIST_REPOSITORY_THRESHOLD_MS) {
+            return;
+        }
+        log.info("[PolicyListRepositoryTiming] path=activeOnlyFast totalMs={} rowsMs={} countCacheReadMs={} countDbMs={} countCacheWriteMs={} countSource={} rowCount={} totalElements={} page={} size={} sort={}",
+                totalMs,
+                rowsMs,
+                countTiming.cacheReadMs(),
+                countTiming.dbCountMs(),
+                countTiming.cacheWriteMs(),
+                countTiming.source(),
+                rows.size(),
+                countTiming.count(),
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                sort);
+    }
+
+    private void logGeneralListTimingIfSlow(PolicyListReadCondition condition,
+                                            Pageable pageable,
+                                            Page<WelfareService> result,
+                                            long totalMs) {
+        if (totalMs < SLOW_POLICY_LIST_REPOSITORY_THRESHOLD_MS) {
+            return;
+        }
+        log.info("[PolicyListRepositoryTiming] path=general totalMs={} rowCount={} totalElements={} page={} size={} sort={} statusFilter={} status={} categoryPresent={} sourceType={} sidoPresent={} sggPresent={} onlineApplyPresent={} incomeFilterPresent={} targetGroupPresent={} gov24FieldPresent={} gov24UserTypePresent={} gov24BenefitTypePresent={}",
+                totalMs,
+                result.getNumberOfElements(),
+                result.getTotalElements(),
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                condition.sort(),
+                condition.statusFilter(),
+                condition.status() == null ? null : condition.status().name(),
+                condition.category() != null,
+                condition.sourceType() == null ? null : condition.sourceType().name(),
+                condition.sido() != null,
+                condition.sgg() != null,
+                condition.onlineApply() != null,
+                condition.incomeMaxWon() != null,
+                condition.targetGroup() != null,
+                condition.gov24ServiceField() != null,
+                condition.gov24UserType() != null,
+                condition.gov24BenefitType() != null);
+    }
+
+    private long elapsedMs(long startedNanos) {
+        return Math.max(0, (System.nanoTime() - startedNanos) / 1_000_000);
+    }
+
+    private record ActiveOnlyCountTiming(
+            long count,
+            String source,
+            long cacheReadMs,
+            long dbCountMs,
+            long cacheWriteMs
+    ) {
     }
 }

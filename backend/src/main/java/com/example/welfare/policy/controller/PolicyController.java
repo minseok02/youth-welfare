@@ -52,6 +52,7 @@ public class PolicyController {
 
     private static final int MAX_PUBLIC_PAGE_NUMBER = 1000;
     private static final int MAX_PUBLIC_PAGE_SIZE = 100;
+    private static final long SLOW_POLICY_LIST_TIMING_THRESHOLD_MS = 100;
 
     private final PolicyListService policyListService;
     private final PolicyDetailService policyDetailService;
@@ -85,10 +86,18 @@ public class PolicyController {
             @RequestParam(required = false) @Size(max = 100) String gov24BenefitType,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
             HttpServletRequest request) {
+        long totalStartedNanos = System.nanoTime();
         validatePublicPageable(pageable);
+        long fingerprintStartedNanos = System.nanoTime();
         String clientFingerprint = clientFingerprintService.build(request);
+        long clientFingerprintMs = elapsedMs(fingerprintStartedNanos);
+        long rateLimitStartedNanos = System.nanoTime();
         policyTrafficRateLimitService.checkListLimit(resolveRateLimitActorKey(authenticatedUser, clientFingerprint));
+        long rateLimitMs = elapsedMs(rateLimitStartedNanos);
+        long serviceStartedNanos = System.nanoTime();
         Page<PolicySummaryResponse> response = policyListService.getList(resolveUserId(authenticatedUser), category, sourceType, status, statusFilter, sido, sgg, onlineApply, sort, incomeLevel, targetGroup, gov24ServiceField, gov24UserType, gov24BenefitType, pageable);
+        long serviceMs = elapsedMs(serviceStartedNanos);
+        long totalMs = elapsedMs(totalStartedNanos);
         log.info("[UserAction] action=policy_list userKeyHash={} clientFingerprint={} total={} page={} size={} category={} sourceType={} statusFilter={} sidoPresent={} sggPresent={} sort={}",
                 actorHash(authenticatedUser),
                 clientFingerprint,
@@ -101,6 +110,21 @@ public class PolicyController {
                 hasText(sido),
                 hasText(sgg),
                 normalizeLogValue(sort));
+        logPolicyListTimingIfSlow(
+                totalMs,
+                clientFingerprintMs,
+                rateLimitMs,
+                serviceMs,
+                authenticatedUser != null,
+                response.getTotalElements(),
+                pageable,
+                category,
+                sourceType,
+                statusFilter != null ? statusFilter : status,
+                sido,
+                sgg,
+                sort
+        );
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
@@ -301,5 +325,42 @@ public class PolicyController {
                     com.example.welfare.global.exception.ErrorCode.INVALID_INPUT
             );
         }
+    }
+
+    private void logPolicyListTimingIfSlow(long totalMs,
+                                           long clientFingerprintMs,
+                                           long rateLimitMs,
+                                           long serviceMs,
+                                           boolean authenticated,
+                                           long totalElements,
+                                           Pageable pageable,
+                                           String category,
+                                           String sourceType,
+                                           String statusFilter,
+                                           String sido,
+                                           String sgg,
+                                           String sort) {
+        if (totalMs < SLOW_POLICY_LIST_TIMING_THRESHOLD_MS) {
+            return;
+        }
+        log.info("[PolicyListControllerTiming] totalMs={} clientFingerprintMs={} rateLimitMs={} serviceMs={} authenticated={} totalElements={} page={} size={} category={} sourceType={} statusFilter={} sidoPresent={} sggPresent={} sort={}",
+                totalMs,
+                clientFingerprintMs,
+                rateLimitMs,
+                serviceMs,
+                authenticated,
+                totalElements,
+                pageable == null ? 0 : pageable.getPageNumber(),
+                pageable == null ? 0 : pageable.getPageSize(),
+                normalizeLogValue(category),
+                normalizeLogValue(sourceType),
+                normalizeLogValue(statusFilter),
+                hasText(sido),
+                hasText(sgg),
+                normalizeLogValue(sort));
+    }
+
+    private long elapsedMs(long startedNanos) {
+        return Math.max(0, (System.nanoTime() - startedNanos) / 1_000_000);
     }
 }

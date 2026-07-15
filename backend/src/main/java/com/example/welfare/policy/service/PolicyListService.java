@@ -12,6 +12,7 @@ import com.example.welfare.policy.support.Gov24ServiceFieldSupport;
 import com.example.welfare.policy.support.Gov24UserTypeSupport;
 import com.example.welfare.policy.support.WelfareSourceTypeSupport;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -20,10 +21,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PolicyListService {
 
     private static final int DEFAULT_PAGE_SIZE = 20;
     private static final int MAX_PAGE_SIZE = 100;
+    private static final long SLOW_POLICY_LIST_SERVICE_THRESHOLD_MS = 100;
 
     // 소득분위(1~9) → 연소득 상한 (만원), 2024년 기준 중위소득 1인 가구 기준
     // 1분위(30%), 2분위(50%), 3분위(75%), 4분위(100%), 5분위(125%), 6분위(150%), 7~9분위 추정치
@@ -52,26 +55,36 @@ public class PolicyListService {
                                                String gov24BenefitType,
                                                Pageable pageable) {
         // sidoCode/regionCode 계산 및 sort는 WelfareServiceReadRepositoryImpl에서 처리
-        Page<WelfareService> page = welfareServiceReadRepository.findList(
-                new PolicyListReadCondition(
-                        normalizeNullable(category),
-                        normalizeSourceType(sourceType),
-                        normalizeStatus(status),
-                        normalizeStatusFilter(statusFilter),
-                        normalizeSidoNullable(sido),
-                        normalizeNullable(sgg),
-                        onlineApply,
-                        normalizeSort(sort),
-                        resolveIncomeMaxWon(incomeLevel),
-                        normalizeNullable(targetGroup),
-                        normalizeGov24ServiceField(gov24ServiceField),
-                        normalizeGov24UserType(gov24UserType),
-                        normalizeGov24BenefitType(gov24BenefitType)
-                ),
-                normalizePageable(pageable)
+        long totalStartedNanos = System.nanoTime();
+        PolicyListReadCondition condition = new PolicyListReadCondition(
+                normalizeNullable(category),
+                normalizeSourceType(sourceType),
+                normalizeStatus(status),
+                normalizeStatusFilter(statusFilter),
+                normalizeSidoNullable(sido),
+                normalizeNullable(sgg),
+                onlineApply,
+                normalizeSort(sort),
+                resolveIncomeMaxWon(incomeLevel),
+                normalizeNullable(targetGroup),
+                normalizeGov24ServiceField(gov24ServiceField),
+                normalizeGov24UserType(gov24UserType),
+                normalizeGov24BenefitType(gov24BenefitType)
         );
+        Pageable normalizedPageable = normalizePageable(pageable);
+        long repositoryStartedNanos = System.nanoTime();
+        Page<WelfareService> page = welfareServiceReadRepository.findList(
+                condition,
+                normalizedPageable
+        );
+        long repositoryMs = elapsedMs(repositoryStartedNanos);
 
-        return policyPresentationReadService.buildSummaryPage(userId, page);
+        long presentationStartedNanos = System.nanoTime();
+        Page<PolicySummaryResponse> response = policyPresentationReadService.buildSummaryPage(userId, page);
+        long presentationMs = elapsedMs(presentationStartedNanos);
+        long totalMs = elapsedMs(totalStartedNanos);
+        logListServiceTimingIfSlow(userId, condition, normalizedPageable, page, repositoryMs, presentationMs, totalMs);
+        return response;
     }
 
     private String normalizeSort(String sort) {
@@ -180,5 +193,43 @@ public class PolicyListService {
         int prevLevel = incomeLevel - 2;
         if (prevLevel <= 0) return null;
         return INCOME_THRESHOLDS[prevLevel];
+    }
+
+    private void logListServiceTimingIfSlow(Long userId,
+                                            PolicyListReadCondition condition,
+                                            Pageable pageable,
+                                            Page<WelfareService> page,
+                                            long repositoryMs,
+                                            long presentationMs,
+                                            long totalMs) {
+        if (totalMs < SLOW_POLICY_LIST_SERVICE_THRESHOLD_MS) {
+            return;
+        }
+        log.info("[PolicyListServiceTiming] totalMs={} repositoryMs={} presentationMs={} authenticated={} resultCount={} totalElements={} page={} size={} sort={} statusFilter={} status={} categoryPresent={} sourceType={} sidoPresent={} sggPresent={} onlineApplyPresent={} incomeFilterPresent={} targetGroupPresent={} gov24FieldPresent={} gov24UserTypePresent={} gov24BenefitTypePresent={}",
+                totalMs,
+                repositoryMs,
+                presentationMs,
+                userId != null,
+                page.getNumberOfElements(),
+                page.getTotalElements(),
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                condition.sort(),
+                condition.statusFilter(),
+                condition.status() == null ? null : condition.status().name(),
+                condition.category() != null,
+                condition.sourceType() == null ? null : condition.sourceType().name(),
+                condition.sido() != null,
+                condition.sgg() != null,
+                condition.onlineApply() != null,
+                condition.incomeMaxWon() != null,
+                condition.targetGroup() != null,
+                condition.gov24ServiceField() != null,
+                condition.gov24UserType() != null,
+                condition.gov24BenefitType() != null);
+    }
+
+    private long elapsedMs(long startedNanos) {
+        return Math.max(0, (System.nanoTime() - startedNanos) / 1_000_000);
     }
 }
