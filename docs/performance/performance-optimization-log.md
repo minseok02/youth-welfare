@@ -35,6 +35,28 @@ Plan:
 
 Tracking document: [ranking-candidate-mode-evaluation-2026-07-15.md](ranking-candidate-mode-evaluation-2026-07-15.md)
 
+Sensitivity update:
+
+- Added `deploy/performance/run-local-ranking-candidate-sensitivity-evaluation.sh`.
+- Tested current data plus synthetic changes:
+  - unique-view surge in long-tail policies
+  - external/API view spike in long-tail policies
+  - 3000 recent GOV24 additions
+  - 4000 recent policies from a new source
+  - mixed GOV24/new-source growth with extra unique-view winners
+- `popular_recent_union=1000` passed all scenarios:
+  - top20 recall stayed `20/20`
+  - top50 recall stayed `50/50`
+  - top100 recall stayed `100/100`
+  - final top20 overlap stayed `20/20` on current/unique/external scenarios and `19/20` on large growth scenarios
+- `simple_top_k` and plain `source_quota` failed multiple sensitivity scenarios.
+
+Updated recommendation:
+
+- Keep `popular_recent_union=1000` as the first guarded runtime candidate.
+- Do not implement simple global top K first.
+- Rerun candidate sensitivity evaluation after real source growth or ranking weight changes.
+
 ### 2026-07-15: ranking app-side timing instrumentation
 
 Trigger:

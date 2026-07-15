@@ -169,6 +169,7 @@ The safest fallback is a wider candidate mode such as `simple_top_k=5000` or `co
 Added:
 
 - `deploy/performance/run-local-ranking-candidate-mode-evaluation.sh`
+- `deploy/performance/run-local-ranking-candidate-sensitivity-evaluation.sh`
 
 The script:
 
@@ -183,10 +184,26 @@ The script:
 
 The script is read-only against the DB.
 
+The sensitivity script additionally mutates the in-memory snapshot set only. It does not write to DB. It tests whether the recommendation survives plausible distribution changes:
+
+- tail policies suddenly receive strong unique views
+- tail policies suddenly receive high external/API views
+- thousands of recent `GOV24` policies are added
+- a new data source is added
+- `GOV24` and a new source grow together with extra unique-view winners
+
 Verification:
 
 ```bash
 bash -n deploy/performance/run-local-ranking-candidate-mode-evaluation.sh
+```
+
+Result: passed.
+
+Sensitivity script verification:
+
+```bash
+bash -n deploy/performance/run-local-ranking-candidate-sensitivity-evaluation.sh
 ```
 
 Result: passed.
@@ -287,6 +304,77 @@ Do not choose first:
 
 - `simple_top_k=500`, because it already has a top100 miss.
 
+## Sensitivity Evaluation
+
+Command:
+
+```bash
+ENV_FILE=.env.production SMOKE_DB_MODE=postgres \
+  RANKING_SENSITIVITY_ROOT=tmp/stability/ranking-candidate-sensitivity-20260715 \
+  bash deploy/performance/run-local-ranking-candidate-sensitivity-evaluation.sh
+```
+
+Latest artifact:
+
+- `tmp/stability/ranking-candidate-sensitivity-20260715/20260715T104829Z`
+
+Scenarios:
+
+| Scenario | What changed in memory |
+| --- | --- |
+| `current` | actual production snapshot |
+| `unique_surge_tail` | 120 low pre-rank policies receive strong 7-day unique views |
+| `external_spike_tail` | 120 low pre-rank policies receive very high external API views |
+| `recent_gov24_influx` | 3000 recent GOV24 policies with modest external views are added |
+| `new_source_influx` | 4000 recent policies from a new source are added |
+| `mixed_future_growth` | 5000 GOV24 + 1500 new-source policies are added, with 200 unique-view winners |
+
+Recommended mode under sensitivity:
+
+| Scenario | Snapshot count | Candidate count | Candidate % | Top20 recall | Top50 recall | Top100 recall | Final top20 overlap | Rejected |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| `current` | 13340 | 1000 | 7.50% | 20/20 | 50/50 | 100/100 | 20/20 | false |
+| `unique_surge_tail` | 13340 | 1000 | 7.50% | 20/20 | 50/50 | 100/100 | 20/20 | false |
+| `external_spike_tail` | 13340 | 1000 | 7.50% | 20/20 | 50/50 | 100/100 | 20/20 | false |
+| `recent_gov24_influx` | 16340 | 1000 | 6.12% | 20/20 | 50/50 | 100/100 | 19/20 | false |
+| `new_source_influx` | 17340 | 1000 | 5.77% | 20/20 | 50/50 | 100/100 | 19/20 | false |
+| `mixed_future_growth` | 19840 | 1036 | 5.22% | 20/20 | 50/50 | 100/100 | 19/20 | false |
+
+The recommended mode had `failure_count=0`.
+
+Failure patterns found in other modes:
+
+| Mode | Failed scenarios | Why this matters |
+| --- | ---: | --- |
+| `simple_top_k=500` | 3 | too narrow; misses top policies when unique views or new sources shift ranking |
+| `simple_top_k=1000` | 3 | global rough top K can collapse into one source or miss unique-view winners |
+| `simple_top_k=2000` | 3 | larger K still failed unique/new-source stress |
+| `source_quota=1000` | 3 | proportional quota misses emerging high-value new-source policies and unique-view winners |
+| `source_quota=2000` | 3 | larger quota still failed mixed future growth |
+
+Important examples:
+
+- Under `unique_surge_tail`, `simple_top_k=500` captured only `1/20` of the full top20 and `1/100` of the full top100.
+- Under `new_source_influx`, `simple_top_k=1000` captured only `17/20` of the full top20 because the rough top K collapsed into the synthetic new source and missed current top policies.
+- Under `mixed_future_growth`, `source_quota=1000` captured only `18/20` of the full top20 and `56/100` of the full top100.
+- `popular_recent_union=1000` avoided these failures because it combines rough popularity, recent candidates, source minimums, and all unique-view policies.
+
+## Sensitivity Interpretation
+
+The first evaluation showed candidate reduction can work on current data. The sensitivity evaluation strengthens the recommendation and changes what should not be done:
+
+- Do not implement simple global top K as the first runtime mode.
+- Do not implement proportional source quota alone.
+- Keep the union structure; it is the part that survived unique-view and new-source stress.
+- Keep “all unique-view policies” as a mandatory include, even if that makes the candidate set slightly larger than the target.
+- Keep small per-source minimums so current high-ranking policies do not disappear when a new source floods the top rough score.
+
+The recommendation is still conditional:
+
+- Synthetic scenarios are not a formal proof.
+- If a real new source is added or source distribution changes materially, rerun this script before enabling or keeping the candidate mode.
+- Runtime rollout should be guarded by configuration and followed by cache-tail + app timing measurement.
+
 ## Next Runtime Plan
 
 Implement a guarded candidate mode behind configuration:
@@ -294,9 +382,15 @@ Implement a guarded candidate mode behind configuration:
 - default behavior remains full snapshot until enabled
 - mode: `popular_recent_union`
 - target: `1000`
+- candidate construction:
+  - rough popularity pool: about 55%
+  - recent pool: about 25%
+  - source quota pool: about 20%
+  - all policies with 7-day unique views are mandatory includes
 - keep the existing Java final scoring and exploration behavior
 - preserve or explicitly fetch global normalization max values if the implementation shows subset normalization can affect ordering
 - add a comparison test that asserts current top20 is preserved for the current fixture/DB representative
+- add an operational preflight: rerun candidate evaluation after any major data import, new source, or ranking weight change
 - deploy, measure local and edge cold/warm cache-tail again
 
 Expected performance direction:
