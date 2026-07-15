@@ -223,6 +223,28 @@ Policy list projection query optimization plan:
   - `factRows()` execution `0.141ms`
 - Planned change: keep response fields and fallback order unchanged, but constrain summary slots by `service_id IN (:serviceIds)` first and pivot the six labels in one aggregate.
 
+Policy list projection query optimization result:
+
+- Implemented and deployed commit `65f317e344df54ed3e5f1d8597e7112ec20d3460` to both ALB targets.
+- Focused tests passed.
+- SQL equivalence on the first page ids passed:
+  - old minus new `0`
+  - new minus old `0`
+- New `baseRows()` execution check: `0.301ms`.
+- Warm stability after both nodes were up:
+  - primary loopback p50 `42.4ms`, p95 `108.0ms`
+  - secondary loopback p50 `35.7ms`, p95 `48.2ms`
+  - edge p50 `46.4ms`, p95 `165.5ms`
+- Warm stability excluding the first sample:
+  - primary loopback p95 `67.8ms`
+  - secondary loopback p95 `48.2ms`
+  - edge p95 `74.5ms`
+- Reduction vs previous timing checkpoint:
+  - primary loopback p50 `61.5%` lower, p95 `45.3%` lower
+  - secondary loopback p50 `65.8%` lower, p95 `71.9%` lower
+  - edge p50 `61.7%` lower, p95 `77.3%` lower
+- Decision: accept the change. Do not open another projection SQL change immediately; rerun a broader baseline and inspect remaining first-request/rate-limit/region/edge tail.
+
 ### 2026-07-15: ranking app-side timing instrumentation
 
 Trigger:

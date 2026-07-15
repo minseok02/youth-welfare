@@ -124,3 +124,137 @@ After deploy:
 Rollback is a normal code rollback to the previous commit.
 
 Because this change does not alter schema, env vars, Redis keys, or cache state, rollback only requires redeploying the previous application image/commit if response values or latency regress.
+
+## Implementation
+
+- implementation commit: `65f317e344df54ed3e5f1d8597e7112ec20d3460`
+- changed file: `backend/src/main/java/com/example/welfare/recommend/repository/CanonicalRecommendationReadModelRepository.java`
+- deployed to primary: `i-0b8d95e454df5e0f0`
+- deployed to secondary: `i-0e8a4cc599c1148c8`
+- ALB target health after deploy: both targets healthy
+
+The implementation replaced the six summary-slot aggregate subqueries with one `summary_slots` CTE that first filters by `service_id IN (:serviceIds)`.
+
+No schema, index, Redis, env var, or response contract change was made.
+
+## Pre-Deploy Validation
+
+Focused tests:
+
+```bash
+./gradlew test \
+  --tests com.example.welfare.recommend.service.RecommendationProjectionReadServiceTest \
+  --tests com.example.welfare.policy.service.PolicyPresentationReadServiceTest \
+  --tests com.example.welfare.policy.service.PolicyListServiceTest \
+  --tests com.example.welfare.api.RecommendationPolicyFlowWebMvcTest \
+  --tests com.example.welfare.api.PolicySearchKeywordApiWebMvcTest \
+  --no-daemon
+```
+
+Result: passed.
+
+SQL equivalence on the first page ids:
+
+| Direction | Difference count |
+| --- | ---: |
+| old minus new | 0 |
+| new minus old | 0 |
+
+New query execution after implementation check:
+
+| Query | Execution time |
+| --- | ---: |
+| new `baseRows()` | 0.301ms |
+
+## Post-Deploy Measurements
+
+Artifacts:
+
+- `tmp/performance/policy-list-projection-query-optimization-20260715/primary-after-samples.txt`
+- `tmp/performance/policy-list-projection-query-optimization-20260715/edge-after-samples.txt`
+- `tmp/performance/policy-list-projection-query-optimization-20260715/primary-warm-after-samples.txt`
+- `tmp/performance/policy-list-projection-query-optimization-20260715/edge-warm-after-samples.txt`
+- secondary samples were collected through SSM and stored on the secondary node under the same artifact directory
+
+Immediate post-deploy samples:
+
+| Path | Samples | p50 | p95 | Max | Notes |
+| --- | ---: | ---: | ---: | ---: | --- |
+| primary loopback | 12 | 57.2ms | 381.1ms | 381.1ms | first request after primary restart was the tail |
+| secondary loopback | 12 | 60.2ms | 130.8ms | 130.8ms | first requests after secondary restart still included cold row/region/projection cost |
+| edge | 12 | 65.0ms | 695.5ms | 695.5ms | one sample hit secondary shortly after restart and carried deployment cold cost |
+
+Warm stability samples after both nodes were up and warmed:
+
+| Path | Samples | p50 | p95 | Max |
+| --- | ---: | ---: | ---: | ---: |
+| primary loopback | 12 | 42.4ms | 108.0ms | 108.0ms |
+| secondary loopback | 12 | 35.7ms | 48.2ms | 48.2ms |
+| edge | 12 | 46.4ms | 165.5ms | 165.5ms |
+
+Warm stability excluding only the first sample of each warm batch:
+
+| Path | Samples | p50 | p95 | Max |
+| --- | ---: | ---: | ---: | ---: |
+| primary loopback | 11 | 42.4ms | 67.8ms | 67.8ms |
+| secondary loopback | 11 | 35.7ms | 48.2ms | 48.2ms |
+| edge | 11 | 46.4ms | 74.5ms | 74.5ms |
+
+## Observed Delta
+
+Compared with the timing-instrumentation checkpoint:
+
+| Path | Before p50 | After warm p50 | p50 reduction | Before p95 | After warm p95 | p95 reduction |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| primary loopback | 110.1ms | 42.4ms | 61.5% | 197.3ms | 108.0ms | 45.3% |
+| secondary loopback | 104.4ms | 35.7ms | 65.8% | 171.7ms | 48.2ms | 71.9% |
+| edge | 121.2ms | 46.4ms | 61.7% | 728.7ms | 165.5ms | 77.3% |
+
+If the first sample of the warm stability batch is excluded, p95 reduction is:
+
+| Path | Before p95 | After warm p95 excluding first sample | p95 reduction |
+| --- | ---: | ---: | ---: |
+| primary loopback | 197.3ms | 67.8ms | 65.6% |
+| secondary loopback | 171.7ms | 48.2ms | 71.9% |
+| edge | 728.7ms | 74.5ms | 89.8% |
+
+## Log Interpretation
+
+Primary after deploy:
+
+- first measured request: repository `118ms`, presentation `49ms`, service `188ms`, controller `208ms`
+- later warm request: controller `119ms`
+- projection slow log mostly disappeared because presentation stayed below the `50ms` slow threshold
+
+Secondary after deploy:
+
+- first measured request: repository `171ms`, presentation `124ms`, projection `78ms`, region `42ms`, rate limit `65ms`, controller `393ms`
+- later warm request: presentation `57ms`, projection `46ms`, controller `100ms`
+
+Interpretation:
+
+- The intended projection query improvement worked.
+- The old repeated projection range was `47ms` to `114ms`; after the change, warm projection either falls below the slow log threshold or logs around `46ms`.
+- The remaining deployment/first-request tail is now mixed across repository rows, region label warmup, rate-limit timing, and edge/target timing.
+- Do not open another projection SQL change immediately. Re-check with a broader baseline first.
+
+## Smoke
+
+Final public smoke after both nodes were deployed:
+
+| Endpoint | Status | Total |
+| --- | ---: | ---: |
+| `/` | 200 | 28.536ms |
+| `/api/policies?page=0&size=20` | 200 | 86.960ms |
+| `/api/policies/ranking?size=20` | 200 | 95.622ms |
+| `/api/policies/search` keyword `청년` | 200 | 434.216ms |
+
+ALB target health: both targets healthy.
+
+## Decision
+
+Accept the change.
+
+The measured improvement is large enough, the SQL equivalence check passed, focused tests passed, public smoke passed, and there is no schema or cache rollback burden.
+
+Next recommended action is not another immediate query change. Run a broader baseline and inspect whether the remaining list tail is still policy-list-specific or has shifted to first-request warmup, rate limiting, region labels, or edge behavior.
