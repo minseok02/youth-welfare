@@ -297,6 +297,14 @@ Search timing instrumentation plan:
   - `[PolicySearchRepositoryTiming]`
 - Focused tests passed before deploy:
   - `./gradlew test --tests com.example.welfare.policy.service.PolicySearchServiceTest --tests com.example.welfare.policy.repository.WelfareServiceSearchRepositoryImplTest --tests com.example.welfare.api.PolicySearchKeywordApiWebMvcTest --tests com.example.welfare.policy.service.PolicySearchKeywordReadServiceTest --no-daemon`
+- Deployed commit `909c33d489009b869df45aa4a27bae12b9e661ee` to both ALB nodes.
+- Post-deploy samples:
+  - primary default miss `615.955ms`, repeat `40.189ms`; repository `149ms`, summary `89ms`
+  - primary filtered/deadline miss `268.384ms`, repeat `38.046ms`; repository `188ms`, SQL `174ms`
+  - secondary filtered/deadline uncached `월세` `656.429ms`; repository `425ms`, SQL `229ms`, entity load `171ms`, summary `136ms`
+  - edge default `297.025ms`; repository `96ms`
+  - edge filtered/deadline `454.171ms`; repository `300ms`, SQL `271ms`
+- Decision: next search work should inspect/optimize the `general_filtered` SQL path first. Cache hit behavior is already fast; cache TTL is not the first lever.
 
 ### 2026-07-15: ranking app-side timing instrumentation
 

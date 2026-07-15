@@ -89,8 +89,33 @@ After deploy:
   - `PolicySearchKeywordApiWebMvcTest`
   - `PolicySearchKeywordReadServiceTest`
 
-Production sample results are pending deploy.
+Production deploy:
+
+- Commit: `909c33d489009b869df45aa4a27bae12b9e661ee`
+- Primary: `i-0b8d95e454df5e0f0`, Docker health `healthy`, `/actuator/health` `UP`.
+- Secondary: `i-0e8a4cc599c1148c8`, Docker health `healthy`, `/actuator/health` `UP`.
+- ALB target group: both targets `healthy`.
+
+Production samples:
+
+| Path | Node | Request | Client total | Result | Main timing observation |
+| --- | --- | --- | ---: | --- | --- |
+| local | primary | `청년`, default relevance | `615.955ms` | `200`, `1476` total, `20` rows | repository `149ms`, summary `89ms`, cache write `49ms`, search log `58ms` |
+| local | primary | `청년`, default relevance, immediate repeat | `40.189ms` | `200`, `1476` total, `20` rows | local/Redis cache path; no repository work |
+| local | primary | `청년`, `ACTIVE_ONLY`, `DEADLINE` | `268.384ms` | `200`, `1476` total, `20` rows | repository `188ms`; SQL `174ms` |
+| local | primary | `청년`, `ACTIVE_ONLY`, `DEADLINE`, immediate repeat | `38.046ms` | `200`, `1476` total, `20` rows | local/Redis cache path; no repository work |
+| local | secondary | `청년`, default relevance | `491.030ms` | `200`, `1476` total, `20` rows | Redis/cache path after primary write; controller rate-limit/search-log overhead was visible |
+| local | secondary | `청년`, `ACTIVE_ONLY`, `DEADLINE` | `45.994ms` | `200`, `1476` total, `20` rows | Redis/cache path after primary write |
+| local | secondary | `월세`, `ACTIVE_ONLY`, `DEADLINE` | `656.429ms` | `200`, `83` total, `20` rows | repository `425ms`; SQL `229ms`, entity load `171ms`, summary `136ms` |
+| edge | ALB/primary | `창업`, default relevance | `297.025ms` | `200`, `169` total, `20` rows | repository `96ms`; SQL `68ms`, summary `63ms` |
+| edge | ALB/secondary | `창업`, `ACTIVE_ONLY`, `DEADLINE` | `454.171ms` | `200`, `169` total, `20` rows | repository `300ms`; SQL `271ms`, summary `38ms` |
+
+Post-deploy error check:
+
+- No 5xx search responses were observed in app request logs.
+- No new application exception was observed in the sampled window.
+- The startup Redis repository assignment message is an existing Spring Data informational message and is not tied to this change.
 
 ## Decision
 
-Deploy this as observation-only instrumentation first. Do not tune search SQL, cache TTL, or candidate reduction until live logs identify whether the dominant cost is controller/search-log overhead, cache misses, repository SQL, entity loading, or presentation enrichment.
+The instrumentation is active and shows that cache hits are fast, while cache misses still spend most time in the repository path. The strongest next candidate is the `general_filtered` search SQL used by filtered/deadline searches, followed by occasional ordered entity loading and summary enrichment cost. Do not tune cache TTL first; the slow path still matters for new keywords and expired cache entries.
