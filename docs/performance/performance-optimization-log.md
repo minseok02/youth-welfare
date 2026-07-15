@@ -282,6 +282,22 @@ Post-projection low-rate load/soak:
 - Final public smoke and ALB health passed.
 - Decision: do not open another policy-list optimization. If another performance round is opened, start with search query instrumentation/planning.
 
+Search timing instrumentation plan:
+
+- Tracking document: `docs/performance/search-timing-instrumentation-2026-07-15.md`.
+- Trigger:
+  - primary `policy_search_filtered` p95 `210.9ms`
+  - secondary `policy_search_filtered` p95 `277.6ms`
+  - primary `policy_search_keyword` p95 `117.9ms`
+  - secondary `policy_search_keyword` p95 `130.9ms`
+- Plan: add low-cardinality timing logs across controller, service cache/repository/presentation, and repository SQL/entity-load path before changing search SQL or cache behavior.
+- Implemented observation-only logs:
+  - `[PolicySearchControllerTiming]`
+  - `[PolicySearchServiceTiming]`
+  - `[PolicySearchRepositoryTiming]`
+- Focused tests passed before deploy:
+  - `./gradlew test --tests com.example.welfare.policy.service.PolicySearchServiceTest --tests com.example.welfare.policy.repository.WelfareServiceSearchRepositoryImplTest --tests com.example.welfare.api.PolicySearchKeywordApiWebMvcTest --tests com.example.welfare.policy.service.PolicySearchKeywordReadServiceTest --no-daemon`
+
 ### 2026-07-15: ranking app-side timing instrumentation
 
 Trigger:

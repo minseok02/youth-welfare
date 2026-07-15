@@ -53,6 +53,7 @@ public class PolicyController {
     private static final int MAX_PUBLIC_PAGE_NUMBER = 1000;
     private static final int MAX_PUBLIC_PAGE_SIZE = 100;
     private static final long SLOW_POLICY_LIST_TIMING_THRESHOLD_MS = 100;
+    private static final long SLOW_POLICY_SEARCH_TIMING_THRESHOLD_MS = 80;
 
     private final PolicyListService policyListService;
     private final PolicyDetailService policyDetailService;
@@ -156,12 +157,18 @@ public class PolicyController {
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @Valid @RequestBody PolicySearchRequest searchRequest,
             HttpServletRequest request) {
+        long totalStartedNanos = System.nanoTime();
         Long userId = resolveUserId(authenticatedUser);
+        long fingerprintStartedNanos = System.nanoTime();
         String clientFingerprint = clientFingerprintService.build(request);
+        long fingerprintMs = elapsedMs(fingerprintStartedNanos);
+        long rateLimitStartedNanos = System.nanoTime();
         policyTrafficRateLimitService.checkSearchLimit(resolveRateLimitActorKey(authenticatedUser, clientFingerprint));
+        long rateLimitMs = elapsedMs(rateLimitStartedNanos);
         String trimmedKeyword = searchRequest.keyword().trim();
         int page = searchRequest.page() == null ? 0 : searchRequest.page();
         int size = searchRequest.size() == null ? 20 : searchRequest.size();
+        long serviceStartedNanos = System.nanoTime();
         PolicySearchResponse response = policySearchService.search(
                 userId,
                 trimmedKeyword,
@@ -181,6 +188,8 @@ public class PolicyController {
                 page,
                 size
         );
+        long serviceMs = elapsedMs(serviceStartedNanos);
+        long searchLogStartedNanos = System.nanoTime();
         policySearchLogService.record(PolicySearchLogCommand.builder()
                 .userId(userId)
                 .clientFingerprint(clientFingerprint)
@@ -197,6 +206,21 @@ public class PolicyController {
                 .page(page)
                 .size(size)
                 .build());
+        long searchLogMs = elapsedMs(searchLogStartedNanos);
+        long totalMs = elapsedMs(totalStartedNanos);
+        logSearchControllerTimingIfSlow(
+                totalMs,
+                fingerprintMs,
+                rateLimitMs,
+                serviceMs,
+                searchLogMs,
+                userId,
+                response,
+                searchRequest,
+                page,
+                size,
+                trimmedKeyword
+        );
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
@@ -358,6 +382,39 @@ public class PolicyController {
                 hasText(sido),
                 hasText(sgg),
                 normalizeLogValue(sort));
+    }
+
+    private void logSearchControllerTimingIfSlow(long totalMs,
+                                                 long clientFingerprintMs,
+                                                 long rateLimitMs,
+                                                 long serviceMs,
+                                                 long searchLogMs,
+                                                 Long userId,
+                                                 PolicySearchResponse response,
+                                                 PolicySearchRequest request,
+                                                 int page,
+                                                 int size,
+                                                 String trimmedKeyword) {
+        if (totalMs < SLOW_POLICY_SEARCH_TIMING_THRESHOLD_MS) {
+            return;
+        }
+        log.info("[PolicySearchControllerTiming] totalMs={} clientFingerprintMs={} rateLimitMs={} serviceMs={} searchLogMs={} authenticated={} totalElements={} resultCount={} page={} size={} statusFilter={} status={} category={} sourceType={} sort={} keywordLength={}",
+                totalMs,
+                clientFingerprintMs,
+                rateLimitMs,
+                serviceMs,
+                searchLogMs,
+                userId != null,
+                response.getTotalElements(),
+                response.getContent() == null ? 0 : response.getContent().size(),
+                page,
+                size,
+                normalizeLogValue(request.statusFilter()),
+                normalizeLogValue(request.status()),
+                normalizeLogValue(request.category()),
+                normalizeLogValue(request.sourceType()),
+                normalizeLogValue(request.sort()),
+                trimmedKeyword == null ? 0 : trimmedKeyword.length());
     }
 
     private long elapsedMs(long startedNanos) {

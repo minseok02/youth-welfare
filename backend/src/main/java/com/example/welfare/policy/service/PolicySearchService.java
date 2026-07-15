@@ -40,6 +40,7 @@ public class PolicySearchService {
     private static final int MAX_KEYWORD_LENGTH = 100;
     private static final int MAX_KEYWORD_TOKENS = 10;
     private static final long SEARCH_WARN_DURATION_MS = 500L;
+    private static final long SEARCH_TIMING_OBSERVATION_THRESHOLD_MS = 80L;
     private static final long PUBLIC_SEARCH_CACHE_TTL_MILLIS = 30_000L;
     private static final int MAX_PUBLIC_SEARCH_CACHE_ENTRIES = 256;
     private static final String PUBLIC_SEARCH_CACHE_PREFIX = "policy:search:public:v1:";
@@ -118,6 +119,8 @@ public class PolicySearchService {
                                        String gov24BenefitType,
                                        int page,
                                        int size) {
+        long totalStartedNanos = System.nanoTime();
+        long normalizeStartedNanos = System.nanoTime();
         String normalizedKeyword = normalizeKeyword(keyword);
         int limit = normalizeSize(size);
         int pageNumber = Math.max(0, page);
@@ -136,9 +139,10 @@ public class PolicySearchService {
 
         Integer incomeMaxWon = resolveIncomeMaxWon(incomeLevel);
         String normalizedTargetGroup = normalizeNullable(targetGroup);
-        long startedAt = System.nanoTime();
+        long normalizeMs = elapsedMs(normalizeStartedNanos);
 
         SearchCacheKey cacheKey = null;
+        long cacheLookupMs = 0;
         if (userId == null) {
             cacheKey = new SearchCacheKey(
                     normalizedKeyword,
@@ -158,19 +162,43 @@ public class PolicySearchService {
                     pageNumber,
                     limit
             );
-            PolicySearchResponse cached = getCachedPublicSearch(cacheKey);
-            if (cached != null) {
+            long cacheLookupStartedNanos = System.nanoTime();
+            PublicSearchCacheLookup cacheLookup = getCachedPublicSearch(cacheKey);
+            cacheLookupMs = elapsedMs(cacheLookupStartedNanos);
+            if (cacheLookup.response() != null) {
                 logSearchObservation(
-                        cached,
+                        cacheLookup.response(),
                         normalizedKeyword,
                         normalizedStatus,
                         normalizedStatusFilter,
                         normalizedCategory,
                         normalizedSourceType,
                         normalizedSort,
-                        System.nanoTime() - startedAt
+                        System.nanoTime() - totalStartedNanos
                 );
-                return cached;
+                logSearchTimingIfObserved(
+                        "cache_hit",
+                        cacheLookup.source(),
+                        elapsedMs(totalStartedNanos),
+                        normalizeMs,
+                        cacheLookupMs,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        userId,
+                        normalizedKeyword,
+                        normalizedStatus,
+                        normalizedStatusFilter,
+                        normalizedCategory,
+                        normalizedSourceType,
+                        normalizedSort,
+                        pageNumber,
+                        limit,
+                        cacheLookup.response()
+                );
+                return cacheLookup.response();
             }
         }
 
@@ -192,11 +220,14 @@ public class PolicySearchService {
                 normalizedGov24BenefitType
         );
         int repositoryPageSize = hasRegionFilter ? Math.min(limit * 3, MAX_SEARCH_LIMIT) : limit;
+        long repositoryStartedNanos = System.nanoTime();
         Page<WelfareService> resultPage = welfareServiceReadRepository.search(
                 condition,
                 PageRequest.of(pageNumber, repositoryPageSize)
         );
+        long repositoryMs = elapsedMs(repositoryStartedNanos);
 
+        long summaryStartedNanos = System.nanoTime();
         List<PolicySummaryResponse> content = collectVisibleSearchSummaries(
                 userId,
                 condition,
@@ -205,7 +236,9 @@ public class PolicySearchService {
                 limit,
                 repositoryPageSize
         );
+        long summaryMs = elapsedMs(summaryStartedNanos);
 
+        long responseBuildStartedNanos = System.nanoTime();
         PolicySearchResponse response = PolicySearchResponse.builder()
                 .content(content)
                 .totalElements(resultPage.getTotalElements())
@@ -214,6 +247,7 @@ public class PolicySearchService {
                 .pageSize(limit)
                 .hasNext(resultPage.hasNext())
                 .build();
+        long responseBuildMs = elapsedMs(responseBuildStartedNanos);
 
         logSearchObservation(
                 response,
@@ -223,11 +257,36 @@ public class PolicySearchService {
                 normalizedCategory,
                 normalizedSourceType,
                 normalizedSort,
-                System.nanoTime() - startedAt
+                System.nanoTime() - totalStartedNanos
         );
+        long cacheWriteMs = 0;
         if (cacheKey != null) {
+            long cacheWriteStartedNanos = System.nanoTime();
             cachePublicSearch(cacheKey, response);
+            cacheWriteMs = elapsedMs(cacheWriteStartedNanos);
         }
+        logSearchTimingIfObserved(
+                "cache_miss",
+                userId == null ? "miss" : "authenticated",
+                elapsedMs(totalStartedNanos),
+                normalizeMs,
+                cacheLookupMs,
+                repositoryMs,
+                summaryMs,
+                responseBuildMs,
+                cacheWriteMs,
+                resultPage.getNumberOfElements(),
+                userId,
+                normalizedKeyword,
+                normalizedStatus,
+                normalizedStatusFilter,
+                normalizedCategory,
+                normalizedSourceType,
+                normalizedSort,
+                pageNumber,
+                limit,
+                response
+        );
         return response;
     }
 
@@ -289,14 +348,15 @@ public class PolicySearchService {
         return regionLabel.equals(sido + " " + sgg) || regionLabel.startsWith(sido + " " + sgg + " ");
     }
 
-    private PolicySearchResponse getCachedPublicSearch(SearchCacheKey cacheKey) {
+    private PublicSearchCacheLookup getCachedPublicSearch(SearchCacheKey cacheKey) {
         CachedSearchResponse cached = publicSearchCache.get(cacheKey);
         if (cached == null) {
             PolicySearchResponse redisCached = getRedisCachedPublicSearch(cacheKey);
             if (redisCached != null) {
                 cachePublicSearchLocal(cacheKey, redisCached);
+                return new PublicSearchCacheLookup(redisCached, "redis");
             }
-            return redisCached;
+            return new PublicSearchCacheLookup(null, "miss");
         }
         long nowMillis = clock.millis();
         if (nowMillis - cached.cachedAtMillis() >= publicSearchCacheTtl.toMillis()) {
@@ -304,10 +364,11 @@ public class PolicySearchService {
             PolicySearchResponse redisCached = getRedisCachedPublicSearch(cacheKey);
             if (redisCached != null) {
                 cachePublicSearchLocal(cacheKey, redisCached);
+                return new PublicSearchCacheLookup(redisCached, "redis_after_local_expired");
             }
-            return redisCached;
+            return new PublicSearchCacheLookup(null, "expired_miss");
         }
-        return cached.response();
+        return new PublicSearchCacheLookup(cached.response(), "local");
     }
 
     private void cachePublicSearch(SearchCacheKey cacheKey, PolicySearchResponse response) {
@@ -399,6 +460,59 @@ public class PolicySearchService {
                     sort,
                     keywordTokenCount);
         }
+    }
+
+    private void logSearchTimingIfObserved(String cacheState,
+                                           String cacheSource,
+                                           long totalMs,
+                                           long normalizeMs,
+                                           long cacheLookupMs,
+                                           long repositoryMs,
+                                           long summaryMs,
+                                           long responseBuildMs,
+                                           long cacheWriteMs,
+                                           int repositoryResultCount,
+                                           Long userId,
+                                           String keyword,
+                                           String status,
+                                           String statusFilter,
+                                           String category,
+                                           String sourceType,
+                                           String sort,
+                                           int page,
+                                           int size,
+                                           PolicySearchResponse response) {
+        if (totalMs < SEARCH_TIMING_OBSERVATION_THRESHOLD_MS) {
+            return;
+        }
+        log.info("[PolicySearchServiceTiming] totalMs={} cacheState={} cacheSource={} normalizeMs={} cacheLookupMs={} repositoryMs={} summaryMs={} responseBuildMs={} cacheWriteMs={} authenticated={} totalElements={} resultCount={} repositoryResultCount={} page={} size={} hasNext={} statusFilter={} status={} categoryPresent={} sourceType={} sort={} keywordLength={} keywordTokens={}",
+                totalMs,
+                cacheState,
+                cacheSource,
+                normalizeMs,
+                cacheLookupMs,
+                repositoryMs,
+                summaryMs,
+                responseBuildMs,
+                cacheWriteMs,
+                userId != null,
+                response.getTotalElements(),
+                response.getContent() == null ? 0 : response.getContent().size(),
+                repositoryResultCount,
+                page,
+                size,
+                response.isHasNext(),
+                statusFilter,
+                status,
+                category != null,
+                sourceType,
+                sort,
+                keyword == null ? 0 : keyword.length(),
+                SearchKeywordSupport.extractTokens(keyword).size());
+    }
+
+    private long elapsedMs(long startedNanos) {
+        return Math.max(0, (System.nanoTime() - startedNanos) / 1_000_000);
     }
     private String normalizeKeyword(String keyword) {
         if (keyword == null) {
@@ -564,5 +678,8 @@ public class PolicySearchService {
     }
 
     private record CachedSearchResponse(long cachedAtMillis, PolicySearchResponse response) {
+    }
+
+    private record PublicSearchCacheLookup(PolicySearchResponse response, String source) {
     }
 }

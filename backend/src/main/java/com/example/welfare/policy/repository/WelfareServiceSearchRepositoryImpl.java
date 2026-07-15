@@ -4,6 +4,7 @@ import com.example.welfare.global.util.SearchKeywordSupport;
 import com.example.welfare.global.util.RegionCodeUtil;
 import com.example.welfare.policy.entity.WelfareService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -20,9 +21,11 @@ import java.util.Objects;
 
 @Repository
 @RequiredArgsConstructor
+@Slf4j
 public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchRepository {
 
     private static final double TRIGRAM_THRESHOLD = 0.2d;
+    private static final long SEARCH_REPOSITORY_TIMING_THRESHOLD_MS = 50L;
     private static final String SEARCH_DOCUMENT_SQL = """
             lower(
                 coalesce(ws.title, '')
@@ -270,13 +273,15 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
 
     @Override
     public Page<WelfareService> search(PolicySearchReadCondition condition, Pageable pageable) {
+        long totalStartedNanos = System.nanoTime();
         SearchKeyword keyword = SearchKeyword.from(condition.keyword());
         if (keyword.isEmpty()) {
             return Page.empty(pageable);
         }
 
         MapSqlParameterSource params = policyParams(condition, keyword);
-        SearchSqlParts sqlParts = shouldUseDefaultRelevanceSearchFastPath(condition, pageable)
+        boolean defaultFastPath = shouldUseDefaultRelevanceSearchFastPath(condition, pageable);
+        SearchSqlParts sqlParts = defaultFastPath
                 ? new SearchSqlParts(DEFAULT_RELEVANCE_SEARCH_SQL)
                 : buildPolicySearchSql(condition);
         boolean applyGov24DiscoveryBalance = shouldApplyGov24DiscoveryBalance(condition, pageable);
@@ -284,6 +289,7 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
         int queryLimit = applyGov24DiscoveryBalance ? discoveryBalanceQueryLimit(pageSize) : pageSize;
         params.addValue("limit", queryLimit, Types.INTEGER);
         params.addValue("offset", pageable.getOffset(), Types.BIGINT);
+        long sqlStartedNanos = System.nanoTime();
         List<SearchPageRow> rows = namedParameterJdbcTemplate.query(
                 sqlParts.selectSql(),
                 params,
@@ -292,17 +298,53 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
                         rs.getLong("total_count")
                 )
         );
+        long sqlMs = elapsedMs(sqlStartedNanos);
         if (rows.isEmpty()) {
+            logSearchRepositoryTimingIfObserved(
+                    elapsedMs(totalStartedNanos),
+                    defaultFastPath,
+                    applyGov24DiscoveryBalance,
+                    sqlMs,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    condition,
+                    pageable,
+                    queryLimit,
+                    keyword
+            );
             return Page.empty(pageable);
         }
         List<Long> ids = rows.stream()
                 .map(SearchPageRow::id)
                 .toList();
         long total = rows.get(0).totalCount();
+        long loadServicesStartedNanos = System.nanoTime();
         List<WelfareService> services = loadOrderedServices(ids);
+        long loadServicesMs = elapsedMs(loadServicesStartedNanos);
+        long balanceMs = 0;
         if (applyGov24DiscoveryBalance) {
+            long balanceStartedNanos = System.nanoTime();
             services = applyGov24DiscoveryBalance(services, pageSize);
+            balanceMs = elapsedMs(balanceStartedNanos);
         }
+        logSearchRepositoryTimingIfObserved(
+                elapsedMs(totalStartedNanos),
+                defaultFastPath,
+                applyGov24DiscoveryBalance,
+                sqlMs,
+                loadServicesMs,
+                balanceMs,
+                rows.size(),
+                services.size(),
+                total,
+                condition,
+                pageable,
+                queryLimit,
+                keyword
+        );
         return new PageImpl<>(services, pageable, total);
     }
 
@@ -632,6 +674,56 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
             balanced.add(firstGov24);
         }
         return balanced.size() > pageSize ? balanced.subList(0, pageSize) : balanced;
+    }
+
+    private void logSearchRepositoryTimingIfObserved(long totalMs,
+                                                     boolean defaultFastPath,
+                                                     boolean applyGov24DiscoveryBalance,
+                                                     long sqlMs,
+                                                     long loadServicesMs,
+                                                     long balanceMs,
+                                                     int rowCount,
+                                                     int serviceCount,
+                                                     long totalElements,
+                                                     PolicySearchReadCondition condition,
+                                                     Pageable pageable,
+                                                     int queryLimit,
+                                                     SearchKeyword keyword) {
+        if (totalMs < SEARCH_REPOSITORY_TIMING_THRESHOLD_MS) {
+            return;
+        }
+        log.info("[PolicySearchRepositoryTiming] totalMs={} path={} sqlMs={} loadServicesMs={} balanceMs={} discoveryBalance={} rowCount={} serviceCount={} totalElements={} page={} size={} queryLimit={} sort={} statusFilter={} status={} categoryPresent={} sourceType={} onlineApplyPresent={} sidoPresent={} sggPresent={} incomePresent={} targetGroupPresent={} gov24ServiceFieldPresent={} gov24UserTypePresent={} gov24BenefitTypePresent={} keywordLength={} keywordTokens={}",
+                totalMs,
+                defaultFastPath ? "default_fast_path" : "general_filtered",
+                sqlMs,
+                loadServicesMs,
+                balanceMs,
+                applyGov24DiscoveryBalance,
+                rowCount,
+                serviceCount,
+                totalElements,
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                queryLimit,
+                condition.sort(),
+                condition.statusFilter(),
+                condition.status(),
+                condition.category() != null,
+                condition.sourceType(),
+                condition.onlineApply() != null,
+                condition.sido() != null,
+                condition.sgg() != null,
+                condition.incomeMaxWon() != null,
+                condition.targetGroup() != null,
+                condition.gov24ServiceField() != null,
+                condition.gov24UserType() != null,
+                condition.gov24BenefitType() != null,
+                keyword.normalizedText().length(),
+                SearchKeywordSupport.extractTokens(keyword.normalizedText()).size());
+    }
+
+    private long elapsedMs(long startedNanos) {
+        return Math.max(0, (System.nanoTime() - startedNanos) / 1_000_000);
     }
 
     private record SearchSqlParts(String selectSql) {
