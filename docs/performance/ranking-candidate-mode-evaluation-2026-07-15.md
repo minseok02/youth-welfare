@@ -170,6 +170,7 @@ Added:
 
 - `deploy/performance/run-local-ranking-candidate-mode-evaluation.sh`
 - `deploy/performance/run-local-ranking-candidate-sensitivity-evaluation.sh`
+- `deploy/performance/run-local-ranking-candidate-random-stress-evaluation.sh`
 
 The script:
 
@@ -204,6 +205,14 @@ Sensitivity script verification:
 
 ```bash
 bash -n deploy/performance/run-local-ranking-candidate-sensitivity-evaluation.sh
+```
+
+Result: passed.
+
+Random stress script verification:
+
+```bash
+bash -n deploy/performance/run-local-ranking-candidate-random-stress-evaluation.sh
 ```
 
 Result: passed.
@@ -288,7 +297,7 @@ Important details:
   - `GOV24=384`
   - `YOUTH=137`
 
-Recommended first runtime candidate:
+Initial deterministic recommendation:
 
 | Mode | Target | Candidate count | Why |
 | --- | ---: | ---: | --- |
@@ -375,13 +384,76 @@ The recommendation is still conditional:
 - If a real new source is added or source distribution changes materially, rerun this script before enabling or keeping the candidate mode.
 - Runtime rollout should be guarded by configuration and followed by cache-tail + app timing measurement.
 
+## Random Stress Evaluation
+
+After the deterministic and fixed sensitivity scenarios, a wider randomized stress run was added.
+
+Purpose:
+
+- avoid overfitting the recommendation to a few manually chosen scenarios
+- combine multiple changes in one trial
+- test source floods, unique/API/view spikes, and recent-policy inflow together
+
+Command pattern:
+
+```bash
+ENV_FILE=.env.production SMOKE_DB_MODE=postgres \
+  RANKING_RANDOM_STRESS_ROOT=tmp/stability/ranking-candidate-random-stress-20260715 \
+  RANDOM_STRESS_TRIALS=80 RANDOM_STRESS_SEED=20260715 \
+  bash deploy/performance/run-local-ranking-candidate-random-stress-evaluation.sh
+```
+
+Runs:
+
+| Seed | Trials | Artifact |
+| ---: | ---: | --- |
+| `20260715` | 80 | `tmp/stability/ranking-candidate-random-stress-20260715/20260715T112829Z` |
+| `20260716` | 80 | `tmp/stability/ranking-candidate-random-stress-20260715-seed20260716/20260715T113100Z` |
+| `20260717` | 80 | `tmp/stability/ranking-candidate-random-stress-20260715-seed20260717/20260715T113306Z` |
+
+Total randomized trials: `240`.
+
+Aggregated result:
+
+| Mode | Trials | Failures | Strict top100 misses | Min top20 recall | Min top50 recall | Min top100 recall | Min final top20 overlap | Avg candidate % | Max candidates |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `popular_recent_union=1000` | 240 | 2 | 4 | 20/20 | 48/50 | 87/100 | 19/20 | 6.86% | 2466 |
+| `popular_recent_union=1500` | 240 | 0 | 2 | 20/20 | 50/50 | 98/100 | 19/20 | 9.19% | 2627 |
+| `popular_recent_union=2000` | 240 | 0 | 1 | 20/20 | 50/50 | 99/100 | 19/20 | 11.72% | 3169 |
+| `popular_recent_union=3000` | 240 | 0 | 0 | 20/20 | 50/50 | 100/100 | 19/20 | 17.14% | 3435 |
+| `simple_top_k=3000` | 240 | 67 | 82 | 1/20 | 1/50 | 3/100 | 0/20 | 17.09% | 3000 |
+| `source_quota=3000` | 240 | 96 | 132 | 6/20 | 14/50 | 20/100 | 5/20 | 17.79% | 3316 |
+| `conservative_wide=3000` | 240 | 1 | 3 | 19/20 | 49/50 | 99/100 | 18/20 | 18.55% | 4490 |
+| `conservative_wide=5000` | 240 | 1 | 1 | 19/20 | 49/50 | 99/100 | 18/20 | 30.02% | 6438 |
+
+Random stress changed the recommendation:
+
+- `popular_recent_union=1000` is not robust enough. It had 2 threshold failures and 4 strict top100 misses.
+- `popular_recent_union=1500` and `2000` passed the threshold but still had strict top100 misses.
+- `popular_recent_union=3000` was the only candidate mode tested that had:
+  - `0` failures
+  - `0` strict top100 misses
+  - full top20 recall never below `20/20`
+  - full top50 recall never below `50/50`
+  - full top100 recall never below `100/100`
+
+The random stress result is stricter than the deterministic sensitivity result. For runtime rollout, prefer the stricter result.
+
+Updated recommended first runtime candidate:
+
+| Mode | Target | Current-data candidate % | Random stress avg candidate % | Why |
+| --- | ---: | ---: | ---: | --- |
+| `popular_recent_union` | 3000 | 22.49% | 17.14% | only tested mode with 0 failures and 0 strict top100 misses across 240 randomized trials |
+
+`popular_recent_union=2000` remains a possible second-stage reduction only after the 3000-target rollout is measured and accepted.
+
 ## Next Runtime Plan
 
 Implement a guarded candidate mode behind configuration:
 
 - default behavior remains full snapshot until enabled
 - mode: `popular_recent_union`
-- target: `1000`
+- target: `3000`
 - candidate construction:
   - rough popularity pool: about 55%
   - recent pool: about 25%
@@ -397,8 +469,8 @@ Expected performance direction:
 
 | Metric | Current | Expected after candidate mode |
 | --- | ---: | ---: |
-| Java scoring candidates | 13340 | about 1000 |
-| Candidate volume | 100% | 7.50% |
+| Java scoring candidates | 13340 | about 3000 |
+| Candidate volume | 100% | 22.49% on current data |
 | `scoringSortMs` | median 465ms | materially lower |
 | warm ranking p95 | ~16-25ms | unchanged |
 

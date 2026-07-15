@@ -53,9 +53,24 @@ Sensitivity update:
 
 Updated recommendation:
 
-- Keep `popular_recent_union=1000` as the first guarded runtime candidate.
+- Initial fixed-scenario recommendation was `popular_recent_union=1000`.
 - Do not implement simple global top K first.
 - Rerun candidate sensitivity evaluation after real source growth or ranking weight changes.
+
+Random stress update:
+
+- Added `deploy/performance/run-local-ranking-candidate-random-stress-evaluation.sh`.
+- Ran 240 randomized trials across seeds `20260715`, `20260716`, and `20260717`.
+- Randomized trials mixed source floods, new synthetic sources, recent-policy growth, unique-view spikes, API-view spikes, and view spikes.
+- Aggregated result:
+  - `popular_recent_union=1000`: 2 failures, 4 strict top100 misses
+  - `popular_recent_union=1500`: 0 failures, 2 strict top100 misses
+  - `popular_recent_union=2000`: 0 failures, 1 strict top100 miss
+  - `popular_recent_union=3000`: 0 failures, 0 strict top100 misses
+  - `simple_top_k=3000`: 67 failures
+  - `source_quota=3000`: 96 failures
+- Updated first guarded runtime candidate: `popular_recent_union=3000`.
+- `popular_recent_union=2000` can be reconsidered only after a 3000-target rollout is measured and accepted.
 
 ### 2026-07-15: ranking app-side timing instrumentation
 
