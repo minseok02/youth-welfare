@@ -146,3 +146,64 @@ Next recommended step:
 2. If candidate mode still wins, deploy with `POLICY_RANKING_CANDIDATE_ENABLED=false`.
 3. Enable the flag only for the controlled measurement window.
 4. If p95 is not consistently better, move candidate selection out of the request path with a precomputed ranking/candidate snapshot.
+
+## Longer Local Comparison
+
+The 7-cold-sample comparison was run after the short comparison because the short run had high variance.
+
+Commands:
+
+```bash
+APP_BASE_URL=http://127.0.0.1:8082 COLD_RUNS=7 WARM_RUNS=7 CACHE_TTL_WAIT_SECONDS=31 WARM_DELAY_SECONDS=0.2 \
+  POLICY_CACHE_TAIL_ROOT=tmp/performance/ranking-candidate-runtime-off-long-20260715 \
+  bash deploy/performance/run-local-policy-cache-tail-baseline.sh
+
+APP_BASE_URL=http://127.0.0.1:8082 COLD_RUNS=7 WARM_RUNS=7 CACHE_TTL_WAIT_SECONDS=31 WARM_DELAY_SECONDS=0.2 \
+  POLICY_CACHE_TAIL_ROOT=tmp/performance/ranking-candidate-runtime-on-long-20260715 \
+  bash deploy/performance/run-local-policy-cache-tail-baseline.sh
+```
+
+Artifacts:
+
+- off: `tmp/performance/ranking-candidate-runtime-off-long-20260715/20260715T134806Z`
+- on: `tmp/performance/ranking-candidate-runtime-on-long-20260715/20260715T135241Z`
+
+Result:
+
+| Variant | Cold ranking p50 | Cold ranking p95 | Cold ranking max | Warm ranking p95 |
+| --- | ---: | ---: | ---: | ---: |
+| full/off | 559.8ms | 673.9ms | 689.5ms | 12.5ms |
+| candidate/on | 1104.7ms | 1724.8ms | 1942.2ms | 14.6ms |
+
+Correctness check:
+
+| Check | Result |
+| --- | --- |
+| off/on top20 same order | true |
+| off/on top20 overlap | 20/20 |
+
+Candidate on log samples:
+
+| Sample | `scoringCandidateCount` | `candidateSelectionMs` | `scoringSortMs` | `totalMs` |
+| --- | ---: | ---: | ---: | ---: |
+| 1 | 4000 | 481ms | 71ms | 1915ms |
+| 2 | 4000 | 400ms | 52ms | 1190ms |
+| 3 | 4000 | 568ms | 47ms | 1102ms |
+| 4 | 4000 | 220ms | 50ms | 712ms |
+| 5 | 4000 | 279ms | 65ms | 764ms |
+| 6 | 4000 | 583ms | 41ms | 1088ms |
+| 7 | 4000 | 195ms | 35ms | 543ms |
+
+Final decision for this batch:
+
+- Do not enable request-time candidate mode.
+- Keep the code guarded and default-disabled.
+- The candidate mode preserves the current top20 for this snapshot, but request-time candidate construction costs more than it saves in the longer run.
+- The next optimization should move ranking candidate selection/scoring out of the request path.
+
+Next recommended design:
+
+1. Precompute a ranked snapshot periodically.
+2. Store the top N service IDs and scores in Redis or a compact DB table.
+3. Make `/api/policies/ranking` read the precomputed top IDs and hydrate only the requested page.
+4. Keep full request-time ranking as fallback when the snapshot is missing or stale.

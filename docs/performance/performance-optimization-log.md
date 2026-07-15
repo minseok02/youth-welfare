@@ -104,6 +104,18 @@ Runtime implementation update:
 - Current local top20 check: candidate/on matched full/off in the same order with `20/20` overlap.
 - Keep production default disabled until a longer comparison confirms p95 improvement. If request-time candidate selection is not consistently better, move this optimization to a precomputed ranking/candidate snapshot.
 
+Longer runtime comparison:
+
+- Ran 7 cold samples per mode after the short run.
+- Full/off artifact: `tmp/performance/ranking-candidate-runtime-off-long-20260715/20260715T134806Z`
+- Candidate/on artifact: `tmp/performance/ranking-candidate-runtime-on-long-20260715/20260715T135241Z`
+- Result:
+  - full/off cold ranking p50 `559.8ms`, p95 `673.9ms`, max `689.5ms`
+  - candidate/on cold ranking p50 `1104.7ms`, p95 `1724.8ms`, max `1942.2ms`
+  - warm ranking stayed close: full/off p95 `12.5ms`, candidate/on p95 `14.6ms`
+- Correctness still passed: candidate/on top20 matched full/off in the same order with `20/20` overlap.
+- Decision: do not enable request-time candidate mode. Keep the guarded code disabled and move the next ranking optimization toward a precomputed ranking/candidate snapshot.
+
 ### 2026-07-15: ranking app-side timing instrumentation
 
 Trigger:
