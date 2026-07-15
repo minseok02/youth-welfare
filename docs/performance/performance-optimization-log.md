@@ -13,7 +13,57 @@ This document records what was optimized, which baseline numbers triggered the w
 
 ## Open Batch
 
-_No active performance optimization batch after the ranking cold breakdown measurement._
+### 2026-07-15: ranking app-side timing instrumentation
+
+Trigger:
+
+- The latest rerun still showed ranking cold p95 as the strongest repeatable tail:
+  - local ranking cold p95 `804.2ms`
+  - local ranking warm p95 `6.9ms`
+  - edge ranking cold p95 `828.5ms`
+  - edge ranking warm p95 `20.8ms`
+- DB-only ranking breakdown remained too small to explain the endpoint cold tail by itself.
+
+Plan:
+
+1. Add low-cardinality cold-compute timing inside `PolicyRankingService`.
+2. Keep ranking math, ordering, response shape, local cache, and Redis cache TTL unchanged.
+3. Log substep timings only for slow cold computes.
+4. Rerun the same cache-tail and app-log checks.
+
+Expected impact:
+
+| Metric | Expected |
+| --- | ---: |
+| ranking response/order change | 0 |
+| warm ranking latency change | 0 |
+| cold ranking latency change | about 0ms to +1ms |
+| DB query change | 0 |
+
+Tracking document: [ranking-app-timing-instrumentation-2026-07-15.md](ranking-app-timing-instrumentation-2026-07-15.md)
+
+Current primary result:
+
+- `PolicyRankingServiceTest` passed.
+- Primary deploy succeeded and health returned `UP`.
+- Ranking/search/list smoke endpoints returned valid data.
+- Warmed local cache-tail:
+  - cold ranking p95 `1005.0ms`
+  - warm ranking p95 `16.4ms`
+  - cold search p95 `190.1ms`
+  - warm search p95 `26.1ms`
+- New app-side timing shows the largest cold cost is `scoringSortMs`:
+  - median `465.0ms`
+  - max `889ms`
+- Projection load is smaller:
+  - median `61.0ms`
+  - max `95ms`
+
+Interim conclusion:
+
+- instrumentation worked
+- no ranking behavior change was made
+- next optimization should target Java scoring/sorting candidate volume
 
 Post-optimization stability check: [post-optimization-stability-check-2026-07-14.md](post-optimization-stability-check-2026-07-14.md)
 
