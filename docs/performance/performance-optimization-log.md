@@ -1,6 +1,6 @@
 # Performance Optimization Log
 
-Last updated: 2026-07-14
+Last updated: 2026-07-15
 
 This document records what was optimized, which baseline numbers triggered the work, and whether the follow-up measurement is accepted or still pending.
 
@@ -69,8 +69,25 @@ Random stress update:
   - `popular_recent_union=3000`: 0 failures, 0 strict top100 misses
   - `simple_top_k=3000`: 67 failures
   - `source_quota=3000`: 96 failures
-- Updated first guarded runtime candidate: `popular_recent_union=3000`.
-- `popular_recent_union=2000` can be reconsidered only after a 3000-target rollout is measured and accepted.
+- Intermediate candidate after the first random batch: `popular_recent_union=3000`.
+- This was superseded by the expanded random stress update below.
+
+Expanded random stress update:
+
+- Reran three more 80-trial seeds (`20260718`, `20260719`, `20260720`) for 480 total randomized trials.
+- The 480-trial aggregate kept `popular_recent_union=3000` above the hard threshold, but found 1 strict top100 miss:
+  - `popular_recent_union=1000`: 6 failures, 10 strict top100 misses
+  - `popular_recent_union=1500`: 3 failures, 5 strict top100 misses
+  - `popular_recent_union=2000`: 1 failure, 3 strict top100 misses
+  - `popular_recent_union=3000`: 0 failures, 1 strict top100 miss
+- Added wide-target checks for `popular_recent_union=4000` and `5000` across seeds `20260718`, `20260719`, and `20260720`.
+- Wide-target 240-trial aggregate:
+  - `popular_recent_union=3000`: 0 failures, 1 strict top100 miss, avg candidate `16.92%`
+  - `popular_recent_union=4000`: 0 failures, 0 strict top100 misses, avg candidate `22.51%`
+  - `popular_recent_union=5000`: 0 failures, 0 strict top100 misses, avg candidate `28.13%`
+- Reran deterministic sensitivity with recommended target `4000`; all fixed scenarios passed with top100 recall `100/100`.
+- Updated first guarded runtime candidate: `popular_recent_union=4000`.
+- `popular_recent_union=3000` remains a possible later reduction only after a 4000-target rollout is measured and accepted.
 
 ### 2026-07-15: ranking app-side timing instrumentation
 

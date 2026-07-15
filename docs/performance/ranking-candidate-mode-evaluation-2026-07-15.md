@@ -83,6 +83,7 @@ Select top candidates inside each source type, then union the result.
 Test total targets:
 
 - `5000`
+- `4000`
 - `3000`
 - `2000`
 - `1000`
@@ -439,13 +440,100 @@ Random stress changed the recommendation:
 
 The random stress result is stricter than the deterministic sensitivity result. For runtime rollout, prefer the stricter result.
 
-Updated recommended first runtime candidate:
+Intermediate recommended first runtime candidate after the first random stress batch:
 
 | Mode | Target | Current-data candidate % | Random stress avg candidate % | Why |
 | --- | ---: | ---: | ---: | --- |
 | `popular_recent_union` | 3000 | 22.49% | 17.14% | only tested mode with 0 failures and 0 strict top100 misses across 240 randomized trials |
 
-`popular_recent_union=2000` remains a possible second-stage reduction only after the 3000-target rollout is measured and accepted.
+`popular_recent_union=2000` remains a possible second-stage reduction only after a wider target rollout is measured and accepted.
+
+## Expanded Random Stress Recheck
+
+After the first 240 randomized trials, three more seeds were run with the same mode set. This was done because the target was being raised from the deterministic `1000` result to `3000`, and the decision needed more than one random batch.
+
+Additional runs:
+
+| Seed | Trials | Artifact |
+| ---: | ---: | --- |
+| `20260718` | 80 | `tmp/stability/ranking-candidate-random-stress-20260715-seed20260718/20260715T114354Z` |
+| `20260719` | 80 | `tmp/stability/ranking-candidate-random-stress-20260715-seed20260719/20260715T114602Z` |
+| `20260720` | 80 | `tmp/stability/ranking-candidate-random-stress-20260715-seed20260720/20260715T114808Z` |
+
+Combined randomized result across six seeds:
+
+| Mode | Trials | Failures | Strict top100 misses | Min top20 recall | Min top50 recall | Min top100 recall | Min final top20 overlap | Avg candidate % | Max candidates |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `popular_recent_union=1000` | 480 | 6 | 10 | 20/20 | 48/50 | 67/100 | 19/20 | 6.78% | 2732 |
+| `popular_recent_union=1500` | 480 | 3 | 5 | 20/20 | 50/50 | 84/100 | 19/20 | 9.12% | 2992 |
+| `popular_recent_union=2000` | 480 | 1 | 3 | 20/20 | 50/50 | 92/100 | 19/20 | 11.64% | 3219 |
+| `popular_recent_union=3000` | 480 | 0 | 1 | 20/20 | 50/50 | 99/100 | 19/20 | 17.03% | 3793 |
+| `simple_top_k=3000` | 480 | 134 | 167 | 1/20 | 1/50 | 3/100 | 0/20 | 16.98% | 3000 |
+| `source_quota=3000` | 480 | 206 | 266 | 6/20 | 14/50 | 14/100 | 5/20 | 17.67% | 3321 |
+| `conservative_wide=3000` | 480 | 2 | 4 | 19/20 | 49/50 | 77/100 | 18/20 | 18.47% | 4839 |
+| `conservative_wide=5000` | 480 | 2 | 2 | 19/20 | 49/50 | 92/100 | 18/20 | 29.78% | 6438 |
+
+This kept `popular_recent_union=3000` above the hard acceptance threshold, but it found one strict top100 miss. Because the first runtime change should be conservative enough to survive data growth, a second wide-target recheck added `popular_recent_union=4000` and `5000`.
+
+Wide-target runs:
+
+| Seed | Trials | Artifact |
+| ---: | ---: | --- |
+| `20260718` | 80 | `tmp/stability/ranking-candidate-random-stress-20260715-seed20260718-wide/20260715T115041Z` |
+| `20260719` | 80 | `tmp/stability/ranking-candidate-random-stress-20260715-seed20260719-wide/20260715T115344Z` |
+| `20260720` | 80 | `tmp/stability/ranking-candidate-random-stress-20260715-seed20260720-wide/20260715T115609Z` |
+
+Wide-target aggregate:
+
+| Mode | Trials | Failures | Strict top100 misses | Min top20 recall | Min top50 recall | Min top100 recall | Min final top20 overlap | Avg candidate % | Max candidates |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `popular_recent_union=3000` | 240 | 0 | 1 | 20/20 | 50/50 | 99/100 | 19/20 | 16.92% | 3793 |
+| `popular_recent_union=4000` | 240 | 0 | 0 | 20/20 | 50/50 | 100/100 | 19/20 | 22.51% | 4338 |
+| `popular_recent_union=5000` | 240 | 0 | 0 | 20/20 | 50/50 | 100/100 | 19/20 | 28.13% | 5436 |
+| `conservative_wide=3000` | 240 | 1 | 1 | 20/20 | 50/50 | 77/100 | 19/20 | 18.38% | 4839 |
+| `conservative_wide=5000` | 240 | 1 | 1 | 20/20 | 50/50 | 92/100 | 19/20 | 29.53% | 6419 |
+
+Decision from the expanded recheck:
+
+- Keep the union strategy.
+- Do not use simple top K or source quota alone.
+- Raise the first runtime candidate target from `3000` to `4000`.
+- Do not use `5000` first because it had the same recall result as `4000` but a higher candidate percentage.
+
+The 4000-target smoke run after updating script defaults also passed:
+
+| Run | Trials | Seed | Recommended mode | Failures | Strict top100 misses | Min top100 recall | Avg candidate % | Artifact |
+| --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | --- |
+| random smoke | 20 | `20260721` | `popular_recent_union=4000` | 0 | 0 | 100/100 | 22.22% | `tmp/stability/ranking-candidate-random-stress-4000-smoke-20260715/20260715T115949Z` |
+
+## 4000 Sensitivity Recheck
+
+After changing the recommended target to `4000`, the deterministic sensitivity script was rerun.
+
+Command:
+
+```bash
+ENV_FILE=.env.production SMOKE_DB_MODE=postgres \
+  RANKING_SENSITIVITY_ROOT=tmp/stability/ranking-candidate-sensitivity-4000-20260715 \
+  bash deploy/performance/run-local-ranking-candidate-sensitivity-evaluation.sh
+```
+
+Artifact:
+
+- `tmp/stability/ranking-candidate-sensitivity-4000-20260715/20260715T115931Z`
+
+Result:
+
+| Scenario | Snapshot count | Candidate count | Candidate % | Top20 recall | Top50 recall | Top100 recall | Final top20 overlap | Rejected |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| `current` | 13340 | 4000 | 29.99% | 20/20 | 50/50 | 100/100 | 20/20 | false |
+| `unique_surge_tail` | 13340 | 4000 | 29.99% | 20/20 | 50/50 | 100/100 | 20/20 | false |
+| `external_spike_tail` | 13340 | 4000 | 29.99% | 20/20 | 50/50 | 100/100 | 20/20 | false |
+| `recent_gov24_influx` | 16340 | 4000 | 24.48% | 20/20 | 50/50 | 100/100 | 19/20 | false |
+| `new_source_influx` | 17340 | 4000 | 23.07% | 20/20 | 50/50 | 100/100 | 19/20 | false |
+| `mixed_future_growth` | 19840 | 4000 | 20.16% | 20/20 | 50/50 | 100/100 | 19/20 | false |
+
+`popular_recent_union=4000` had `failure_count=0`.
 
 ## Next Runtime Plan
 
@@ -453,7 +541,7 @@ Implement a guarded candidate mode behind configuration:
 
 - default behavior remains full snapshot until enabled
 - mode: `popular_recent_union`
-- target: `3000`
+- target: `4000`
 - candidate construction:
   - rough popularity pool: about 55%
   - recent pool: about 25%
@@ -469,9 +557,9 @@ Expected performance direction:
 
 | Metric | Current | Expected after candidate mode |
 | --- | ---: | ---: |
-| Java scoring candidates | 13340 | about 3000 |
-| Candidate volume | 100% | 22.49% on current data |
-| `scoringSortMs` | median 465ms | materially lower |
+| Java scoring candidates | 13340 | about 4000 |
+| Candidate volume | 100% | 29.99% on current data |
+| `scoringSortMs` | median 465ms | materially lower; verify after implementation |
 | warm ranking p95 | ~16-25ms | unchanged |
 
 This is not yet a production behavior change. It is the basis for the next implementation batch.

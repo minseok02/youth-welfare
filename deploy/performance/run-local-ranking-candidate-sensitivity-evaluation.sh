@@ -415,6 +415,8 @@ modes = [
     ("simple_top_k", 2000),
     ("popular_recent_union", 1000),
     ("popular_recent_union", 2000),
+    ("popular_recent_union", 3000),
+    ("popular_recent_union", 4000),
     ("source_quota", 1000),
     ("source_quota", 2000),
     ("conservative_wide", 3000),
@@ -519,7 +521,7 @@ with missing_tsv.open("w", encoding="utf-8") as fp:
     for row in missing_rows:
         writer.writerow(row)
 
-recommended_mode = ("popular_recent_union", 1000)
+recommended_mode = ("popular_recent_union", 4000)
 recommended_rows = [
     row for row in rows
     if row["mode"] == recommended_mode[0] and row["target"] == recommended_mode[1]

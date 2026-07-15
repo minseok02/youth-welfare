@@ -445,6 +445,8 @@ modes = [
     ("popular_recent_union", 1500),
     ("popular_recent_union", 2000),
     ("popular_recent_union", 3000),
+    ("popular_recent_union", 4000),
+    ("popular_recent_union", 5000),
     ("source_quota", 1000),
     ("source_quota", 2000),
     ("source_quota", 3000),
@@ -578,7 +580,7 @@ for mode, target in modes:
         "max_candidate_count": max(row["candidate_count"] for row in selected),
     }
 
-recommended_key = "popular_recent_union:3000"
+recommended_key = "popular_recent_union:4000"
 recommended = aggregate[recommended_key]
 context = {}
 for line in context_path.read_text(encoding="utf-8").splitlines():
@@ -606,7 +608,7 @@ lines.append(f"seed={seed}")
 lines.append(f"base_snapshot_count={len(base_snapshots)}")
 lines.append(f"base_unique_view_service_count={len(base_unique_views)}")
 lines.append(
-    "recommended mode=popular_recent_union target=3000 "
+    "recommended mode=popular_recent_union target=4000 "
     f"failure_count={recommended['failure_count']} "
     f"strict_top100_miss_count={recommended['strict_top100_miss_count']} "
     f"min_top20_recall={recommended['min_top20_recall']}/20 "
