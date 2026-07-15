@@ -195,6 +195,23 @@ Post-snapshot broader baseline and env formalization:
 - Rollback runbook added: `docs/performance/ranking-snapshot-rollback-runbook-2026-07-15.md`.
 - Broader baseline document added: `docs/performance/post-snapshot-current-baseline-2026-07-15.md`.
 
+Policy list timing instrumentation follow-up:
+
+- Added policy list app-side timing instrumentation in `0dd5fac7562c33902c95f1d519e84c77fda3c939`.
+- Tracking document: `docs/performance/policy-list-timing-instrumentation-2026-07-15.md`.
+- Request samples after deploy:
+  - edge list p50 `121.2ms`, p95 `728.7ms`, max `728.7ms`
+  - primary loopback p50 `110.1ms`, p95 `197.3ms`, max `197.3ms`
+  - secondary loopback p50 `104.4ms`, p95 `171.7ms`, max `171.7ms`
+- First-tail app timing was mixed:
+  - primary repository rows `162ms`, projection `79ms`, region `49ms`, controller total `404ms`
+  - secondary repository rows `198ms`, projection `155ms`, region `64ms`, controller total `520ms`
+- Warm repeated app timing narrowed to presentation projection lookup:
+  - repository usually fell to about `14ms` to `40ms`
+  - region labels usually fell to about `2ms` to `10ms`
+  - projection lookup repeatedly stayed about `47ms` to `114ms`
+- Decision: do not optimize the default list rows query first. Inspect and optimize the projection lookup path used by `PolicyPresentationReadService`.
+
 ### 2026-07-15: ranking app-side timing instrumentation
 
 Trigger:

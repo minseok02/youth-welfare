@@ -167,3 +167,9 @@ Next recommended work:
 3. Check whether default list cache key is being missed after refresh/restart or across status/sort aliases.
 4. Only optimize after the list-tail source is known.
 
+Follow-up completed:
+
+- Added policy list timing instrumentation in `0dd5fac7562c33902c95f1d519e84c77fda3c939`.
+- Tracking document: [policy-list-timing-instrumentation-2026-07-15.md](./policy-list-timing-instrumentation-2026-07-15.md).
+- Result: first-tail cost is mixed, but repeated warm app-side cost is dominated by presentation projection lookup rather than the list rows query.
+- Next code-level candidate: inspect and optimize the projection lookup path used by `PolicyPresentationReadService`.

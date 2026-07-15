@@ -144,6 +144,7 @@ Decision:
 - Continue using current ranking p95 from this checkpoint as the baseline before opening the next optimization.
 - Broader post-snapshot API/DB/edge measurement selected `policy_list_default` cold/tail as the next bottleneck candidate.
 - Ranking snapshot rollback is documented in [ranking-snapshot-rollback-runbook-2026-07-15.md](./ranking-snapshot-rollback-runbook-2026-07-15.md).
+- Policy list timing instrumentation is documented in [policy-list-timing-instrumentation-2026-07-15.md](./policy-list-timing-instrumentation-2026-07-15.md). It narrowed the repeated warm list cost to presentation projection lookup rather than the default list rows query.
 
 Initial accepted server baseline:
 
