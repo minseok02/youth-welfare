@@ -132,6 +132,28 @@ Precomputed ranking snapshot update:
 - Correctness passed: snapshot/on top20 matched full/off in the same order with `20/20` overlap.
 - Decision: snapshot approach is the first ranking optimization in this sequence that is both fast and correct on the measured local path. Ship disabled first, then enable refresh/read for a controlled measurement window.
 
+Production rollout follow-up:
+
+- Deployed commit `ad16e288c2f8688b420b7b8d0a968053a4a78c1b` to both ALB targets.
+- Primary node (`i-0b8d95e454df5e0f0`) runs scheduler plus `POLICY_RANKING_SNAPSHOT_READ_ENABLED=true` and `POLICY_RANKING_SNAPSHOT_REFRESH_ENABLED=true`.
+- Secondary node (`i-0e8a4cc599c1148c8`) keeps scheduler disabled and runs `POLICY_RANKING_SNAPSHOT_READ_ENABLED=true`, `POLICY_RANKING_SNAPSHOT_REFRESH_ENABLED=false`.
+- Request-time candidate mode remains disabled.
+- Refresh log confirmed `resultCount=20`, `snapshotCount=13340`.
+- Production correctness:
+  - initial primary read-on vs read-off full top20 matched in the same order with `20/20`
+  - latest edge read-on vs current primary read-off full top20 matched in the same order with `20/20`
+  - one stale-artifact comparison showed an adjacent swap after the scheduled refresh; the current full recomputation matched the latest snapshot, so this was classified as baseline staleness, not a snapshot correctness failure
+- Production 7-cold-sample read-on measurement:
+  - local target cold ranking p50 `23.6ms`, p95 `35.0ms`, max `37.1ms`, warm p95 `14.8ms`
+  - external edge cold ranking p50 `36.0ms`, p95 `42.5ms`, max `44.3ms`, warm p95 `27.3ms`
+- Reduction from local full/off p95 `1185.5ms` to production local read-on p95 `35.0ms`: `97.0%`.
+- Reduction from previous edge cold ranking p95 `828.5ms` to production edge read-on p95 `42.5ms`: `94.9%`.
+- Final smoke: root/list/ranking returned `200`; ALB targets `i-0b8d95e454df5e0f0` and `i-0e8a4cc599c1148c8` were both `healthy`.
+- Artifacts:
+  - `tmp/performance/ranking-snapshot-prod-local-on-20260715/20260715T152357Z`
+  - `tmp/performance/ranking-snapshot-prod-edge-on-20260715/20260715T152747Z`
+  - `tmp/performance/prod-ranking-snapshot-rollout-20260715`
+
 ### 2026-07-15: ranking app-side timing instrumentation
 
 Trigger:
