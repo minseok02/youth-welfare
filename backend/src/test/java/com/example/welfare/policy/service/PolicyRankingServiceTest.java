@@ -1,6 +1,7 @@
 package com.example.welfare.policy.service;
 
 import com.example.welfare.global.config.JacksonConfig;
+import com.example.welfare.global.service.AppSchedulerGate;
 import com.example.welfare.policy.dto.PolicyRankingResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.PolicyRankingReadRepository;
@@ -20,6 +21,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -293,6 +295,167 @@ class PolicyRankingServiceTest {
         assertEquals(88L, result.get(0).getServiceId());
         verifyNoInteractions(policyRankingReadRepository, policyPresentationReadService);
         verify(valueOperations).get("policy:ranking:v1:popular_recent_union:4000:20");
+    }
+
+    @Test
+    @DisplayName("precomputed snapshot hit 시 full ranking repository를 호출하지 않는다")
+    void rankingUsesPrecomputedSnapshotHit() throws Exception {
+        RedisTemplate<String, String> redisTemplate = org.mockito.Mockito.mock(RedisTemplate.class);
+        ValueOperations<String, String> valueOperations = org.mockito.Mockito.mock(ValueOperations.class);
+        var objectMapper = new JacksonConfig().objectMapper();
+        PolicyRankingService policyRankingService = new PolicyRankingService(
+                policyRankingReadRepository,
+                policyPresentationReadService,
+                Clock.fixed(Instant.parse("2026-05-30T00:00:00Z"), ZoneOffset.UTC),
+                redisTemplate,
+                objectMapper,
+                Duration.ofSeconds(30),
+                false,
+                "popular_recent_union",
+                4000,
+                true,
+                false,
+                20,
+                Duration.ofSeconds(300)
+        );
+        List<PolicyRankingResponse> snapshotResponses = List.of(
+                PolicyRankingResponse.builder()
+                        .serviceId(91L)
+                        .title("스냅샷 1위")
+                        .sourceType("YOUTH")
+                        .uniqueViewCount7d(4L)
+                        .viewCount(10L)
+                        .apiViewCount(20L)
+                        .rankingScore(0.99)
+                        .build(),
+                PolicyRankingResponse.builder()
+                        .serviceId(92L)
+                        .title("스냅샷 2위")
+                        .sourceType("GOV24")
+                        .uniqueViewCount7d(3L)
+                        .viewCount(9L)
+                        .apiViewCount(19L)
+                        .rankingScore(0.88)
+                        .build()
+        );
+        String snapshotJson = objectMapper.writeValueAsString(Map.of(
+                "generatedAtEpochMillis", 123L,
+                "responses", snapshotResponses
+        ));
+
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        given(valueOperations.get("policy:ranking:v1:full:20")).willReturn(null);
+        given(valueOperations.get("policy:ranking:snapshot:v1:full:20")).willReturn(snapshotJson);
+
+        List<PolicyRankingResponse> result = policyRankingService.getRanking(20);
+
+        assertEquals(2, result.size());
+        assertEquals(91L, result.get(0).getServiceId());
+        verifyNoInteractions(policyRankingReadRepository, policyPresentationReadService);
+        verify(valueOperations).get("policy:ranking:v1:full:20");
+        verify(valueOperations).get("policy:ranking:snapshot:v1:full:20");
+        verify(valueOperations).set(anyString(), anyString(), any(Duration.class));
+    }
+
+    @Test
+    @DisplayName("precomputed snapshot miss 시 기존 full ranking으로 fallback한다")
+    void rankingFallsBackWhenPrecomputedSnapshotMisses() {
+        RedisTemplate<String, String> redisTemplate = org.mockito.Mockito.mock(RedisTemplate.class);
+        ValueOperations<String, String> valueOperations = org.mockito.Mockito.mock(ValueOperations.class);
+        var objectMapper = new JacksonConfig().objectMapper();
+        PolicyRankingService policyRankingService = new PolicyRankingService(
+                policyRankingReadRepository,
+                policyPresentationReadService,
+                Clock.fixed(Instant.parse("2026-05-30T00:00:00Z"), ZoneOffset.UTC),
+                redisTemplate,
+                objectMapper,
+                Duration.ofSeconds(30),
+                false,
+                "popular_recent_union",
+                4000,
+                true,
+                false,
+                20,
+                Duration.ofSeconds(300)
+        );
+        WelfareService service = WelfareService.builder()
+                .id(1L)
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("S-1")
+                .title("fallback 정책")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .viewCount(10)
+                .apiViewCount(100L)
+                .registeredAt(LocalDateTime.now().minusDays(2))
+                .build();
+
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        given(valueOperations.get("policy:ranking:v1:full:20")).willReturn(null);
+        given(valueOperations.get("policy:ranking:snapshot:v1:full:20")).willReturn(null);
+        given(policyRankingReadRepository.findRankableSnapshots()).willReturn(List.of(snapshot(service)));
+        given(policyRankingReadRepository.findUniqueViewCountsSinceForStatuses(any(), any()))
+                .willReturn(List.of(uniqueCount(1L, 7L)));
+        given(policyRankingReadRepository.findServicesByIds(List.of(1L))).willReturn(List.of(service));
+        given(policyPresentationReadService.findProjections(List.of(service))).willReturn(java.util.Map.of());
+
+        List<PolicyRankingResponse> result = policyRankingService.getRanking(20);
+
+        assertEquals(1, result.size());
+        assertEquals(1L, result.get(0).getServiceId());
+        verify(policyRankingReadRepository).findRankableSnapshots();
+        verify(valueOperations).get("policy:ranking:snapshot:v1:full:20");
+    }
+
+    @Test
+    @DisplayName("snapshot refresh는 scheduler gate와 refresh flag 통과 시 Redis snapshot을 쓴다")
+    void rankingSnapshotRefreshWritesRedisSnapshot() {
+        RedisTemplate<String, String> redisTemplate = org.mockito.Mockito.mock(RedisTemplate.class);
+        ValueOperations<String, String> valueOperations = org.mockito.Mockito.mock(ValueOperations.class);
+        AppSchedulerGate appSchedulerGate = org.mockito.Mockito.mock(AppSchedulerGate.class);
+        var objectMapper = new JacksonConfig().objectMapper();
+        PolicyRankingService policyRankingService = new PolicyRankingService(
+                policyRankingReadRepository,
+                policyPresentationReadService,
+                appSchedulerGate,
+                Clock.fixed(Instant.parse("2026-05-30T00:00:00Z"), ZoneOffset.UTC),
+                redisTemplate,
+                objectMapper,
+                Duration.ofSeconds(30),
+                300L,
+                false,
+                "popular_recent_union",
+                4000,
+                false,
+                true,
+                20,
+                Duration.ofSeconds(300)
+        );
+        WelfareService service = WelfareService.builder()
+                .id(1L)
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("S-1")
+                .title("snapshot refresh 정책")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .viewCount(10)
+                .apiViewCount(100L)
+                .registeredAt(LocalDateTime.now().minusDays(2))
+                .build();
+
+        given(appSchedulerGate.shouldRun("PolicyRankingService.refreshPrecomputedRankingSnapshot")).willReturn(true);
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        given(policyRankingReadRepository.findRankableSnapshots()).willReturn(List.of(snapshot(service)));
+        given(policyRankingReadRepository.findUniqueViewCountsSinceForStatuses(any(), any()))
+                .willReturn(List.of(uniqueCount(1L, 7L)));
+        given(policyRankingReadRepository.findServicesByIds(List.of(1L))).willReturn(List.of(service));
+        given(policyPresentationReadService.findProjections(List.of(service))).willReturn(java.util.Map.of());
+
+        policyRankingService.refreshPrecomputedRankingSnapshot();
+
+        verify(valueOperations).set(
+                org.mockito.Mockito.eq("policy:ranking:snapshot:v1:full:20"),
+                anyString(),
+                org.mockito.Mockito.eq(Duration.ofSeconds(300))
+        );
     }
 
     @Test

@@ -200,6 +200,13 @@ policy:
       enabled: ${POLICY_RANKING_CANDIDATE_ENABLED:false}
       mode: ${POLICY_RANKING_CANDIDATE_MODE:popular_recent_union}
       target: ${POLICY_RANKING_CANDIDATE_TARGET:4000}
+    snapshot:
+      read-enabled: ${POLICY_RANKING_SNAPSHOT_READ_ENABLED:false}
+      refresh-enabled: ${POLICY_RANKING_SNAPSHOT_REFRESH_ENABLED:false}
+      max-size: ${POLICY_RANKING_SNAPSHOT_MAX_SIZE:20}
+      ttl-seconds: ${POLICY_RANKING_SNAPSHOT_TTL_SECONDS:300}
+      refresh-fixed-delay-ms: ${POLICY_RANKING_SNAPSHOT_REFRESH_FIXED_DELAY_MS:300000}
+      refresh-initial-delay-ms: ${POLICY_RANKING_SNAPSHOT_REFRESH_INITIAL_DELAY_MS:60000}
 
 aes:
   secret-key: ${AES_SECRET_KEY}    # 32바이트 (AES-256)

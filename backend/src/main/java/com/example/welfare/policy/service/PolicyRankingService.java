@@ -1,5 +1,6 @@
 package com.example.welfare.policy.service;
 
+import com.example.welfare.global.service.AppSchedulerGate;
 import com.example.welfare.policy.dto.PolicyRankingResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.PolicyRankingReadRepository;
@@ -10,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,13 +44,18 @@ public class PolicyRankingService {
     private static final long RANKING_CACHE_TTL_MILLIS = 30_000L;
     private static final long DEFAULT_COLD_TIMING_LOG_THRESHOLD_MS = 300L;
     private static final int DEFAULT_CANDIDATE_TARGET = 4000;
+    private static final int DEFAULT_SNAPSHOT_MAX_SIZE = 20;
     private static final String CANDIDATE_MODE_POPULAR_RECENT_UNION = "popular_recent_union";
     private static final String RANKING_CACHE_PREFIX = "policy:ranking:v1:";
+    private static final String RANKING_SNAPSHOT_PREFIX = "policy:ranking:snapshot:v1:";
     private static final TypeReference<List<PolicyRankingResponse>> RANKING_RESPONSE_LIST_TYPE = new TypeReference<>() {
+    };
+    private static final TypeReference<RankingSnapshotPayload> RANKING_SNAPSHOT_TYPE = new TypeReference<>() {
     };
 
     private final PolicyRankingReadRepository policyRankingReadRepository;
     private final PolicyPresentationReadService policyPresentationReadService;
+    private final AppSchedulerGate appSchedulerGate;
     private final Clock clock;
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
@@ -57,21 +64,31 @@ public class PolicyRankingService {
     private final boolean candidateModeEnabled;
     private final String candidateMode;
     private final int candidateTarget;
+    private final boolean snapshotReadEnabled;
+    private final boolean snapshotRefreshEnabled;
+    private final int snapshotMaxSize;
+    private final Duration snapshotTtl;
     private final Map<RankingCacheKey, CachedRanking> rankingCache = new ConcurrentHashMap<>();
 
     @Autowired
     public PolicyRankingService(PolicyRankingReadRepository policyRankingReadRepository,
                                 PolicyPresentationReadService policyPresentationReadService,
+                                AppSchedulerGate appSchedulerGate,
                                 RedisTemplate<String, String> redisTemplate,
                                 ObjectMapper objectMapper,
                                 @Value("${policy.cache.ranking.ttl-seconds:30}") long rankingCacheTtlSeconds,
                                 @Value("${policy.ranking.cold-timing-log-threshold-ms:300}") long coldTimingLogThresholdMs,
                                 @Value("${policy.ranking.candidate.enabled:false}") boolean candidateModeEnabled,
                                 @Value("${policy.ranking.candidate.mode:popular_recent_union}") String candidateMode,
-                                @Value("${policy.ranking.candidate.target:4000}") int candidateTarget) {
+                                @Value("${policy.ranking.candidate.target:4000}") int candidateTarget,
+                                @Value("${policy.ranking.snapshot.read-enabled:false}") boolean snapshotReadEnabled,
+                                @Value("${policy.ranking.snapshot.refresh-enabled:false}") boolean snapshotRefreshEnabled,
+                                @Value("${policy.ranking.snapshot.max-size:20}") int snapshotMaxSize,
+                                @Value("${policy.ranking.snapshot.ttl-seconds:300}") long snapshotTtlSeconds) {
         this(
                 policyRankingReadRepository,
                 policyPresentationReadService,
+                appSchedulerGate,
                 Clock.systemUTC(),
                 redisTemplate,
                 objectMapper,
@@ -79,7 +96,11 @@ public class PolicyRankingService {
                 coldTimingLogThresholdMs,
                 candidateModeEnabled,
                 candidateMode,
-                candidateTarget
+                candidateTarget,
+                snapshotReadEnabled,
+                snapshotRefreshEnabled,
+                snapshotMaxSize,
+                Duration.ofSeconds(snapshotTtlSeconds)
         );
     }
 
@@ -89,6 +110,7 @@ public class PolicyRankingService {
         this(
                 policyRankingReadRepository,
                 policyPresentationReadService,
+                null,
                 clock,
                 null,
                 null,
@@ -96,7 +118,11 @@ public class PolicyRankingService {
                 DEFAULT_COLD_TIMING_LOG_THRESHOLD_MS,
                 false,
                 CANDIDATE_MODE_POPULAR_RECENT_UNION,
-                DEFAULT_CANDIDATE_TARGET
+                DEFAULT_CANDIDATE_TARGET,
+                false,
+                false,
+                DEFAULT_SNAPSHOT_MAX_SIZE,
+                Duration.ofSeconds(300)
         );
     }
 
@@ -109,6 +135,7 @@ public class PolicyRankingService {
         this(
                 policyRankingReadRepository,
                 policyPresentationReadService,
+                null,
                 clock,
                 redisTemplate,
                 objectMapper,
@@ -116,7 +143,11 @@ public class PolicyRankingService {
                 DEFAULT_COLD_TIMING_LOG_THRESHOLD_MS,
                 false,
                 CANDIDATE_MODE_POPULAR_RECENT_UNION,
-                DEFAULT_CANDIDATE_TARGET
+                DEFAULT_CANDIDATE_TARGET,
+                false,
+                false,
+                DEFAULT_SNAPSHOT_MAX_SIZE,
+                Duration.ofSeconds(300)
         );
     }
 
@@ -132,6 +163,7 @@ public class PolicyRankingService {
         this(
                 policyRankingReadRepository,
                 policyPresentationReadService,
+                null,
                 clock,
                 redisTemplate,
                 objectMapper,
@@ -139,7 +171,11 @@ public class PolicyRankingService {
                 DEFAULT_COLD_TIMING_LOG_THRESHOLD_MS,
                 candidateModeEnabled,
                 candidateMode,
-                candidateTarget
+                candidateTarget,
+                false,
+                false,
+                DEFAULT_SNAPSHOT_MAX_SIZE,
+                Duration.ofSeconds(300)
         );
     }
 
@@ -149,12 +185,50 @@ public class PolicyRankingService {
                          RedisTemplate<String, String> redisTemplate,
                          ObjectMapper objectMapper,
                          Duration rankingCacheTtl,
+                         boolean candidateModeEnabled,
+                         String candidateMode,
+                         int candidateTarget,
+                         boolean snapshotReadEnabled,
+                         boolean snapshotRefreshEnabled,
+                         int snapshotMaxSize,
+                         Duration snapshotTtl) {
+        this(
+                policyRankingReadRepository,
+                policyPresentationReadService,
+                null,
+                clock,
+                redisTemplate,
+                objectMapper,
+                rankingCacheTtl,
+                DEFAULT_COLD_TIMING_LOG_THRESHOLD_MS,
+                candidateModeEnabled,
+                candidateMode,
+                candidateTarget,
+                snapshotReadEnabled,
+                snapshotRefreshEnabled,
+                snapshotMaxSize,
+                snapshotTtl
+        );
+    }
+
+    PolicyRankingService(PolicyRankingReadRepository policyRankingReadRepository,
+                         PolicyPresentationReadService policyPresentationReadService,
+                         AppSchedulerGate appSchedulerGate,
+                         Clock clock,
+                         RedisTemplate<String, String> redisTemplate,
+                         ObjectMapper objectMapper,
+                         Duration rankingCacheTtl,
                          long coldTimingLogThresholdMs,
                          boolean candidateModeEnabled,
                          String candidateMode,
-                         int candidateTarget) {
+                         int candidateTarget,
+                         boolean snapshotReadEnabled,
+                         boolean snapshotRefreshEnabled,
+                         int snapshotMaxSize,
+                         Duration snapshotTtl) {
         this.policyRankingReadRepository = policyRankingReadRepository;
         this.policyPresentationReadService = policyPresentationReadService;
+        this.appSchedulerGate = appSchedulerGate;
         this.clock = clock;
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
@@ -165,6 +239,12 @@ public class PolicyRankingService {
         this.candidateModeEnabled = candidateModeEnabled;
         this.candidateMode = normalizeCandidateMode(candidateMode);
         this.candidateTarget = Math.max(1, candidateTarget);
+        this.snapshotReadEnabled = snapshotReadEnabled;
+        this.snapshotRefreshEnabled = snapshotRefreshEnabled;
+        this.snapshotMaxSize = normalizeSize(snapshotMaxSize);
+        this.snapshotTtl = snapshotTtl == null || snapshotTtl.isNegative() || snapshotTtl.isZero()
+                ? Duration.ofSeconds(300)
+                : snapshotTtl;
     }
 
     @Transactional(readOnly = true)
@@ -181,6 +261,12 @@ public class PolicyRankingService {
             cacheRankingLocal(cacheKey, redisCached);
             return redisCached;
         }
+        List<PolicyRankingResponse> snapshotCached = getSnapshotCachedRanking(limit, cacheKey);
+        if (snapshotCached != null) {
+            cacheRankingLocal(cacheKey, snapshotCached);
+            cacheRankingRedis(cacheKey, snapshotCached);
+            return snapshotCached;
+        }
 
         long coldStartedNanos = System.nanoTime();
         RankingComputation computation = computeRanking(limit);
@@ -195,6 +281,39 @@ public class PolicyRankingService {
         return computation.responses();
     }
 
+    @Scheduled(
+            fixedDelayString = "${policy.ranking.snapshot.refresh-fixed-delay-ms:300000}",
+            initialDelayString = "${policy.ranking.snapshot.refresh-initial-delay-ms:60000}"
+    )
+    @Transactional(readOnly = true)
+    public void refreshPrecomputedRankingSnapshot() {
+        if (appSchedulerGate != null && !appSchedulerGate.shouldRun("PolicyRankingService.refreshPrecomputedRankingSnapshot")) {
+            return;
+        }
+        if (!snapshotRefreshEnabled) {
+            log.debug("[PolicyRankingSnapshot] refresh disabled");
+            return;
+        }
+        if (redisTemplate == null || objectMapper == null) {
+            log.debug("[PolicyRankingSnapshot] refresh skipped because Redis/ObjectMapper is unavailable");
+            return;
+        }
+
+        long startedNanos = System.nanoTime();
+        int limit = normalizeSize(snapshotMaxSize);
+        try {
+            RankingComputation computation = computeRanking(limit);
+            writeRankingSnapshot(rankingSnapshotKey(rankingCacheKey(limit)), computation.responses());
+            log.info("[PolicyRankingSnapshot] refresh complete resultCount={} snapshotCount={} scoringCandidateCount={} totalMs={}",
+                    computation.responses().size(),
+                    computation.snapshotCount(),
+                    computation.scoringCandidateCount(),
+                    elapsedMs(startedNanos));
+        } catch (Exception e) {
+            log.warn("[PolicyRankingSnapshot] refresh failed errorType={}", e.getClass().getSimpleName());
+        }
+    }
+
     private List<PolicyRankingResponse> getRedisCachedRanking(RankingCacheKey cacheKey) {
         if (redisTemplate == null || objectMapper == null) {
             return null;
@@ -207,6 +326,31 @@ public class PolicyRankingService {
             return objectMapper.readValue(cached, RANKING_RESPONSE_LIST_TYPE);
         } catch (Exception e) {
             log.warn("[PolicyRankingService] Redis ranking cache read failed errorType={}", e.getClass().getSimpleName());
+            return null;
+        }
+    }
+
+    private List<PolicyRankingResponse> getSnapshotCachedRanking(int limit, RankingCacheKey cacheKey) {
+        if (!snapshotReadEnabled || redisTemplate == null || objectMapper == null) {
+            return null;
+        }
+        if (limit != snapshotMaxSize) {
+            return null;
+        }
+        try {
+            String cached = redisTemplate.opsForValue().get(rankingSnapshotKey(cacheKey));
+            if (cached == null || cached.isBlank()) {
+                return null;
+            }
+            RankingSnapshotPayload payload = objectMapper.readValue(cached, RANKING_SNAPSHOT_TYPE);
+            if (payload.responses() == null || payload.responses().isEmpty()) {
+                return null;
+            }
+            return payload.responses().stream()
+                    .limit(limit)
+                    .toList();
+        } catch (Exception e) {
+            log.warn("[PolicyRankingSnapshot] read failed errorType={}", e.getClass().getSimpleName());
             return null;
         }
     }
@@ -237,6 +381,19 @@ public class PolicyRankingService {
 
     private String redisCacheKey(RankingCacheKey cacheKey) {
         return RANKING_CACHE_PREFIX + cacheKey.variant() + ":" + cacheKey.limit();
+    }
+
+    private String rankingSnapshotKey(RankingCacheKey cacheKey) {
+        return RANKING_SNAPSHOT_PREFIX + cacheKey.variant() + ":" + snapshotMaxSize;
+    }
+
+    private void writeRankingSnapshot(String key, List<PolicyRankingResponse> responses) throws com.fasterxml.jackson.core.JsonProcessingException {
+        RankingSnapshotPayload payload = new RankingSnapshotPayload(clock.millis(), responses);
+        redisTemplate.opsForValue().set(
+                key,
+                objectMapper.writeValueAsString(payload),
+                snapshotTtl
+        );
     }
 
     private CandidateConfig candidateConfig() {
@@ -808,6 +965,10 @@ public class PolicyRankingService {
     }
 
     private record RankingCacheKey(int limit, String variant) {
+    }
+
+    private record RankingSnapshotPayload(long generatedAtEpochMillis,
+                                          List<PolicyRankingResponse> responses) {
     }
 
     private record CandidateConfig(boolean active, String mode, int target) {

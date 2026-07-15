@@ -116,6 +116,22 @@ Longer runtime comparison:
 - Correctness still passed: candidate/on top20 matched full/off in the same order with `20/20` overlap.
 - Decision: do not enable request-time candidate mode. Keep the guarded code disabled and move the next ranking optimization toward a precomputed ranking/candidate snapshot.
 
+Precomputed ranking snapshot update:
+
+- Added guarded Redis ranking snapshot read/refresh path, default disabled.
+- Initial size `100` snapshot was fast but rejected because slicing it down to top20 produced `19/20` overlap. Existing exploration slots are request-size-dependent.
+- Changed first snapshot target to exact size `20`; other request sizes fall back to full ranking.
+- Local 7-cold-sample comparison:
+  - full/off cold ranking p50 `810.1ms`, p95 `1185.5ms`, max `1248.1ms`
+  - snapshot/on size 20 cold ranking p50 `22.1ms`, p95 `44.1ms`, max `51.1ms`
+  - warm ranking p95 `21.1ms -> 14.0ms`
+- Reduction:
+  - cold p50 `97.3%`
+  - cold p95 `96.3%`
+  - cold max `95.9%`
+- Correctness passed: snapshot/on top20 matched full/off in the same order with `20/20` overlap.
+- Decision: snapshot approach is the first ranking optimization in this sequence that is both fast and correct on the measured local path. Ship disabled first, then enable refresh/read for a controlled measurement window.
+
 ### 2026-07-15: ranking app-side timing instrumentation
 
 Trigger:
