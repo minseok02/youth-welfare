@@ -1,6 +1,6 @@
 # Current Performance Baseline
 
-Last updated: 2026-05-30
+Last updated: 2026-07-15
 
 This document records the current performance baseline. Raw artifacts are generated under `tmp/performance`.
 
@@ -71,6 +71,77 @@ FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' \
 - Deep observation suite latest: `tmp/performance/deep-observation-suite/latest`
 
 ## Baseline Summary
+
+## 2026-07-15 Accepted Ranking Snapshot Checkpoint
+
+This checkpoint is the current accepted ranking endpoint baseline after enabling the guarded Redis precomputed ranking snapshot for `size=20`.
+
+Runtime state:
+
+- commit: `d0c5654e5e4d24f86671c760aab0b21e3eb832e0`
+- deployed code commit: `ad16e288c2f8688b420b7b8d0a968053a4a78c1b`
+- primary EC2 `i-0b8d95e454df5e0f0`: scheduler enabled, `POLICY_RANKING_SNAPSHOT_READ_ENABLED=true`, `POLICY_RANKING_SNAPSHOT_REFRESH_ENABLED=true`
+- secondary EC2 `i-0e8a4cc599c1148c8`: scheduler disabled, `POLICY_RANKING_SNAPSHOT_READ_ENABLED=true`, `POLICY_RANKING_SNAPSHOT_REFRESH_ENABLED=false`
+- request-time candidate mode remains disabled
+- ALB target group: both targets `healthy`
+
+Measurement commands:
+
+```bash
+COLD_RUNS=7 WARM_RUNS=7 CACHE_TTL_WAIT_SECONDS=31 WARM_DELAY_SECONDS=0.2 \
+  POLICY_CACHE_TAIL_ROOT=tmp/performance/ranking-snapshot-stability-local-20260715 \
+  APP_BASE_URL=http://127.0.0.1:8082 \
+  bash deploy/performance/run-local-policy-cache-tail-baseline.sh
+
+COLD_RUNS=7 WARM_RUNS=7 CACHE_TTL_WAIT_SECONDS=31 WARM_DELAY_SECONDS=0.2 \
+  POLICY_CACHE_TAIL_ROOT=tmp/performance/ranking-snapshot-stability-edge-20260715 \
+  APP_BASE_URL=https://youthmoa.kr \
+  bash deploy/performance/run-local-policy-cache-tail-baseline.sh
+```
+
+Artifacts:
+
+- local stability: `tmp/performance/ranking-snapshot-stability-local-20260715/20260715T154113Z`
+- edge stability: `tmp/performance/ranking-snapshot-stability-edge-20260715/20260715T154501Z`
+- public API shape captures: `tmp/performance/ranking-snapshot-stability-correctness-20260715`
+- runtime smoke: `tmp/prod-runtime-smoke/snapshot-stability-20260715-retry-env`
+
+Accepted ranking numbers:
+
+| Path | Cold ranking p50 | Cold ranking p95 | Cold ranking max | Warm ranking p95 | Success |
+| --- | ---: | ---: | ---: | ---: | --- |
+| local target | 24.3ms | 30.1ms | 30.3ms | 13.4ms | 7/7 |
+| external edge | 30.8ms | 49.6ms | 50.6ms | 22.4ms | 7/7 |
+
+Comparison points:
+
+| Baseline | Before | Current | Reduction |
+| --- | ---: | ---: | ---: |
+| local full/off cold ranking p95 | 1185.5ms | 30.1ms | 97.5% |
+| previous edge cold ranking p95 | 828.5ms | 49.6ms | 94.0% |
+| earlier ALB cache-tail edge cold ranking p95 | 1893.9ms | 49.6ms | 97.4% |
+
+Functional regression check:
+
+- public `GET /api/policies/ranking?size=5`: `5` items
+- public `GET /api/policies/ranking?size=20`: `20` items
+- public `GET /api/policies/ranking?size=30`: `30` items
+- public `GET /api/policies?page=0&size=20`: `20` items
+- public `POST /api/policies/search`: `20` items
+- runtime API smoke over `https://youthmoa.kr` passed signup, login, refresh, recommendation refresh, bookmark toggle, bookmark list, logout, refresh-after-logout, and revoked-token checks
+- recommendation refresh returned `39` items in the smoke account
+- app snapshot logs showed refresh complete entries and no snapshot read/refresh failure lines in the checked window
+
+Smoke execution note:
+
+- public `/actuator/health` correctly returned nginx `403`, so the runtime smoke was rerun with `APP_HEALTH_URL=http://127.0.0.1:8082/actuator/health`
+- the first retry omitted `ENV_FILE`, so email verification seed tried the local Redis container; the accepted run used `ENV_FILE=.env.runtime.production` and seeded ElastiCache
+
+Decision:
+
+- Ranking snapshot remains accepted for the `size=20` ranking path.
+- Continue using current ranking p95 from this checkpoint as the baseline before opening the next optimization.
+- The next bottleneck should be chosen from a fresh broader suite, not from pre-snapshot ranking numbers.
 
 Initial accepted server baseline:
 

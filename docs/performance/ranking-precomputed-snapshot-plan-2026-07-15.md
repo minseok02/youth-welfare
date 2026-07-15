@@ -289,3 +289,58 @@ Decision:
 - Keep snapshot refresh enabled only on the scheduler node.
 - Keep request-time candidate mode disabled.
 - Recheck after normal traffic because ranking inputs can shift between refreshes; compare snapshot against a current full ranking, not against a stale artifact.
+
+## Stability And Regression Recheck
+
+Recheck date: 2026-07-15
+
+Purpose:
+
+- Confirm the snapshot path stayed stable after rollout.
+- Verify existing public flows still return valid data.
+- Promote the post-snapshot measurement into the current accepted baseline.
+
+Stability artifacts:
+
+- local target: `tmp/performance/ranking-snapshot-stability-local-20260715/20260715T154113Z`
+- external edge: `tmp/performance/ranking-snapshot-stability-edge-20260715/20260715T154501Z`
+- public response captures: `tmp/performance/ranking-snapshot-stability-correctness-20260715`
+- runtime API smoke: `tmp/prod-runtime-smoke/snapshot-stability-20260715-retry-env`
+
+Stability result:
+
+| Path | Cold ranking p50 | Cold ranking p95 | Cold ranking max | Warm ranking p95 |
+| --- | ---: | ---: | ---: | ---: |
+| local target | 24.3ms | 30.1ms | 30.3ms | 13.4ms |
+| external edge | 30.8ms | 49.6ms | 50.6ms | 22.4ms |
+
+Compared with the local full/off p95 `1185.5ms`, the accepted local cold ranking p95 is down `97.5%`.
+Compared with the previous edge cold ranking p95 `828.5ms`, the accepted external edge p95 is down `94.0%`.
+
+Function checks:
+
+- `GET /api/policies/ranking?size=5` returned `5` items.
+- `GET /api/policies/ranking?size=20` returned `20` items.
+- `GET /api/policies/ranking?size=30` returned `30` items.
+- `GET /api/policies?page=0&size=20` returned `20` items.
+- `POST /api/policies/search` returned `20` items.
+- Runtime API smoke over `https://youthmoa.kr` passed signup/login/refresh/recommendation refresh/bookmark/logout/token-revoke checks.
+
+Operational checks:
+
+- ALB target group stayed healthy on both targets.
+- Snapshot refresh logs continued to show successful refreshes:
+
+```text
+[PolicyRankingSnapshot] refresh complete resultCount=20 snapshotCount=13340 scoringCandidateCount=13340 totalMs=2702
+[PolicyRankingSnapshot] refresh complete resultCount=20 snapshotCount=13340 scoringCandidateCount=13340 totalMs=1219
+[PolicyRankingSnapshot] refresh complete resultCount=20 snapshotCount=13340 scoringCandidateCount=13340 totalMs=672
+[PolicyRankingSnapshot] refresh complete resultCount=20 snapshotCount=13340 scoringCandidateCount=13340 totalMs=529
+```
+
+No snapshot read/refresh failure lines were found in the checked app log window.
+
+Execution note:
+
+- Public `/actuator/health` is intentionally blocked by nginx and returned `403`, so the runtime smoke was rerun with the internal health URL.
+- The accepted runtime smoke used `ENV_FILE=.env.runtime.production` so email verification seeding used ElastiCache rather than a local Redis container.

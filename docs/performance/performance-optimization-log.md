@@ -154,6 +154,27 @@ Production rollout follow-up:
   - `tmp/performance/ranking-snapshot-prod-edge-on-20260715/20260715T152747Z`
   - `tmp/performance/prod-ranking-snapshot-rollout-20260715`
 
+Stability/regression recheck:
+
+- Re-ran cache-tail stability after the rollout:
+  - local target cold ranking p50 `24.3ms`, p95 `30.1ms`, max `30.3ms`, warm p95 `13.4ms`
+  - external edge cold ranking p50 `30.8ms`, p95 `49.6ms`, max `50.6ms`, warm p95 `22.4ms`
+- Accepted reduction now uses the stability local p95 `30.1ms`:
+  - local full/off p95 `1185.5ms -> 30.1ms`, `97.5%` lower
+  - previous edge cold p95 `828.5ms -> 49.6ms`, `94.0%` lower
+- Public regression checks:
+  - ranking sizes `5`, `20`, `30` returned the requested item counts
+  - policy list and keyword search returned `20` items
+  - runtime API smoke over `https://youthmoa.kr` passed signup/login/refresh/recommendation refresh/bookmark/logout/token-revoke checks
+- Snapshot logs in the checked window contained refresh-complete entries only, with no snapshot read/refresh failure lines.
+- ALB targets remained healthy.
+- Current baseline was updated in `performance-baseline-current.md`.
+- Stability artifacts:
+  - `tmp/performance/ranking-snapshot-stability-local-20260715/20260715T154113Z`
+  - `tmp/performance/ranking-snapshot-stability-edge-20260715/20260715T154501Z`
+  - `tmp/performance/ranking-snapshot-stability-correctness-20260715`
+  - `tmp/prod-runtime-smoke/snapshot-stability-20260715-retry-env`
+
 ### 2026-07-15: ranking app-side timing instrumentation
 
 Trigger:
