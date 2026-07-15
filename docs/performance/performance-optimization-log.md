@@ -262,6 +262,26 @@ Post-projection broader baseline:
   - policy search keyword API shape execution `166.438ms`
 - Decision: stop code changes for this sequence. Policy list default is no longer the clear repeated bottleneck; if continuing performance work, run a longer low-concurrency load/soak check before choosing the next target.
 
+Post-projection low-rate load/soak:
+
+- Tracking document: `docs/performance/post-projection-load-soak-2026-07-15.md`.
+- Initial primary load at `120s`, concurrency `3`, delay `0.15s`, about `17.201 rps`, failed due to rate limits. This is recorded as a rate-limit boundary, not an accepted performance baseline.
+- Accepted low-rate soak used `180s`, concurrency `1`, delay `1.2s`, about `0.8 rps`.
+- Primary accepted result:
+  - policy search filtered p95 `210.9ms`
+  - policy search keyword p95 `117.9ms`
+  - policy list default p95 `33.1ms`
+  - policy ranking p95 `17.4ms`
+  - errors `0`, rate limited `0`
+- Secondary accepted result:
+  - policy search filtered p95 `277.6ms`
+  - policy search keyword p95 `130.9ms`
+  - policy list default p95 `46.5ms`
+  - policy ranking p95 `19.3ms`
+  - errors `0`, rate limited `0`
+- Final public smoke and ALB health passed.
+- Decision: do not open another policy-list optimization. If another performance round is opened, start with search query instrumentation/planning.
+
 ### 2026-07-15: ranking app-side timing instrumentation
 
 Trigger:
