@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="${ROOT_DIR:-/home/ubuntu/youth-welfare}"
 OPS_ENV_FILE="${OPS_ENV_FILE:-${HOME:-/home/ubuntu}/.config/youth-welfare/ops.env}"
 ENV_FILE="${ENV_FILE:-.env.production}"
-COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
+COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.elasticache.yml}"
 APP_HEALTH_URL="${APP_HEALTH_URL:-http://127.0.0.1:8082/actuator/health}"
 MARK_BEGIN="# >>> youth-welfare basic ops >>>"
 MARK_END="# <<< youth-welfare basic ops <<<"

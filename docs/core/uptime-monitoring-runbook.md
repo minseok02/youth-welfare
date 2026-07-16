@@ -49,7 +49,7 @@ ALERT_WEBHOOK_URL='https://example.com/webhook'
 - `ROOT_DIR`: repo 경로. 운영 서버에서는 실제 checkout 위치를 명시합니다.
 - `OPS_ENV_FILE`: watchdog secret/env 파일
 - `ENV_FILE`: compose env 파일, 기본 `.env.production`
-- `COMPOSE_FILE`: compose 파일, 기본 `docker-compose.prod.yml`
+- `COMPOSE_FILE`: compose 파일, 기본 `docker-compose.prod.elasticache.yml`
 - `COMPOSE_SERVICE`: restart 대상 서비스, 기본 `app`
 - `APP_HEALTH_URL`: 내부 health URL, 기본 `http://127.0.0.1:8082/actuator/health`
 - `FAIL_THRESHOLD`: restart 전 실패 횟수, 기본 `2`
@@ -161,6 +161,9 @@ tail -n 20 /var/log/youth-welfare/ops/app-watchdog.log
 - health 응답이 `{"status":"UP"}` 계열
 - 로그에 `health=UP`
 - Healthchecks.io dashboard의 last ping이 갱신됨
+
+ALB 2대 운영에서는 primary와 secondary 둘 다 watchdog cron이 있어야 한다.
+primary만 scheduler를 실행하고, watchdog은 각 EC2의 local app health를 지키는 역할이므로 secondary에도 설치한다.
 
 ## 로그 관리
 

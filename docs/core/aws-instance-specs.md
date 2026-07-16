@@ -42,6 +42,7 @@
 | Runtime DB | RDS PostgreSQL 16 | same RDS PostgreSQL 16 |
 | Runtime Redis | ElastiCache Valkey primary endpoint | same ElastiCache Valkey primary endpoint |
 | `APP_SCHEDULER_ENABLED` | `true` | `false` |
+| watchdog cron | enabled | enabled |
 
 EC2-1 current snapshot:
 
