@@ -355,8 +355,27 @@ Search summary projection optimization:
   - `CanonicalRecommendationReadModelRepositoryTest`
   - `PolicySearchServiceTest`
   - `PolicySearchKeywordApiWebMvcTest`
-- Post-deploy live timing: pending.
-- Decision: deploy and compare `projectionMs` before moving to region labels, ordered entity loading, cache write, or search-log write.
+- Deployed code commit `3806ecddd9f275b3e251d51d5a8f8d9ec592ae47` to both ALB nodes.
+- Post-deploy health:
+  - primary app health `UP`, Docker health `healthy`
+  - secondary app health `UP`, Docker health `healthy`
+  - ALB targets `i-0b8d95e454df5e0f0` and `i-0e8a4cc599c1148c8` healthy
+- Post-deploy primary normal fresh misses:
+  - client `157ms`-`181ms`
+  - repository mostly `46ms`-`53ms`
+  - SQL `35ms`-`36ms` when logged
+  - summary `63ms`-`89ms`
+  - projection `54ms`-`81ms`
+- Post-deploy secondary normal fresh misses:
+  - client `132ms`-`164ms`
+  - repository `50ms`-`56ms`
+  - SQL `36ms`-`37ms`
+  - summary `39ms`-`58ms`
+  - projection `50ms` for logged samples, otherwise below the presentation log threshold
+- First request after deploy on each node still had unrelated warm/tail cost:
+  - primary `자립`: client `606ms`, summary `164ms`, projection `85ms`, region `70ms`, search-log/cache-write tail
+  - secondary `공공요금`: client `805ms`, repository `275ms`, entity load `187ms`, summary `146ms`, region `72ms`
+- Decision: accept this as a moderate improvement, not a full closure. Do not keep rewriting recommendation projection Java code. Next inspection should compare fewer RDS round trips for summary projection, region labels, ordered entity load, cache-write tail, and search-log write tail.
 
 ### 2026-07-15: ranking app-side timing instrumentation
 

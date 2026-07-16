@@ -128,4 +128,63 @@ Result:
 
 ## Post-Deploy Measurement
 
-Pending deployment and live ALB-node measurement.
+Deployed code commit:
+
+- `3806ecddd9f275b3e251d51d5a8f8d9ec592ae47`
+
+Deployment:
+
+- primary Docker rebuild/restart passed; `/actuator/health` returned `UP`, Docker health `healthy`
+- secondary SSM deploy passed; pulled `3806ecddd9f275b3e251d51d5a8f8d9ec592ae47`, Docker build passed, `/actuator/health` returned `UP`, Docker health `healthy`
+- ALB target group `youth-welfare-web-tg` had both targets healthy:
+  - `i-0b8d95e454df5e0f0`
+  - `i-0e8a4cc599c1148c8`
+
+Primary loopback fresh-keyword samples after deploy:
+
+| Keyword | Client | Repository | SQL | Summary | Projection | Region | Notes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| `자립` | `606ms` | `94ms` | `44ms` | `164ms` | `85ms` | `70ms` | first request after deploy; rate/search-log/cache-write tail present |
+| `구직` | `164ms` | `50ms` | `36ms` | `63ms` | `54ms` | `6ms` | normal miss |
+| `훈련` | `167ms` | `51ms` | `35ms` | `69ms` | `60ms` | `7ms` | normal miss |
+| `임대` | `158ms` | `46ms` | not logged | `73ms` | `65ms` | `6ms` | repository below timing threshold |
+| `돌봄` | `165ms` | `53ms` | `36ms` | `74ms` | `68ms` | `5ms` | normal miss |
+| `장학금` | `181ms` | `49ms` | not logged | `89ms` | `81ms` | `6ms` | repository below timing threshold |
+
+Secondary loopback fresh-keyword samples after deploy:
+
+| Keyword | Client | Repository | SQL | Summary | Projection | Region | Notes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| `공공요금` | `805ms` | `275ms` | `69ms` | `146ms` | `66ms` | `72ms` | first request after deploy; entity-load/rate/cache-write tail present |
+| `이사비` | `164ms` | `50ms` | `36ms` | `58ms` | `50ms` | `4ms` | normal miss |
+| `멘토링` | `159ms` | `56ms` | `37ms` | `57ms` | `50ms` | `4ms` | normal miss |
+| `자격증` | `132ms` | `53ms` | `36ms` | `39ms` | below log threshold | below log threshold | normal miss |
+| `일자리` | `152ms` | `51ms` | `37ms` | `46ms` | below log threshold | below log threshold | normal miss |
+| `보증금` | `138ms` | `50ms` | `36ms` | `41ms` | below log threshold | below log threshold | normal miss |
+
+## Result
+
+Before this change, post-generated-field primary samples showed:
+
+- summary `58ms`-`113ms`
+- projection `49ms`-`97ms`
+- normal client samples around `161ms`-`317ms`
+
+After this change:
+
+- primary normal misses were `157ms`-`181ms`, with summary `63ms`-`89ms` and projection `54ms`-`81ms`
+- secondary normal misses were `132ms`-`164ms`, with summary `39ms`-`58ms`
+- SQL stayed stable at roughly `35ms`-`37ms` for normal misses
+- first request after deploy on each node still had unrelated tail:
+  - primary: cache write/search-log/rate/controller tail
+  - secondary: ordered entity load and region tail
+
+Interpretation:
+
+- The summary-only projection path is behaviorally safe and gives a moderate improvement, especially on secondary where normal `summaryMs` dropped below or near the `50ms` presentation log threshold.
+- The effect is not large enough to claim the summary path is fully closed on primary. The remaining `projectionMs` is likely dominated by multiple RDS round trips/connection latency rather than PostgreSQL execution or Java scoring heuristics.
+- Do not continue with another scoring/projection Java rewrite. The next useful inspection should compare:
+  - combining summary projection DB reads into fewer round trips
+  - region label read tail
+  - ordered entity load tail
+  - cache-write/search-log write outliers
