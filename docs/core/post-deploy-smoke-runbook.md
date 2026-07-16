@@ -19,7 +19,7 @@ Default checks:
 | Check | Failure condition |
 | --- | --- |
 | local actuator | `http://127.0.0.1:8082/actuator/health` is not `UP` |
-| ALB target health | fewer than `2` healthy targets or any unhealthy target |
+| ALB target health | fewer than `2` healthy targets or any unhealthy target when AWS CLI is available or `RUN_ALB_TARGET_HEALTH=true` |
 | public policy list | non-`200`, `success != true`, or empty data |
 | public policy search | non-`200`, `success != true`, or empty data |
 | public policy ranking | non-`200`, `success != true`, or empty data |
@@ -47,7 +47,14 @@ NGINX_TAIL_LINES=4000 \
 bash deploy/smoke/run-prod-post-deploy-smoke.sh
 ```
 
-Skip ALB target health only when running without AWS credentials:
+ALB target health defaults to `auto`: run it when AWS CLI is available, otherwise mark it as skipped.
+Require it explicitly when running from the primary ops node:
+
+```bash
+RUN_ALB_TARGET_HEALTH=true bash deploy/smoke/run-prod-post-deploy-smoke.sh
+```
+
+Skip ALB target health explicitly only when running without AWS credentials:
 
 ```bash
 RUN_ALB_TARGET_HEALTH=false bash deploy/smoke/run-prod-post-deploy-smoke.sh
@@ -64,7 +71,7 @@ RUN_NGINX_5XX_CHECK=false bash deploy/smoke/run-prod-post-deploy-smoke.sh
 Pass means:
 
 - local app health is up
-- ALB has both expected healthy targets
+- ALB has both expected healthy targets, unless the summary explicitly says the target-health step was skipped
 - public read-only API endpoints return valid non-empty responses
 - recent sampled nginx logs have no user-path 5xx
 

@@ -354,6 +354,7 @@ Purpose:
 - classify `/alb-health` 502 separately from user-facing 5xx
 - make post-deploy verification repeatable without mutating user data
 - check local actuator, ALB target health, public read-only policy APIs, and recent nginx user-path 5xx in one command
+- ALB target health defaults to `auto`; it runs when AWS CLI is available and is explicitly skipped on nodes without AWS CLI
 
 Initial run:
 

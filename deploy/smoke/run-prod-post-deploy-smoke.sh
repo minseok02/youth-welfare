@@ -9,7 +9,7 @@ APP_HEALTH_URL="${APP_HEALTH_URL:-http://127.0.0.1:8082/actuator/health}"
 AWS_REGION="${AWS_REGION:-ap-northeast-2}"
 ALB_TARGET_GROUP_ARN="${ALB_TARGET_GROUP_ARN:-arn:aws:elasticloadbalancing:ap-northeast-2:857721769929:targetgroup/youth-welfare-web-tg/5625712bc3af7438}"
 EXPECTED_ALB_HEALTHY_TARGETS="${EXPECTED_ALB_HEALTHY_TARGETS:-2}"
-RUN_ALB_TARGET_HEALTH="${RUN_ALB_TARGET_HEALTH:-true}"
+RUN_ALB_TARGET_HEALTH="${RUN_ALB_TARGET_HEALTH:-auto}"
 RUN_NGINX_5XX_CHECK="${RUN_NGINX_5XX_CHECK:-true}"
 NGINX_ACCESS_LOG="${NGINX_ACCESS_LOG:-/var/log/nginx/access.log}"
 NGINX_TAIL_LINES="${NGINX_TAIL_LINES:-4000}"
@@ -26,7 +26,17 @@ normalize_bool() {
   esac
 }
 
-RUN_ALB_TARGET_HEALTH="$(normalize_bool "${RUN_ALB_TARGET_HEALTH}")"
+normalize_bool_or_auto() {
+  case "${1,,}" in
+    true|false|auto) printf '%s' "${1,,}" ;;
+    *)
+      echo "unsupported boolean/auto value: ${1}" >&2
+      exit 2
+      ;;
+  esac
+}
+
+RUN_ALB_TARGET_HEALTH="$(normalize_bool_or_auto "${RUN_ALB_TARGET_HEALTH}")"
 RUN_NGINX_5XX_CHECK="$(normalize_bool "${RUN_NGINX_5XX_CHECK}")"
 
 mkdir -p "${ARTIFACT_DIR}"
@@ -107,9 +117,27 @@ check_alb_target_health() {
   local healthy_count
 
   [[ "${RUN_ALB_TARGET_HEALTH}" == "true" ]] || {
+    if [[ "${RUN_ALB_TARGET_HEALTH}" == "auto" ]] && command -v aws >/dev/null 2>&1; then
+      :
+    else
+      write_summary_line "alb_target_health=skipped mode=${RUN_ALB_TARGET_HEALTH}"
+      return 0
+    fi
+  }
+
+  if ! command -v aws >/dev/null 2>&1; then
+    if [[ "${RUN_ALB_TARGET_HEALTH}" == "auto" ]]; then
+      write_summary_line "alb_target_health=skipped mode=auto reason=missing_aws_cli"
+      return 0
+    fi
+    echo "aws CLI is required for ALB target health check" >&2
+    exit 127
+  fi
+
+  if [[ "${RUN_ALB_TARGET_HEALTH}" == "false" ]]; then
     write_summary_line "alb_target_health=skipped"
     return 0
-  }
+  fi
 
   smoke_print_step "post deploy smoke: ALB target health"
   aws elbv2 describe-target-health \
