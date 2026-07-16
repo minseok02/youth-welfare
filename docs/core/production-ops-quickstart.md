@@ -55,7 +55,6 @@ Expected:
 | Item | Status | Owner |
 | --- | --- | --- |
 | restore rehearsal execution | prepared, blocked until temporary RDS cost is approved | human |
-| ops role security group read | repository policy updated; live IAM policy still needs `ec2:DescribeSecurityGroups` | human/operator |
 | RDS Multi-AZ | decision only, not enabled | human |
 | Valkey failover/snapshot retention | decision only, not enabled | human |
 | webhook alert channel | not configured | human/operator |

@@ -138,8 +138,31 @@ Observed:
 
 Security group detailed rule inspection:
 
-- blocked from the ops node because the live IAM role does not yet allow `ec2:DescribeSecurityGroups`.
+- initially blocked from the ops node because the live IAM role did not allow `ec2:DescribeSecurityGroups`.
 - repository policy was updated to add that read-only action.
+- live IAM policy was then updated and security group detail reads succeeded.
+
+Security group finding:
+
+- EC2 app security group `sg-01b664b3af6ad95a2` had direct public `80` and `443` ingress.
+- That allowed EC2 public-IP access to bypass the ALB.
+
+Fix applied:
+
+- removed EC2 app SG `80` ingress from `0.0.0.0/0`
+- removed EC2 app SG `443` ingress from `0.0.0.0/0`
+- kept EC2 app SG `80` ingress from ALB SG `sg-06ac84b1d37d48409`
+- kept SSH `22` ingress from the existing explicit operator IP and AWS prefix list
+
+Observed after fix:
+
+- primary direct `http://3.38.21.132/`: blocked by timeout
+- primary direct `https://3.38.21.132/`: blocked by timeout
+- secondary direct `http://52.79.186.92/`: blocked by timeout
+- secondary direct `https://52.79.186.92/`: blocked by timeout
+- public `https://youthmoa.kr/`: `200`
+- public `/api/policies?page=0&size=1`: `200`
+- ALB target health: `2` healthy targets
 
 ## IAM Drift
 
@@ -161,15 +184,15 @@ Confirmed drift:
  ]
 ```
 
-Current effect:
+Initial effect:
 
 - ALB target health, Route53 records, RDS metadata, ElastiCache metadata, CloudWatch metrics, SNS test publish, and SSM commands are available.
-- EC2 security group rule details are not available from the ops role until the IAM inline/customer policy is updated in AWS.
+- EC2 security group rule details were not available from the ops role until the IAM inline/customer policy was updated in AWS.
 
 Decision:
 
-- This is not an outage.
-- Apply the policy update when detailed security group drift audits should run from the ops node.
+- IAM update is complete.
+- Security group drift audit can now run from the ops node.
 
 ## Verification Commands
 
@@ -206,11 +229,18 @@ Observed on primary after the change:
 - public policy list/search/ranking returned `200` with non-empty data
 - nginx recent 5xx summary: `user_5xx=0`, `alb_health_5xx=0`, `probe_5xx=1`
 
+Observed after IAM and security group closeout:
+
+- `ec2:DescribeSecurityGroups` succeeded from the ops node
+- EC2 app SG allows app HTTP only from the ALB SG
+- EC2 public IP direct 80/443 access is blocked on both nodes
+- `https://youthmoa.kr` remains healthy
+- post-deploy smoke passed with `2` healthy ALB targets
+
 ## Next No-Cost Items
 
 Recommended order:
 
-1. Apply `ec2:DescribeSecurityGroups` to the live ops IAM policy, then run a security group drift read.
-2. Re-run log alert after a few normal traffic windows and confirm scanner observations do not create alert fatigue.
-3. Review the `1` unread user alert and `5` open policy error reports from the DB audit.
-4. Keep RDS restore rehearsal and HA upgrades in the cost-approval path, not in no-cost maintenance.
+1. Re-run log alert after a few normal traffic windows and confirm scanner observations do not create alert fatigue.
+2. Review the `1` unread user alert and `5` open policy error reports from the DB audit.
+3. Keep RDS restore rehearsal and HA upgrades in the cost-approval path, not in no-cost maintenance.
