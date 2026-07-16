@@ -18,14 +18,14 @@
 
 | 그림 번호 | 파일 | 삽입 위치 |
 | --- | --- | --- |
-| 그림 8 | `screenshots/screen-08-main.png` | 제2장 제3절 정책 통합 검색 및 주요 화면 설명 앞 |
-| 그림 9 | `screenshots/screen-09-policy-search.png` | 제2장 제3절 정책 통합 검색 기능 |
-| 그림 10 | `screenshots/screen-10-policy-detail.png` | 제2장 제3절 정책 상세 조회 기능 |
-| 그림 11 | `screenshots/screen-11-mypage-profile-priority.png` | 제2장 제3절 사용자 인증, 프로필 및 개인화 기준 관리 기능 |
-| 그림 12 | `screenshots/screen-12-recommendations.png` | 제2장 제3절 AI 기반 개인 맞춤형 추천 기능 |
-| 그림 13 | `screenshots/screen-13-chatbot.png` | 제2장 제3절 챗봇 기반 정책 상담 및 신청 준비 코칭 기능 |
-| 그림 14 | `screenshots/screen-14-alerts.png` | 제2장 제3절 알림 및 사용자 재방문 지원 기능 |
-| 그림 15 | `screenshots/screen-15-admin-dashboard.png` | 제2장 제3절 관리자 대시보드 및 정책 품질 관리 기능 |
+| 그림 8 | `screenshots/screen-08-main.png` | 제2장 제4절 정책 통합 검색 및 주요 화면 설명 앞 |
+| 그림 9 | `screenshots/screen-09-policy-search.png` | 제2장 제4절 정책 통합 검색 기능 |
+| 그림 10 | `screenshots/screen-10-policy-detail.png` | 제2장 제4절 정책 상세 조회 기능 |
+| 그림 11 | `screenshots/screen-11-mypage-profile-priority.png` | 제2장 제4절 사용자 인증, 프로필 및 개인화 기준 관리 기능 |
+| 그림 12 | `screenshots/screen-12-recommendations.png` | 제2장 제4절 AI 기반 개인 맞춤형 추천 기능 |
+| 그림 13 | `screenshots/screen-13-chatbot.png` | 제2장 제4절 챗봇 기반 정책 상담 및 신청 준비 코칭 기능 |
+| 그림 14 | `screenshots/screen-14-alerts.png` | 제2장 제4절 알림 및 사용자 재방문 지원 기능 |
+| 그림 15 | `screenshots/screen-15-admin-dashboard.png` | 제2장 제4절 관리자 대시보드 및 정책 품질 관리 기능 |
 
 ## 재생성
 
