@@ -52,6 +52,9 @@ warning은 운영자가 같은 날 확인할 신호이고, critical은 배포/�
 
 - warning: 5분 창 `api_status_5xx > 0`
 - critical: 5분 창 `api_status_5xx >= 5` 또는 같은 `errorCode` 가 10분 창 `>= 10`
+- ALB health check path `/alb-health` 는 user API 5xx와 분리해서 읽는다.
+- warning: 배포/재시작 창 밖에서 `/alb-health` 5xx가 반복되거나 한 target만 health check 실패가 이어짐
+- critical: non-`/alb-health` user path 5xx가 발생하거나 ALB target이 unhealthy 상태로 지속
 - interactive API latency는 endpoint별 p95에서 `POST /api/recommendations/refresh` 같은 batch/refresh endpoint를 제외하고 봅니다.
 - warning: nginx `request_time p95 >= 1500ms` 가 10분 이상 지속
 - critical: nginx `request_time p95 >= 3000ms` 또는 `upstream_response_time p95 >= 2500ms` 가 10분 이상 지속
@@ -125,6 +128,15 @@ bash deploy/performance/tune-log-alert-thresholds.sh
 8. 관리자 API에서 추천 run summary 확인
 9. DB 또는 관리자 API에서 `notification_attempt_logs` 최근 실패 outcome 확인
 10. 원인이 배포/DB migration drift이면 [server-runtime-drift-checklist.md](./server-runtime-drift-checklist.md)를 먼저 적용
+
+배포 직후 user-facing edge/API 상태는 먼저 read-only smoke로 닫습니다.
+
+```bash
+bash deploy/smoke/run-prod-post-deploy-smoke.sh
+```
+
+이 smoke가 통과하면 배포/재시작 창의 짧은 `/alb-health` 502만으로는 장애로 보지 않습니다.
+자세한 판단 기준은 [alb-health-502-runbook.md](./alb-health-502-runbook.md)를 봅니다.
 
 운영 dashboard evaluator 기본 입력:
 

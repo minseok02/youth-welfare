@@ -23,6 +23,8 @@ cross-cutting 문서가 흩어져 있어도
 - [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)
 - [server-runtime-drift-checklist.md](./server-runtime-drift-checklist.md)
 - [uptime-monitoring-runbook.md](./uptime-monitoring-runbook.md)
+- [alb-health-502-runbook.md](./alb-health-502-runbook.md)
+- [post-deploy-smoke-runbook.md](./post-deploy-smoke-runbook.md)
 - [alb-multi-ec2-rollout-plan.md](./alb-multi-ec2-rollout-plan.md)
 - [alb-demo-switch-runbook.md](./alb-demo-switch-runbook.md)
 - [alb-route53-cutover-2026-07-13.md](./alb-route53-cutover-2026-07-13.md)
@@ -69,6 +71,10 @@ cross-cutting 문서가 흩어져 있어도
 `final-ops-closeout-checklist.md` 는 안정화 작업을 PR/배포/운영 handoff 전에 어떤 명령 순서로 닫을지 고정합니다.
 
 `uptime-monitoring-runbook.md` 는 Healthchecks.io ping, 서버 내부 watchdog, AWS Route53/CloudWatch 알람을 운영 서버에 붙이는 순서를 정리합니다.
+
+`alb-health-502-runbook.md` 는 `/alb-health` 502가 배포/재시작 창의 health-check noise인지 사용자 영향 5xx인지 판단하는 기준을 고정합니다.
+
+`post-deploy-smoke-runbook.md` 는 배포 직후 read-only public API, ALB target health, local actuator, nginx 5xx를 짧게 확인하는 절차를 고정합니다.
 
 `alb-multi-ec2-rollout-plan.md` 는 현재 EC2 1대 + RDS 구조를 유지한 채 EC2 web 노드를 2대로 늘리고 ALB/공유 Redis/scheduler 단일 실행 경계를 붙이는 전환 계획입니다.
 

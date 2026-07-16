@@ -102,6 +102,15 @@ bash deploy/ops/create-elasticache-valkey-alarms.sh
 - `CurrConnections >= 200`
 - `NewConnections >= 100`
 
+ALB/edge 배포 직후에는 CloudWatch 알람만 기다리지 말고 read-only smoke를 먼저 실행한다.
+
+```bash
+bash deploy/smoke/run-prod-post-deploy-smoke.sh
+```
+
+이 smoke는 local actuator, ALB target health, public read-only policy APIs, 최근 nginx user-path 5xx를 한 번에 본다.
+`/alb-health` 502 해석 기준은 [alb-health-502-runbook.md](./alb-health-502-runbook.md)를 따른다.
+
 비용 사고 방지용 billing alarm은 us-east-1 CloudWatch Billing metric으로 만듭니다.
 
 ```bash

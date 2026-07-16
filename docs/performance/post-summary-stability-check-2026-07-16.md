@@ -340,3 +340,33 @@ Decision:
 - Docker build cache was still large enough to justify syncing the cleanup script and weekly threshold-gated cron to secondary.
 - secondary was fast-forwarded to the cleanup automation commit, the cleanup scripts passed `bash -n`, dry-run succeeded, and the weekly cleanup cron was installed under the `ubuntu` crontab.
 - no real secondary cleanup was run because root disk usage was below the configured threshold and the app stayed healthy.
+
+## Follow-Up: ALB 502 / Post-Deploy Smoke
+
+Added:
+
+- `deploy/smoke/run-prod-post-deploy-smoke.sh`
+- [ALB health 502 runbook](../core/alb-health-502-runbook.md)
+- [post deploy smoke runbook](../core/post-deploy-smoke-runbook.md)
+
+Purpose:
+
+- classify `/alb-health` 502 separately from user-facing 5xx
+- make post-deploy verification repeatable without mutating user data
+- check local actuator, ALB target health, public read-only policy APIs, and recent nginx user-path 5xx in one command
+
+Initial run:
+
+| Check | Result |
+| --- | --- |
+| local actuator | passed, `200` |
+| ALB target health | passed, `2` healthy targets |
+| public policy list | passed, `200`, count `5` |
+| public policy search | passed, `200`, count `5` |
+| public policy ranking | passed, `200`, count `5` |
+| recent nginx 5xx split | passed, user-path `5xx=0`, `/alb-health 5xx=6` |
+
+Decision:
+
+- recent `/alb-health` 5xx without user-path 5xx and with both ALB targets healthy remains classified as health-check/deploy-window noise.
+- future deploys should run `bash deploy/smoke/run-prod-post-deploy-smoke.sh` before opening another code or performance batch.
