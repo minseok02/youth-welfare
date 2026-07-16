@@ -268,10 +268,17 @@ Observed after DB triage closeout:
 - post-deploy smoke passed after the rolling deploy
 - deploy-window nginx summary had `user_5xx=0`, `alb_health_5xx=2`, `probe_5xx=1`
 - log alert was `warning` only because a single deploy-window `GET /api/policies/ranking` sample took `1846ms`; app errors and user-facing 5xx were `0`
+- log alert evaluator now requires at least `3` interactive API samples before p95 latency is promoted to warning/critical; smaller samples remain `observation=`
+- follow-up log alert returned `LOG_ALERT_STATUS=ok`; deploy-window `/alb-health` 5xx and scanner probe 5xx remained `observation=`
+- admin dashboard policy error report API matched DB audit: `openCount=0`, `recentOpenCount24h=0`, `recentReportsCount=0`
+- admin dashboard summary matched notification backlog: `notificationUnreadAlerts=1`, `notificationRetryableFailed=0`
+- bounded region audit rerun with `limit=100` returned `scannedCount=100`, `candidateCount=0`, `createdReportCount=0`, `skippedExistingReportCount=0`
+- app log baseline parser was tightened so `policy error reports` in an INFO message is not counted as a raw app error
+- admin dashboard/API paths are excluded from user-facing interactive p95 alerting and retained as `excluded_latency=`
 
 ## Next No-Cost Items
 
 Recommended order:
 
-1. Re-run log alert after a few normal traffic windows and confirm scanner observations do not create alert fatigue.
+1. Re-run log alert after a few normal traffic windows and confirm scanner/low-sample observations do not create alert fatigue.
 2. Keep RDS restore rehearsal and HA upgrades in the cost-approval path, not in no-cost maintenance.

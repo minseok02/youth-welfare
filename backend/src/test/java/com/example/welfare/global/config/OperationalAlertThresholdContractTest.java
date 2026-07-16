@@ -4,9 +4,13 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -162,5 +166,39 @@ class OperationalAlertThresholdContractTest {
         assertThat(tuneLogAlert)
                 .contains("perf_sanitize_artifacts_on_exit \"${ARTIFACT_DIR}\"")
                 .contains("<<'PY' | smoke_redact_stream_for_log");
+    }
+
+    @Test
+    @DisplayName("app log baseline은 메시지 본문의 policy error reports를 raw error로 오인하지 않는다")
+    void appLogBaselineDoesNotTreatPolicyErrorReportTextAsRawError() throws Exception {
+        Path tempDir = Files.createTempDirectory("app-log-baseline-contract-");
+        Path logFile = tempDir.resolve("app.log");
+        Path artifactDir = tempDir.resolve("artifact");
+        Files.writeString(logFile, """
+                youth-welfare-app  | 2026-07-16T13:46:07.195Z  INFO 6 --- [nio-8080-exec-3] c.e.w.a.d.c.AdminDashboardController     : [Admin] dashboard policy error reports 조회 limit=5 status=OPEN
+                youth-welfare-app  | 2026-07-16T13:46:07.259Z  INFO 6 --- [nio-8080-exec-3] c.e.w.g.web.ApiRequestLoggingFilter      : [ApiRequest] method=GET path=/api/admin/dashboard/policy-error-reports status=200 durationMs=272 requestId=req userKeyHash=abc clientFingerprint=def errorCode=null errorType=null refererPresent=false
+                """, StandardCharsets.UTF_8);
+
+        ProcessBuilder processBuilder = new ProcessBuilder("bash", APP_LOG_BASELINE_SCRIPT.toString())
+                .directory(Path.of(".").toFile())
+                .redirectErrorStream(true);
+        Map<String, String> env = processBuilder.environment();
+        env.put("APP_LOG_FILE", logFile.toString());
+        env.put("ARTIFACT_DIR", artifactDir.toString());
+        env.put("APP_LOG_ROOT", tempDir.resolve("root").toString());
+
+        Process process = processBuilder.start();
+        boolean finished = process.waitFor(Duration.ofSeconds(15).toMillis(), TimeUnit.MILLISECONDS);
+        if (!finished) {
+            process.destroyForcibly();
+        }
+        assertThat(finished).isTrue();
+        String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+
+        assertThat(process.exitValue()).isZero();
+        assertThat(output)
+                .contains("raw_error_lines=0")
+                .contains("api_request_count=1")
+                .contains("api_status_200=1");
     }
 }

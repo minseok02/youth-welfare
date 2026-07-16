@@ -69,7 +69,9 @@ LOG_ALERT_CRIT_ERROR_CODE_REPEAT=10
 LOG_ALERT_REPEAT_ERROR_CODE_EXCLUDES='A006'
 LOG_ALERT_WARN_API_P95_MS=1500
 LOG_ALERT_CRIT_API_P95_MS=3000
+LOG_ALERT_MIN_API_P95_COUNT=3
 LOG_ALERT_EXCLUDED_API_P95_PATHS='POST /api/recommendations/refresh'
+LOG_ALERT_EXCLUDED_API_P95_PREFIXES='GET /api/admin/,POST /api/admin/'
 LOG_ALERT_WARN_NGINX_P95_SECONDS=1.5
 LOG_ALERT_CRIT_NGINX_P95_SECONDS=3.0
 ```
@@ -77,6 +79,10 @@ LOG_ALERT_CRIT_NGINX_P95_SECONDS=3.0
 `A006` 는 미인증/토큰 없음 계열 스캐너 요청에서 자주 반복되므로 기본 반복 error-code critical 판정에서는 제외하고, evaluator output의 `observation=` line으로 남깁니다. 인증 공격성 판단은 `[AuthAudit]` rate 기준으로 따로 봅니다.
 
 nginx 5xx도 post-deploy smoke와 같은 기준으로 분류합니다. `/api/*` 5xx와 `GET`/`HEAD` page 5xx만 user-facing warning/critical 후보로 보고, `/alb-health` 5xx와 non-GET/HEAD root probe 5xx는 `observation=` line에 남깁니다.
+
+interactive API p95는 기본 `LOG_ALERT_MIN_API_P95_COUNT=3` 이상일 때만 warning/critical로 승격합니다. 배포 직후 단일 ranking 요청처럼 샘플 수가 너무 적은 latency는 `observation=` line으로만 남깁니다.
+
+admin dashboard/API는 운영자가 수동 점검할 때 latency sample을 왜곡할 수 있으므로 기본 p95 warning/critical에서는 제외하고 `excluded_latency=` 로 남깁니다.
 
 24시간 기준 재튜닝:
 

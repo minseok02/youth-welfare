@@ -66,15 +66,18 @@ raw_warn_lines = 0
 
 token_re = re.compile(r'([A-Za-z][A-Za-z0-9]*)=([^ ]+)')
 duration_re = re.compile(r'durationMs=([0-9]+)')
+log_level_re = re.compile(r'\s(INFO|WARN|ERROR|DEBUG|TRACE)\s+\d+\s+---')
 
 def tokens(line):
     return dict(token_re.findall(line))
 
 for line in lines:
     lower = line.lower()
-    if " error " in lower or "\terror\t" in lower or "exception" in lower or "caused by" in lower:
+    level_match = log_level_re.search(line)
+    log_level = level_match.group(1) if level_match else None
+    if log_level == "ERROR" or "exception" in lower or "caused by" in lower:
         raw_error_lines += 1
-    if " warn " in lower or "\twarn\t" in lower:
+    if log_level == "WARN":
         raw_warn_lines += 1
 
     if "[ApiRequest]" in line:
