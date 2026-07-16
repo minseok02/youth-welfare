@@ -47,7 +47,7 @@ EC2-1 current snapshot:
 
 - private/public IPv4: AWS console 또는 instance metadata에서 확인한다. public IPv4는 stop/start 또는 재할당 시 바뀔 수 있으므로 문서 기준값으로 고정하지 않는다.
 - root filesystem: 19 GiB mounted at `/`
-- latest checked root usage: 13 GiB used / 5.5 GiB available / 71%
+- latest checked root usage: 8.2 GiB used / 11 GiB available / 45% after runtime artifact/cache cleanup
 - memory visible to OS: 3.7 GiB
 
 ## Security group target state
@@ -114,11 +114,20 @@ docker system df
 정리 명령:
 
 ```bash
-docker builder prune
-docker image prune
+DRY_RUN=true FORCE=true bash deploy/ops/cleanup-runtime-disk-artifacts.sh
+DRY_RUN=false FORCE=true bash deploy/ops/cleanup-runtime-disk-artifacts.sh
 ```
 
+정기 정리 cron과 보존 정책은 [runtime-disk-cleanup-runbook.md](./runtime-disk-cleanup-runbook.md) 를 기준으로 한다.
+이 정리 스크립트는 `tmp/performance`, npm cache, Docker builder cache만 대상으로 하고 Docker volumes는 지우지 않는다.
+
 root disk 사용률이 80% 이상으로 유지되면 다음 증설 또는 재생성 시 30 GiB gp3를 우선 검토한다.
+
+2026-07-16 follow-up:
+
+- primary runtime disk cleanup cron installed locally.
+- secondary root disk checked at `11G / 19G`, `59%` used; app remained `healthy`.
+- secondary had `5.616GB` Docker build cache, so the same cleanup script/cron should be synced there.
 
 ## 관련 문서
 

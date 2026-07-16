@@ -304,3 +304,37 @@ Decision:
 - primary disk warning is closed for now.
 - no app redeploy was required.
 - future deploy builds may be slower on the first run because Docker build cache was intentionally cleared.
+
+Follow-up automation:
+
+- added `deploy/ops/cleanup-runtime-disk-artifacts.sh`
+- added `deploy/ops/install-runtime-disk-cleanup-cron.sh`
+- added [runtime disk cleanup runbook](../core/runtime-disk-cleanup-runbook.md)
+- installed primary runtime disk cleanup cron
+
+Policy:
+
+- default script mode is `DRY_RUN=true`
+- cron mode is threshold-gated at `70%` root disk usage
+- `tmp/performance` children older than `2` days are removable
+- `tmp/stability` is preserved by default
+- npm cache and Docker builder cache are reproducible and may be cleaned
+- Docker volumes are not cleaned
+
+Secondary follow-up check:
+
+| Item | Result |
+| --- | ---: |
+| `/` | `11G / 19G`, `59%` used, `7.6G` available |
+| `/home/ubuntu/youth-welfare/tmp/performance` | `5.8M` |
+| `/home/ubuntu/.npm` | `41M` |
+| Docker images | `4.382GB` |
+| Docker build cache | `5.616GB`, `5.053GB` reclaimable |
+| Docker volumes | `0B` |
+| app container | `Up 2 hours (healthy)` |
+| actuator | `{"status":"UP"}` |
+
+Decision:
+
+- secondary was below the `70%` automatic cleanup threshold, so it was not an immediate disk risk.
+- Docker build cache was still large enough to justify syncing the cleanup script and weekly threshold-gated cron to secondary.

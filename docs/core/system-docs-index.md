@@ -27,6 +27,7 @@ cross-cutting 문서가 흩어져 있어도
 - [alb-demo-switch-runbook.md](./alb-demo-switch-runbook.md)
 - [alb-route53-cutover-2026-07-13.md](./alb-route53-cutover-2026-07-13.md)
 - [log-alert-thresholds.md](./log-alert-thresholds.md)
+- [runtime-disk-cleanup-runbook.md](./runtime-disk-cleanup-runbook.md)
 - [admin-dashboard-alert-surface-contract.md](./admin-dashboard-alert-surface-contract.md)
 - [project-spec.md](../project-spec.md)
 - [architecture.md](../architecture.md)
@@ -76,6 +77,8 @@ cross-cutting 문서가 흩어져 있어도
 `alb-route53-cutover-2026-07-13.md` 는 2026-07-13에 수행한 신규 EC2 연결, ALB/ACM/Route53 전환, frontend asset 불일치 장애와 해결 기록입니다.
 
 `log-alert-thresholds.md` 는 app/nginx 로그와 운영 dashboard 지표의 warning/critical 기준을 고정합니다.
+
+`runtime-disk-cleanup-runbook.md` 는 20 GiB EC2 root disk에서 성능 측정 산출물, npm cache, Docker builder cache가 쌓였을 때의 정리 정책과 cron 설치 절차를 고정합니다.
 
 `admin-dashboard-alert-surface-contract.md` 는 운영 alert evaluator가 판정 권위이고 admin dashboard는 raw triage surface라는 경계를 고정합니다.
 
