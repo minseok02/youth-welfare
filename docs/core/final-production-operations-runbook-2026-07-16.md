@@ -28,6 +28,18 @@ For a shorter daily entrypoint, start with [production-ops-quickstart.md](./prod
 | final functional regression | `18/18` steps passed, `0` errors, `0` rate limits |
 | final load view | clean same-source public mixed read point about `2.4 rps`; first 429 boundary about `4.8 rps` |
 
+## Handoff Verification
+
+Final post-documentation smoke:
+
+- command: `RUN_ALB_TARGET_HEALTH=true bash deploy/smoke/run-prod-post-deploy-smoke.sh`
+- artifact: `tmp/prod-post-deploy-smoke/20260716T180412Z`
+- local actuator: passed
+- ALB target health: `2` healthy targets
+- public policy list/search/ranking: HTTP `200`, count `5`
+- nginx recent 5xx: `user_5xx=0`, `alb_health_5xx=0`, `probe_5xx=0`
+- decision: `prod_post_deploy_smoke=passed`
+
 ## Console Checks
 
 ### Route53
