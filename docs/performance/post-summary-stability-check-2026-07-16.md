@@ -251,3 +251,56 @@ Recommended follow-ups:
 2. Treat `/alb-health` 502 lines as deploy/restart-window noise while both ALB targets remain healthy.
 3. Keep watching app/NGINX logs for real user API 5xx; none were found in this pass.
 4. If performance work resumes, start from a broader low-rate ALB baseline instead of a single hot-path assumption.
+
+## Follow-Up: Primary Disk Cleanup
+
+Trigger:
+
+- primary root disk was `85%` used during the stability check.
+
+Pre-cleanup usage:
+
+| Item | Usage |
+| --- | ---: |
+| `/` | `16G / 19G`, `85%` used, `2.8G` available |
+| `/home/ubuntu/youth-welfare/tmp/performance` | `3.5G` |
+| `/home/ubuntu/.npm` | `2.1G` |
+| Docker build cache | `2.258G` |
+| Docker local volumes | `667.8MB`, not cleaned |
+
+Cleanup performed:
+
+- deleted old `tmp/performance` artifacts
+- ran `npm cache clean --force`
+- ran `docker builder prune -af`
+
+Preserved:
+
+- current `youth-welfare-app` image and running container
+- Docker volumes, including the old unused local `postgres_data` volume
+- current `tmp/stability` artifacts from this check
+- Playwright browser cache
+
+Post-cleanup usage:
+
+| Item | Usage |
+| --- | ---: |
+| `/` | `8.2G / 19G`, `45%` used, `11G` available |
+| `/home/ubuntu/youth-welfare/tmp` | `254M` |
+| `/home/ubuntu/.npm` | `53M` |
+| Docker build cache | `0B` |
+
+Post-cleanup verification:
+
+- primary Docker app: `running healthy`
+- primary actuator: `{"status":"UP"}`
+- public search smoke: `POST /api/policies/search` returned `200`, `success=true`, `5` rows
+- ALB targets remained healthy:
+  - `i-0b8d95e454df5e0f0`
+  - `i-0e8a4cc599c1148c8`
+
+Decision:
+
+- primary disk warning is closed for now.
+- no app redeploy was required.
+- future deploy builds may be slower on the first run because Docker build cache was intentionally cleared.
