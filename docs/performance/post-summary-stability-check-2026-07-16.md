@@ -338,3 +338,5 @@ Decision:
 
 - secondary was below the `70%` automatic cleanup threshold, so it was not an immediate disk risk.
 - Docker build cache was still large enough to justify syncing the cleanup script and weekly threshold-gated cron to secondary.
+- secondary was fast-forwarded to the cleanup automation commit, the cleanup scripts passed `bash -n`, dry-run succeeded, and the weekly cleanup cron was installed under the `ubuntu` crontab.
+- no real secondary cleanup was run because root disk usage was below the configured threshold and the app stayed healthy.

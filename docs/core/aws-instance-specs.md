@@ -127,7 +127,7 @@ root disk 사용률이 80% 이상으로 유지되면 다음 증설 또는 재생
 
 - primary runtime disk cleanup cron installed locally.
 - secondary root disk checked at `11G / 19G`, `59%` used; app remained `healthy`.
-- secondary had `5.616GB` Docker build cache, so the same cleanup script/cron should be synced there.
+- secondary had `5.616GB` Docker build cache; the cleanup script was synced and the same weekly threshold-gated cron was installed under the `ubuntu` crontab.
 
 ## 관련 문서
 
