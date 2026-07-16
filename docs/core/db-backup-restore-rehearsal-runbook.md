@@ -14,17 +14,20 @@
 
 ## 사전 조건
 
-- ops monitor 역할에 `rds:DescribeDBInstances` 권한이 적용되어 있어야 한다.
+- ops monitor 역할에 `rds:DescribeDBInstances`, `rds:DescribeDBSnapshots`, `rds:DescribeDBInstanceAutomatedBackups` 권한이 적용되어 있어야 한다.
 - 복원 대상 DB는 운영과 다른 endpoint, 다른 DB identifier를 사용한다.
 - 복원 대상 DB 접속 정보는 별도 `.env.restore` 같은 파일에 둔다.
 - 운영 앱의 `DB_URL`은 리허설 중 변경하지 않는다.
 
-2026-07-11 현재 사전 확인:
+2026-07-16 현재 사전 확인:
 
 - 실행 역할 `arn:aws:sts::857721769929:assumed-role/youth-welfare-ops-monitor-v2-role/...` 에 `deploy/ops/aws-ops-monitor-role-policy.json` 기준 inline policy가 반영됐다.
 - 같은 역할로 `rds:DescribeDBInstances` 조회가 통과한다.
-- 운영 RDS `youth-welfare-prod-db` 는 `available`, backup retention `7`, latest restorable time `2026-07-11T14:50:26Z`, deletion protection `true`, storage encrypted `true`, Multi-AZ `false`, public access `false` 로 확인됐다.
-- 이제 권한 blocker는 없지만, 실제 restore rehearsal은 별도 RDS instance를 생성하는 비용 발생 작업이라 현재 보류한다. 명시 승인 후 target DB identifier, subnet group, restore security group을 정한 뒤 진행한다.
+- 운영 RDS `youth-welfare-prod-db` 는 `available`, backup retention `7`, latest restorable time `2026-07-16T11:22:28Z`, deletion protection `true`, storage encrypted `true`, Multi-AZ `false`, public access `false` 로 확인됐다.
+- snapshot inventory 조회는 현재 role에 `rds:DescribeDBSnapshots`, `rds:DescribeDBInstanceAutomatedBackups` 가 없어 `AccessDenied` 로 막혔다.
+- `deploy/ops/aws-ops-monitor-role-policy.json` 는 이 read-only 권한을 포함하도록 갱신했다. 콘솔/IAM에서 반영 후 snapshot inventory를 다시 확인한다.
+- EC2 ops role에서 `aws iam put-role-policy` 직접 반영을 시도했지만 `iam:PutRolePolicy` 권한이 없어 `AccessDenied` 로 실패했다. IAM 권한이 있는 사용자/콘솔에서 반영해야 한다.
+- 실제 restore rehearsal은 별도 RDS instance를 생성하는 비용 발생 작업이라 현재 보류한다. 명시 승인 후 target DB identifier, subnet group, restore security group을 정한 뒤 진행한다.
 
 ## 1. 운영 RDS 백업 상태 확인
 
@@ -32,6 +35,16 @@
 aws rds describe-db-instances \
   --db-instance-identifier youth-welfare-prod-db \
   --query 'DBInstances[0].{Status:DBInstanceStatus,BackupRetentionPeriod:BackupRetentionPeriod,LatestRestorableTime:LatestRestorableTime,DeletionProtection:DeletionProtection,MultiAZ:MultiAZ,StorageEncrypted:StorageEncrypted}' \
+  --output table
+```
+
+snapshot inventory 권한이 반영된 뒤:
+
+```bash
+aws rds describe-db-snapshots \
+  --db-instance-identifier youth-welfare-prod-db \
+  --snapshot-type automated \
+  --query 'reverse(sort_by(DBSnapshots,&SnapshotCreateTime))[:5].{Id:DBSnapshotIdentifier,Status:Status,Created:SnapshotCreateTime,Encrypted:Encrypted}' \
   --output table
 ```
 

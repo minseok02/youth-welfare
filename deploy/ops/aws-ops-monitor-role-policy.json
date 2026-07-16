@@ -77,7 +77,8 @@
       "Effect": "Allow",
       "Action": [
         "elasticache:DescribeCacheClusters",
-        "elasticache:DescribeReplicationGroups"
+        "elasticache:DescribeReplicationGroups",
+        "elasticache:DescribeSnapshots"
       ],
       "Resource": "*"
     },
@@ -85,9 +86,11 @@
       "Sid": "ReadYouthWelfareRdsMetadata",
       "Effect": "Allow",
       "Action": [
-        "rds:DescribeDBInstances"
+        "rds:DescribeDBInstances",
+        "rds:DescribeDBInstanceAutomatedBackups",
+        "rds:DescribeDBSnapshots"
       ],
-      "Resource": "arn:aws:rds:ap-northeast-2:857721769929:db:youth-welfare-prod-db"
+      "Resource": "*"
     }
   ]
 }
