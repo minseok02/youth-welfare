@@ -26,19 +26,11 @@ public class WelfareServiceSearchRepositoryImpl implements WelfareServiceSearchR
 
     private static final double TRIGRAM_THRESHOLD = 0.2d;
     private static final long SEARCH_REPOSITORY_TIMING_THRESHOLD_MS = 50L;
-    private static final String SEARCH_DOCUMENT_SQL = """
-            lower(
-                coalesce(ws.title, '')
-                || ' ' || coalesce(ws.description, '')
-                || ' ' || coalesce(ws.support_content, '')
-                || ' ' || coalesce(ws.keyword, '')
-            )
-            """;
-    private static final String SEARCH_TITLE_TRGM_SQL = "similarity(lower(coalesce(ws.title, '')), :normalizedKeyword)";
-    private static final String SEARCH_KEYWORD_TRGM_SQL = "similarity(lower(coalesce(ws.keyword, '')), :normalizedKeyword)";
-    private static final String SEARCH_TITLE_LIKE_SQL = "lower(coalesce(ws.title, '')) LIKE :normalizedKeywordLike";
-    private static final String SEARCH_KEYWORD_LIKE_SQL = "lower(coalesce(ws.keyword, '')) LIKE :normalizedKeywordLike";
-    private static final String SEARCH_VECTOR_SQL = "to_tsvector('simple', " + SEARCH_DOCUMENT_SQL + ")";
+    private static final String SEARCH_TITLE_TRGM_SQL = "similarity(ws.title_l, :normalizedKeyword)";
+    private static final String SEARCH_KEYWORD_TRGM_SQL = "similarity(ws.keyword_l, :normalizedKeyword)";
+    private static final String SEARCH_TITLE_LIKE_SQL = "ws.title_l LIKE :normalizedKeywordLike";
+    private static final String SEARCH_KEYWORD_LIKE_SQL = "ws.keyword_l LIKE :normalizedKeywordLike";
+    private static final String SEARCH_VECTOR_SQL = "ws.search_document_vector";
     private static final String GENERATED_SEARCH_VECTOR_SQL = "ws.search_document_vector";
     private static final String GENERATED_SEARCH_TITLE_TRGM_SQL = "similarity(ws.title_l, :normalizedKeyword)";
     private static final String GENERATED_SEARCH_KEYWORD_TRGM_SQL = "similarity(ws.keyword_l, :normalizedKeyword)";

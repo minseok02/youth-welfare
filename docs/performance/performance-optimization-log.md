@@ -306,6 +306,23 @@ Search timing instrumentation plan:
   - edge filtered/deadline `454.171ms`; repository `300ms`, SQL `271ms`
 - Decision: next search work should inspect/optimize the `general_filtered` SQL path first. Cache hit behavior is already fast; cache TTL is not the first lever.
 
+Search generated-field optimization:
+
+- Tracking document: `docs/performance/search-generated-fields-optimization-2026-07-16.md`.
+- Trigger: post-deploy timing logs showed filtered/deadline miss requests spending most time in repository SQL.
+- Finding: `general_filtered` still computed `lower(...)`, concatenated search document text, and `to_tsvector(...)` per scanned row, while the table already had generated fields/indexes.
+- Production EXPLAIN baseline for `ACTIVE_ONLY + DEADLINE`:
+  - `청년`: `208.932ms`, removed `12097` rows by computed search filter
+  - `월세`: `181.164ms`, removed `13488` rows by computed search filter
+  - `창업`: `174.651ms`, removed `13402` rows by computed search filter
+- Behavior-preserving generated-field candidate:
+  - `청년`: `25.790ms`, `-87.7%`
+  - `월세`: `36.692ms`, `-79.7%`
+  - `창업`: `32.284ms`, `-81.5%`
+- Equivalence checks matched total count and ordered top-20 IDs for `청년`, `월세`, `창업`, `주거+월세`, `GOV24+청년`, `YOUTH+청년`.
+- Implementation: switch shared general search match/rank expressions to `ws.search_document_vector`, `ws.title_l`, and `ws.keyword_l`, while keeping `similarity(...) >= :trigramThreshold`.
+- Deferred: `%` operator candidate pruning and count-query restructuring.
+
 ### 2026-07-15: ranking app-side timing instrumentation
 
 Trigger:
