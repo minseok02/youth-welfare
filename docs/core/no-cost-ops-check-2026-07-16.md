@@ -261,6 +261,13 @@ Observed after DB triage closeout:
 - notification failed-like: `0`
 - collect active locks: `0`
 - user unread alert remains `1` and is intentionally left untouched
+- `RegionCodeUtil` false-positive prevention was deployed to both EC2 app nodes at commit `a527e567`
+- primary and secondary local actuator returned `UP`
+- both app containers were `healthy`
+- ALB target health reported `2` healthy targets
+- post-deploy smoke passed after the rolling deploy
+- deploy-window nginx summary had `user_5xx=0`, `alb_health_5xx=2`, `probe_5xx=1`
+- log alert was `warning` only because a single deploy-window `GET /api/policies/ranking` sample took `1846ms`; app errors and user-facing 5xx were `0`
 
 ## Next No-Cost Items
 
