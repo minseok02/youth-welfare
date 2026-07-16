@@ -377,6 +377,24 @@ Search summary projection optimization:
   - secondary `공공요금`: client `805ms`, repository `275ms`, entity load `187ms`, summary `146ms`, region `72ms`
 - Decision: accept this as a moderate improvement, not a full closure. Do not keep rewriting recommendation projection Java code. Next inspection should compare fewer RDS round trips for summary projection, region labels, ordered entity load, cache-write tail, and search-log write tail.
 
+Search miss remeasurement after summary projection:
+
+- Tracking document: `docs/performance/search-miss-remeasurement-2026-07-16.md`.
+- Purpose: rerun fresh search misses before opening another code-changing optimization batch.
+- Client results:
+  - primary loopback: `n=20`, p50 `84.9ms`, p95 `139.9ms`, max `159.2ms`
+  - secondary loopback: `n=20`, p50 `85.6ms`, p95 `117.8ms`, max `127.5ms`
+  - public ALB: `n=20`, p50 `120.2ms`, p95 `144.0ms`, max `220.0ms`
+- Slow-log frequency:
+  - primary loopback: `0` `PolicyListPresentationTiming` lines in the second 20-sample run
+  - secondary loopback: `1` `PolicyListPresentationTiming` line, `totalMs=50 projectionMs=46 regionMs=4`
+  - ALB: `0` presentation slow logs across both targets
+- Finding: the previous `projectionMs` tail did not reproduce as a repeated bottleneck. Loopback and ALB p95 are acceptable for the current state.
+- Round-trip reduction design remains documented:
+  - preferred implementation, if reopened, is a single union row stream for base/taxonomy/fact rows
+  - do not implement now unless p95 repeatedly exceeds about `180ms`-`200ms`, or `PolicyListPresentationTiming` appears in more than about 20% of fresh search misses, or normal `projectionMs` repeatedly exceeds `70ms`
+- Decision: stop this batch at documentation/observation. Do not ship another summary projection rewrite yet.
+
 ### 2026-07-15: ranking app-side timing instrumentation
 
 Trigger:
