@@ -242,6 +242,16 @@ Method:
 
 This is a user journey measurement, not a maximum-throughput test.
 
+Current accepted measurement:
+
+- [report-grade-integrated-user-journey-measurement-2026-07-16.md](./report-grade-integrated-user-journey-measurement-2026-07-16.md)
+- artifact: `tmp/performance/integrated-user-journey/20260716T174247Z`
+- result: `18 / 18` steps succeeded, `0` errors, `0` rate-limit responses
+- total measured API time: `8935.8ms`
+- non-AI measured API time: `980.9ms`
+- AI-backed measured API time: `7954.9ms`
+- interpretation: new-user integrated journey, dominated by recommendation/chat AI latency
+
 ## Guardrails
 
 Stop or pause measurement if any of these occur:
