@@ -15,6 +15,7 @@ cross-cutting 문서가 흩어져 있어도
 
 ### 기본 구조와 계약
 
+- [production-ops-quickstart.md](./production-ops-quickstart.md)
 - [stabilization-checklist.md](./stabilization-checklist.md)
 - [final-ops-closeout-checklist.md](./final-ops-closeout-checklist.md)
 - [security-hardening-current-state.md](./security-hardening-current-state.md)
@@ -73,6 +74,8 @@ cross-cutting 문서가 흩어져 있어도
 - [project-spec.md](../project-spec.md)
 
 `stabilization-checklist.md` 는 기능 freeze 이후 CI/nightly/attention 실패만 처리하는 안정화 기준입니다.
+
+`production-ops-quickstart.md` 는 평소 운영자가 먼저 볼 짧은 진입점입니다. smoke, 장애 첫 5분, 백업/확장 판단 문서로 이어지는 상위 요약입니다.
 
 `final-ops-closeout-checklist.md` 는 안정화 작업을 PR/배포/운영 handoff 전에 어떤 명령 순서로 닫을지 고정합니다.
 

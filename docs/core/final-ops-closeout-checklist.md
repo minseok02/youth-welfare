@@ -2,6 +2,8 @@
 
 문서군 진입점: [system-docs-index.md](./system-docs-index.md)
 
+평소 운영 진입점은 [production-ops-quickstart.md](./production-ops-quickstart.md)를 먼저 본다.
+
 ## 목적
 
 이 문서는 기능 추가를 멈춘 안정화 단계에서 PR/배포/운영 handoff를 닫기 전에 같은 순서로 확인할 항목을 고정합니다.
