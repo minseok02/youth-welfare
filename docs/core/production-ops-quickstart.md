@@ -45,7 +45,7 @@ Expected:
 | scheduler | primary enabled, secondary disabled |
 | database | RDS PostgreSQL single-AZ, backups/PITR metadata verified |
 | Redis/Valkey | single-node ElastiCache, no snapshot retention |
-| alerting | CloudWatch/Route53/SNS configured; SNS publish test succeeded |
+| alerting | CloudWatch/Route53/SNS configured; SNS publish and mailbox receipt confirmed |
 | watchdog | installed on primary and secondary |
 | disk cleanup | weekly threshold-gated cleanup installed on primary and secondary |
 
@@ -53,7 +53,6 @@ Expected:
 
 | Item | Status | Owner |
 | --- | --- | --- |
-| SNS test email arrival | publish succeeded, inbox confirmation still needed | human |
 | restore rehearsal execution | prepared, blocked until temporary RDS cost is approved | human |
 | RDS Multi-AZ | decision only, not enabled | human |
 | Valkey failover/snapshot retention | decision only, not enabled | human |

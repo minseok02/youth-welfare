@@ -138,18 +138,18 @@ SNS test publishes were sent without changing any CloudWatch alarm state:
 
 | Region | Topic | Publish result |
 | --- | --- | --- |
-| `ap-northeast-2` | `youth-welfare-ops-alerts` | accepted, MessageId recorded in command output |
-| `us-east-1` | `youth-welfare-ops-alerts` | accepted, MessageId recorded in command output |
+| `ap-northeast-2` | `youth-welfare-ops-alerts` | accepted and mailbox receipt confirmed |
+| `us-east-1` | `youth-welfare-ops-alerts` | accepted and mailbox receipt confirmed |
 
 Webhook:
 
 - `ALERT_WEBHOOK_URL` is not configured in `/home/ubuntu/.config/youth-welfare/ops.env`.
 - Webhook delivery was therefore not tested.
 
-Human follow-up:
+Human confirmation:
 
-- Check the subscribed mailbox for both SNS test messages.
-- If either message is missing, check spam/quarantine first, then SNS subscription delivery policy.
+- Both SNS test messages arrived at the subscribed mailbox.
+- The AWS unsubscribe link in the message body is expected and must not be clicked unless intentionally disabling alerts.
 
 ## Decision
 
@@ -157,7 +157,6 @@ Do not enable paid HA changes immediately.
 
 Recommended next actions:
 
-1. Apply the updated read-only IAM policy so snapshot inventory can be verified from the ops node.
-2. Keep RDS as single-AZ for now, but document that failover is not automatic.
-3. Keep Valkey single-node for now, but treat node loss as a session/cache outage scenario.
-4. Do not run restore rehearsal until the user explicitly approves the temporary RDS cost.
+1. Keep RDS as single-AZ for now, unless the user explicitly accepts the Multi-AZ cost.
+2. Keep Valkey single-node with snapshot retention `0` for now, unless the user explicitly accepts failover/snapshot cost.
+3. Do not run restore rehearsal until the user explicitly approves the temporary RDS cost.
