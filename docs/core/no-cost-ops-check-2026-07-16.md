@@ -297,6 +297,7 @@ Observed after DB triage closeout:
 Observed in final no-cost closeout wrapper:
 
 - command: `bash deploy/ops/run-no-cost-ops-check.sh`
+- committed revision: `24a953ea`
 - result: `ok_count=9`, `fail_count=0`
 - local actuator: `UP`
 - post-deploy smoke: passed
@@ -322,6 +323,7 @@ Observed in final no-cost closeout wrapper:
   - latest log alert status lines were `ok`
   - latest watchdog lines were `health=UP`
 - secondary:
+  - synced to revision `24a953ea` by SSM `git pull --ff-only`
   - cron service active
   - app watchdog cron installed
   - runtime disk cleanup cron installed
