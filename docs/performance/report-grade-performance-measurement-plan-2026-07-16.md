@@ -208,6 +208,15 @@ Method:
 - keep within `5 / 60s` per user unless using multiple test users
 - do not use chat for high-RPS stress unless rate-limit policy is explicitly the object of the test
 
+Current accepted measurement:
+
+- [report-grade-chat-flow-measurement-2026-07-16.md](./report-grade-chat-flow-measurement-2026-07-16.md)
+- artifact: `tmp/performance/chat-flow/20260716T173010Z`
+- result: `3 / 3` representative questions succeeded, `0` errors, `0` rate-limit responses
+- message-send p95: `4113.8ms`
+- answer mode: `POLICY_GROUNDED` x `3`
+- interpretation: OpenAI-influenced representative chatbot latency, not ordinary read API latency
+
 ### Group E: Integrated User Journey
 
 Goal:

@@ -17,6 +17,7 @@ LATEST_DIR="${TUNE_ROOT}/latest"
 LATEST_SUMMARY_TXT="${TUNE_ROOT}/latest-log-alert-threshold-tuning-summary.txt"
 LATEST_SUMMARY_JSON="${TUNE_ROOT}/latest-log-alert-threshold-tuning-summary.json"
 EXCLUDED_API_P95_PATHS="${LOG_ALERT_EXCLUDED_API_P95_PATHS:-POST /api/recommendations/refresh}"
+EXCLUDED_API_P95_PREFIXES="${LOG_ALERT_EXCLUDED_API_P95_PREFIXES:-GET /api/admin/,POST /api/admin/,POST /api/chat/sessions/}"
 RUN_BASELINES="${LOG_ALERT_TUNE_RUN_BASELINES:-true}"
 NGINX_LOG_TAIL_LINES="${NGINX_LOG_TUNE_TAIL_LINES:-50000}"
 
@@ -47,7 +48,8 @@ python3 - \
   "${SUMMARY_JSON}" \
   "${CONTEXT_TXT}" \
   "${TUNE_WINDOW}" \
-  "${EXCLUDED_API_P95_PATHS}" <<'PY' | smoke_redact_stream_for_log
+  "${EXCLUDED_API_P95_PATHS}" \
+  "${EXCLUDED_API_P95_PREFIXES}" <<'PY' | smoke_redact_stream_for_log
 import json
 import math
 import sys
@@ -56,6 +58,7 @@ from pathlib import Path
 app_path, nginx_path, summary_txt, summary_json, context_path = map(Path, sys.argv[1:6])
 window = sys.argv[6]
 excluded_paths = {item.strip() for item in sys.argv[7].split(",") if item.strip()}
+excluded_prefixes = {item.strip() for item in sys.argv[8].split(",") if item.strip()}
 
 def read_json(path):
     if not path.exists():
@@ -93,7 +96,7 @@ for path, summary in (app.get("api_duration_by_path") or {}).items():
     p95 = summary.get("p95_ms")
     if count <= 0 or p95 is None:
         continue
-    if path in excluded_paths:
+    if path in excluded_paths or any(path.startswith(prefix) for prefix in excluded_prefixes):
         excluded_latency.append({"path": path, "count": count, "p95_ms": float(p95)})
         continue
     interactive_path_p95s.extend([float(p95)] * count)
@@ -129,6 +132,7 @@ recommendations = {
     "LOG_ALERT_CRIT_5XX": max(5, app_5xx + nginx_5xx + 5),
     "LOG_ALERT_CRIT_ERROR_CODE_REPEAT": 10,
     "LOG_ALERT_EXCLUDED_API_P95_PATHS": ",".join(sorted(excluded_paths)),
+    "LOG_ALERT_EXCLUDED_API_P95_PREFIXES": ",".join(sorted(excluded_prefixes)),
 }
 
 notes = []

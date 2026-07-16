@@ -41,6 +41,7 @@
 - [report-grade-read-api-measurement-2026-07-16.md](./report-grade-read-api-measurement-2026-07-16.md)
 - [report-grade-auth-flow-measurement-2026-07-16.md](./report-grade-auth-flow-measurement-2026-07-16.md)
 - [report-grade-recommendation-flow-measurement-2026-07-16.md](./report-grade-recommendation-flow-measurement-2026-07-16.md)
+- [report-grade-chat-flow-measurement-2026-07-16.md](./report-grade-chat-flow-measurement-2026-07-16.md)
 - [ranking-snapshot-rollback-runbook-2026-07-15.md](./ranking-snapshot-rollback-runbook-2026-07-15.md)
 - [performance-next-checkpoint-2026-07-14.md](./performance-next-checkpoint-2026-07-14.md)
 - [performance-measurement-plan.md](./performance-measurement-plan.md)
@@ -112,6 +113,7 @@
 - [report-grade-read-api-measurement-2026-07-16.md](./report-grade-read-api-measurement-2026-07-16.md)
 - [report-grade-auth-flow-measurement-2026-07-16.md](./report-grade-auth-flow-measurement-2026-07-16.md)
 - [report-grade-recommendation-flow-measurement-2026-07-16.md](./report-grade-recommendation-flow-measurement-2026-07-16.md)
+- [report-grade-chat-flow-measurement-2026-07-16.md](./report-grade-chat-flow-measurement-2026-07-16.md)
 - [ranking-snapshot-rollback-runbook-2026-07-15.md](./ranking-snapshot-rollback-runbook-2026-07-15.md)
 - [performance-next-checkpoint-2026-07-14.md](./performance-next-checkpoint-2026-07-14.md)
 
@@ -139,6 +141,7 @@
 - 결과보고서용 공개 조회 API 대표 응답시간이 ALB 경유 환경에서 어느 정도인지
 - 결과보고서용 인증 흐름 대표 응답시간과 rate-limit 회피 조건이 어느 정도인지
 - 결과보고서용 추천 조회/생성 대표 응답시간과 OpenAI 영향이 어느 정도인지
+- 결과보고서용 챗봇 대표 응답시간과 OpenAI 영향, 응답 shape가 어느 정도인지
 - ranking snapshot을 어떻게 되돌릴지
 - 재측정 후 다음 작업을 열지 말지
 

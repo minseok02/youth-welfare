@@ -55,7 +55,7 @@ warning은 운영자가 같은 날 확인할 신호이고, critical은 배포/�
 - ALB health check path `/alb-health` 는 user API 5xx와 분리해서 읽는다.
 - warning: 배포/재시작 창 밖에서 `/alb-health` 5xx가 반복되거나 한 target만 health check 실패가 이어짐
 - critical: non-`/alb-health` user path 5xx가 발생하거나 ALB target이 unhealthy 상태로 지속
-- interactive API latency는 endpoint별 p95에서 `POST /api/recommendations/refresh` 같은 batch/refresh endpoint를 제외하고 봅니다.
+- interactive API latency는 endpoint별 p95에서 `POST /api/recommendations/refresh` 같은 batch/refresh endpoint와 `POST /api/chat/sessions/{id}/messages` 같은 외부 AI 의존 endpoint를 제외하고 봅니다. 이 경로들은 장애 여부와 일반 API latency를 분리하기 위해 별도 성능 문서/AI latency 관측으로 봅니다.
 - warning: nginx `request_time p95 >= 1500ms` 가 10분 이상 지속
 - critical: nginx `request_time p95 >= 3000ms` 또는 `upstream_response_time p95 >= 2500ms` 가 10분 이상 지속
 - warning: `raw_error_lines > 0` 이면서 같은 stack/error prefix가 반복
@@ -71,7 +71,7 @@ LOG_ALERT_WARN_API_P95_MS=1500
 LOG_ALERT_CRIT_API_P95_MS=3000
 LOG_ALERT_MIN_API_P95_COUNT=3
 LOG_ALERT_EXCLUDED_API_P95_PATHS='POST /api/recommendations/refresh'
-LOG_ALERT_EXCLUDED_API_P95_PREFIXES='GET /api/admin/,POST /api/admin/'
+LOG_ALERT_EXCLUDED_API_P95_PREFIXES='GET /api/admin/,POST /api/admin/,POST /api/chat/sessions/'
 LOG_ALERT_WARN_NGINX_P95_SECONDS=1.5
 LOG_ALERT_CRIT_NGINX_P95_SECONDS=3.0
 ```
@@ -83,6 +83,8 @@ nginx 5xx도 post-deploy smoke와 같은 기준으로 분류합니다. `/api/*` 
 interactive API p95는 기본 `LOG_ALERT_MIN_API_P95_COUNT=3` 이상일 때만 warning/critical로 승격합니다. 배포 직후 단일 ranking 요청처럼 샘플 수가 너무 적은 latency는 `observation=` line으로만 남깁니다.
 
 admin dashboard/API는 운영자가 수동 점검할 때 latency sample을 왜곡할 수 있으므로 기본 p95 warning/critical에서는 제외하고 `excluded_latency=` 로 남깁니다.
+
+챗봇 메시지 전송은 OpenAI 호출과 검색 후보 grounding을 포함해 정상 응답도 수 초가 걸릴 수 있습니다. 그래서 일반 interactive API p95에서는 제외하고, `report-grade-chat-flow` 측정과 `excluded_latency=` line으로 별도 확인합니다. 세션 생성/조회/삭제는 일반 API로 계속 감시합니다.
 
 24시간 기준 재튜닝:
 
