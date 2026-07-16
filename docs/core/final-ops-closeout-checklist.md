@@ -153,11 +153,13 @@ cd frontend && npm run test:e2e
 ## 7. 배포 후 확인
 
 ```bash
-docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build app
+docker compose --env-file .env.production -f docker-compose.prod.elasticache.yml up -d --build app
 curl -fsS http://127.0.0.1:8082/actuator/health
+RUN_ALB_TARGET_HEALTH=true bash deploy/smoke/run-prod-post-deploy-smoke.sh
 ```
 
-그 뒤 2번 운영 observation 기준선을 다시 실행합니다.
+그 뒤 필요한 경우 2번 운영 observation 기준선을 다시 실행합니다.
+어떤 smoke를 먼저 실행할지는 [operations-smoke-matrix.md](./operations-smoke-matrix.md)를 기준으로 합니다.
 
 ## 8. 문서 handoff
 
