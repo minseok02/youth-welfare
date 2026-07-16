@@ -66,7 +66,7 @@ class PolicyPresentationReadServiceTest {
 
         when(recommendationBookmarkReadService.findBookmarkedServiceIds(7L, List.of(policy)))
                 .thenReturn(Set.of(11L));
-        when(recommendationProjectionReadService.findCandidateProjectionsByServices(List.of(policy)))
+        when(recommendationProjectionReadService.findSummaryProjectionsByServices(List.of(policy)))
                 .thenReturn(Map.of(
                         11L,
                         RecommendationCandidateProjection.builder()
@@ -158,7 +158,7 @@ class PolicyPresentationReadServiceTest {
 
         when(recommendationBookmarkReadService.findBookmarkedServiceIds(null, List.of(localGov24, centralGov24)))
                 .thenReturn(Set.of());
-        when(recommendationProjectionReadService.findCandidateProjectionsByServices(List.of(localGov24, centralGov24)))
+        when(recommendationProjectionReadService.findSummaryProjectionsByServices(List.of(localGov24, centralGov24)))
                 .thenReturn(Map.of());
         when(serviceRegionRepository.findRegionLabelCandidatesByServiceIds(List.of(9344L, 6355L)))
                 .thenReturn(List.of(
@@ -195,7 +195,7 @@ class PolicyPresentationReadServiceTest {
 
         when(recommendationBookmarkReadService.findBookmarkedServiceIds(null, List.of(localGov24)))
                 .thenReturn(Set.of());
-        when(recommendationProjectionReadService.findCandidateProjectionsByServices(List.of(localGov24)))
+        when(recommendationProjectionReadService.findSummaryProjectionsByServices(List.of(localGov24)))
                 .thenReturn(Map.of());
         when(serviceRegionRepository.findRegionLabelCandidatesByServiceIds(List.of(196L)))
                 .thenReturn(List.<Object[]>of(new Object[]{196L, null, "44150"}));

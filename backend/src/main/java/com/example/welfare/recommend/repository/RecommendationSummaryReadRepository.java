@@ -12,5 +12,7 @@ public interface RecommendationSummaryReadRepository {
 
     Map<Long, RecommendationCandidateProjection> findCandidateProjections(List<Long> serviceIds);
 
+    Map<Long, RecommendationCandidateProjection> findSummaryProjections(List<Long> serviceIds);
+
     List<UserRecommendation> findLatestBookmarkedRecommendations(String userKey);
 }

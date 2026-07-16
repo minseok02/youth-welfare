@@ -40,6 +40,17 @@ public class RecommendationProjectionReadService {
     }
 
     @Transactional(readOnly = true)
+    public Map<Long, RecommendationCandidateProjection> findSummaryProjectionsByServices(List<WelfareService> services) {
+        if (services == null || services.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> serviceIds = services.stream()
+                .map(WelfareService::getId)
+                .toList();
+        return recommendationSummaryReadRepository.findSummaryProjections(serviceIds);
+    }
+
+    @Transactional(readOnly = true)
     public Map<Long, RecommendationCandidateProjection> findCandidateProjectionsByServiceIds(List<Long> serviceIds) {
         if (serviceIds == null || serviceIds.isEmpty()) {
             return Map.of();

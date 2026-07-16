@@ -20,6 +20,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
 
 @ExtendWith(MockitoExtension.class)
@@ -424,5 +425,84 @@ class CanonicalRecommendationReadModelRepositoryTest {
         assertThat(projection.youthMidLabel()).isEqualTo("교육비지원");
         assertThat(projection.priorityBuckets()).contains("EDUCATION");
         assertThat(projection.educationPriorityBoostEligible()).isTrue();
+    }
+
+    @Test
+    @DisplayName("summary projection은 카드 응답 라벨만 보존하고 추천 scoring field 조립은 생략한다")
+    void findSummaryByServiceIds_buildsResponseFieldsOnly() {
+        Map<String, Object> baseRow = new LinkedHashMap<>();
+        baseRow.put("service_id", 8801L);
+        baseRow.put("source_type", "GOV24");
+        baseRow.put("unified_category", "기타");
+        baseRow.put("youth_major_label", null);
+        baseRow.put("youth_mid_label", null);
+        baseRow.put("provision_method_label", "온라인");
+        baseRow.put("gov24_service_field_label", "legacy-field");
+        baseRow.put("gov24_user_type_label", "legacy-user");
+        baseRow.put("gov24_benefit_type_label", "legacy-benefit");
+        baseRow.put("title", "청년 월세 지원");
+        baseRow.put("summary", "청년 주거비 부담 완화");
+        baseRow.put("min_age", 19);
+        baseRow.put("max_age", 34);
+        baseRow.put("min_income", 0);
+        baseRow.put("max_income", 0);
+        baseRow.put("apply_end_date", null);
+        baseRow.put("search_youth_relevant", true);
+
+        given(jdbcTemplate.queryForObject(org.mockito.ArgumentMatchers.contains("table_name = ?"), org.mockito.ArgumentMatchers.eq(Integer.class), org.mockito.ArgumentMatchers.eq("service_taxonomy_summary_slots")))
+                .willReturn(0);
+        given(namedParameterJdbcTemplate.queryForList(org.mockito.ArgumentMatchers.contains("FROM welfare_services"), any(MapSqlParameterSource.class)))
+                .willReturn(List.of(baseRow));
+        given(namedParameterJdbcTemplate.queryForList(
+                argThat(sql -> sql != null && sql.contains("FROM service_taxonomy_terms") && sql.contains("term_group IN")),
+                any(MapSqlParameterSource.class)
+        )).willReturn(List.of(
+                Map.of(
+                        "service_id", 8801L,
+                        "term_group", "GOV24_SERVICE_FIELD",
+                        "term_label", "주거·자립",
+                        "source_field", "serviceField"
+                ),
+                Map.of(
+                        "service_id", 8801L,
+                        "term_group", "GOV24_USER_TYPE_TOKEN",
+                        "term_label", "개인",
+                        "source_field", "userType"
+                ),
+                Map.of(
+                        "service_id", 8801L,
+                        "term_group", "GOV24_BENEFIT_TYPE_TOKEN",
+                        "term_label", "현금",
+                        "source_field", "supportType"
+                )
+        ));
+        given(namedParameterJdbcTemplate.queryForList(
+                argThat(sql -> sql != null && sql.contains("FROM service_facts") && sql.contains("fact_code_set_key IN")),
+                any(MapSqlParameterSource.class)
+        )).willReturn(List.of(
+                Map.of(
+                        "service_id", 8801L,
+                        "fact_merge_key", "YOUTH_EMPLOYMENT_REQUIREMENT:001",
+                        "fact_code_set_key", "YOUTH_EMPLOYMENT_REQUIREMENT",
+                        "fact_code", "001",
+                        "raw_value", "001",
+                        "text_value", "미취업자"
+                )
+        ));
+
+        RecommendationCandidateProjection projection = repository.findSummaryByServiceIds(List.of(8801L)).get(8801L);
+
+        assertThat(projection.gov24ServiceFieldLabel()).isEqualTo("주거·자립");
+        assertThat(projection.gov24UserTypeLabel()).isEqualTo("개인");
+        assertThat(projection.gov24BenefitTypeLabel()).isEqualTo("현금");
+        assertThat(projection.youthMajorLabel()).isEqualTo("주거");
+        assertThat(projection.youthMidLabel()).isEqualTo("주택 및 거주지");
+        assertThat(projection.youthEmploymentRequirementLabels()).containsExactly("미취업자");
+        assertThat(projection.summary()).isEqualTo("청년 주거비 부담 완화");
+        assertThat(projection.priorityBuckets()).isEmpty();
+        assertThat(projection.targetGroupsRaw()).isEmpty();
+        assertThat(projection.specialTargetBuckets()).isEmpty();
+        assertThat(projection.factKeys()).isEmpty();
+        assertThat(projection.audienceRelevanceBonus()).isZero();
     }
 }

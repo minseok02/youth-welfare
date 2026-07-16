@@ -33,6 +33,7 @@
 - [post-projection-load-soak-2026-07-15.md](./post-projection-load-soak-2026-07-15.md)
 - [search-timing-instrumentation-2026-07-15.md](./search-timing-instrumentation-2026-07-15.md)
 - [search-generated-fields-optimization-2026-07-16.md](./search-generated-fields-optimization-2026-07-16.md)
+- [search-summary-projection-optimization-2026-07-16.md](./search-summary-projection-optimization-2026-07-16.md)
 - [ranking-snapshot-rollback-runbook-2026-07-15.md](./ranking-snapshot-rollback-runbook-2026-07-15.md)
 - [performance-next-checkpoint-2026-07-14.md](./performance-next-checkpoint-2026-07-14.md)
 - [performance-measurement-plan.md](./performance-measurement-plan.md)
@@ -96,6 +97,7 @@
 - [post-projection-load-soak-2026-07-15.md](./post-projection-load-soak-2026-07-15.md)
 - [search-timing-instrumentation-2026-07-15.md](./search-timing-instrumentation-2026-07-15.md)
 - [search-generated-fields-optimization-2026-07-16.md](./search-generated-fields-optimization-2026-07-16.md)
+- [search-summary-projection-optimization-2026-07-16.md](./search-summary-projection-optimization-2026-07-16.md)
 - [ranking-snapshot-rollback-runbook-2026-07-15.md](./ranking-snapshot-rollback-runbook-2026-07-15.md)
 - [performance-next-checkpoint-2026-07-14.md](./performance-next-checkpoint-2026-07-14.md)
 
@@ -115,6 +117,7 @@
 - projection 최적화 후 낮은 동시성 지속 부하에서도 안정적인지
 - search keyword/filtered 병목이 앱 내부 어디에 몰리는지
 - search filtered/deadline SQL을 왜 generated fields로 바꿨는지
+- search summary enrichment를 왜 summary-only projection으로 분리했는지
 - ranking snapshot을 어떻게 되돌릴지
 - 재측정 후 다음 작업을 열지 말지
 

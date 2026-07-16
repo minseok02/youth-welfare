@@ -52,6 +52,20 @@ class RecommendationSummaryReadRepositoryImplTest {
     }
 
     @Test
+    @DisplayName("recommendation summary read repository는 summary projection 조회를 위임한다")
+    void findSummaryProjectionsDelegates() {
+        RecommendationCandidateProjection projection = RecommendationCandidateProjection.builder()
+                .serviceId(10L)
+                .unifiedCategoryCompat("주거")
+                .build();
+        given(canonicalRecommendationReadModelRepository.findSummaryByServiceIds(List.of(10L)))
+                .willReturn(Map.of(10L, projection));
+
+        assertThat(recommendationSummaryReadRepository.findSummaryProjections(List.of(10L)))
+                .containsEntry(10L, projection);
+    }
+
+    @Test
     @DisplayName("recommendation summary read repository는 최신 북마크 추천 목록 조회를 위임한다")
     void findLatestBookmarkedRecommendationsDelegates() {
         UserRecommendation recommendation = UserRecommendation.builder().id(1L).userKey("user-key-1").build();

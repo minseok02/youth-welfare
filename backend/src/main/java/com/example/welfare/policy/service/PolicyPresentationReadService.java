@@ -107,7 +107,7 @@ public class PolicyPresentationReadService {
         if (services == null || services.isEmpty()) {
             return Map.of();
         }
-        return recommendationProjectionReadService.findCandidateProjectionsByServices(services);
+        return recommendationProjectionReadService.findSummaryProjectionsByServices(services);
     }
 
     private Map<Long, String> buildRegionLabelMap(List<WelfareService> services) {

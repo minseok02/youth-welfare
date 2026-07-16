@@ -26,6 +26,11 @@ public class RecommendationSummaryReadRepositoryImpl implements RecommendationSu
     }
 
     @Override
+    public Map<Long, RecommendationCandidateProjection> findSummaryProjections(List<Long> serviceIds) {
+        return canonicalRecommendationReadModelRepository.findSummaryByServiceIds(serviceIds);
+    }
+
+    @Override
     public List<UserRecommendation> findLatestBookmarkedRecommendations(String userKey) {
         return userRecommendationRepository.findLatestBookmarkedByUserKey(userKey);
     }

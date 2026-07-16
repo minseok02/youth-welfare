@@ -34,6 +34,14 @@ public class CanonicalRecommendationReadModelRepository {
     private volatile Boolean summarySlotTableReady;
 
     public Map<Long, RecommendationCandidateProjection> findByServiceIds(List<Long> serviceIds) {
+        return findByServiceIds(serviceIds, false);
+    }
+
+    public Map<Long, RecommendationCandidateProjection> findSummaryByServiceIds(List<Long> serviceIds) {
+        return findByServiceIds(serviceIds, true);
+    }
+
+    private Map<Long, RecommendationCandidateProjection> findByServiceIds(List<Long> serviceIds, boolean summaryOnly) {
         if (serviceIds == null || serviceIds.isEmpty()) {
             return Map.of();
         }
@@ -48,7 +56,7 @@ public class CanonicalRecommendationReadModelRepository {
             return Map.of();
         }
 
-        for (Map<String, Object> row : taxonomyTermRows(params)) {
+        for (Map<String, Object> row : taxonomyTermRows(params, summaryOnly)) {
             MutableProjection projection = projections.get(longValue(row.get("service_id")));
             if (projection == null) {
                 continue;
@@ -60,7 +68,7 @@ public class CanonicalRecommendationReadModelRepository {
             );
         }
 
-        for (Map<String, Object> row : factRows(params)) {
+        for (Map<String, Object> row : factRows(params, summaryOnly)) {
             MutableProjection projection = projections.get(longValue(row.get("service_id")));
             if (projection == null) {
                 continue;
@@ -76,7 +84,7 @@ public class CanonicalRecommendationReadModelRepository {
 
         LinkedHashMap<Long, RecommendationCandidateProjection> result = new LinkedHashMap<>();
         for (MutableProjection projection : projections.values()) {
-            result.put(projection.serviceId, projection.toProjection());
+            result.put(projection.serviceId, summaryOnly ? projection.toSummaryProjection() : projection.toProjection());
         }
         return result;
     }
@@ -167,7 +175,23 @@ public class CanonicalRecommendationReadModelRepository {
         return summarySlotTableReady;
     }
 
-    private List<Map<String, Object>> taxonomyTermRows(MapSqlParameterSource params) {
+    private List<Map<String, Object>> taxonomyTermRows(MapSqlParameterSource params, boolean summaryOnly) {
+        if (summaryOnly) {
+            return namedParameterJdbcTemplate.queryForList("""
+                    SELECT service_id,
+                           term_group,
+                           term_label,
+                           source_field
+                    FROM service_taxonomy_terms
+                    WHERE service_id IN (:serviceIds)
+                      AND term_group IN (
+                          'GOV24_SERVICE_FIELD',
+                          'GOV24_USER_TYPE_TOKEN',
+                          'GOV24_BENEFIT_TYPE_TOKEN'
+                      )
+                    ORDER BY service_id, term_group, sort_order, term_label
+                    """, params);
+        }
         return namedParameterJdbcTemplate.queryForList("""
                 SELECT service_id,
                        term_group,
@@ -179,7 +203,27 @@ public class CanonicalRecommendationReadModelRepository {
                 """, params);
     }
 
-    private List<Map<String, Object>> factRows(MapSqlParameterSource params) {
+    private List<Map<String, Object>> factRows(MapSqlParameterSource params, boolean summaryOnly) {
+        if (summaryOnly) {
+            return namedParameterJdbcTemplate.queryForList("""
+                    SELECT service_id,
+                           fact_merge_key,
+                           fact_code_set_key,
+                           fact_code,
+                           raw_value,
+                           text_value
+                    FROM service_facts
+                    WHERE service_id IN (:serviceIds)
+                      AND fact_code_set_key IN (
+                          'YOUTH_EMPLOYMENT_REQUIREMENT',
+                          'YOUTH_EDUCATION_REQUIREMENT',
+                          'YOUTH_SPECIAL_REQUIREMENT',
+                          'YOUTH_MARITAL_STATUS',
+                          'YOUTH_INCOME_CONDITION_TYPE'
+                      )
+                    ORDER BY service_id, fact_merge_key
+                    """, params);
+        }
         return namedParameterJdbcTemplate.queryForList("""
                 SELECT service_id,
                        fact_merge_key,
@@ -481,6 +525,54 @@ public class CanonicalRecommendationReadModelRepository {
                     .beneficiaryTerms(beneficiaryTerms)
                     .specialTargetBuckets(specialTargetBuckets)
                     .factKeys(factKeys)
+                    .build();
+        }
+
+        RecommendationCandidateProjection toSummaryProjection() {
+            List<String> resolvedGov24UserTypeTokens = resolveGov24UserTypeTokens();
+            List<String> resolvedGov24BenefitTypeTokens = resolveGov24BenefitTypeTokens();
+            String resolvedGov24ServiceFieldLabel = resolveGov24ServiceFieldLabel();
+            String resolvedGov24BenefitTypeLabel = resolveGov24TokenLabel(resolvedGov24BenefitTypeTokens, gov24BenefitTypeLabel);
+            Gov24TaxonomyCodeSupport.YouthBridge youthBridge = Gov24TaxonomyCodeSupport.youthBridge(
+                    resolvedGov24ServiceFieldLabel,
+                    resolvedGov24BenefitTypeLabel,
+                    title,
+                    summary
+            );
+            String resolvedYouthMajorLabel = firstNonBlank(youthMajorLabel, youthBridge.youthMajorLabel());
+            String resolvedYouthMidLabel = firstNonBlank(youthMidLabel, youthBridge.youthMidLabel());
+            return RecommendationCandidateProjection.builder()
+                    .serviceId(serviceId)
+                    .sourceType(sourceType)
+                    .unifiedCategoryCompat(unifiedCategoryCompat)
+                    .compatCategoryCode(compatCategoryCode)
+                    .compatPriorityBucket(compatPriorityBucket)
+                    .youthMajorLabel(resolvedYouthMajorLabel)
+                    .youthMidLabel(resolvedYouthMidLabel)
+                    .provisionMethodLabel(provisionMethodLabel)
+                    .gov24ServiceFieldLabel(resolvedGov24ServiceFieldLabel)
+                    .gov24UserTypeLabel(resolveGov24TokenLabel(resolvedGov24UserTypeTokens, gov24UserTypeLabel))
+                    .gov24BenefitTypeLabel(resolvedGov24BenefitTypeLabel)
+                    .gov24UserTypeTokens(resolvedGov24UserTypeTokens)
+                    .gov24BenefitTypeTokens(resolvedGov24BenefitTypeTokens)
+                    .youthEmploymentRequirementCodes(List.copyOf(youthEmploymentRequirementCodes))
+                    .youthEmploymentRequirementLabels(List.copyOf(youthEmploymentRequirementLabels))
+                    .youthEducationRequirementCodes(List.copyOf(youthEducationRequirementCodes))
+                    .youthEducationRequirementLabels(List.copyOf(youthEducationRequirementLabels))
+                    .youthSpecialRequirementCodes(List.copyOf(youthSpecialRequirementCodes))
+                    .youthSpecialRequirementLabels(List.copyOf(youthSpecialRequirementLabels))
+                    .youthMaritalStatusCode(youthMaritalStatusCode)
+                    .youthMaritalStatusLabel(youthMaritalStatusLabel)
+                    .youthIncomeConditionTypeCode(youthIncomeConditionTypeCode)
+                    .youthIncomeConditionTypeLabel(youthIncomeConditionTypeLabel)
+                    .title(title)
+                    .summary(summary)
+                    .minAge(minAge)
+                    .maxAge(maxAge)
+                    .incomeMinLegacy(incomeMinLegacy)
+                    .incomeMaxLegacy(incomeMaxLegacy)
+                    .applyEndDate(applyEndDate)
+                    .youthRelevant(youthRelevant)
                     .build();
         }
 

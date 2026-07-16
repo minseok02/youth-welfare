@@ -331,6 +331,33 @@ Search generated-field optimization:
 - Live SQL component is down from the previous `174ms`-`271ms` range to `41ms`-`66ms` in sampled filtered/deadline requests.
 - Decision: SQL is no longer the only dominant piece. Next performance review should inspect summary enrichment, ordered entity loading, cache write, and search-log write before another SQL rewrite.
 
+Search summary projection optimization:
+
+- Tracking document: `docs/performance/search-summary-projection-optimization-2026-07-16.md`.
+- Trigger: after generated fields, filtered/deadline SQL was mostly `41ms`-`66ms`, but `PolicySearchServiceTiming` still showed summary enrichment at `58ms`-`113ms`; `PolicyListPresentationTiming` attributed most of that to `projectionMs` `49ms`-`97ms`.
+- DB check: production `EXPLAIN (ANALYZE, BUFFERS)` for the underlying 20-row projection/region reads was sub-millisecond to low-millisecond:
+  - base rows `0.627ms`
+  - taxonomy terms `0.208ms`
+  - service facts `0.450ms`
+  - region labels `0.215ms`
+- Finding: the public search/list summary path was using the full recommendation candidate projection builder, including scoring-specific fields not consumed by `PolicySummaryResponse`.
+- Implementation:
+  - add `findSummaryProjectionsByServices(...)`
+  - add `findSummaryByServiceIds(...)`
+  - route `PolicyPresentationReadService.findProjections(...)` through the summary projection path
+  - keep detail and recommendation ranking paths on full `findCandidateProjectionsByServices(...)`
+  - narrow summary taxonomy/fact reads to fields required by summary cards
+  - skip audience bonus, priority buckets, target groups, special-target scans, and fact-key output for summary projection
+- Focused tests passed before deploy:
+  - `PolicyPresentationReadServiceTest`
+  - `RecommendationSummaryReadRepositoryImplTest`
+  - `RecommendationProjectionReadServiceTest`
+  - `CanonicalRecommendationReadModelRepositoryTest`
+  - `PolicySearchServiceTest`
+  - `PolicySearchKeywordApiWebMvcTest`
+- Post-deploy live timing: pending.
+- Decision: deploy and compare `projectionMs` before moving to region labels, ordered entity loading, cache write, or search-log write.
+
 ### 2026-07-15: ranking app-side timing instrumentation
 
 Trigger:

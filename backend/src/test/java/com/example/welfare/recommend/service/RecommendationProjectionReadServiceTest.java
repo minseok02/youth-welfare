@@ -81,6 +81,32 @@ class RecommendationProjectionReadServiceTest {
     }
 
     @Test
+    @DisplayName("정책 summary projection 조회는 정책 목록의 service id를 summary read model에 위임한다")
+    void findSummaryProjectionsByServicesDelegatesToRepository() {
+        RecommendationProjectionReadService service =
+                new RecommendationProjectionReadService(recommendationSummaryReadRepository);
+        WelfareService welfareService = WelfareService.builder()
+                .id(11L)
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("Y-11")
+                .title("청년 월세 지원")
+                .build();
+        RecommendationCandidateProjection projection = RecommendationCandidateProjection.builder()
+                .serviceId(11L)
+                .unifiedCategoryCompat("주거")
+                .build();
+
+        when(recommendationSummaryReadRepository.findSummaryProjections(List.of(11L)))
+                .thenReturn(Map.of(11L, projection));
+
+        Map<Long, RecommendationCandidateProjection> result =
+                service.findSummaryProjectionsByServices(List.of(welfareService));
+
+        assertThat(result).containsEntry(11L, projection);
+        verify(recommendationSummaryReadRepository).findSummaryProjections(List.of(11L));
+    }
+
+    @Test
     @DisplayName("service id projection 조회는 canonical read model 저장소에 위임한다")
     void findCandidateProjectionsByServiceIdsDelegatesToRepository() {
         RecommendationProjectionReadService service =
