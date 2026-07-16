@@ -18,6 +18,7 @@ cross-cutting 문서가 흩어져 있어도
 - [production-ops-quickstart.md](./production-ops-quickstart.md)
 - [stabilization-checklist.md](./stabilization-checklist.md)
 - [final-ops-closeout-checklist.md](./final-ops-closeout-checklist.md)
+- [final-production-operations-runbook-2026-07-16.md](./final-production-operations-runbook-2026-07-16.md)
 - [security-hardening-current-state.md](./security-hardening-current-state.md)
 - [local-validation-docs-index.md](./local-validation-docs-index.md)
 - [testing.md](./testing.md)
@@ -40,6 +41,7 @@ cross-cutting 문서가 흩어져 있어도
 - [runtime-disk-cleanup-runbook.md](./runtime-disk-cleanup-runbook.md)
 - [admin-dashboard-alert-surface-contract.md](./admin-dashboard-alert-surface-contract.md)
 - [project-spec.md](../project-spec.md)
+- [final-report-submission-checklist-2026-07-16.md](../final-report-submission-checklist-2026-07-16.md)
 - [architecture.md](../architecture.md)
 - [api-mapping.md](./api-mapping.md)
 
@@ -77,6 +79,8 @@ cross-cutting 문서가 흩어져 있어도
 `stabilization-checklist.md` 는 기능 freeze 이후 CI/nightly/attention 실패만 처리하는 안정화 기준입니다.
 
 `production-ops-quickstart.md` 는 평소 운영자가 먼저 볼 짧은 진입점입니다. smoke, 장애 첫 5분, 백업/확장 판단 문서로 이어지는 상위 요약입니다.
+
+`final-production-operations-runbook-2026-07-16.md` 는 최종 제출/인수 기준 운영 상태, AWS 콘솔 확인 위치, IAM/Route53/ALB 기대값, 비용/위험 경계, 주요 점검 명령을 한 문서에 모은 handoff runbook입니다.
 
 `final-ops-closeout-checklist.md` 는 안정화 작업을 PR/배포/운영 handoff 전에 어떤 명령 순서로 닫을지 고정합니다.
 

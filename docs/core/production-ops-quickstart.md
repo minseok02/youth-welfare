@@ -8,6 +8,8 @@ Give the normal operator a short entrypoint after the HA, performance, alerting,
 
 Use this page first. Open the deeper runbooks only when the situation matches.
 
+For final handoff, AWS console checks, IAM/Route53/ALB expectations, and cost-risk boundaries, use [final-production-operations-runbook-2026-07-16.md](./final-production-operations-runbook-2026-07-16.md).
+
 ## Normal Daily Check
 
 ```bash
@@ -38,6 +40,7 @@ Run the full no-cost closeout on the primary node because log alert cron is inte
 | Need | Open |
 | --- | --- |
 | choose which smoke to run | [operations-smoke-matrix.md](./operations-smoke-matrix.md) |
+| final production handoff | [final-production-operations-runbook-2026-07-16.md](./final-production-operations-runbook-2026-07-16.md) |
 | first 5 minutes of an incident | [incident-first-five-minutes-runbook.md](./incident-first-five-minutes-runbook.md) |
 | decide whether `/alb-health` 502 matters | [alb-health-502-runbook.md](./alb-health-502-runbook.md) |
 | disk cleanup policy | [runtime-disk-cleanup-runbook.md](./runtime-disk-cleanup-runbook.md) |

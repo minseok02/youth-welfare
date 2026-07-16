@@ -15,6 +15,7 @@
 - collect/runtime: 로컬 full collect, ops baseline, broad quality 재검사까지 다시 green
 - recommendation/policy: 각 current-state 문서와 runbook을 기준으로 baseline 유지 단계
 - 프론트: 기본 연동, lint, build, browser smoke까지 확인 완료
+- 2026-07-16 최종 운영 handoff 기준: public path는 Route53 public hosted zone의 `youthmoa.kr` / `www.youthmoa.kr` A alias -> ALB -> EC2 2대 -> nginx -> Spring Boot 이고, ALB target은 최종 점검에서 `2` healthy 다. direct EC2 public `80/443` 은 차단되어 ALB를 우회하지 않는다. 최종 기능 회귀는 `18/18` 단계 통과, 오류/429 `0` 이며, 최종 운영 확인 절차는 [core/final-production-operations-runbook-2026-07-16.md](core/final-production-operations-runbook-2026-07-16.md) 를 기준으로 본다.
 - 2026-06-20 지역 데이터 운영 기준: 정규화 지역 컬럼과 지역 JSON/fact에는 좌표값 유입이 `0`건이다. 사용자 `sido/sgg` 가 명확한데 `region_code` 가 비어 있던 row는 `users` 591건, `user_profiles` 592건을 bounded 보정했고, 두 테이블 모두 `missing_with_sido_sgg=0` 으로 닫았다. `service_regions.region_code` NULL 1,228건은 전부 `BOKJIRO_LOCAL` 이름 기반 매칭 경로라 정상 잔량으로 둔다. 정책 검색 지역 audit, Gov24 region coverage audit, 추천 region mismatch audit은 모두 통과했다.
 - 2026-06-20 최신 운영 배포 기준: 운영 compose app/redis를 `main` `08589523` 기준으로 rebuild/recreate 했고 health는 `UP` 다. `run-prod-cutover-verification.sh` 는 env/RDS privilege/nginx edge/public guard를 통과했고, runtime API smoke는 signup/login/recommend/bookmark/logout 및 presented/older token after logout `401/A006` 경계를 통과했다.
 - 2026-06-20 chat memory/ranking 운영 기준: 후속 질문 smoke에서 `chat_sessions.context_state_json.memory` 에 질문 2개와 추천 정책 1개가 저장되고, 최신 `chat_retrieval_snapshots.search_keyword` 에 `저장된 관심 맥락` 이 포함됐다. 두 번째 답변은 `POLICY_GROUNDED`, reference count `1` 로 확인했다.
@@ -70,6 +71,8 @@
 
 - 안정화 체크리스트: [stabilization-checklist.md](core/stabilization-checklist.md)
 - 최종 운영 closeout 체크리스트: [final-ops-closeout-checklist.md](core/final-ops-closeout-checklist.md)
+- 최종 운영 handoff runbook: [final-production-operations-runbook-2026-07-16.md](core/final-production-operations-runbook-2026-07-16.md)
+- 결과보고서 제출 체크리스트: [final-report-submission-checklist-2026-07-16.md](./final-report-submission-checklist-2026-07-16.md)
 - 인수인계: [stabilization-handoff.md](./stabilization-handoff.md)
 - 인증 문서군 진입점: [auth-docs-index.md](auth/auth-docs-index.md)
 - 수집 문서군 진입점: [collect-docs-index.md](collect/collect-docs-index.md)
