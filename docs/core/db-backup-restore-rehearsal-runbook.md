@@ -29,6 +29,9 @@
 - snapshot inventory 조회는 현재 role에 `rds:DescribeDBSnapshots`, `rds:DescribeDBInstanceAutomatedBackups` 가 없어 `AccessDenied` 로 막혔다.
 - `deploy/ops/aws-ops-monitor-role-policy.json` 는 이 read-only 권한을 포함하도록 갱신했다. 콘솔/IAM에서 반영 후 snapshot inventory를 다시 확인한다.
 - EC2 ops role에서 `aws iam put-role-policy` 직접 반영을 시도했지만 `iam:PutRolePolicy` 권한이 없어 `AccessDenied` 로 실패했다. IAM 권한이 있는 사용자/콘솔에서 반영해야 한다.
+- 이후 콘솔에서 권한이 반영되어 운영 EC2 ops role로 `rds:DescribeDBSnapshots`, `rds:DescribeDBInstanceAutomatedBackups` 조회가 통과했다.
+- 최신 확인 기준 automated snapshot 5개는 모두 `available`, encrypted, `20 GiB` 였고, 최신 snapshot은 `rds:youth-welfare-prod-db-2026-07-15-16-20` 이다.
+- `LatestRestorableTime` 은 `2026-07-16T11:57:29Z` 로 확인됐다.
 - 실제 restore rehearsal은 별도 RDS instance를 생성하는 비용 발생 작업이라 현재 보류한다. 명시 승인 후 target DB identifier, subnet group, restore security group을 정한 뒤 진행한다.
 
 ## 1. 운영 RDS 백업 상태 확인

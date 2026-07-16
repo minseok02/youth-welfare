@@ -21,7 +21,7 @@ This check does not enable Multi-AZ, failover, restore rehearsal, or new paid re
 | Multi-AZ | `false` |
 | backup retention | `7` days |
 | backup window | `16:11-16:41 UTC` |
-| latest restorable time | `2026-07-16T11:22:28Z` |
+| latest restorable time | `2026-07-16T11:57:29Z` |
 | maintenance window | `wed:19:50-wed:20:20 UTC` |
 | auto minor version upgrade | `true` |
 
@@ -52,6 +52,14 @@ Apply attempt:
 - attempted `aws iam put-role-policy` from the EC2 ops role
 - result: `AccessDenied` for `iam:PutRolePolicy`
 - meaning: the repo policy file is ready, but an IAM-capable principal must apply it in AWS
+
+Follow-up after console apply:
+
+- RDS automated snapshot inventory is now readable from the ops node.
+- latest five automated snapshots were `available`, encrypted, and `20 GiB`.
+- latest observed snapshot: `rds:youth-welfare-prod-db-2026-07-15-16-20`.
+- automated backup metadata query is now readable and returned `Status=active`, `AllocatedStorage=20`, `Encrypted=true`.
+- RDS instance `LatestRestorableTime` refreshed to `2026-07-16T11:57:29Z`.
 
 Apply the updated policy before the next backup inventory check, then run:
 
@@ -108,6 +116,11 @@ The current EC2 role can read ElastiCache cluster and replication group metadata
 The repo policy file was updated to include that read-only action.
 
 The same IAM apply attempt failed because the EC2 ops role is not allowed to mutate IAM policies.
+
+Follow-up after console apply:
+
+- `elasticache:DescribeSnapshots` is now allowed.
+- snapshot count for `youth-welfare-prod-redis-valkey` is `0`, matching `SnapshotRetentionLimit=0`.
 
 After applying the updated policy, run:
 
