@@ -322,6 +322,14 @@ Search generated-field optimization:
 - Equivalence checks matched total count and ordered top-20 IDs for `청년`, `월세`, `창업`, `주거+월세`, `GOV24+청년`, `YOUTH+청년`.
 - Implementation: switch shared general search match/rank expressions to `ws.search_document_vector`, `ws.title_l`, and `ws.keyword_l`, while keeping `similarity(...) >= :trigramThreshold`.
 - Deferred: `%` operator candidate pruning and count-query restructuring.
+- Deployed commit `425774e4b45d0a109f537c2211d8b4723152b05d` to both ALB nodes.
+- Post-deploy live timing:
+  - primary `월세 ACTIVE_ONLY DEADLINE`: repository `123ms`, SQL `50ms`, entity load `38ms`; endpoint cold path `1067.218ms`
+  - primary `창업 ACTIVE_ONLY DEADLINE`: repository `97ms`, SQL `41ms`, entity load `54ms`
+  - primary `청년 ACTIVE_ONLY DEADLINE`: repository `49ms`
+  - secondary uncached `월세 ACTIVE_ONLY DEADLINE`: repository `306ms`, SQL `66ms`, entity load `216ms`
+- Live SQL component is down from the previous `174ms`-`271ms` range to `41ms`-`66ms` in sampled filtered/deadline requests.
+- Decision: SQL is no longer the only dominant piece. Next performance review should inspect summary enrichment, ordered entity loading, cache write, and search-log write before another SQL rewrite.
 
 ### 2026-07-15: ranking app-side timing instrumentation
 

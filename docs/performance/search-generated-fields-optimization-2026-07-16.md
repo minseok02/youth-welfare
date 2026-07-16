@@ -99,3 +99,49 @@ Count and ordered top-20 IDs matched exactly between current SQL and generated-f
 ## Decision
 
 Proceed with the behavior-preserving generated-field switch first. Defer `%`/GIN candidate pruning and count-query restructuring until after live timing confirms the simpler CPU reduction is enough or not.
+
+## Implementation
+
+- Commit: `425774e4b45d0a109f537c2211d8b4723152b05d`
+- Code change:
+  - `SEARCH_VECTOR_SQL` now uses `ws.search_document_vector`
+  - `SEARCH_TITLE_LIKE_SQL` now uses `ws.title_l`
+  - `SEARCH_KEYWORD_LIKE_SQL` now uses `ws.keyword_l`
+  - `SEARCH_TITLE_TRGM_SQL` now uses `similarity(ws.title_l, :normalizedKeyword)`
+  - `SEARCH_KEYWORD_TRGM_SQL` now uses `similarity(ws.keyword_l, :normalizedKeyword)`
+- No migration or index change.
+- No switch to `%` operator in this step.
+
+## Validation
+
+Pre-deploy:
+
+- Focused tests passed:
+  - `./gradlew test --tests com.example.welfare.policy.repository.WelfareServiceSearchRepositoryImplTest --tests com.example.welfare.policy.service.PolicySearchServiceTest --tests com.example.welfare.api.PolicySearchKeywordApiWebMvcTest --tests com.example.welfare.policy.service.PolicySearchKeywordReadServiceTest --no-daemon`
+
+Deploy:
+
+- Primary deployed and `/actuator/health` returned `UP`.
+- Secondary fast-forwarded to `425774e4b45d0a109f537c2211d8b4723152b05d`, rebuilt, and `/actuator/health` returned `UP`.
+- ALB target group remained healthy for both instances.
+
+Post-deploy samples:
+
+| Node/path | Request | Client total | Repository timing | Service/controller note |
+| --- | --- | ---: | --- | --- |
+| primary local | `월세 ACTIVE_ONLY DEADLINE` | `1067.218ms` | repository `123ms`, SQL `50ms`, entity load `38ms` | first post-deploy cold path; summary `293ms`, cache write `68ms`, search log `120ms` |
+| primary local | `창업 ACTIVE_ONLY DEADLINE` | `361.466ms` | repository `97ms`, SQL `41ms`, entity load `54ms` | summary `130ms`, cache write `33ms` |
+| primary local | `청년 ACTIVE_ONLY DEADLINE` | `243.825ms` | repository `49ms` | summary `106ms`, cache write `13ms` |
+| secondary local | `월세 ACTIVE_ONLY DEADLINE` | `30.793ms` client, but log captured uncached earlier on this node | repository `306ms`, SQL `66ms`, entity load `216ms` | later request was Redis/cache hit; uncached path shows SQL no longer dominant |
+| secondary local | `창업 ACTIVE_ONLY DEADLINE` | `99.122ms` | cache/low timing path | response `200` |
+| secondary local | `청년 ACTIVE_ONLY DEADLINE` | `56.600ms` | cache/low timing path | response `200` |
+| edge | `월세 ACTIVE_ONLY DEADLINE` | `930.582ms` | handled by primary/cache timing overlap | response `200` |
+| edge | `창업 ACTIVE_ONLY DEADLINE` | `497.949ms` | handled by secondary/cache timing overlap | response `200` |
+
+Post-deploy conclusion:
+
+- The SQL component is materially lower in live logs:
+  - before: filtered/deadline SQL commonly `174ms` to `271ms`
+  - after: filtered/deadline SQL observed `41ms`, `47ms`, `50ms`, `66ms`
+- Remaining miss-path costs are now more often summary enrichment, entity loading, cache write, and search-log write.
+- No 5xx or application exception was observed in the sampled post-deploy window.
