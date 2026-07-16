@@ -9,6 +9,7 @@ DURATION_SECONDS="${DURATION_SECONDS:-20}"
 CONCURRENCY="${CONCURRENCY:-4}"
 API_LOAD_REQUEST_DELAY_SECONDS="${API_LOAD_REQUEST_DELAY_SECONDS:-0}"
 REQUEST_TIMEOUT_SECONDS="${REQUEST_TIMEOUT_SECONDS:-10}"
+INCLUDE_HEALTH="${INCLUDE_HEALTH:-true}"
 API_LOAD_ROOT="${API_LOAD_ROOT:-${ROOT_DIR}/tmp/performance/api-load}"
 RUN_TS_UTC="$(perf_now_ts_utc)"
 ARTIFACT_DIR="${ARTIFACT_DIR:-${API_LOAD_ROOT}/${RUN_TS_UTC}}"
@@ -25,6 +26,7 @@ perf_require_python
 mkdir -p "${ARTIFACT_DIR}/responses"
 perf_write_run_context "${CONTEXT_TXT}"
 echo "api_load_request_delay_seconds=${API_LOAD_REQUEST_DELAY_SECONDS}" >> "${CONTEXT_TXT}"
+echo "include_health=${INCLUDE_HEALTH}" >> "${CONTEXT_TXT}"
 
 if (( DURATION_SECONDS < 1 )); then
   echo "DURATION_SECONDS must be >= 1" >&2
@@ -53,7 +55,9 @@ fi
 
 {
   printf 'scenario\tmethod\tpath\tbody_json\n'
-  printf 'health\tGET\t/actuator/health\t\n'
+  if [[ "${INCLUDE_HEALTH,,}" == "true" ]]; then
+    printf 'health\tGET\t/actuator/health\t\n'
+  fi
   printf 'policy_list_default\tGET\t/api/policies?page=0&size=20\t\n'
   printf 'policy_search_keyword\tPOST\t/api/policies/search\t{"keyword":"청년","page":0,"size":20}\n'
   printf 'policy_search_filtered\tPOST\t/api/policies/search\t{"keyword":"청년","page":0,"size":20,"statusFilter":"ACTIVE_ONLY","sort":"DEADLINE"}\n'
