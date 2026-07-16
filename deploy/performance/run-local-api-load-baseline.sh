@@ -10,6 +10,7 @@ CONCURRENCY="${CONCURRENCY:-4}"
 API_LOAD_REQUEST_DELAY_SECONDS="${API_LOAD_REQUEST_DELAY_SECONDS:-0}"
 REQUEST_TIMEOUT_SECONDS="${REQUEST_TIMEOUT_SECONDS:-10}"
 INCLUDE_HEALTH="${INCLUDE_HEALTH:-true}"
+API_LOAD_SCENARIOS="${API_LOAD_SCENARIOS:-mixed}"
 API_LOAD_ROOT="${API_LOAD_ROOT:-${ROOT_DIR}/tmp/performance/api-load}"
 RUN_TS_UTC="$(perf_now_ts_utc)"
 ARTIFACT_DIR="${ARTIFACT_DIR:-${API_LOAD_ROOT}/${RUN_TS_UTC}}"
@@ -27,6 +28,7 @@ mkdir -p "${ARTIFACT_DIR}/responses"
 perf_write_run_context "${CONTEXT_TXT}"
 echo "api_load_request_delay_seconds=${API_LOAD_REQUEST_DELAY_SECONDS}" >> "${CONTEXT_TXT}"
 echo "include_health=${INCLUDE_HEALTH}" >> "${CONTEXT_TXT}"
+echo "api_load_scenarios=${API_LOAD_SCENARIOS}" >> "${CONTEXT_TXT}"
 
 if (( DURATION_SECONDS < 1 )); then
   echo "DURATION_SECONDS must be >= 1" >&2
@@ -67,6 +69,28 @@ fi
     printf 'policy_detail_first\tGET\t/api/policies/%s\t\n' "${first_policy_id}"
   fi
 } > "${SCENARIOS_TSV}"
+
+if [[ "${API_LOAD_SCENARIOS}" != "mixed" && "${API_LOAD_SCENARIOS}" != "all" ]]; then
+  python3 - "${SCENARIOS_TSV}" "${API_LOAD_SCENARIOS}" <<'PY'
+import csv
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+selected = {item.strip() for item in sys.argv[2].split(",") if item.strip()}
+rows = list(csv.DictReader(path.open(encoding="utf-8"), delimiter="\t"))
+kept = [row for row in rows if row["scenario"] in selected]
+missing = sorted(selected - {row["scenario"] for row in rows})
+if not kept:
+    raise SystemExit(f"no selected scenarios found; selected={sorted(selected)} missing={missing}")
+with path.open("w", encoding="utf-8", newline="") as fp:
+    writer = csv.DictWriter(fp, fieldnames=["scenario", "method", "path", "body_json"], delimiter="\t")
+    writer.writeheader()
+    writer.writerows(kept)
+if missing:
+    print(f"api_load_missing_scenarios={','.join(missing)}")
+PY
+fi
 
 python3 - \
   "${APP_BASE_URL}" \
