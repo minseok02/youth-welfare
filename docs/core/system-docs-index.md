@@ -28,6 +28,7 @@ cross-cutting 문서가 흩어져 있어도
 - [post-deploy-smoke-runbook.md](./post-deploy-smoke-runbook.md)
 - [operations-smoke-matrix.md](./operations-smoke-matrix.md)
 - [ops-readiness-check-2026-07-16.md](./ops-readiness-check-2026-07-16.md)
+- [no-cost-ops-check-2026-07-16.md](./no-cost-ops-check-2026-07-16.md)
 - [data-layer-risk-and-backup-check-2026-07-16.md](./data-layer-risk-and-backup-check-2026-07-16.md)
 - [incident-first-five-minutes-runbook.md](./incident-first-five-minutes-runbook.md)
 - [cost-scaling-decision-table.md](./cost-scaling-decision-table.md)
@@ -88,6 +89,8 @@ cross-cutting 문서가 흩어져 있어도
 `operations-smoke-matrix.md` 는 post-deploy smoke, runtime smoke, ops observation, nightly handoff를 언제 쓰는지 고정합니다.
 
 `ops-readiness-check-2026-07-16.md` 는 실제 AWS 알람/SNS/Route53 상태와 primary/secondary drift 점검 결과를 기록합니다.
+
+`no-cost-ops-check-2026-07-16.md` 는 비용 증가 없이 수행한 cron, compose default, log alert, DB/Redis, edge/header, IAM drift 점검 결과를 기록합니다.
 
 `data-layer-risk-and-backup-check-2026-07-16.md` 는 RDS/Valkey 단일 구성 리스크, 백업 설정, snapshot inventory 권한 gap, SNS test publish 결과를 기록합니다.
 

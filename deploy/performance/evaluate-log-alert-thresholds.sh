@@ -8,6 +8,7 @@ NGINX_JSON="${NGINX_JSON:-${ROOT_DIR}/tmp/performance/nginx-log-observability/la
 WARN_5XX="${LOG_ALERT_WARN_5XX:-1}"
 CRIT_5XX="${LOG_ALERT_CRIT_5XX:-5}"
 CRIT_ERROR_CODE_REPEAT="${LOG_ALERT_CRIT_ERROR_CODE_REPEAT:-10}"
+REPEAT_ERROR_CODE_EXCLUDES="${LOG_ALERT_REPEAT_ERROR_CODE_EXCLUDES:-A006}"
 WARN_API_P95_MS="${LOG_ALERT_WARN_API_P95_MS:-1500}"
 CRIT_API_P95_MS="${LOG_ALERT_CRIT_API_P95_MS:-3000}"
 EXCLUDED_API_P95_PATHS="${LOG_ALERT_EXCLUDED_API_P95_PATHS:-POST /api/recommendations/refresh}"
@@ -21,6 +22,7 @@ python3 - \
   "${WARN_5XX}" \
   "${CRIT_5XX}" \
   "${CRIT_ERROR_CODE_REPEAT}" \
+  "${REPEAT_ERROR_CODE_EXCLUDES}" \
   "${WARN_API_P95_MS}" \
   "${CRIT_API_P95_MS}" \
   "${EXCLUDED_API_P95_PATHS}" \
@@ -36,19 +38,25 @@ nginx_path = Path(sys.argv[2])
 warn_5xx = int(sys.argv[3])
 crit_5xx = int(sys.argv[4])
 crit_error_code_repeat = int(sys.argv[5])
-warn_api_p95_ms = float(sys.argv[6])
-crit_api_p95_ms = float(sys.argv[7])
-excluded_api_p95_paths = {
+repeat_error_code_excludes = {
     item.strip()
-    for item in sys.argv[8].split(",")
+    for item in sys.argv[6].split(",")
     if item.strip()
 }
-warn_nginx_p95_seconds = float(sys.argv[9])
-crit_nginx_p95_seconds = float(sys.argv[10])
-warn_raw_errors = int(sys.argv[11])
+warn_api_p95_ms = float(sys.argv[7])
+crit_api_p95_ms = float(sys.argv[8])
+excluded_api_p95_paths = {
+    item.strip()
+    for item in sys.argv[9].split(",")
+    if item.strip()
+}
+warn_nginx_p95_seconds = float(sys.argv[10])
+crit_nginx_p95_seconds = float(sys.argv[11])
+warn_raw_errors = int(sys.argv[12])
 
 critical = []
 warning = []
+observation = []
 
 def load_json(path):
     if not path.exists():
@@ -68,6 +76,9 @@ elif app_5xx >= warn_5xx:
 
 for code, count in sorted((app.get("api_error_counts") or {}).items()):
     count = int(count)
+    if code in repeat_error_code_excludes:
+        observation.append(f"excluded errorCode {code} repeated {count}")
+        continue
     if count >= crit_error_code_repeat:
         critical.append(f"api errorCode {code} repeated {count} >= {crit_error_code_repeat}")
 
@@ -109,11 +120,21 @@ if raw_errors >= warn_raw_errors:
     warning.append(f"raw app error lines {raw_errors} >= {warn_raw_errors}")
 
 nginx_status = nginx.get("status_counts") or {}
-nginx_5xx = sum(int(count) for status, count in nginx_status.items() if str(status).startswith("5"))
+nginx_5xx_classification = nginx.get("five_xx_classification") or {}
+if nginx_5xx_classification:
+    nginx_5xx = int(nginx_5xx_classification.get("user_5xx") or 0)
+    alb_health_5xx = int(nginx_5xx_classification.get("alb_health_5xx") or 0)
+    probe_5xx = int(nginx_5xx_classification.get("probe_5xx") or 0)
+    if alb_health_5xx > 0:
+        observation.append(f"nginx /alb-health 5xx count {alb_health_5xx}")
+    if probe_5xx > 0:
+        observation.append(f"nginx probe 5xx count {probe_5xx}")
+else:
+    nginx_5xx = sum(int(count) for status, count in nginx_status.items() if str(status).startswith("5"))
 if nginx_5xx >= crit_5xx:
-    critical.append(f"nginx 5xx count {nginx_5xx} >= {crit_5xx}")
+    critical.append(f"nginx user 5xx count {nginx_5xx} >= {crit_5xx}")
 elif nginx_5xx >= warn_5xx:
-    warning.append(f"nginx 5xx count {nginx_5xx} >= {warn_5xx}")
+    warning.append(f"nginx user 5xx count {nginx_5xx} >= {warn_5xx}")
 
 request_summary = nginx.get("request_time_summary") or {}
 request_p95 = request_summary.get("p95_seconds")
@@ -132,6 +153,8 @@ for item in critical:
     print(f"critical={item}")
 for item in warning:
     print(f"warning={item}")
+for item in observation:
+    print(f"observation={item}")
 for item in excluded_latency_observations:
     print(f"excluded_latency={item}")
 if app_path.exists():

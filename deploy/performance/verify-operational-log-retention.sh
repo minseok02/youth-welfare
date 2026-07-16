@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 APP_LOG_FILE="${APP_LOG_FILE:-}"
 APP_LOG_TAIL_LINES="${APP_LOG_TAIL_LINES:-20000}"
-APP_LOG_COMPOSE_FILE="${APP_LOG_COMPOSE_FILE:-${ROOT_DIR}/docker-compose.prod.yml}"
+APP_LOG_COMPOSE_FILE="${APP_LOG_COMPOSE_FILE:-${ROOT_DIR}/docker-compose.prod.elasticache.yml}"
 APP_LOG_COMPOSE_SERVICE="${APP_LOG_COMPOSE_SERVICE:-app}"
 
 CONFIG_FILE="${ROOT_DIR}/backend/src/main/resources/application.yml"

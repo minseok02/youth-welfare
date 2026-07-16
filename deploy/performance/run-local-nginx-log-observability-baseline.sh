@@ -58,6 +58,9 @@ fivexx_paths = collections.Counter()
 user_agent_counts = collections.Counter()
 request_times = []
 upstream_times = []
+alb_health_5xx = 0
+user_5xx = 0
+probe_5xx = 0
 
 combined_re = re.compile(
     r'^(?P<ip>\S+) \S+ \S+ \[[^\]]+\] "(?P<method>[A-Z]+)? ?(?P<path>[^ ]*)? [^"]*" '
@@ -81,6 +84,12 @@ for line in access_lines:
         fourxx_paths[f"{status} {method} {path}"] += 1
     if status.startswith("5"):
         fivexx_paths[f"{status} {method} {path}"] += 1
+        if path == "/alb-health":
+            alb_health_5xx += 1
+        elif path.startswith("/api/") or method in {"GET", "HEAD"}:
+            user_5xx += 1
+        else:
+            probe_5xx += 1
     user_agent_counts[ua[:120]] += 1
     tail = match.group("tail") or ""
     floats = [float(item) for item in re.findall(r'(?<![0-9.])([0-9]+\.[0-9]+)(?![0-9.])', tail)]
@@ -138,6 +147,11 @@ payload = {
     "top_paths": path_counts.most_common(30),
     "top_4xx_paths": fourxx_paths.most_common(20),
     "top_5xx_paths": fivexx_paths.most_common(20),
+    "five_xx_classification": {
+        "alb_health_5xx": alb_health_5xx,
+        "user_5xx": user_5xx,
+        "probe_5xx": probe_5xx,
+    },
     "top_user_agents": user_agent_counts.most_common(20),
     "error_log_line_count": len(error_lines),
     "request_time_available": request_time_summary is not None,
@@ -156,6 +170,9 @@ for status, count in sorted(status_counts.items()):
     lines.append(f"status_{status}={count}")
 for klass, count in sorted(status_class_counts.items()):
     lines.append(f"status_class_{klass}={count}")
+lines.append(f"nginx_5xx_alb_health={alb_health_5xx}")
+lines.append(f"nginx_5xx_user={user_5xx}")
+lines.append(f"nginx_5xx_probe={probe_5xx}")
 if request_time_summary:
     lines.append(
         "request_time "

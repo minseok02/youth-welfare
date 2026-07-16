@@ -69,6 +69,7 @@ Finding:
 Fix:
 
 - `deploy/ops/install-basic-ops-cron.sh` default compose file changed to `docker-compose.prod.elasticache.yml`.
+- `deploy/ops/app-watchdog.sh` and operational log helpers should use `docker-compose.prod.elasticache.yml` as the default current production compose.
 - primary basic ops cron reinstalled.
 - secondary fast-forwarded, basic ops cron installed, `/var/log/youth-welfare/ops` created and owned by `ubuntu`.
 - primary and secondary watchdog manual runs returned `health=UP`.

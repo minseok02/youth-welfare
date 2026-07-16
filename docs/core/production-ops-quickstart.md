@@ -34,6 +34,7 @@ Expected:
 | decide whether `/alb-health` 502 matters | [alb-health-502-runbook.md](./alb-health-502-runbook.md) |
 | disk cleanup policy | [runtime-disk-cleanup-runbook.md](./runtime-disk-cleanup-runbook.md) |
 | data-layer backup/restore status | [data-layer-risk-and-backup-check-2026-07-16.md](./data-layer-risk-and-backup-check-2026-07-16.md) |
+| latest no-cost ops checks | [no-cost-ops-check-2026-07-16.md](./no-cost-ops-check-2026-07-16.md) |
 | cost-increasing HA decision | [cost-scaling-decision-table.md](./cost-scaling-decision-table.md) |
 
 ## Current Production Shape
@@ -54,6 +55,7 @@ Expected:
 | Item | Status | Owner |
 | --- | --- | --- |
 | restore rehearsal execution | prepared, blocked until temporary RDS cost is approved | human |
+| ops role security group read | repository policy updated; live IAM policy still needs `ec2:DescribeSecurityGroups` | human/operator |
 | RDS Multi-AZ | decision only, not enabled | human |
 | Valkey failover/snapshot retention | decision only, not enabled | human |
 | webhook alert channel | not configured | human/operator |

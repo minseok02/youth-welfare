@@ -23,7 +23,7 @@ Default checks:
 | public policy list | non-`200`, `success != true`, or empty data |
 | public policy search | non-`200`, `success != true`, or empty data |
 | public policy ranking | non-`200`, `success != true`, or empty data |
-| recent nginx 5xx | any non-`/alb-health` 5xx in the sampled tail |
+| recent nginx 5xx | any `/api/*` 5xx or `GET`/`HEAD` page 5xx in the sampled tail |
 
 Artifacts:
 
@@ -73,7 +73,7 @@ Pass means:
 - local app health is up
 - ALB has both expected healthy targets, unless the summary explicitly says the target-health step was skipped
 - public read-only API endpoints return valid non-empty responses
-- recent sampled nginx logs have no user-path 5xx
+- recent sampled nginx logs have no API/page 5xx. Non-GET/HEAD scanner probes such as `POST /` are counted as `probe_5xx` but do not fail this smoke.
 
 Pass does not prove:
 

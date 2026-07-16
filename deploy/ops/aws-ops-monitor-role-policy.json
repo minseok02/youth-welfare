@@ -68,7 +68,8 @@
       "Sid": "ReadEc2InstanceIdentity",
       "Effect": "Allow",
       "Action": [
-        "ec2:DescribeInstances"
+        "ec2:DescribeInstances",
+        "ec2:DescribeSecurityGroups"
       ],
       "Resource": "*"
     },

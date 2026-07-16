@@ -75,6 +75,7 @@ Interpretation:
 | Signal | First decision |
 | --- | --- |
 | only `/alb-health` 5xx, post-deploy smoke passes | deploy/restart-window noise |
+| only non-GET/HEAD root probes such as `POST /` 501 | scanner noise; watch but do not treat as app outage |
 | user path 5xx appears | user-facing incident |
 | app log has DB connection errors | jump to DB section |
 | app log has Redis connection errors | jump to Redis section |

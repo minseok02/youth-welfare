@@ -193,7 +193,9 @@ sample_path, summary_path = sys.argv[1:3]
 pattern = re.compile(r'"([A-Z]+)\s+([^"\s]+)[^"]*"\s+(\d{3})\s')
 alb_health_5xx = 0
 user_5xx = 0
+probe_5xx = 0
 samples = []
+probe_samples = []
 
 with open(sample_path, "r", encoding="utf-8", errors="replace") as fp:
     for line in fp:
@@ -204,24 +206,31 @@ with open(sample_path, "r", encoding="utf-8", errors="replace") as fp:
         status = int(status_raw)
         if status < 500:
             continue
-        if path.split("?", 1)[0] == "/alb-health":
+        path_only = path.split("?", 1)[0]
+        if path_only == "/alb-health":
             alb_health_5xx += 1
-        else:
+        elif path_only.startswith("/api/") or method in {"GET", "HEAD"}:
             user_5xx += 1
             if len(samples) < 10:
                 samples.append(line.strip())
+        else:
+            probe_5xx += 1
+            if len(probe_samples) < 10:
+                probe_samples.append(line.strip())
 
 summary = {
     "alb_health_5xx": alb_health_5xx,
     "user_5xx": user_5xx,
+    "probe_5xx": probe_5xx,
     "sample_user_5xx": samples,
+    "sample_probe_5xx": probe_samples,
 }
 with open(summary_path, "w", encoding="utf-8") as fp:
     json.dump(summary, fp, ensure_ascii=False, indent=2)
 
 print(json.dumps(summary, ensure_ascii=False))
 if user_5xx > 0:
-    raise SystemExit("recent non-/alb-health 5xx found")
+    raise SystemExit("recent API/page 5xx found")
 PY
 
   local alb_health_5xx
@@ -233,7 +242,16 @@ with open(sys.argv[1], "r", encoding="utf-8") as fp:
 print(payload.get("alb_health_5xx", 0))
 PY
 )"
-  write_summary_line "nginx_recent_5xx=passed user_5xx=0 alb_health_5xx=${alb_health_5xx}"
+  local probe_5xx
+  probe_5xx="$(python3 - "${summary_json}" <<'PY'
+import json
+import sys
+with open(sys.argv[1], "r", encoding="utf-8") as fp:
+    payload = json.load(fp)
+print(payload.get("probe_5xx", 0))
+PY
+)"
+  write_summary_line "nginx_recent_5xx=passed user_5xx=0 alb_health_5xx=${alb_health_5xx} probe_5xx=${probe_5xx}"
 }
 
 : > "${SUMMARY_FILE}"

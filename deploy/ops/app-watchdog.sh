@@ -18,7 +18,7 @@ if [[ -n "${CALLER_ALERT_WEBHOOK_URL_SET}" ]]; then
   ALERT_WEBHOOK_URL="${CALLER_ALERT_WEBHOOK_URL}"
 fi
 ENV_FILE="${ENV_FILE:-.env.production}"
-COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
+COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.elasticache.yml}"
 COMPOSE_SERVICE="${COMPOSE_SERVICE:-app}"
 APP_HEALTH_URL="${APP_HEALTH_URL:-http://127.0.0.1:8082/actuator/health}"
 STATE_DIR="${STATE_DIR:-${HOME:-/home/ubuntu}/.local/state/youth-welfare/ops}"
