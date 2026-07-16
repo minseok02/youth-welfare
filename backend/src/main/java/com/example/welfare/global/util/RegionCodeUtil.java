@@ -403,12 +403,6 @@ public final class RegionCodeUtil {
                 putRegion(result, entry.getValue());
             }
         }
-        for (Map.Entry<String, String> entry : UNIQUE_SGG_STEM_CODE_MAP.entrySet()) {
-            if (haystack.contains(entry.getKey())) {
-                putRegion(result, entry.getValue());
-            }
-        }
-
         if (!result.isEmpty()) {
             return List.copyOf(result.values());
         }

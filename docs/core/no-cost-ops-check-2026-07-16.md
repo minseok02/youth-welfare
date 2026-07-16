@@ -114,6 +114,24 @@ Operational backlog notes:
 - open policy error reports: `5`
 - active collect locks: `0`
 
+Policy error report triage:
+
+- the `5` open reports were all `system-region-audit` `REGION_MISMATCH` rows.
+- all were false positives from broad text matching of region stems inside ordinary words:
+  - `예산 범위` -> `예산군`
+  - `영주권자` -> `영주시`
+  - `고령층` -> `고령군`
+  - `역량강화` -> `강화군`
+  - `참여수당` -> `여수시`
+- `RegionCodeUtil.inferRegionNamesFromText()` was changed to stop using suffix-less SGG stem matching for broad policy text.
+- the 5 existing false-positive reports were marked `REVIEWED` with reviewer `ops-codex`.
+- follow-up DB audit showed `policy_error_reports_open=0`.
+
+User alert triage:
+
+- the `1` unread user alert is a real user-facing `RECOMMENDATION_DIGEST` notification created on `2026-07-13`.
+- it should not be marked read by ops; it remains a normal user state, not an operator backlog.
+
 CloudWatch samples:
 
 - RDS `DatabaseConnections`: about `26-27`
@@ -124,7 +142,7 @@ CloudWatch samples:
 Interpretation:
 
 - No DB/Redis cost change is justified from this read-only check.
-- Backlog items are operational triage work, not infrastructure scaling signals.
+- Backlog items were operational triage work, not infrastructure scaling signals.
 
 ## Edge And Security Header Check
 
@@ -237,10 +255,16 @@ Observed after IAM and security group closeout:
 - `https://youthmoa.kr` remains healthy
 - post-deploy smoke passed with `2` healthy ALB targets
 
+Observed after DB triage closeout:
+
+- policy error reports open: `0`
+- notification failed-like: `0`
+- collect active locks: `0`
+- user unread alert remains `1` and is intentionally left untouched
+
 ## Next No-Cost Items
 
 Recommended order:
 
 1. Re-run log alert after a few normal traffic windows and confirm scanner observations do not create alert fatigue.
-2. Review the `1` unread user alert and `5` open policy error reports from the DB audit.
-3. Keep RDS restore rehearsal and HA upgrades in the cost-approval path, not in no-cost maintenance.
+2. Keep RDS restore rehearsal and HA upgrades in the cost-approval path, not in no-cost maintenance.

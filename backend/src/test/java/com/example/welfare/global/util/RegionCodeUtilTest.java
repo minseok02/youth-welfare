@@ -70,4 +70,25 @@ class RegionCodeUtilTest {
         assertThat(goseongCodes).containsExactly("48820");
         assertThat(RegionCodeUtil.inferRegionNamesFromAgencyCode("1741000")).isEmpty();
     }
+
+    @Test
+    void doesNotInferRegionFromCommonWordsContainingRegionStem() {
+        assertThat(RegionCodeUtil.inferRegionNamesFromText(
+                "예산 범위 내에서 차등지원",
+                "재무설계와 고령층 금융사기예방 교육",
+                "다문화 가정 영주권자 자녀 포함",
+                "지자체 담당자 역량강화",
+                "취업활동계획 수립 참여수당"
+        )).isEmpty();
+    }
+
+    @Test
+    void stillInfersRegionFromUniqueSggNameWithAdministrativeSuffix() {
+        List<String> regionCodes = RegionCodeUtil.inferRegionNamesFromText("서산시 청년 지원 사업")
+                .stream()
+                .map(RegionCodeUtil.RegionName::regionCode)
+                .toList();
+
+        assertThat(regionCodes).containsExactly("44210");
+    }
 }
