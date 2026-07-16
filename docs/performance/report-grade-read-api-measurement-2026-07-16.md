@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document records the first report-grade measurement for Group A, the public read-only policy API.
+This document records the three-run report-grade measurement for Group A, the public read-only policy API.
 
 The goal is to produce reportable latency evidence for normal read traffic through the public ALB. This is separate from the capacity-boundary test in `final-load-capacity-check-2026-07-16.md`, which intentionally increased traffic until Redis rate limits started returning 429.
 
@@ -10,8 +10,9 @@ The goal is to produce reportable latency evidence for normal read traffic throu
 
 - measurement date: `2026-07-16`
 - branch: `refactor/admin-dashboard-sections`
-- deployed runtime revision: `a7f733d8`
-- measurement source revision: `a7f733d8` plus uncommitted measurement-script/documentation changes
+- deployed app runtime revision: `a7f733d8`
+- run 1 measurement source revision: `a7f733d8` plus uncommitted measurement-script/documentation changes
+- runs 2 and 3 measurement source revision: `a600bba3`
 - public base URL: `https://youthmoa.kr`
 - topology: ALB -> 2 EC2 app nodes -> nginx -> Spring Boot app -> RDS PostgreSQL / ElastiCache Valkey
 - ALB target group: 2 healthy targets before and after the run
@@ -110,7 +111,55 @@ Before the run:
 
 ## Results
 
-Endpoint-only results:
+### Three-Run Endpoint Summary
+
+| Scenario | Runs | Requests | Errors | 429 | Avg p50 | Avg p95 | Worst p95 | Avg p99 | Worst max |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| policy list default | 3 | 221 | 0 | 0 | 29.5ms | 41.1ms | 45.9ms | 68.2ms | 94.9ms |
+| policy search keyword | 3 | 222 | 0 | 0 | 21.2ms | 74.2ms | 86.6ms | 166.3ms | 303.2ms |
+| policy search filtered | 3 | 222 | 0 | 0 | 21.6ms | 38.0ms | 43.7ms | 110.1ms | 311.0ms |
+| policy suggestions | 3 | 369 | 0 | 0 | 30.7ms | 44.3ms | 47.8ms | 78.5ms | 148.1ms |
+| policy ranking | 3 | 108 | 0 | 0 | 15.4ms | 34.1ms | 44.6ms | 57.9ms | 91.8ms |
+| policy detail first | 3 | 78 | 0 | 0 | 31.9ms | 56.7ms | 59.4ms | 120.9ms | 221.2ms |
+
+### Three-Run Mixed Profile Summary
+
+| Scenario | Runs | Requests | Errors | 429 | Avg p50 | Avg p95 | Worst p95 | Avg p99 | Worst max |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| policy search keyword | 3 | 37 | 0 | 0 | 22.8ms | 145.3ms | 190.7ms | 169.2ms | 269.8ms |
+| policy search filtered | 3 | 36 | 0 | 0 | 24.4ms | 70.9ms | 75.0ms | 72.8ms | 76.5ms |
+| policy suggestions | 3 | 36 | 0 | 0 | 33.3ms | 51.9ms | 59.4ms | 58.9ms | 70.8ms |
+| policy list default | 3 | 39 | 0 | 0 | 31.9ms | 51.6ms | 57.8ms | 59.9ms | 68.9ms |
+| policy detail first | 3 | 36 | 0 | 0 | 30.4ms | 44.7ms | 58.5ms | 51.6ms | 80.2ms |
+| policy ranking | 3 | 36 | 0 | 0 | 16.9ms | 34.4ms | 56.5ms | 43.7ms | 87.2ms |
+
+### Run-Level Summary
+
+| Run | Label | Requests | Throughput | Errors | 429 | Worst scenario | Worst p95 |
+| --- | --- | ---: | ---: | ---: | ---: | --- | ---: |
+| r1 | list-default | 73 | 0.811 rps | 0 | 0 | policy list default | 45.9ms |
+| r1 | search-keyword | 74 | 0.813 rps | 0 | 0 | policy search keyword | 65.7ms |
+| r1 | search-filtered | 74 | 0.817 rps | 0 | 0 | policy search filtered | 32.2ms |
+| r1 | suggestions | 123 | 1.363 rps | 0 | 0 | policy suggestions | 45.5ms |
+| r1 | ranking | 36 | 0.397 rps | 0 | 0 | policy ranking | 44.6ms |
+| r1 | detail-first | 26 | 0.283 rps | 0 | 0 | policy detail first | 59.4ms |
+| r1 | mixed-safe | 73 | 0.810 rps | 0 | 0 | policy search keyword | 119.5ms |
+| r2 | list-default | 74 | 0.812 rps | 0 | 0 | policy list default | 37.4ms |
+| r2 | search-keyword | 74 | 0.813 rps | 0 | 0 | policy search keyword | 86.6ms |
+| r2 | search-filtered | 74 | 0.817 rps | 0 | 0 | policy search filtered | 43.7ms |
+| r2 | suggestions | 123 | 1.366 rps | 0 | 0 | policy suggestions | 39.7ms |
+| r2 | ranking | 36 | 0.397 rps | 0 | 0 | policy ranking | 36.8ms |
+| r2 | detail-first | 26 | 0.283 rps | 0 | 0 | policy detail first | 59.0ms |
+| r2 | mixed-safe | 74 | 0.812 rps | 0 | 0 | policy search keyword | 125.7ms |
+| r3 | list-default | 74 | 0.813 rps | 0 | 0 | policy list default | 40.0ms |
+| r3 | search-keyword | 74 | 0.815 rps | 0 | 0 | policy search keyword | 70.2ms |
+| r3 | search-filtered | 74 | 0.814 rps | 0 | 0 | policy search filtered | 37.9ms |
+| r3 | suggestions | 123 | 1.364 rps | 0 | 0 | policy suggestions | 47.8ms |
+| r3 | ranking | 36 | 0.397 rps | 0 | 0 | policy ranking | 20.9ms |
+| r3 | detail-first | 26 | 0.283 rps | 0 | 0 | policy detail first | 51.7ms |
+| r3 | mixed-safe | 73 | 0.809 rps | 0 | 0 | policy search keyword | 190.7ms |
+
+Run 1 endpoint-only results:
 
 | Scenario | Requests | Throughput | p50 | p95 | p99 | Max | Errors | 429 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -121,7 +170,7 @@ Endpoint-only results:
 | policy ranking | 36 | 0.397 rps | 15.9ms | 44.6ms | 76.3ms | 91.8ms | 0 | 0 |
 | policy detail first | 26 | 0.283 rps | 34.6ms | 59.4ms | 110.9ms | 126.2ms | 0 | 0 |
 
-Mixed safe profile:
+Run 1 mixed safe profile:
 
 | Scenario | Requests | p50 | p95 | p99 | Max | Errors | 429 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -151,14 +200,18 @@ After the run:
 - nginx recent user-facing 5xx: `0`
 - DB active queries over 5 minutes: `0`
 - DB waiting locks: `0`
-- DB connections: `23 / 191`
-- database size: `553 MB`
+- DB connections after run 1: `23 / 191`
+- DB connections after runs 2 and 3: `25 / 191`
+- database size after run 1: `553 MB`
+- database size after runs 2 and 3: `554 MB`
 - app log alert: `ok`
 - nginx log alert: `ok`
 - JVM health: HTTP `200`
 - JVM restart count: `0`
-- JVM memory: `597.7 MiB / 1 GiB`
+- JVM memory after run 1: `597.7 MiB / 1 GiB`
+- JVM memory after runs 2 and 3: `626.6 MiB / 1 GiB`
 - JVM recent exception count: `0`
+- DB collect execution lock note: `collect-global` was active until `2026-07-16 17:18:00.144873`; this is a collection scheduler lock, not a PostgreSQL waiting lock. `waiting_locks=0`, `active_queries_over_5m=0`, and user-facing smoke remained healthy.
 
 ## Artifacts
 
@@ -169,30 +222,48 @@ After the run:
 - `tmp/performance/report-grade-read-api-ranking/20260716T162533Z`
 - `tmp/performance/report-grade-read-api-detail-first/20260716T162715Z`
 - `tmp/performance/report-grade-read-api-mixed-safe/20260716T162857Z`
+- `tmp/performance/report-grade-read-api-r2-list-default/20260716T163819Z`
+- `tmp/performance/report-grade-read-api-r2-search-keyword/20260716T164000Z`
+- `tmp/performance/report-grade-read-api-r2-search-filtered/20260716T164142Z`
+- `tmp/performance/report-grade-read-api-r2-suggestions/20260716T164323Z`
+- `tmp/performance/report-grade-read-api-r2-ranking/20260716T164503Z`
+- `tmp/performance/report-grade-read-api-r2-detail-first/20260716T164644Z`
+- `tmp/performance/report-grade-read-api-r2-mixed-safe/20260716T164827Z`
+- `tmp/performance/report-grade-read-api-r3-list-default/20260716T165008Z`
+- `tmp/performance/report-grade-read-api-r3-search-keyword/20260716T165149Z`
+- `tmp/performance/report-grade-read-api-r3-search-filtered/20260716T165331Z`
+- `tmp/performance/report-grade-read-api-r3-suggestions/20260716T165512Z`
+- `tmp/performance/report-grade-read-api-r3-ranking/20260716T165653Z`
+- `tmp/performance/report-grade-read-api-r3-detail-first/20260716T165834Z`
+- `tmp/performance/report-grade-read-api-r3-mixed-safe/20260716T170016Z`
 - `tmp/performance/jvm-runtime/20260716T163256Z`
+- `tmp/performance/jvm-runtime/20260716T170233Z`
 - `tmp/prod-post-deploy-smoke/20260716T163256Z`
+- `tmp/prod-post-deploy-smoke/20260716T170233Z`
 
 ## Interpretation
 
-The public read-only policy API passed the first report-grade representative-latency pass.
+The public read-only policy API passed the three-run report-grade representative-latency measurement.
 
 Accepted statements from this pass:
 
 - every measured read endpoint returned `0` errors and `0` rate-limit responses
-- endpoint-only p95 stayed below `66ms`
-- the mixed read profile's worst p95 stayed at `119.5ms`
+- endpoint-only average p95 stayed below `75ms`
+- endpoint-only worst p95 stayed below `87ms`
+- the mixed read profile's average worst p95 was `145.3ms` for keyword search
+- the mixed read profile's absolute worst p95 was `190.7ms` for keyword search in run 3
 - no post-measurement evidence showed ALB target failure, app restart, DB lock buildup, long-running DB work, or user-facing nginx 5xx
 
 Limitations:
 
-- this is a one-pass measurement, not a three-run statistical sample
+- this is a three-run controlled sample, not a distributed multi-region load test
 - it uses one source and one User-Agent, so it intentionally measures same-source behavior
 - it does not prove maximum concurrent user capacity
 - AI-backed recommendation/chat and auth flows are not represented here
 
 Current report position:
 
-- use this document for normal public read API latency
+- use this document for normal public read API latency with three-run average and worst p95
 - use `final-load-capacity-check-2026-07-16.md` for rate-limit/capacity-boundary behavior
 - measure auth, recommendation, chat, and integrated journey separately before making user-flow capacity claims
 
@@ -200,8 +271,7 @@ Current report position:
 
 Recommended next measurement order:
 
-1. repeat Group A two more times if the final report requires a 3-run average
-2. run Group B auth flow with a small test account pool
-3. run Group C recommendation read/shared refresh/personal refresh with explicit OpenAI-cost labeling
-4. run Group D chat as a low-iteration representative latency test
-5. run Group E integrated user journey after B to D are stable
+1. run Group B auth flow with a small test account pool
+2. run Group C recommendation read/shared refresh/personal refresh with explicit OpenAI-cost labeling
+3. run Group D chat as a low-iteration representative latency test
+4. run Group E integrated user journey after B to D are stable

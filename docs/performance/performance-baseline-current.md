@@ -1,6 +1,6 @@
 # Current Performance Baseline
 
-Last updated: 2026-07-15
+Last updated: 2026-07-16
 
 This document records the current performance baseline. Raw artifacts are generated under `tmp/performance`.
 
@@ -149,7 +149,7 @@ Decision:
 - Post-projection broader baseline is documented in [post-projection-current-baseline-2026-07-15.md](./post-projection-current-baseline-2026-07-15.md). Current accepted policy list default p95 is local `40.6ms`, edge API `110.0ms`, and target-specific edge `61.9ms`; no immediate next code optimization is recommended from this checkpoint.
 - Post-projection low-rate load/soak is documented in [post-projection-load-soak-2026-07-15.md](./post-projection-load-soak-2026-07-15.md). At `180s`, concurrency `1`, delay `1.2s`, both nodes passed with no errors or rate limits. Policy list default stayed low (`33.1ms` primary p95, `46.5ms` secondary p95); search filtered became the next watch item (`210.9ms` primary p95, `277.6ms` secondary p95).
 - Final load/capacity closeout is documented in [final-load-capacity-check-2026-07-16.md](./final-load-capacity-check-2026-07-16.md). In the final production setup, the clean public ALB step passed at about `2.4 rps` with no errors and worst p95 `90.9ms`; the first public protection boundary appeared at about `4.8 rps` with 429s. Internal loopback also stayed clean at about `2.4 rps`; the first internal protection boundary appeared at about `6.4 rps`. Post-load smoke, ALB target health, DB locks/long queries, JVM runtime, and user-facing 5xx remained healthy, so the observed boundary is rate-limit posture rather than CPU/DB/ALB saturation.
-- Report-grade public read API latency is documented in [report-grade-read-api-measurement-2026-07-16.md](./report-grade-read-api-measurement-2026-07-16.md). The first representative ALB pass had `0` errors and `0` 429s; endpoint-only p95 stayed below `66ms`, and the mixed read profile's worst p95 was `119.5ms`.
+- Report-grade public read API latency is documented in [report-grade-read-api-measurement-2026-07-16.md](./report-grade-read-api-measurement-2026-07-16.md). The three-run representative ALB sample had `0` errors and `0` 429s; endpoint-only average p95 stayed below `75ms`, endpoint-only worst p95 stayed below `87ms`, and the mixed read profile's absolute worst p95 was `190.7ms`.
 
 Initial accepted server baseline:
 
