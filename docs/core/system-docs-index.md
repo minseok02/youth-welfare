@@ -28,6 +28,9 @@ cross-cutting 문서가 흩어져 있어도
 - [operations-smoke-matrix.md](./operations-smoke-matrix.md)
 - [ops-readiness-check-2026-07-16.md](./ops-readiness-check-2026-07-16.md)
 - [data-layer-risk-and-backup-check-2026-07-16.md](./data-layer-risk-and-backup-check-2026-07-16.md)
+- [incident-first-five-minutes-runbook.md](./incident-first-five-minutes-runbook.md)
+- [cost-scaling-decision-table.md](./cost-scaling-decision-table.md)
+- [restore-rehearsal-prep-checklist.md](./restore-rehearsal-prep-checklist.md)
 - [alb-multi-ec2-rollout-plan.md](./alb-multi-ec2-rollout-plan.md)
 - [alb-demo-switch-runbook.md](./alb-demo-switch-runbook.md)
 - [alb-route53-cutover-2026-07-13.md](./alb-route53-cutover-2026-07-13.md)
@@ -84,6 +87,12 @@ cross-cutting 문서가 흩어져 있어도
 `ops-readiness-check-2026-07-16.md` 는 실제 AWS 알람/SNS/Route53 상태와 primary/secondary drift 점검 결과를 기록합니다.
 
 `data-layer-risk-and-backup-check-2026-07-16.md` 는 RDS/Valkey 단일 구성 리스크, 백업 설정, snapshot inventory 권한 gap, SNS test publish 결과를 기록합니다.
+
+`incident-first-five-minutes-runbook.md` 는 ALB/app/DB/Redis/disk 장애 첫 5분 안에 볼 명령과 즉시 판단 기준을 고정합니다.
+
+`cost-scaling-decision-table.md` 는 EC2 1대/2대, RDS Multi-AZ, Valkey failover/snapshot, restore rehearsal 같은 비용 증가 결정을 언제 할지 고정합니다.
+
+`restore-rehearsal-prep-checklist.md` 는 비용이 생기는 RDS restore rehearsal을 승인 전에 준비만 해두는 체크리스트입니다.
 
 `alb-multi-ec2-rollout-plan.md` 는 현재 EC2 1대 + RDS 구조를 유지한 채 EC2 web 노드를 2대로 늘리고 ALB/공유 Redis/scheduler 단일 실행 경계를 붙이는 전환 계획입니다.
 

@@ -19,6 +19,8 @@
 - 복원 대상 DB 접속 정보는 별도 `.env.restore` 같은 파일에 둔다.
 - 운영 앱의 `DB_URL`은 리허설 중 변경하지 않는다.
 
+승인 전 준비 항목은 [restore-rehearsal-prep-checklist.md](./restore-rehearsal-prep-checklist.md)를 먼저 따른다.
+
 2026-07-16 현재 사전 확인:
 
 - 실행 역할 `arn:aws:sts::857721769929:assumed-role/youth-welfare-ops-monitor-v2-role/...` 에 `deploy/ops/aws-ops-monitor-role-policy.json` 기준 inline policy가 반영됐다.
