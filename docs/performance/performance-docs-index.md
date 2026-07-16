@@ -35,6 +35,7 @@
 - [search-generated-fields-optimization-2026-07-16.md](./search-generated-fields-optimization-2026-07-16.md)
 - [search-summary-projection-optimization-2026-07-16.md](./search-summary-projection-optimization-2026-07-16.md)
 - [search-miss-remeasurement-2026-07-16.md](./search-miss-remeasurement-2026-07-16.md)
+- [post-summary-stability-check-2026-07-16.md](./post-summary-stability-check-2026-07-16.md)
 - [ranking-snapshot-rollback-runbook-2026-07-15.md](./ranking-snapshot-rollback-runbook-2026-07-15.md)
 - [performance-next-checkpoint-2026-07-14.md](./performance-next-checkpoint-2026-07-14.md)
 - [performance-measurement-plan.md](./performance-measurement-plan.md)
@@ -100,6 +101,7 @@
 - [search-generated-fields-optimization-2026-07-16.md](./search-generated-fields-optimization-2026-07-16.md)
 - [search-summary-projection-optimization-2026-07-16.md](./search-summary-projection-optimization-2026-07-16.md)
 - [search-miss-remeasurement-2026-07-16.md](./search-miss-remeasurement-2026-07-16.md)
+- [post-summary-stability-check-2026-07-16.md](./post-summary-stability-check-2026-07-16.md)
 - [ranking-snapshot-rollback-runbook-2026-07-15.md](./ranking-snapshot-rollback-runbook-2026-07-15.md)
 - [performance-next-checkpoint-2026-07-14.md](./performance-next-checkpoint-2026-07-14.md)
 
@@ -121,6 +123,7 @@
 - search filtered/deadline SQL을 왜 generated fields로 바꿨는지
 - search summary enrichment를 왜 summary-only projection으로 분리했는지
 - summary projection 이후 fresh search miss tail이 반복 병목인지
+- 성능 작업 이후 현재 배포본이 운영/기능/로그 기준으로 안정적인지
 - ranking snapshot을 어떻게 되돌릴지
 - 재측정 후 다음 작업을 열지 말지
 

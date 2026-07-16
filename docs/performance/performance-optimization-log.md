@@ -395,6 +395,42 @@ Search miss remeasurement after summary projection:
   - do not implement now unless p95 repeatedly exceeds about `180ms`-`200ms`, or `PolicyListPresentationTiming` appears in more than about 20% of fresh search misses, or normal `projectionMs` repeatedly exceeds `70ms`
 - Decision: stop this batch at documentation/observation. Do not ship another summary projection rewrite yet.
 
+Post-summary stability check:
+
+- Tracking document: `docs/performance/post-summary-stability-check-2026-07-16.md`.
+- Runtime health:
+  - both ALB targets healthy
+  - primary and secondary app containers `running healthy`
+  - RDS `available`
+  - ElastiCache/Valkey `available`
+- Resource note:
+  - primary root disk is `85%` used and should be cleaned/expanded
+  - secondary root disk is `59%` used
+- Primary loopback API baseline passed:
+  - errors `0`, rate limited `0`
+  - policy list default p95 `37.0ms`
+  - policy search filtered p95 `16.4ms`
+  - policy ranking p95 `10.3ms`
+- Public ALB API baseline passed:
+  - errors `0`, rate limited `0`
+  - policy list default p95 `108.0ms`
+  - policy search filtered p95 `130.8ms`
+  - policy ranking p95 `62.3ms`
+  - policy detail first p95 `133.4ms`
+- Observability:
+  - app log observability passed, raw error lines `0`, raw warn lines `0`
+  - primary and secondary recent app warning/error tails were `0`
+  - DB observability passed, deadlocks `0`, blocked locks `0`, long transactions `0`
+  - Redis observability passed, slowlog `0`, blocked clients `0`, rejected connections `0`
+- NGINX:
+  - log observability passed
+  - sampled `502` lines were `/alb-health` checks during deploy/restart windows, not user API paths
+- Functional smoke:
+  - production cutover verification passed
+  - runtime API smoke passed: signup/login/refresh/recommendation refresh/bookmark/logout/token revocation
+  - manual public ALB read-only smoke passed for policy list/search/detail/ranking/suggestions
+- Decision: current deployment is stable enough to keep running. Do not open another performance-changing batch immediately; next work should be operational cleanup/observation, starting with primary disk usage.
+
 ### 2026-07-15: ranking app-side timing instrumentation
 
 Trigger:
