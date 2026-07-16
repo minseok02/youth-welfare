@@ -228,6 +228,24 @@ LOG_ALERT_NOTIFY_OK=false bash deploy/ops/send-log-alert.sh
 RUN_ALB_TARGET_HEALTH=true bash deploy/smoke/run-prod-post-deploy-smoke.sh
 ```
 
+One-command read-only closeout:
+
+```bash
+bash deploy/ops/run-no-cost-ops-check.sh
+```
+
+Run this on the primary node. The wrapper expects the primary-only log alert cron to be installed.
+
+This wrapper checks:
+
+- local actuator
+- post-deploy smoke with ALB target health
+- DB audit core values
+- log alert status
+- app/ALB security group shape
+- EC2 public-IP direct 80/443 blocking
+- cron/watchdog installation and recent status
+
 Expected:
 
 - script syntax checks pass
@@ -276,9 +294,43 @@ Observed after DB triage closeout:
 - app log baseline parser was tightened so `policy error reports` in an INFO message is not counted as a raw app error
 - admin dashboard/API paths are excluded from user-facing interactive p95 alerting and retained as `excluded_latency=`
 
+Observed in final no-cost closeout wrapper:
+
+- command: `bash deploy/ops/run-no-cost-ops-check.sh`
+- result: `ok_count=9`, `fail_count=0`
+- local actuator: `UP`
+- post-deploy smoke: passed
+- ALB target health: `2` healthy targets
+- public policy list/search/ranking: `200`, non-empty data
+- nginx recent user-facing 5xx: `0`
+- DB audit core:
+  - `policy_error_reports_open=0`
+  - `notification_failed_like=0`
+  - `collect_locks_active=0`
+  - `waiting_locks=0`
+  - `active_queries_over_5m=0`
+  - current DB connections: `23`
+  - DB size: `553 MB`
+- log alert: `LOG_ALERT_STATUS=ok`
+- EC2 public-IP direct access:
+  - primary `80/443`: blocked
+  - secondary `80/443`: blocked
+- cron:
+  - primary cron service active
+  - log alert cron installed
+  - app watchdog cron installed
+  - latest log alert status lines were `ok`
+  - latest watchdog lines were `health=UP`
+- secondary:
+  - cron service active
+  - app watchdog cron installed
+  - runtime disk cleanup cron installed
+  - latest watchdog lines were `health=UP`
+  - actuator returned `UP`
+
 ## Next No-Cost Items
 
 Recommended order:
 
-1. Re-run log alert after a few normal traffic windows and confirm scanner/low-sample observations do not create alert fatigue.
+1. Use `bash deploy/ops/run-no-cost-ops-check.sh` for future no-cost closeouts.
 2. Keep RDS restore rehearsal and HA upgrades in the cost-approval path, not in no-cost maintenance.

@@ -25,6 +25,14 @@ Expected:
 - public policy list/search/ranking return `200`
 - nginx recent user-path 5xx is `0`
 
+Full no-cost closeout after ops/security/log-alert changes:
+
+```bash
+bash deploy/ops/run-no-cost-ops-check.sh
+```
+
+Run the full no-cost closeout on the primary node because log alert cron is intentionally primary-only.
+
 ## Use These First
 
 | Need | Open |
