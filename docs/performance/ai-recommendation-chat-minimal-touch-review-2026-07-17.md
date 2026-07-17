@@ -105,6 +105,48 @@ Expected effect:
 - likely improvement is partial, not a full `4s -> 100ms` change
 - actual saving must be measured because current logs do not split embedding, vector search, grounding, and answer-generation durations
 
+## Quality Impact Prediction
+
+This is a pre-implementation estimate. Treat it as a decision aid, not as proof.
+
+Snapshot-based chat retrieval contribution, last 60 days:
+
+| snapshot type | snapshots with results | final candidates fully from FTS | estimated lazy-skip-safe share |
+| --- | ---: | ---: | ---: |
+| `INTERACTIVE` | `17` | `9` | `52.9%` |
+| `EVALUATION` | `279` | `65` | `23.3%` |
+
+Interpretation:
+
+- interactive sample is small, but it shows a real safe lane where semantic retrieval did not contribute to final candidates
+- evaluation sample is broader and shows semantic retrieval often matters
+- therefore lazy semantic search must be narrow: skip only when FTS/region keyword candidates already fill the final candidate window
+- do not skip semantic just because there are "some" FTS results or because `minResultCount` is satisfied
+
+Predicted quality impact by option:
+
+| Option | Predicted quality impact | Confidence | Main reason |
+| --- | --- | --- | --- |
+| stage timing logs | none | high | no behavior change |
+| recommendation AI prompt/hash observability | none | high | no behavior change |
+| lazy chat semantic search with strict full-FTS guard | none to very low on eligible requests | medium-high | final candidate IDs should remain identical when semantic add limit would be `0` |
+| exact chat query embedding cache | very low with short TTL | medium | same redacted query/model/dimensions should produce the same retrieval contract, but provider-side model drift is possible |
+| exact recommendation AI prompt-result cache | low, only if exact prompt hash and short TTL | medium | same prompt would have been sent, but live AI variability is frozen during TTL |
+| personal recommendation async | none for final quality | high | same generation path, only wait pattern changes |
+| chat answer exact prompt cache | medium | low-medium | can freeze stale or mediocre answers and interacts with conversation memory |
+| prompt compaction | medium | low | can remove safety wording or evidence that affects model behavior |
+| recommendation `top-n` reduction | high | high | directly increases `NOT_REQUESTED` exposure and can remove AI scoring from visible cards |
+| chat candidate limit reduction | high | high | can remove the correct policy before answer generation |
+| model change | medium to high | low | latency can improve, but answer style/correctness can shift unpredictably |
+
+Verification gates before accepting a behavior change:
+
+- chat final candidate service IDs unchanged for lazy-skip branches
+- chat `answerMode`, `needsClarification`, reference IDs, and action-link counts unchanged or explicitly explained
+- recommendation top `20` service IDs unchanged for exact-cache verification cases
+- recommendation `aiStatus` distribution unchanged for exact-cache verification cases
+- no prompt/candidate/model change accepted without a separate quality run
+
 ## Minimal-Touch Options
 
 ### 1. Stage Timing Instrumentation
