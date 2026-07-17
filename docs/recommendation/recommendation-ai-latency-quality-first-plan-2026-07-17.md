@@ -373,6 +373,17 @@ Verification:
   - `WelfareServiceMapperTest.regionsFromGov24_extractsUniqueSggStemFromAgencyName`
   - `AwsOpsMonitorPolicyContractTest.policyAllowsReadingProductionRdsMetadata`
 
+Deployment:
+
+- commit `bfaad94e` deployed to primary and secondary app instances
+- primary local actuator returned `{"status":"UP"}`
+- secondary `i-0e8a4cc599c1148c8` pulled `bfaad94e` and returned `{"status":"UP"}`
+- `RUN_ALB_TARGET_HEALTH=true bash deploy/smoke/run-prod-post-deploy-smoke.sh` passed
+- artifact: `tmp/prod-post-deploy-smoke/20260717T080200Z`
+- ALB target health: `2` healthy targets
+- public policy list/search/ranking: HTTP `200`, count `5`
+- nginx user-path 5xx: `0`
+
 ## Decision
 
 Proceed first with Phase 1 only.
