@@ -384,6 +384,54 @@ Deployment:
 - public policy list/search/ranking: HTTP `200`, count `5`
 - nginx user-path 5xx: `0`
 
+Post-deploy async verification:
+
+- async runtime check artifact: `tmp/recommendation-async-runtime-check/20260717T082749Z`
+- `POST /api/recommendations/refresh-async?size=6`: HTTP `202`, initial state `RUNNING`
+- initial saved recommendations for the new smoke user: `0`
+- async request response time: `221ms`
+- status polling: `6` polls
+- final state: `SUCCEEDED`
+- total time until final state: `6889ms`
+- final stored recommendation count read by `GET /api/recommendations?size=6`: `6`
+- top 6 AI status counts: `SCORED:5`, `NOT_REQUESTED:1`
+
+Quality-preserving comparison:
+
+- comparison artifact: `tmp/recommendation-async-quality-compare/20260717T082855Z`
+- async saved read count compared: `20`
+- synchronous `/refresh` response after async completion returned full saved batch count: `40`
+- compared top `20` service IDs: equal
+- compared top `20` AI statuses: equal
+- top `20` AI status counts: `SCORED:11`, `NOT_REQUESTED:9`
+
+Interpretation:
+
+- user-facing refresh click no longer blocks for the whole OpenAI-backed generation path
+- current measured immediate async response is `221ms`
+- background generation still took about `6.9s` for this smoke user, which is expected because the recommendation
+  pipeline and OpenAI scoring were intentionally left unchanged
+- the quality contract held for the top `20` comparison against the synchronous refresh readback
+
+Post-deploy recommendation observation:
+
+- artifact: `tmp/recommendation-observation/async-refresh-postdeploy-20260717/20260717T083049Z`
+- `recommendation_observation_suite=passed`
+- `precheck_status=KEEP_OBSERVING`
+- `decision_class=OBSERVE_REAL_USER_TRAFFIC`
+- `reopen_allowed=false`
+- `review_gate_policy_promotion_status=KEEP_PRIMARY_BASELINE`
+- `review_gate_policy_promotion_execution_status=DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW`
+
+Remaining unrelated backend test drift:
+
+- `WelfareServiceMapperTest.regionsFromGov24_extractsUniqueSggStemFromAgencyName`
+  - expected one derived region for `재단법인안산인재육성재단`
+  - actual `regionsFromGov24(...)` result was empty
+- `AwsOpsMonitorPolicyContractTest.policyAllowsReadingProductionRdsMetadata`
+  - policy file has `ReadYouthWelfareRdsMetadata` with `Resource="*"`
+  - test still expects the specific ARN `arn:aws:rds:ap-northeast-2:857721769929:db:youth-welfare-prod-db`
+
 ## Decision
 
 Proceed first with Phase 1 only.
