@@ -23,6 +23,7 @@ import com.example.welfare.policy.service.PolicyTrafficRateLimitService;
 import com.example.welfare.policy.service.PolicyViewLogService;
 import com.example.welfare.recommend.controller.RecommendationController;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
+import com.example.welfare.recommend.dto.RecommendationRefreshStatusResponse;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.service.RecommendationAccessService;
 import com.example.welfare.recommend.service.RecommendationBookmarkCommandService;
@@ -30,6 +31,7 @@ import com.example.welfare.recommend.service.RecommendationGenerationService;
 import com.example.welfare.recommend.service.RecommendationLogReadService;
 import com.example.welfare.recommend.service.RecommendationLogService;
 import com.example.welfare.recommend.service.RecommendationProjectionReadService;
+import com.example.welfare.recommend.service.RecommendationRefreshAsyncJobService;
 import com.example.welfare.recommend.service.SimilarUsersViewedPolicyReadService;
 import com.example.welfare.recommend.dto.SimilarUsersViewedPolicyResponse;
 import org.junit.jupiter.api.DisplayName;
@@ -73,6 +75,8 @@ class RecommendationPolicyFlowWebMvcTest {
     private RecommendationAccessService recommendationAccessService;
     @MockitoBean
     private RecommendationGenerationService recommendationGenerationService;
+    @MockitoBean
+    private RecommendationRefreshAsyncJobService recommendationRefreshAsyncJobService;
     @MockitoBean
     private RecommendationBookmarkCommandService recommendationBookmarkCommandService;
     @MockitoBean
@@ -277,6 +281,114 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(status().isTooManyRequests())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("R004"));
+    }
+
+    @Test
+    @DisplayName("비동기 추천 갱신은 저장 추천을 즉시 반환하고 refresh 상태를 함께 반환한다")
+    void refreshAsyncReturnsStoredRecommendationsAndQueuedStatus() throws Exception {
+        WelfareService service = sampleService(11L, "청년 월세 지원");
+        UserRecommendation recommendation = UserRecommendation.builder()
+                .id(1001L)
+                .service(service)
+                .finalScore(new BigDecimal("0.9100"))
+                .aiScore(new BigDecimal("0.7600"))
+                .aiReason("주거 부담 완화에 유리")
+                .recommendedAt(LocalDateTime.of(2026, 4, 16, 8, 0))
+                .build();
+
+        given(recommendationAccessService.getRecommendations(isNull(), eq(6))).willReturn(List.of(recommendation));
+        given(recommendationLogReadService.findLatestLogIdMap(isNull(), org.mockito.ArgumentMatchers.anyList()))
+                .willReturn(java.util.Map.of(11L, 9001L));
+        given(recommendationProjectionReadService.findCandidateProjections(org.mockito.ArgumentMatchers.anyList()))
+                .willReturn(java.util.Map.of());
+        given(serviceRegionRepository.findRegionLabelsByServiceIds(List.of(11L))).willReturn(List.of());
+        given(recommendationRefreshAsyncJobService.trigger(isNull(), eq(false)))
+                .willReturn(new RecommendationRefreshStatusResponse(
+                        RecommendationRefreshStatusResponse.RecommendationRefreshState.QUEUED,
+                        true,
+                        false,
+                        "추천 갱신이 대기열에 등록되었습니다.",
+                        LocalDateTime.of(2026, 7, 17, 9, 0),
+                        null,
+                        null,
+                        LocalDateTime.of(2026, 4, 16, 8, 0),
+                        1,
+                        null,
+                        null,
+                        1000L
+                ));
+
+        mockMvc.perform(post("/api/recommendations/refresh-async")
+                        .param("size", "6")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(
+                                new AuthenticatedUser(1L, "user-key-1"),
+                                null,
+                                Collections.emptyList()
+                        )))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.recommendations[0].serviceId").value(11))
+                .andExpect(jsonPath("$.data.recommendations[0].title").value("청년 월세 지원"))
+                .andExpect(jsonPath("$.data.status.state").value("QUEUED"))
+                .andExpect(jsonPath("$.data.status.active").value(true))
+                .andExpect(jsonPath("$.data.status.personal").value(false))
+                .andExpect(jsonPath("$.data.status.pollAfterMs").value(1000));
+
+        verify(recommendationAccessService).getRecommendations(null, 6);
+        verify(recommendationRefreshAsyncJobService).trigger(null, false);
+        verify(recommendationGenerationService, never()).recommend(any(), org.mockito.ArgumentMatchers.anyBoolean());
+    }
+
+    @Test
+    @DisplayName("비동기 추천 갱신은 personal=true를 거부한다")
+    void refreshAsyncRejectsPersonalMode() throws Exception {
+        mockMvc.perform(post("/api/recommendations/refresh-async")
+                        .param("personal", "true")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(
+                                new AuthenticatedUser(1L, "user-key-1"),
+                                null,
+                                Collections.emptyList()
+                        )))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        verify(recommendationRefreshAsyncJobService, never()).trigger(any(), org.mockito.ArgumentMatchers.anyBoolean());
+    }
+
+    @Test
+    @DisplayName("추천 갱신 상태 조회는 현재 refresh 상태를 반환한다")
+    void refreshStatusReturnsCurrentStatus() throws Exception {
+        given(recommendationRefreshAsyncJobService.getStatus(isNull(), eq(false)))
+                .willReturn(new RecommendationRefreshStatusResponse(
+                        RecommendationRefreshStatusResponse.RecommendationRefreshState.RUNNING,
+                        true,
+                        false,
+                        "추천 갱신이 진행 중입니다.",
+                        LocalDateTime.of(2026, 7, 17, 9, 0),
+                        LocalDateTime.of(2026, 7, 17, 9, 0, 1),
+                        null,
+                        null,
+                        0,
+                        null,
+                        null,
+                        1000L
+                ));
+
+        mockMvc.perform(get("/api/recommendations/refresh-status")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(
+                                new AuthenticatedUser(1L, "user-key-1"),
+                                null,
+                                Collections.emptyList()
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.state").value("RUNNING"))
+                .andExpect(jsonPath("$.data.active").value(true));
+
+        verify(recommendationRefreshAsyncJobService).getStatus(null, false);
     }
 
     @Test

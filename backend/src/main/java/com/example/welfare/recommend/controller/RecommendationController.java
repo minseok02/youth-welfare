@@ -1,10 +1,14 @@
 package com.example.welfare.recommend.controller;
 
 import com.example.welfare.global.auth.AuthenticatedUser;
+import com.example.welfare.global.exception.CustomException;
+import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.response.ApiResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceRegionRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
+import com.example.welfare.recommend.dto.RecommendationRefreshAsyncResponse;
+import com.example.welfare.recommend.dto.RecommendationRefreshStatusResponse;
 import com.example.welfare.recommend.dto.RecommendationResponse;
 import com.example.welfare.recommend.dto.SimilarUsersViewedPolicyResponse;
 import com.example.welfare.recommend.entity.UserRecommendation;
@@ -13,6 +17,7 @@ import com.example.welfare.recommend.service.RecommendationBookmarkCommandServic
 import com.example.welfare.recommend.service.RecommendationGenerationService;
 import com.example.welfare.recommend.service.RecommendationLogReadService;
 import com.example.welfare.recommend.service.RecommendationProjectionReadService;
+import com.example.welfare.recommend.service.RecommendationRefreshAsyncJobService;
 import com.example.welfare.recommend.service.SimilarUsersViewedPolicyReadService;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -34,6 +39,7 @@ public class RecommendationController {
 
     private final RecommendationAccessService recommendationAccessService;
     private final RecommendationGenerationService recommendationGenerationService;
+    private final RecommendationRefreshAsyncJobService recommendationRefreshAsyncJobService;
     private final RecommendationBookmarkCommandService recommendationBookmarkCommandService;
     private final RecommendationProjectionReadService recommendationProjectionReadService;
     private final RecommendationLogReadService recommendationLogReadService;
@@ -79,6 +85,28 @@ public class RecommendationController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    @PostMapping("/refresh-async")
+    public ResponseEntity<ApiResponse<RecommendationRefreshAsyncResponse>> refreshAsync(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @RequestParam(defaultValue = "false") boolean personal,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
+        if (personal) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+        Long userId = resolveUserId(authenticatedUser);
+        List<RecommendationResponse> response = readStoredResponses(userId, size);
+        RecommendationRefreshStatusResponse status = recommendationRefreshAsyncJobService.trigger(userId, personal);
+        return ResponseEntity.accepted().body(ApiResponse.success(new RecommendationRefreshAsyncResponse(response, status)));
+    }
+
+    @GetMapping("/refresh-status")
+    public ResponseEntity<ApiResponse<RecommendationRefreshStatusResponse>> refreshStatus(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @RequestParam(defaultValue = "false") boolean personal) {
+        Long userId = resolveUserId(authenticatedUser);
+        return ResponseEntity.ok(ApiResponse.success(recommendationRefreshAsyncJobService.getStatus(userId, personal)));
+    }
+
     // 북마크 토글
     @PostMapping("/{id}/bookmark")
     public ResponseEntity<ApiResponse<Void>> toggleBookmark(
@@ -90,6 +118,13 @@ public class RecommendationController {
 
     private Long resolveUserId(AuthenticatedUser authenticatedUser) {
         return authenticatedUser != null ? authenticatedUser.userId() : null;
+    }
+
+    private List<RecommendationResponse> readStoredResponses(Long userId, int size) {
+        List<UserRecommendation> recs = recommendationAccessService.getRecommendations(userId, size);
+        List<Long> serviceIds = recs.stream().map(r -> r.getService().getId()).toList();
+        Map<Long, Long> serviceLogMap = recommendationLogReadService.findLatestLogIdMap(userId, serviceIds);
+        return toResponses(recs, serviceLogMap);
     }
 
     private List<RecommendationResponse> toResponses(List<UserRecommendation> recs,

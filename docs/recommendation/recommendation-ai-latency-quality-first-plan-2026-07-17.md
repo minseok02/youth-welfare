@@ -331,6 +331,48 @@ Operational checks:
 - JVM restart count `0`
 - no user-facing nginx 5xx
 
+## Phase 1 Implementation 2026-07-17
+
+Implemented the quality-preserving async refresh path.
+
+Backend:
+
+- added `POST /api/recommendations/refresh-async?personal=false&size=N`
+- added `GET /api/recommendations/refresh-status`
+- added Redis-backed refresh status and active-job keys
+- added bounded `recommendationAsyncExecutor`, default parallelism `1` per app instance
+- background work calls the existing `RecommendationGenerationService.recommend(userId, personal)` path
+- existing synchronous `POST /api/recommendations/refresh` remains unchanged
+- `personal=true` is intentionally rejected on `/refresh-async`; personal refresh stays synchronous for now
+
+Frontend:
+
+- regular recommendation refresh now calls `/refresh-async`
+- existing saved cards remain visible while background generation runs
+- UI polls `/refresh-status`
+- after `SUCCEEDED`, the page reloads stored recommendations through `GET /api/recommendations`
+- personal refresh still uses the existing synchronous `/refresh?personal=true` path
+
+Quality boundary:
+
+- no change to candidate retrieval
+- no change to `recommend.ai.top-n`
+- no change to OpenAI prompt/input ordering
+- no change to rule/AI weights
+- no change to source/category balancing
+- no change to persisted recommendation count
+
+Verification:
+
+- `./gradlew clean compileJava` passed
+- `./gradlew test --tests com.example.welfare.api.RecommendationPolicyFlowWebMvcTest --tests com.example.welfare.recommend.service.RecommendationRefreshAsyncJobServiceTest` passed
+- `npm run build` passed
+- `npm run lint` passed
+- `npm run test:unit` passed, `50` tests
+- full backend `./gradlew test` executed `1286` tests but failed on two existing unrelated contract drifts:
+  - `WelfareServiceMapperTest.regionsFromGov24_extractsUniqueSggStemFromAgencyName`
+  - `AwsOpsMonitorPolicyContractTest.policyAllowsReadingProductionRdsMetadata`
+
 ## Decision
 
 Proceed first with Phase 1 only.

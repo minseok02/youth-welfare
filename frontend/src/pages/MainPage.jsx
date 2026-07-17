@@ -129,6 +129,8 @@ const mapRecentViewedPolicy = (policy) => ({
   source: policy.hostOrg || policy.sido || policy.operatingOrg || "",
 });
 
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 // ── 디자인 상수 ───────────────────────────────────────────────────────────────
 
 const A = "#2563eb";
@@ -1251,13 +1253,36 @@ export default function MainPage() {
     }
     setRefreshingRec(true);
     try {
-      const { data } = await api.post("/api/recommendations/refresh");
-      setRecommendations((data.data ?? []).map(mapRec));
+      const { data } = await api.post("/api/recommendations/refresh-async", null, { params: { size: 6 } });
+      const payload = data.data ?? {};
+      const immediateRecommendations = (payload.recommendations ?? []).map(mapRec);
+      if (immediateRecommendations.length > 0) {
+        setRecommendations(immediateRecommendations);
+      }
       setRecError(false);
-      if (standardCodeMissingCount > 0) {
-        showToast("추천을 새로 불러왔습니다. 선택 프로필을 보완하면 개인화 정확도가 더 올라갑니다.", "success");
-      } else {
-        showToast("추천을 새로 불러왔습니다", "success");
+      showToast("추천을 갱신하고 있습니다. 기존 추천은 그대로 볼 수 있습니다.", "info");
+
+      let status = payload.status;
+      for (let attempt = 0; attempt < 60 && status?.active; attempt += 1) {
+        await delay(Math.max(500, status.pollAfterMs ?? 1000));
+        const statusResponse = await api.get("/api/recommendations/refresh-status");
+        status = statusResponse.data?.data;
+      }
+
+      if (status?.state === "SUCCEEDED") {
+        const refreshed = await api.get("/api/recommendations", { params: { size: 6 } });
+        setRecommendations((refreshed.data?.data ?? []).map(mapRec));
+        if (standardCodeMissingCount > 0) {
+          showToast("추천을 새로 불러왔습니다. 선택 프로필을 보완하면 개인화 정확도가 더 올라갑니다.", "success");
+        } else {
+          showToast("추천을 새로 불러왔습니다", "success");
+        }
+      } else if (status?.state === "RATE_LIMITED") {
+        showToast("추천 갱신 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.", "warning");
+      } else if (status?.state === "FAILED") {
+        showToast("추천 갱신에 실패했습니다. 기존 추천을 계속 보여드립니다.", "error");
+      } else if (status?.active) {
+        showToast("추천 갱신이 계속 진행 중입니다. 잠시 후 다시 확인해주세요.", "info");
       }
     } catch { showToast("추천 갱신에 실패했습니다", "error"); }
     finally { setRefreshingRec(false); }
