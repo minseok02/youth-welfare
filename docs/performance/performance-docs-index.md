@@ -44,6 +44,7 @@
 - [report-grade-auth-flow-measurement-2026-07-16.md](./report-grade-auth-flow-measurement-2026-07-16.md)
 - [report-grade-recommendation-flow-measurement-2026-07-16.md](./report-grade-recommendation-flow-measurement-2026-07-16.md)
 - [report-grade-chat-flow-measurement-2026-07-16.md](./report-grade-chat-flow-measurement-2026-07-16.md)
+- [ai-recommendation-chat-minimal-touch-review-2026-07-17.md](./ai-recommendation-chat-minimal-touch-review-2026-07-17.md)
 - [report-grade-integrated-user-journey-measurement-2026-07-16.md](./report-grade-integrated-user-journey-measurement-2026-07-16.md)
 - [ranking-snapshot-rollback-runbook-2026-07-15.md](./ranking-snapshot-rollback-runbook-2026-07-15.md)
 - [performance-next-checkpoint-2026-07-14.md](./performance-next-checkpoint-2026-07-14.md)
@@ -119,6 +120,7 @@
 - [report-grade-auth-flow-measurement-2026-07-16.md](./report-grade-auth-flow-measurement-2026-07-16.md)
 - [report-grade-recommendation-flow-measurement-2026-07-16.md](./report-grade-recommendation-flow-measurement-2026-07-16.md)
 - [report-grade-chat-flow-measurement-2026-07-16.md](./report-grade-chat-flow-measurement-2026-07-16.md)
+- [ai-recommendation-chat-minimal-touch-review-2026-07-17.md](./ai-recommendation-chat-minimal-touch-review-2026-07-17.md)
 - [report-grade-integrated-user-journey-measurement-2026-07-16.md](./report-grade-integrated-user-journey-measurement-2026-07-16.md)
 - [ranking-snapshot-rollback-runbook-2026-07-15.md](./ranking-snapshot-rollback-runbook-2026-07-15.md)
 - [performance-next-checkpoint-2026-07-14.md](./performance-next-checkpoint-2026-07-14.md)
@@ -150,6 +152,7 @@
 - 결과보고서용 인증 흐름 대표 응답시간과 rate-limit 회피 조건이 어느 정도인지
 - 결과보고서용 추천 조회/생성 대표 응답시간과 OpenAI 영향이 어느 정도인지
 - 결과보고서용 챗봇 대표 응답시간과 OpenAI 영향, 응답 shape가 어느 정도인지
+- 추천/챗봇 AI 구간을 품질 유지 전제로 최소 변경하려면 어떤 순서가 맞는지
 - 결과보고서용 통합 사용자 여정 전체 시간이 어느 정도이고 AI 구간이 얼마나 차지하는지
 - ranking snapshot을 어떻게 되돌릴지
 - 재측정 후 다음 작업을 열지 말지
