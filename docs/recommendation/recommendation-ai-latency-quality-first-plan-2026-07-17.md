@@ -1,0 +1,287 @@
+# Recommendation AI Latency Quality-First Plan 2026-07-17
+
+## Purpose
+
+This document reopens the recommendation latency question without reopening recommendation quality tuning.
+
+The user-facing problem is real: recommendation refresh is slow because it can include OpenAI scoring. However, the existing recommendation documents intentionally keep score, weight, prompt, source balancing, and candidate tuning closed unless the recommendation gates allow reopening.
+
+Therefore this plan separates:
+
+- safe latency/UX work that preserves the current recommendation result contract
+- quality-changing work that stays blocked until the recommendation reopen gate says it is allowed
+
+## Documents Checked
+
+Read these before deciding the plan:
+
+- [recommendation-docs-index.md](./recommendation-docs-index.md)
+- [recommendation-current-state.md](./recommendation-current-state.md)
+- [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md)
+- [recommendation-operation-checklist.md](./recommendation-operation-checklist.md)
+- [recommendation-pipeline.md](./recommendation-pipeline.md)
+- [recommendation-standard-code-coverage-and-observation-closeout.md](./recommendation-standard-code-coverage-and-observation-closeout.md)
+- [report-grade-recommendation-flow-measurement-2026-07-16.md](../performance/report-grade-recommendation-flow-measurement-2026-07-16.md)
+
+Current live check:
+
+```bash
+ENV_FILE=.env.runtime.production \
+SMOKE_DB_MODE=postgres \
+APP_BASE_URL='http://127.0.0.1:8082' \
+OBSERVATION_ROOT=tmp/recommendation-observation/design-review-20260717 \
+KEEP_ARTIFACTS=true \
+RUN_HOUSING_STANDARD_CODE_EFFECT_AUDIT=false \
+RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT=false \
+RUN_RECOMMENDATION_STANDARD_CODE_ADOPTION_AUDIT=true \
+  bash deploy/smoke/run-local-recommendation-observation-suite.sh
+```
+
+Result:
+
+- artifact: `tmp/recommendation-observation/design-review-20260717/20260717T071747Z`
+- `precheck_status=KEEP_OBSERVING`
+- `gate_action_class=KEEP_BASELINE_MONITORING`
+- `reopen_allowed=false`
+- `review_gate_policy_promotion_status=KEEP_PRIMARY_BASELINE`
+- `review_gate_policy_promotion_execution_status=DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW`
+- `operator_reading=Recommendation code stays closed. Keep daily observation until real-user traffic and leader signal grow.`
+
+Notes:
+
+- real-user readiness was skipped because an admin password was not available in the runtime env.
+- standard-code adoption output was empty because the runtime env path attempted a `migration_admin` DB login that failed. This does not change the recommendation reopen reading, which came from the latest overview/precheck.
+
+## Current Measured Problem
+
+From the report-grade recommendation flow:
+
+| Path | Observed result |
+| --- | ---: |
+| stored recommendation read before refresh | `49.3ms`, `0` rows for new test user |
+| shared refresh | `5437.4ms`, `39` rows, `12` `SCORED`, `27` `NOT_REQUESTED` |
+| stored read after refresh | `116.4ms`, `20` rows |
+| cached shared refresh | `209.5ms`, reused saved batch |
+| personal refresh | `3933.2ms`, `39` rows, `12` `SCORED`, `27` `NOT_REQUESTED` |
+| stored read final | `46.6ms`, `20` rows |
+
+Interpretation:
+
+- stored reads are already fast
+- refresh is slow because generation includes candidate retrieval, rule scoring, AI top-N scoring, reranking, persistence, and log creation
+- reducing AI top-N or changing candidate selection can improve speed but can also degrade recommendation quality
+
+## Existing Code Contract
+
+Current API:
+
+- `GET /api/recommendations?size=N`
+  - reads stored `user_recommendations`
+  - does not call AI
+  - returns `RecommendationResponse`
+
+- `POST /api/recommendations/refresh?personal=false`
+  - synchronous
+  - uses rate limit
+  - if recent non-personal refresh marker exists, reads the marked DB batch and skips generation
+  - otherwise runs the full generation pipeline and waits
+  - marks the generated batch reusable for `recommend.refresh-cache-ttl-minutes`, default `15`
+
+- `POST /api/recommendations/refresh?personal=true`
+  - synchronous
+  - evicts non-personal reuse marker
+  - uses `youth_all`
+  - bypasses cluster AI cache and performs personal AI scoring
+  - does not mark the result reusable
+
+Existing safety mechanisms:
+
+- per-user execution lock through `RecommendationExecutionGuard`
+- refresh rate limits for shared/personal refresh
+- AI top-N limit, currently default `12`
+- refresh cache marker that stores `recommendedAt`, not the payload
+- rule-version flag included in refresh cache key
+- stored rows remain the source of truth for display
+
+## Why Not Just Make AI Faster
+
+Do not start with these:
+
+1. Lowering `recommend.ai.top-n`
+   - It would reduce OpenAI latency and cost.
+   - But previous docs say top-N was raised to reduce `NOT_REQUESTED` ratio in top cards and improve visible memo quality.
+   - This is a quality-changing experiment, not a safe latency fix.
+
+2. Changing candidate window size or source/category balancing
+   - This can drop important policies before ranking.
+   - The user already called out the risk: a fast but worse recommendation is not useful.
+   - Reopen runbook says candidate/source/global tuning is blocked while `reopen_allowed=false`.
+
+3. Caching personal AI scores broadly
+   - Personal refresh intentionally uses user profile context and bypasses the cluster cache.
+   - Broad cache reuse risks serving reasons/scores that no longer match the user profile or rule version.
+
+4. Returning only a smaller number of generated recommendations
+   - The current refresh creates about `39` rows and read returns top `20`.
+   - Reducing persistence count can hide alternatives and make later reads/bookmarks/debugging weaker.
+
+## Recommended Design
+
+### Phase 1: Async Refresh UX, Same Recommendation Pipeline
+
+Goal:
+
+- avoid blocking the user for `4s-7s`
+- keep candidate selection, rule scoring, AI top-N, reranking, and persistence unchanged
+
+Proposed API additions:
+
+```http
+POST /api/recommendations/refresh-async?personal=false
+GET  /api/recommendations/refresh-status
+```
+
+`POST /refresh-async` behavior:
+
+1. Read latest saved recommendations first.
+2. If a refresh is already running, return `202 ACCEPTED` with current saved recommendations and `state=RUNNING`.
+3. If non-personal reuse marker is valid, return `200 OK` or `202` with `state=REUSED` and the saved batch.
+4. Otherwise enqueue a background refresh command using the same generation pipeline.
+5. Return immediately with:
+   - latest saved recommendations if present
+   - empty list only for users with no saved batch yet
+   - `refreshState=QUEUED` or `RUNNING`
+   - `lastRecommendedAt`
+   - optional `pollAfterMs`
+
+`GET /refresh-status` behavior:
+
+- returns `IDLE`, `QUEUED`, `RUNNING`, `SUCCEEDED`, `FAILED`, or `RATE_LIMITED`
+- includes latest `recommendedAt`, saved count, and sanitized error code if any
+- does not expose raw OpenAI output or sensitive user identifiers
+
+Frontend behavior:
+
+- recommendation page first calls stored read
+- if rows exist, show them immediately
+- if user clicks refresh, keep current cards visible and show "updating" state
+- poll status until `SUCCEEDED`, then reload stored recommendations
+- if no rows exist, show loading skeleton plus a clear "generating recommendations" state
+
+Why this is safe:
+
+- it does not change ranking, AI prompt, AI top-N, candidates, or persistence
+- final saved result is identical to what synchronous refresh would have produced
+- it changes waiting behavior, not recommendation quality
+
+Expected performance impact:
+
+| Scenario | Current | Expected after Phase 1 |
+| --- | ---: | ---: |
+| existing user page load | stored read `~50-116ms` | same |
+| existing user refresh click | waits `~3.9-5.4s` | immediate response `~50-200ms`, background completion still `~3.9-5.4s` |
+| first user with no saved rows | waits `~3.9-5.4s` | still waits visually, but through explicit generating state |
+| actual generation cost | unchanged | unchanged |
+| recommendation quality | unchanged | unchanged |
+
+### Phase 2: Refresh Status And Failure UX
+
+Goal:
+
+- make slow OpenAI-backed generation understandable and recoverable
+
+Add UI states:
+
+- `latest recommendations shown`
+- `updating in background`
+- `generation failed, showing previous recommendations`
+- `rate-limited, try again later`
+- `first recommendations are being generated`
+
+This is product-visible quality work because it prevents stale/empty states from being misread as bad recommendations.
+
+### Phase 3: Quality-Preserving Freshness Policy
+
+Only after Phase 1:
+
+- define what counts as stale for recommendations, for example older than 24h or after meaningful profile change
+- auto-start background non-personal refresh when stale but never block existing read
+- for profile changes, show "recommendations may be based on previous profile" until refresh completes
+
+Do not silently replace rankings while the user is interacting with a card list. Reload or toast after completion.
+
+## Quality-Changing Work Remains Blocked
+
+These stay out of scope until the reopen gate allows them:
+
+- lowering or raising `recommend.ai.top-n`
+- changing candidate retrieval window
+- changing source/category balancing
+- changing rule/AI weights
+- changing prompt/input ordering
+- caching personal AI scores across different profiles
+- promoting recent-window review gates into primary behavior
+
+If one of these becomes necessary, use [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md) and record:
+
+1. gate status
+2. cohort/window
+3. reason for reopening
+4. selected lane
+5. expected quality effect
+6. rollback rule
+
+## Verification Plan
+
+Before implementation:
+
+1. Record current state with this document.
+2. Run current stored read and synchronous refresh measurement once if a fresh baseline is needed.
+3. Confirm post-deploy smoke and ALB health.
+
+After Phase 1 implementation:
+
+Functional checks:
+
+- existing saved recommendations are returned immediately
+- refresh job transitions `QUEUED/RUNNING -> SUCCEEDED`
+- final stored recommendations match the synchronous pipeline contract
+- concurrent refresh returns existing saved data or running status, not duplicate generation
+- rate-limit behavior remains enforced
+- personal refresh still bypasses non-personal marker and does not reuse cluster cache unexpectedly
+
+Performance checks:
+
+- async request response time
+- status poll response time
+- background generation duration
+- stored read after completion
+- OpenAI-backed generation duration unchanged but no longer blocks main interaction
+
+Quality checks:
+
+- compare top `20` service IDs before/after for the same profile and same mode
+- compare `aiStatus` distribution (`SCORED`, `NOT_REQUESTED`, fallback statuses)
+- compare `finalScore` order for the saved batch
+- run integrated recommendation flow and final user journey smoke
+- run recommendation observation precheck and confirm `reopen_allowed=false` still means quality tuning is closed
+
+Operational checks:
+
+- post-deploy smoke with ALB target health
+- DB waiting locks `0`
+- active queries over 5 minutes `0`
+- JVM restart count `0`
+- no user-facing nginx 5xx
+
+## Decision
+
+Proceed first with Phase 1 only.
+
+Reason:
+
+- it addresses the actual user-facing wait
+- it preserves recommendation quality and current gate decisions
+- it avoids premature candidate/AI tuning while the recommendation track still says `KEEP_OBSERVING`
+
+Do not implement candidate reduction or AI top-N changes in the same batch.

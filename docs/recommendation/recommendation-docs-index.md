@@ -20,6 +20,7 @@
 3. [recommendation-operation-checklist.md](./recommendation-operation-checklist.md)
 4. [recommendation-ai-reason-memo-contract.md](./recommendation-ai-reason-memo-contract.md)
 5. [recommendation-pipeline.md](./recommendation-pipeline.md)
+6. [recommendation-ai-latency-quality-first-plan-2026-07-17.md](./recommendation-ai-latency-quality-first-plan-2026-07-17.md)
 
 ## Daily 관측
 
@@ -69,6 +70,8 @@ bash deploy/smoke/run-local-recommendation-reopen-precheck.sh
 3. [recommendation-primary-audience-exclusion-decision-memo.md](./recommendation-primary-audience-exclusion-decision-memo.md)
 
 `reopen_allowed=false` 이면 아래 문서들은 진단 이력으로만 보고, 구현 작업으로 이어가지 않습니다.
+
+단, refresh 대기 시간을 줄이되 추천 산식과 후보를 바꾸지 않는 UX/API 개선은 [recommendation-ai-latency-quality-first-plan-2026-07-17.md](./recommendation-ai-latency-quality-first-plan-2026-07-17.md) 기준으로 별도 검토합니다. 이 경로는 score, weight, prompt, source/category balancing reopen 이 아닙니다.
 
 ## PR / Handoff
 
