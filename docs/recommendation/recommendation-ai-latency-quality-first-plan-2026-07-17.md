@@ -103,6 +103,52 @@ Existing safety mechanisms:
 - rule-version flag included in refresh cache key
 - stored rows remain the source of truth for display
 
+## Second Design Review
+
+The direction remains valid, but the implementation must be narrower than a generic async job.
+
+The service now runs behind an ALB with two application instances. Therefore refresh status must not be stored only in
+process memory. An in-memory status map would make `POST /refresh-async` on instance A and
+`GET /refresh-status` on instance B disagree. The refresh job status should be stored in Redis, keyed by the hashed
+user key and refresh mode.
+
+The existing collect async pattern is useful as a shape, but recommendation should not copy its in-memory snapshot
+storage. Recommendation needs a small Redis-backed status record instead.
+
+Minimum status fields:
+
+- `state`: `IDLE`, `QUEUED`, `RUNNING`, `SUCCEEDED`, `FAILED`, `RATE_LIMITED`
+- `personal`: whether the job is personal refresh
+- `requestedAt`, `startedAt`, `finishedAt`
+- `latestRecommendedAt`
+- `savedCount`
+- `errorCode`: sanitized code only, no raw OpenAI output or profile details
+- `generationDurationMs`: background generation time, when known
+
+Important constraints:
+
+1. The background job must call the existing `RecommendationGenerationService.recommend(userId, personal)` path.
+   Do not split out a faster private path for async refresh.
+2. `RecommendationExecutionGuard` remains the per-user generation lock.
+3. The async executor must be bounded. A small fixed pool is enough because every generation can hit OpenAI and RDS.
+   With two ALB instances, effective parallelism is `per-instance parallelism * 2`.
+4. Status polling must not trigger generation, rate limits, or AI calls.
+5. Repeated refresh clicks while the same user's job is active should return the active status and latest saved rows.
+   They should not enqueue duplicate work.
+6. The frontend already bookmarks recommendation cards through `/api/policies/{serviceId}/bookmark`, not the
+   recommendation row id. Keep that behavior. Async refresh replaces `user_recommendations` rows, so service-id based
+   bookmark actions are safer while a refresh is running.
+7. Do not disable card interactions globally during background refresh. Keep existing recommendations visible, but make
+   the refresh state explicit and reload the list only after `SUCCEEDED`.
+
+Quality review:
+
+- The proposed async design does not make OpenAI faster.
+- It does not reduce candidate count, persisted recommendation count, AI top-N, prompt content, source balancing, or
+  category logic.
+- It changes only the user wait pattern: existing saved recommendations stay visible while the same generation pipeline
+  runs in the background.
+
 ## Why Not Just Make AI Faster
 
 Do not start with these:
@@ -144,9 +190,10 @@ GET  /api/recommendations/refresh-status
 `POST /refresh-async` behavior:
 
 1. Read latest saved recommendations first.
-2. If a refresh is already running, return `202 ACCEPTED` with current saved recommendations and `state=RUNNING`.
-3. If non-personal reuse marker is valid, return `200 OK` or `202` with `state=REUSED` and the saved batch.
-4. Otherwise enqueue a background refresh command using the same generation pipeline.
+2. Resolve the current Redis refresh status for this user and mode.
+3. If a refresh is already `QUEUED` or `RUNNING`, return `202 ACCEPTED` with current saved recommendations and the
+   active state.
+4. Otherwise enqueue one background refresh command using the same generation pipeline.
 5. Return immediately with:
    - latest saved recommendations if present
    - empty list only for users with no saved batch yet
@@ -159,6 +206,7 @@ GET  /api/recommendations/refresh-status
 - returns `IDLE`, `QUEUED`, `RUNNING`, `SUCCEEDED`, `FAILED`, or `RATE_LIMITED`
 - includes latest `recommendedAt`, saved count, and sanitized error code if any
 - does not expose raw OpenAI output or sensitive user identifiers
+- reads Redis status plus the latest saved batch metadata, so it is stable across both ALB-backed instances
 
 Frontend behavior:
 
@@ -167,12 +215,21 @@ Frontend behavior:
 - if user clicks refresh, keep current cards visible and show "updating" state
 - poll status until `SUCCEEDED`, then reload stored recommendations
 - if no rows exist, show loading skeleton plus a clear "generating recommendations" state
+- continue using service-id based bookmark calls while refresh is running
 
 Why this is safe:
 
 - it does not change ranking, AI prompt, AI top-N, candidates, or persistence
 - final saved result is identical to what synchronous refresh would have produced
 - it changes waiting behavior, not recommendation quality
+
+Implementation boundary:
+
+- add a recommendation-specific bounded executor, for example `recommendationAsyncExecutor`
+- add `RecommendationRefreshAsyncJobService` that owns Redis status and executor submission
+- keep the existing synchronous `/refresh` endpoint unchanged for compatibility and comparison
+- keep personal refresh synchronous at first unless UX clearly needs async personal refresh too; if personal async is
+  added, it must still call `recommend(userId, true)` and keep the current personal cache-bypass behavior
 
 Expected performance impact:
 
