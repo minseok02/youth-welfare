@@ -31,6 +31,33 @@ AI status summary for saved runs, last 7 days:
 
 Last 30 hours still had `35` non-personal saved generation runs with avg `5031ms`, so the slow path is current.
 
+Second-pass refresh cache check:
+
+```bash
+ENV_FILE=.env.runtime.production \
+SMOKE_DB_MODE=postgres \
+APP_BASE_URL='http://127.0.0.1:8082' \
+RECOMMEND_RUN_PERSONAL=false \
+RECOMMEND_RUN_SIMILAR_USERS_VIEWED=false \
+RECOMMEND_REQUEST_DELAY_SECONDS=0.2 \
+KEEP_ARTIFACTS=true \
+  bash deploy/performance/run-local-recommendation-flow-baseline.sh
+```
+
+Result:
+
+- artifact: `tmp/performance/recommendation-flow/20260717T155900Z`
+- `shared_refresh`: `4588.9ms`, `39` rows, `SCORED=12`, `NOT_REQUESTED=27`
+- `shared_refresh_cached`: `58.6ms`, `39` rows, `SCORED=12`, `NOT_REQUESTED=27`
+- `stored_read_after`: `38.9ms`
+- `stored_read_final`: `32.3ms`
+
+Interpretation:
+
+- the existing same-user non-personal refresh cache works when the same saved batch is reused immediately
+- the low 7-day `cache_hit` count should not be read as proof that the refresh cache is broken
+- repeated `saved` rows inside 15 minutes can still happen when test/setup flows change the user profile or otherwise evict the marker outside `recommendation_run_logs`
+
 ## Code Findings
 
 Current safe parts:
@@ -53,7 +80,7 @@ This is not a simple "turn cache on" bug. `ClusterService` intentionally returns
 
 ### 1. Exact AI Prompt-Hash Cache
 
-Recommended first implementation target.
+Potential implementation target, but not first.
 
 Cache only when the exact AI request contract is identical:
 
@@ -78,8 +105,9 @@ Why this preserves quality:
 Expected effect:
 
 - cache hits should avoid the OpenAI network call, which is the dominant part of the `3s-10s` saved-generation path
-- full benefit depends on exact prompt duplication rate, which is currently not measured because replay trace logging is disabled in production
-- first deployment must report hit/miss counts before claiming a real-user percentage improvement
+- full benefit depends on exact prompt duplication rate
+- this duplicate rate is currently not measured because replay trace logging is disabled in production
+- therefore prompt-hash caching should not be implemented before prompt-hash hit-rate observability is added
 
 Risk:
 
@@ -93,14 +121,15 @@ Rollback:
 
 ### 2. AI Call Timing And Prompt-Hash Observability
 
-Low-risk support step, useful with or before option 1.
+Recommended first implementation target.
 
 Add logs or run-log fields for:
 
 - AI gateway duration
 - prompt hash
 - requested candidate count
-- cache hit/miss when prompt cache exists
+- duplicate prompt hash count over a bounded observation window
+- cache hit/miss if prompt cache is later enabled
 - OpenAI response result count
 
 Why this preserves quality:
@@ -111,7 +140,7 @@ Why this preserves quality:
 Expected effect:
 
 - no direct speedup
-- reduces guesswork before touching AI/candidate behavior
+- prevents implementing a cache whose real-user hit rate may be too low to matter
 
 ### 3. Personal Refresh Async UX
 
@@ -145,9 +174,11 @@ Lowering `recommend.ai.top-n` or reducing candidates would likely improve speed 
 
 Proceed in this order:
 
-1. Implement exact prompt-hash AI result cache behind a feature flag, with hit/miss/duration logging.
-2. Verify on local/prod smoke profiles that top `20` service IDs and `aiStatus` distribution are unchanged on cache hits.
-3. Re-run recommendation flow measurement and compare saved-generation duration for first call versus identical second call after disabling the same-user refresh marker if needed.
-4. Keep cluster-wide `youth_all` AI cache disabled unless cluster segmentation is reintroduced or the cache key includes the full user/prompt signature.
+1. Add AI gateway timing and prompt-hash observability first.
+2. Observe exact prompt duplication rate before adding any new AI result cache.
+3. If duplicate prompt rate is material, implement exact prompt-hash AI result cache behind a feature flag.
+4. Verify on local/prod smoke profiles that top `20` service IDs and `aiStatus` distribution are unchanged on cache hits.
+5. Re-run recommendation flow measurement and compare saved-generation duration for first call versus identical second call after disabling the same-user refresh marker if needed.
+6. Keep cluster-wide `youth_all` AI cache disabled unless cluster segmentation is reintroduced or the cache key includes the full user/prompt signature.
 
 Do not enable `cluster_ai_results` reuse for `youth_all` as a shortcut.
