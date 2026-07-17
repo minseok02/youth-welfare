@@ -438,6 +438,15 @@ Backend test drift closeout:
 - verification:
   - targeted drift tests passed
   - full backend `./gradlew test` passed
+- deployment:
+  - commit `88ac6fc8` deployed to primary and secondary app instances
+  - primary local actuator returned `{"status":"UP"}`
+  - secondary `i-0e8a4cc599c1148c8` pulled `88ac6fc8` and returned `{"status":"UP"}`
+  - `RUN_ALB_TARGET_HEALTH=true bash deploy/smoke/run-prod-post-deploy-smoke.sh` passed
+  - artifact: `tmp/prod-post-deploy-smoke/20260717T085208Z`
+  - ALB target health: `2` healthy targets
+  - public policy list/search/ranking: HTTP `200`, count `5`
+  - nginx user-path 5xx: `0`
 
 ## Decision
 
