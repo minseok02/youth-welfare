@@ -21,6 +21,7 @@
 4. [recommendation-ai-reason-memo-contract.md](./recommendation-ai-reason-memo-contract.md)
 5. [recommendation-pipeline.md](./recommendation-pipeline.md)
 6. [recommendation-ai-latency-quality-first-plan-2026-07-17.md](./recommendation-ai-latency-quality-first-plan-2026-07-17.md)
+7. [recommendation-ai-efficiency-minimal-touch-review-2026-07-17.md](./recommendation-ai-efficiency-minimal-touch-review-2026-07-17.md)
 
 ## Daily 관측
 
