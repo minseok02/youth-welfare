@@ -159,6 +159,38 @@ DB audit 해석 기준:
 
 ## 최근 운영 확인 기준
 
+2026-07-17 기준 backend drift closeout 배포 뒤 전체 nightly wrapper 수동 재실행은 아래 조건으로 통과했다.
+
+```bash
+ENV_FILE=.env.production \
+SMOKE_DB_MODE=postgres \
+APP_BASE_URL='http://127.0.0.1:8082' \
+FRONTEND_E2E_MODE=deployed-origin \
+FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' \
+ALLOW_ADMIN_JWT_MINT=true \
+KEEP_ARTIFACTS=true \
+bash deploy/smoke/run-nightly-ops-handoff.sh
+```
+
+관찰된 결과:
+
+- summary: `/var/log/youth-welfare/nightly-ops-handoff/nightly-summary-2026-07-17.log`
+- artifact: `/var/log/youth-welfare/nightly-ops-handoff/artifacts/20260717T085519Z`
+- `ops=passed`
+- `policy=passed`
+- `policy_triage=passed`
+- `collect=passed`
+- `auth=passed`
+- `frontend=skipped`
+- `db_audit=ok`
+- auth smoke output: `smoke_trusted_origin=https://youthmoa.kr`
+- DB alert evaluator: `OP_ALERT_STATUS=ok`
+
+The earlier scheduled `2026-07-17T01:10Z` cron ran before the backend drift closeout deployment and stopped at
+`current-priority -> active baseline -> backend_tests`. Treat that run as pre-fix evidence, not the current
+post-closeout baseline. The next scheduled cron should be checked only to confirm the same passing summary appears
+from the automatic schedule.
+
 2026-06-27 기준 PR #363 이후 축소 nightly 검증은 아래 조건으로 통과했다.
 
 ```bash
