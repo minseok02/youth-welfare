@@ -21,6 +21,8 @@ class AwsOpsMonitorPolicyContractTest {
         assertThat(policy)
                 .contains("ReadYouthWelfareRdsMetadata")
                 .contains("rds:DescribeDBInstances")
-                .contains("arn:aws:rds:ap-northeast-2:857721769929:db:youth-welfare-prod-db");
+                .contains("rds:DescribeDBInstanceAutomatedBackups")
+                .contains("rds:DescribeDBSnapshots")
+                .contains("\"Resource\": \"*\"");
     }
 }

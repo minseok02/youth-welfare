@@ -455,6 +455,37 @@ public final class RegionCodeUtil {
         return List.copyOf(result.values());
     }
 
+    public static List<RegionName> inferRegionNamesFromLocalAgencyName(String agencyName) {
+        if (agencyName == null || agencyName.isBlank() || !hasLocalAgencyNameMarker(agencyName)) {
+            return List.of();
+        }
+
+        Map<String, RegionName> result = new LinkedHashMap<>();
+        String haystack = agencyName.trim();
+        for (Map.Entry<String, String> entry : UNIQUE_SGG_CODE_MAP.entrySet()) {
+            if (haystack.contains(entry.getKey())) {
+                putRegion(result, entry.getValue());
+            }
+        }
+        for (Map.Entry<String, String> entry : UNIQUE_SGG_STEM_CODE_MAP.entrySet()) {
+            if (haystack.contains(entry.getKey())) {
+                putRegion(result, entry.getValue());
+            }
+        }
+        return List.copyOf(result.values());
+    }
+
+    private static boolean hasLocalAgencyNameMarker(String agencyName) {
+        String normalized = agencyName.trim();
+        return normalized.contains("재단")
+                || normalized.contains("공단")
+                || normalized.contains("공사")
+                || normalized.contains("장학회")
+                || normalized.contains("시청")
+                || normalized.contains("군청")
+                || normalized.contains("구청");
+    }
+
     public static List<RegionName> inferRegionNamesFromAgencyCode(String agencyCode) {
         if (agencyCode == null || agencyCode.isBlank()) {
             return List.of();

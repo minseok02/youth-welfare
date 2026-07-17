@@ -423,14 +423,21 @@ Post-deploy recommendation observation:
 - `review_gate_policy_promotion_status=KEEP_PRIMARY_BASELINE`
 - `review_gate_policy_promotion_execution_status=DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW`
 
-Remaining unrelated backend test drift:
+Backend test drift closeout:
 
 - `WelfareServiceMapperTest.regionsFromGov24_extractsUniqueSggStemFromAgencyName`
   - expected one derived region for `재단법인안산인재육성재단`
-  - actual `regionsFromGov24(...)` result was empty
+  - fixed by adding a Gov24 local-agency-name fallback that matches unique city/county/district names or stems only
+    when the agency name contains a local agency marker such as `재단`, `공단`, `공사`, `장학회`, `시청`, `군청`,
+    or `구청`
+  - the fallback stores the parent region for type-less stem matches, so `안산` resolves to `경기도 안산시`
+    instead of expanding to child districts
 - `AwsOpsMonitorPolicyContractTest.policyAllowsReadingProductionRdsMetadata`
   - policy file has `ReadYouthWelfareRdsMetadata` with `Resource="*"`
-  - test still expects the specific ARN `arn:aws:rds:ap-northeast-2:857721769929:db:youth-welfare-prod-db`
+  - contract was updated to match the current ops policy, which also reads automated backup and snapshot metadata
+- verification:
+  - targeted drift tests passed
+  - full backend `./gradlew test` passed
 
 ## Decision
 
