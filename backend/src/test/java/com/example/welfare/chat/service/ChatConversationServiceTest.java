@@ -576,6 +576,77 @@ class ChatConversationServiceTest {
     }
 
     @Test
+    @DisplayName("대상이 생략된 신청 절차 후속 질문은 직전 추천 정책의 신청 코칭으로 처리한다")
+    void sendMessageUsesLatestReferenceForApplicationProcedureFollowUpCoaching() {
+        User user = createUser(1L);
+        ChatSessionContextState sessionState = ChatSessionContextState.builder()
+                .memory(ChatSessionContextState.MemoryContext.builder()
+                        .summary("사용자는 인천 중구 청년 주거 지원을 확인했고 청년주택자금 대출이자 지원사업에 관심을 보였다.")
+                        .recentUserQuestions(List.of("인천 중구 청년이 받을 수 있는 주거 지원을 알려줘"))
+                        .recentPolicyTitles(List.of("청년주택자금 대출이자 지원사업"))
+                        .build())
+                .build();
+        ChatSession session = ChatSession.builder()
+                .id(10L)
+                .userKey("user-key-1")
+                .contextStateJson(new ObjectMapper().valueToTree(sessionState).toString())
+                .build();
+        SendChatMessageRequest request = new SendChatMessageRequest();
+        ReflectionTestUtils.setField(request, "content", "신청하려면 어떤 서류와 절차를 준비해야 해?");
+
+        ChatMessage previousUserMessage = ChatMessage.builder()
+                .id(100L)
+                .session(session)
+                .role(ChatMessageRole.USER)
+                .content("인천 중구 청년이 받을 수 있는 주거 지원을 알려줘")
+                .build();
+        ChatMessage previousAssistantMessage = ChatMessage.builder()
+                .id(101L)
+                .session(session)
+                .role(ChatMessageRole.ASSISTANT)
+                .content("청년주택자금 대출이자 지원사업을 확인해보세요.")
+                .referencesJson("[{\"serviceId\":15399,\"title\":\"청년주택자금 대출이자 지원사업\",\"reason\":\"인천 중구 주거 금융 지원\",\"evidence\":\"대출이자를 지원합니다.\"}]")
+                .build();
+
+        when(activeUserReadService.getActiveUserContext(1L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
+        when(chatMessageReadRepository.findOwnedSession(10L, "user-key-1")).thenReturn(Optional.of(session));
+        when(chatMessageReadRepository.findRecentMessages(10L, 6))
+                .thenReturn(List.of(previousAssistantMessage, previousUserMessage));
+        when(chatRetrievalSnapshotService.findSessionSnapshots(10L)).thenReturn(List.of());
+        ChatPolicyCandidate coachingCandidate = ChatPolicyCandidate.builder()
+                .serviceId(15399L)
+                .title("청년주택자금 대출이자 지원사업")
+                .description("청년 주택자금 대출이자를 지원합니다.")
+                .applyMethodDetail("온라인 신청 후 서류 제출")
+                .formFiles("신청서, 주민등록등본")
+                .build();
+        when(chatApplicationCoachingService.buildContext(15399L))
+                .thenReturn(new ChatApplicationCoachingService.CoachingContext(
+                        coachingCandidate,
+                        Map.of(15399L, "신청방법: 온라인 신청 후 서류 제출\n제출서류: 신청서, 주민등록등본"),
+                        "청년주택자금 대출이자 지원사업 신청 준비는 공식 공고의 제출서류를 확인하세요."
+                ));
+
+        var response = chatConversationService.sendMessage(1L, 10L, request);
+
+        assertThat(response.getAnswerMode()).isEqualTo(ChatAnswerMode.APPLICATION_COACHING);
+        assertThat(response.getReferences()).extracting(ChatReferenceResponse::getServiceId).containsExactly(15399L);
+        assertThat(response.getAnswer()).contains("청년주택자금 대출이자 지원사업");
+        verify(chatApplicationCoachingService).buildContext(15399L);
+        verify(chatPolicyService, never()).traceCandidatesForUser(anyString(), nullable(String.class), anyInt(), any(User.class));
+        verify(chatAiGateway).generateApplicationCoachingAnswer(
+                any(User.class),
+                nullable(String.class),
+                eq("신청하려면 어떤 서류와 절차를 준비해야 해?"),
+                any(List.class),
+                any(List.class),
+                any(Map.class)
+        );
+        verify(chatSessionContextStateService).captureConversationMemory(eq(10L), eq("신청하려면 어떤 서류와 절차를 준비해야 해?"), any(String.class), any(List.class));
+    }
+
+    @Test
     @DisplayName("주거 후속 질문에서 정책 근거가 있으면 AI clarification 응답도 grounded로 승격한다")
     void sendMessagePromotesHousingFollowUpWithReferencesEvenWhenAiRequestsClarification() {
         User user = createUser(1L);

@@ -115,6 +115,22 @@ public class ChatConversationService {
                 );
         long contextDurationMs = elapsedMs(contextStart);
 
+        Long implicitCoachPolicyId = conversationContext.applicationProcedureFollowUp()
+                ? findLatestReferencedServiceId(recentMessages)
+                : null;
+        if (implicitCoachPolicyId != null) {
+            return sendApplicationCoachingMessage(
+                    session,
+                    user,
+                    activeUserContext.userKey(),
+                    content,
+                    recentMessages,
+                    implicitCoachPolicyId,
+                    totalStart,
+                    recentMessagesDurationMs
+            );
+        }
+
         long branchStart = System.nanoTime();
         List<ChatBranchOptionResponse> branchSuggestions =
                 resolveBranchSuggestions(content, conversationContext.effectiveBranchKey());
@@ -474,6 +490,29 @@ public class ChatConversationService {
         Collections.reverse(messages);
         messages.sort(Comparator.comparing(ChatMessage::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())));
         return messages;
+    }
+
+    private Long findLatestReferencedServiceId(List<ChatMessage> recentMessages) {
+        if (recentMessages == null || recentMessages.isEmpty()) {
+            return null;
+        }
+        for (int i = recentMessages.size() - 1; i >= 0; i--) {
+            ChatMessage message = recentMessages.get(i);
+            if (message.getRole() != ChatMessageRole.ASSISTANT) {
+                continue;
+            }
+            List<ChatReferenceResponse> references = parseReferences(message.getReferencesJson());
+            for (ChatReferenceResponse reference : references) {
+                if (reference.getServiceId() != null) {
+                    return reference.getServiceId();
+                }
+            }
+            List<Long> referencedServiceIds = parseReferencedServiceIds(message.getReferencedServiceIds());
+            if (!referencedServiceIds.isEmpty()) {
+                return referencedServiceIds.get(0);
+            }
+        }
+        return null;
     }
 
     private List<Long> parseReferencedServiceIds(String rawReferencedServiceIds) {

@@ -523,3 +523,37 @@ Deployment:
 - ALB target group `youth-welfare-web-tg`: primary and secondary both `healthy`
 - post-deploy smoke artifact: `tmp/prod-post-deploy-smoke/20260718T071156Z`
 - post-deploy smoke result: local actuator passed, ALB healthy targets `2`, public list/search/ranking `200`, nginx user-path 5xx `0`
+
+## Chat Application Follow-Up Quality Fix 2026-07-18
+
+Trigger:
+
+- the measured chat flow used `청년 취업 지원 정책을 간단히 알려줘 -> 인천 중구 청년이 받을 수 있는 주거 지원을 알려줘 -> 신청하려면 어떤 서류와 절차를 준비해야 해?`.
+- before this fix, the third turn could answer from a different policy such as `광주청년 일경험드림 사업` or another generic application/procedure candidate instead of the policy referenced in the previous answer.
+- root cause: generic procedure wording such as `신청`, `서류`, `절차`, `준비` was treated as a specific standalone follow-up because it had multiple tokens. Retrieval could therefore over-weight application/procedure keywords and drop the user's omitted target policy.
+
+Change:
+
+- `ChatConversationContextSupport` now classifies target-omitted application/procedure questions as context-dependent follow-ups.
+- `ChatConversationService` now routes that specific shape to the existing application-coaching path by using the latest assistant reference policy id.
+- this keeps explicit new-topic questions such as `청년 창업 신청 서류 알려줘` on the normal retrieval path because they contain their own topic token.
+- no recommendation ranking, candidate window size, semantic cache, or AI prompt quality tuning was changed.
+
+Verification:
+
+- targeted: `./gradlew test --tests 'com.example.welfare.chat.service.ChatConversationServiceTest' --no-daemon`
+- adjacent: `./gradlew test --tests 'com.example.welfare.chat.service.ChatSessionContextStateServiceTest' --tests 'com.example.welfare.chat.service.ChatPolicyServiceTest' --tests 'com.example.welfare.chat.gateway.ChatAiGatewayTest' --tests 'com.example.welfare.chat.service.ChatApplicationCoachingServiceTest' --no-daemon`
+- full backend: `./gradlew test --no-daemon`
+
+Operational measurement:
+
+| artifact | q1 ms | q2 ms | q3 ms | q3 mode | q3 reference | q3 action links | result |
+| --- | ---: | ---: | ---: | --- | --- | ---: | --- |
+| `tmp/performance/chat-flow/20260718T113007Z` | `4893.2` | `5393.6` | `2524.9` | `POLICY_GROUNDED` | `421 미소금융 청년 미래이음 대출` | `0` | first context-only attempt still picked another loan policy |
+| `tmp/performance/chat-flow/20260718T113759Z` | `3699.0` | `3097.5` | `3116.5` | `APPLICATION_COACHING` | `15399 청년주택자금 대출이자 지원사업` | `1` | accepted for follow-up target preservation |
+
+Interpretation:
+
+- the third turn now preserves the previous policy target and uses the application-coaching response mode.
+- latency is not the acceptance criterion for this fix; the goal was quality preservation with minimal behavioral scope.
+- residual issue found during review: `15399` is a `충청남도 논산시` policy, while the second question asks for `인천 중구`. That is a separate explicit-region candidate quality problem. It should be handled in a follow-up by making chat candidates expose/enforce policy region consistency rather than by weakening the application follow-up fix.

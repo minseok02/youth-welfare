@@ -25,6 +25,15 @@ public class ChatConversationContextSupport {
             "그럼", "그러면", "그거", "그건", "이거", "이건", "저거", "저건",
             "말고", "대신", "추가로", "그중", "그 중", "또는", "그리고", "그 외", "쪽으로"
     );
+    private static final List<String> APPLICATION_FOLLOW_UP_PHRASES = List.of(
+            "신청", "서류", "절차", "제출", "준비", "자격", "조건", "대상",
+            "기간", "마감", "링크", "문의", "담당", "접수", "방법"
+    );
+    private static final Set<String> STANDALONE_APPLICATION_TOPIC_TOKENS = Set.of(
+            "주거", "월세", "전세", "임대", "청약", "입주", "취업", "일자리",
+            "창업", "자금", "대출", "장학금", "교육", "훈련", "문화", "건강",
+            "의료", "복지", "교통", "금융", "면접", "인턴", "구직"
+    );
     private static final int SHORT_FOLLOW_UP_MAX_LENGTH = 18;
     private static final int BRIEF_FOLLOW_UP_MAX_LENGTH = 30;
     private static final int RECENT_QUESTION_SUMMARY_LIMIT = 3;
@@ -60,6 +69,8 @@ public class ChatConversationContextSupport {
                 ? housingBranchKey
                 : inheritedBranchKey;
 
+        boolean applicationProcedureFollowUp = StringUtils.hasText(previousUserQuestion)
+                && isContextDependentApplicationFollowUp(normalizedQuestion);
         boolean followUp = shouldTreatAsFollowUp(normalizedQuestion, previousUserQuestion, effectiveBranchKey, suggestedBranchKey, housingContext);
         String retrievalQuestion = buildRetrievalQuestion(
                 normalizedQuestion,
@@ -82,7 +93,8 @@ public class ChatConversationContextSupport {
                 retrievalQuestion,
                 effectiveBranchKey,
                 conversationSummary,
-                followUp
+                followUp,
+                applicationProcedureFollowUp
         );
     }
 
@@ -206,6 +218,10 @@ public class ChatConversationContextSupport {
             return true;
         }
 
+        if (isContextDependentApplicationFollowUp(question)) {
+            return true;
+        }
+
         if (!StringUtils.hasText(inheritedBranchKey)) {
             return false;
         }
@@ -321,11 +337,27 @@ public class ChatConversationContextSupport {
     }
 
     private boolean isSpecificStandaloneFollowUp(String question) {
+        if (isContextDependentApplicationFollowUp(question)) {
+            return false;
+        }
         List<String> tokens = SearchKeywordSupport.extractTokens(question).stream()
                 .filter(token -> !isLowSignalConversationToken(token))
                 .distinct()
                 .toList();
         return tokens.size() >= 2;
+    }
+
+    private boolean isContextDependentApplicationFollowUp(String question) {
+        if (!StringUtils.hasText(question) || APPLICATION_FOLLOW_UP_PHRASES.stream().noneMatch(question::contains)) {
+            return false;
+        }
+        List<String> tokens = SearchKeywordSupport.extractTokens(question).stream()
+                .filter(token -> !isLowSignalConversationToken(token))
+                .filter(token -> APPLICATION_FOLLOW_UP_PHRASES.stream().noneMatch(token::startsWith))
+                .distinct()
+                .toList();
+        return tokens.stream().noneMatch(STANDALONE_APPLICATION_TOPIC_TOKENS::contains)
+                && chatBranchCatalog.matchHousingQuestion(question).isEmpty();
     }
 
     private String buildConversationSummary(String previousUserQuestion,
@@ -496,7 +528,8 @@ public class ChatConversationContextSupport {
             String retrievalQuestion,
             String effectiveBranchKey,
             String conversationSummary,
-            boolean followUp
+            boolean followUp,
+            boolean applicationProcedureFollowUp
     ) {
     }
 
