@@ -743,3 +743,22 @@ Pre-apply verification:
 
 - targeted tests: `CollectCategorySupportTest`, `WelfareServiceMapperTest`, `SmokeArtifactSanitizationContractTest`
 - result: passed
+- full backend: `./gradlew test --no-daemon`, passed
+
+Apply and post-apply result:
+
+- commit: `7d51c7c7 Remap first policy category batch`
+- RDS migration apply: `V2026_07_18_01__remap_policy_category_first_batch.sql`, `UPDATE 28`, recorded in `schema_migration_history`.
+- post-apply category suspect audit: `tmp/policy-category-suspect-audit/20260718T161550Z`
+  - total suspect rows: `171 -> 144`
+  - `housing_finance_terms`: `19 -> 7`
+  - `finance_housing_terms`: `37 -> 25`
+  - decision: `ATTENTION`
+- post-apply category suspect review: `tmp/policy-category-suspect-review/20260718T161550Z`
+  - high-confidence unique services: `42 -> 14`
+  - remaining high-confidence services are all `주거 -> 일자리` candidates, intentionally deferred.
+- deployment: primary and secondary rebuilt at `7d51c7c7`; ALB targets `2` healthy.
+- post deploy smoke: `tmp/prod-post-deploy-smoke/20260718T162210Z`, passed; public list/search/ranking `200`, nginx user-path 5xx `0`.
+- chat matrix: `tmp/chat-explicit-region-matrix-audit/20260718T162210Z`, passed; `6/6` scenarios passed, mismatch `0`.
+- chat flow: `tmp/performance/chat-flow/20260718T162253Z`, passed; q2 references `[11406,13926,11436]`, q3 application coaching reference `[11406]`.
+- policy quality summary was not rerun because the admin smoke credential was unavailable in the current environment.
