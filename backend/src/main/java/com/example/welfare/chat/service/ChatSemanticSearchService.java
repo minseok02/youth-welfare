@@ -2,6 +2,7 @@ package com.example.welfare.chat.service;
 
 import com.example.welfare.chat.gateway.ChatEmbeddingGateway;
 import com.example.welfare.chat.repository.PolicyChunkVectorRepository;
+import com.example.welfare.global.util.HashSupport;
 import com.example.welfare.global.util.SensitiveTextRedactor;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
@@ -57,6 +58,7 @@ public class ChatSemanticSearchService {
         }
 
         String semanticQuery = buildSemanticQuery(question, preferredTerms);
+        String semanticQueryHash = HashSupport.sha256Hex(semanticQuery);
         long embeddingStart = System.nanoTime();
         float[] queryEmbedding = chatEmbeddingGateway.embedQuery(semanticQuery);
         long embeddingDurationMs = elapsedMs(embeddingStart);
@@ -73,7 +75,8 @@ public class ChatSemanticSearchService {
             }
         }
         if (orderedServiceIds.isEmpty()) {
-            log.info("[ChatSemanticSearchTiming] outcome=empty preferredCategory={} preferredTerms={} requestedLimit={} embeddingCount={} similarChunks={} orderedServiceIds={} countDurationMs={} embeddingDurationMs={} vectorDurationMs={} loadServicesDurationMs={} totalDurationMs={}",
+            log.info("[ChatSemanticSearchTiming] outcome=empty queryHash={} preferredCategory={} preferredTerms={} requestedLimit={} embeddingCount={} similarChunks={} orderedServiceIds={} countDurationMs={} embeddingDurationMs={} vectorDurationMs={} loadServicesDurationMs={} totalDurationMs={}",
+                    semanticQueryHash,
                     preferredCategory,
                     preferredTerms != null ? preferredTerms.size() : 0,
                     limit,
@@ -102,7 +105,8 @@ public class ChatSemanticSearchService {
                         || preferredCategory.equals(service.getUnifiedCategory()))
                 .limit(limit)
                 .toList();
-        log.info("[ChatSemanticSearchTiming] outcome=success preferredCategory={} preferredTerms={} requestedLimit={} embeddingCount={} similarChunks={} orderedServiceIds={} loadedServices={} resultCount={} countDurationMs={} embeddingDurationMs={} vectorDurationMs={} loadServicesDurationMs={} totalDurationMs={}",
+        log.info("[ChatSemanticSearchTiming] outcome=success queryHash={} preferredCategory={} preferredTerms={} requestedLimit={} embeddingCount={} similarChunks={} orderedServiceIds={} loadedServices={} resultCount={} countDurationMs={} embeddingDurationMs={} vectorDurationMs={} loadServicesDurationMs={} totalDurationMs={}",
+                semanticQueryHash,
                 preferredCategory,
                 preferredTerms != null ? preferredTerms.size() : 0,
                 limit,

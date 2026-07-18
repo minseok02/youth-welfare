@@ -456,3 +456,53 @@ Conclusion:
 - policy reference IDs stayed stable in repeated chat-flow checks.
 - official retrieval metrics are expected to stay unchanged because the eligible skipped scenarios had zero semantic-only final contribution.
 - the only confirmed change is observability metadata: skipped snapshots no longer list semantic candidates that previously could not affect final candidates anyway.
+
+## Admin Quality Rerun And Semantic Duplicate Audit 2026-07-18
+
+Decision before further changes:
+
+- pause additional AI/recommendation/chat performance behavior changes for now.
+- first restore the admin policy-quality rerun path.
+- measure semantic query duplication before deciding whether an embedding cache is worth adding.
+
+Smoke helper fix:
+
+- `smoke_db_query()` and `smoke_db_apply_file()` no longer default to `DB_MIGRATION_USERNAME=migration_admin` before runtime credentials.
+- new priority is `DB_QUERY_*`, explicit `DB_MIGRATION_*`, `DB_USERNAME/DB_PASSWORD`, `DB_ADMIN_RO_*`, then local fallback.
+- reason: `.env.runtime.production` has the app runtime DB password, but not a matching `migration_admin` password; the old fallback could combine `migration_admin` with the app password and block admin quality smoke.
+
+Fresh policy quality rerun:
+
+- command: `ALLOW_ADMIN_JWT_MINT=true ENV_FILE=.env.runtime.production SMOKE_DB_MODE=postgres APP_BASE_URL=http://127.0.0.1:8082 bash deploy/smoke/run-local-policy-quality-summary.sh`
+- artifact: `tmp/policy-quality-observation/lazy-semantic-quality-20260718T065920Z`
+- result: passed
+- dataset: `retrieval-baseline-v2`
+- scenario count: `11`
+- top1 hit rate: `1.0`
+- top3 hit rate: `1.0`
+- branch suggestion hit rate: `1.0`
+- fallback count: `2`
+- empty result count: `0`
+- quality gate: passed
+
+Semantic duplicate observation:
+
+- added `deploy/smoke/run-local-chat-semantic-query-duplicate-audit.sh`.
+- artifact: `tmp/chat-semantic-query-duplicate-audit/20260718T070517Z`
+- raw question export: `false`
+- DB proxy key: `md5(normalized_question|preferred_terms_json)`
+- app log observability now emits exact semantic `queryHash` on `ChatSemanticSearchTiming` success/empty events, so future log-based checks can use the actual semantic query hash without storing user text.
+
+Measured duplicate proxy:
+
+| window | semantic snapshots | distinct query keys | duplicate snapshots | repeated groups | max group | duplicate rate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1d | `35` | `12` | `23` | `11` | `4` | `65.71%` |
+| 7d | `41` | `14` | `27` | `12` | `4` | `65.85%` |
+| 30d | `127` | `22` | `105` | `18` | `14` | `82.68%` |
+
+Interpretation:
+
+- duplicate rate is high enough to justify designing a bounded exact semantic embedding cache next.
+- this round did not add that cache and did not change retrieval/answer behavior.
+- quality is still green after the lazy semantic skip, so the next cache design must preserve exact query input, embedding model, preferred terms, and safe invalidation boundaries.

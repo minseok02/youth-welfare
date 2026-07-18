@@ -17,6 +17,7 @@ class PostgresRuntimeScriptContractTest {
     private static final Path RUNTIME_ENV_RENDER = Path.of("../deploy/env/render-app-runtime-env.sh");
     private static final Path OPERATIONAL_DB_AUDIT = Path.of("../deploy/postgres/audit-operational-db-state.sh");
     private static final Path NIGHTLY_OPS_HANDOFF = Path.of("../deploy/smoke/run-nightly-ops-handoff.sh");
+    private static final Path SMOKE_COMMON = Path.of("../deploy/smoke/smoke-common.sh");
 
     @Test
     @DisplayName("RDS bootstrap은 앱에서 쓰는 PostgreSQL runtime role을 fresh DB에도 모두 생성한다")
@@ -104,6 +105,28 @@ class PostgresRuntimeScriptContractTest {
                 .contains("AUTH_REFRESH_COOKIE_SECURE")
                 .doesNotContain("DB_MIGRATION_USERNAME\n")
                 .doesNotContain("DB_MIGRATION_PASSWORD\n");
+    }
+
+    @Test
+    @DisplayName("smoke DB helper는 운영 env에서 migration 기본값보다 runtime app/admin-ro role을 먼저 사용한다")
+    void smokeDbHelperPrefersRuntimeCredentialsBeforeLocalMigrationDefaults() throws IOException {
+        String script = Files.readString(SMOKE_COMMON);
+
+        assertThat(script)
+                .doesNotContain("smoke_load_env_value \"${env_file}\" DB_MIGRATION_USERNAME migration_admin")
+                .doesNotContain("smoke_load_env_value \"${env_file}\" DB_PASSWORD welfare1234!");
+        assertThat(script.indexOf("smoke_load_env_value \"${env_file}\" DB_USERNAME"))
+                .isGreaterThan(script.indexOf("smoke_load_env_value \"${env_file}\" DB_MIGRATION_USERNAME"));
+        assertThat(script.indexOf("smoke_load_env_value \"${env_file}\" DB_ADMIN_RO_USERNAME"))
+                .isGreaterThan(script.indexOf("smoke_load_env_value \"${env_file}\" DB_USERNAME"));
+        assertThat(script.indexOf("db_query_username=\"migration_admin\""))
+                .isGreaterThan(script.indexOf("smoke_load_env_value \"${env_file}\" DB_ADMIN_RO_USERNAME"));
+        assertThat(script.indexOf("smoke_load_env_value \"${env_file}\" DB_PASSWORD"))
+                .isGreaterThan(script.indexOf("smoke_load_env_value \"${env_file}\" DB_MIGRATION_PASSWORD"));
+        assertThat(script.indexOf("smoke_load_env_value \"${env_file}\" DB_ADMIN_RO_PASSWORD"))
+                .isGreaterThan(script.indexOf("smoke_load_env_value \"${env_file}\" DB_PASSWORD"));
+        assertThat(script.indexOf("db_query_password=\"welfare1234!\""))
+                .isGreaterThan(script.indexOf("smoke_load_env_value \"${env_file}\" DB_ADMIN_RO_PASSWORD"));
     }
 
     @Test

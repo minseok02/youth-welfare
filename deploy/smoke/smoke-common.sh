@@ -944,7 +944,16 @@ smoke_db_query() {
     db_query_username="$(smoke_load_env_value "${env_file}" DB_QUERY_USERNAME)"
   fi
   if [[ -z "${db_query_username}" ]]; then
-    db_query_username="$(smoke_load_env_value "${env_file}" DB_MIGRATION_USERNAME migration_admin)"
+    db_query_username="$(smoke_load_env_value "${env_file}" DB_MIGRATION_USERNAME)"
+  fi
+  if [[ -z "${db_query_username}" ]]; then
+    db_query_username="$(smoke_load_env_value "${env_file}" DB_USERNAME)"
+  fi
+  if [[ -z "${db_query_username}" ]]; then
+    db_query_username="$(smoke_load_env_value "${env_file}" DB_ADMIN_RO_USERNAME)"
+  fi
+  if [[ -z "${db_query_username}" ]]; then
+    db_query_username="migration_admin"
   fi
 
   if [[ -z "${db_query_password}" ]]; then
@@ -954,7 +963,13 @@ smoke_db_query() {
     db_query_password="$(smoke_load_env_value "${env_file}" DB_MIGRATION_PASSWORD)"
   fi
   if [[ -z "${db_query_password}" ]]; then
-    db_query_password="$(smoke_load_env_value "${env_file}" DB_PASSWORD welfare1234!)"
+    db_query_password="$(smoke_load_env_value "${env_file}" DB_PASSWORD)"
+  fi
+  if [[ -z "${db_query_password}" ]]; then
+    db_query_password="$(smoke_load_env_value "${env_file}" DB_ADMIN_RO_PASSWORD)"
+  fi
+  if [[ -z "${db_query_password}" ]]; then
+    db_query_password="welfare1234!"
   fi
 
   db_mode="$(smoke_resolve_db_mode)"
@@ -991,7 +1006,16 @@ smoke_db_apply_file() {
     db_query_username="$(smoke_load_env_value "${env_file}" DB_QUERY_USERNAME)"
   fi
   if [[ -z "${db_query_username}" ]]; then
-    db_query_username="$(smoke_load_env_value "${env_file}" DB_MIGRATION_USERNAME migration_admin)"
+    db_query_username="$(smoke_load_env_value "${env_file}" DB_MIGRATION_USERNAME)"
+  fi
+  if [[ -z "${db_query_username}" ]]; then
+    db_query_username="$(smoke_load_env_value "${env_file}" DB_USERNAME)"
+  fi
+  if [[ -z "${db_query_username}" ]]; then
+    db_query_username="$(smoke_load_env_value "${env_file}" DB_ADMIN_RO_USERNAME)"
+  fi
+  if [[ -z "${db_query_username}" ]]; then
+    db_query_username="migration_admin"
   fi
 
   if [[ -z "${db_query_password}" ]]; then
@@ -1001,7 +1025,13 @@ smoke_db_apply_file() {
     db_query_password="$(smoke_load_env_value "${env_file}" DB_MIGRATION_PASSWORD)"
   fi
   if [[ -z "${db_query_password}" ]]; then
-    db_query_password="$(smoke_load_env_value "${env_file}" DB_PASSWORD welfare1234!)"
+    db_query_password="$(smoke_load_env_value "${env_file}" DB_PASSWORD)"
+  fi
+  if [[ -z "${db_query_password}" ]]; then
+    db_query_password="$(smoke_load_env_value "${env_file}" DB_ADMIN_RO_PASSWORD)"
+  fi
+  if [[ -z "${db_query_password}" ]]; then
+    db_query_password="welfare1234!"
   fi
 
   db_mode="$(smoke_resolve_db_mode)"
