@@ -597,10 +597,14 @@ Candidate audit:
 
 Verification:
 
+- code/docs commit: `a008a439`
 - targeted: `./gradlew test --tests 'com.example.welfare.policy.service.PolicyExplorationServiceTest' --tests 'com.example.welfare.chat.service.ChatPolicyServiceTest' --no-daemon`
 - full backend: `./gradlew test --no-daemon`
 - primary rebuild caught a PostgreSQL `SELECT DISTINCT` + `ORDER BY` issue in the new fill query; `DISTINCT` was removed because the query uses `EXISTS` and does not join `service_regions`.
 - final primary rebuild: Docker app `healthy`, actuator `UP`.
+- secondary `i-0e8a4cc599c1148c8`: fast-forwarded to `a008a439`, Docker app rebuilt, container `healthy`, actuator `UP`.
+- post-deploy smoke artifact: `tmp/prod-post-deploy-smoke/20260718T132942Z`
+- post-deploy smoke result: local actuator passed, ALB healthy targets `2`, public list/search/ranking `200`, nginx user-path 5xx `0`.
 
 Interpretation:
 
