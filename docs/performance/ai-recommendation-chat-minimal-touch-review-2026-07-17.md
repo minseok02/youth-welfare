@@ -506,3 +506,12 @@ Interpretation:
 - duplicate rate is high enough to justify designing a bounded exact semantic embedding cache next.
 - this round did not add that cache and did not change retrieval/answer behavior.
 - quality is still green after the lazy semantic skip, so the next cache design must preserve exact query input, embedding model, preferred terms, and safe invalidation boundaries.
+
+Deployment:
+
+- commit: `421cb22b`
+- primary: commit `421cb22b`, Docker health `healthy`, actuator `UP`
+- secondary `i-0e8a4cc599c1148c8`: commit `421cb22b`, Docker health `healthy`, actuator `UP`
+- ALB target group `youth-welfare-web-tg`: primary and secondary both `healthy`
+- post-deploy smoke artifact: `tmp/prod-post-deploy-smoke/20260718T071156Z`
+- post-deploy smoke result: local actuator passed, ALB healthy targets `2`, public list/search/ranking `200`, nginx user-path 5xx `0`
