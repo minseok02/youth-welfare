@@ -488,24 +488,32 @@ Fresh policy quality rerun:
 Semantic duplicate observation:
 
 - added `deploy/smoke/run-local-chat-semantic-query-duplicate-audit.sh`.
-- artifact: `tmp/chat-semantic-query-duplicate-audit/20260718T070517Z`
+- revised artifact after bucket split: `tmp/chat-semantic-query-duplicate-audit/20260718T104412Z`
 - raw question export: `false`
 - DB proxy key: `md5(normalized_question|preferred_terms_json)`
 - app log observability now emits exact semantic `queryHash` on `ChatSemanticSearchTiming` success/empty events, so future log-based checks can use the actual semantic query hash without storing user text.
+- decision basis: `NON_EVALUATION`, not `ALL`
+- minimum decision sample count: `30`
 
-Measured duplicate proxy:
+Measured duplicate proxy by bucket:
 
-| window | semantic snapshots | distinct query keys | duplicate snapshots | repeated groups | max group | duplicate rate |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 1d | `35` | `12` | `23` | `11` | `4` | `65.71%` |
-| 7d | `41` | `14` | `27` | `12` | `4` | `65.85%` |
-| 30d | `127` | `22` | `105` | `18` | `14` | `82.68%` |
+| window | bucket | semantic snapshots | distinct query keys | duplicate snapshots | repeated groups | max group | duplicate rate |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1d | `ALL` | `19` | `9` | `10` | `8` | `3` | `52.63%` |
+| 1d | `NON_EVALUATION` | `7` | `3` | `4` | `2` | `3` | `57.14%` |
+| 7d | `ALL` | `41` | `14` | `27` | `12` | `4` | `65.85%` |
+| 7d | `NON_EVALUATION` | `13` | `5` | `8` | `3` | `4` | `61.54%` |
+| 30d | `ALL` | `127` | `22` | `105` | `18` | `14` | `82.68%` |
+| 30d | `NON_EVALUATION` | `19` | `9` | `10` | `5` | `4` | `52.63%` |
 
 Interpretation:
 
-- duplicate rate is high enough to justify designing a bounded exact semantic embedding cache next.
-- this round did not add that cache and did not change retrieval/answer behavior.
-- quality is still green after the lazy semantic skip, so the next cache design must preserve exact query input, embedding model, preferred terms, and safe invalidation boundaries.
+- the previous `ALL` view mixed official evaluation repeats with interactive traffic and overstated cache readiness.
+- `NON_EVALUATION` duplicate rate is still high, but the 7d primary sample has only `13` semantic snapshots, below the `30` minimum decision sample count.
+- decision is now `CACHE_WATCHLIST`, not `CACHE_CANDIDATE`.
+- do not delete `EVALUATION` rows yet; they are already separated by `snapshot_type` and remain useful for quality comparison. Exclude them from runtime duplicate/cache decisions instead.
+- this round still did not add a cache and did not change retrieval/answer behavior.
+- next cache design should wait for a larger exact `queryHash` sample, then preserve exact query input, embedding model, preferred terms, and safe invalidation boundaries.
 
 Deployment:
 
