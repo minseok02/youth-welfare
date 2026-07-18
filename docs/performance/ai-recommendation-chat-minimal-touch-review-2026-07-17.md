@@ -275,3 +275,57 @@ These belong behind a separate quality evaluation, not this minimal-touch lane.
 | chat query embedding cache | exact redacted query cache | low-medium | saves embedding call on repeated queries |
 | chat answer cache | exact prompt cache | medium | possible, but product-sensitive |
 | prompt/candidate/model changes | not in this lane | high | can be faster but may reduce answer quality |
+
+## Post-Instrumentation Measurement 2026-07-18
+
+Deployment:
+
+- commit: `69435065`
+- primary local health: `UP`
+- secondary instance `i-0e8a4cc599c1148c8`: `69435065`, container healthy, actuator `UP`
+- ALB target health: primary `healthy`, secondary `healthy`
+- public smoke: ranking/list/search all `200`
+
+Verification:
+
+- targeted AI/chat/recommendation tests: `BUILD SUCCESSFUL`
+- full backend test: `BUILD SUCCESSFUL`
+
+Recommendation flow:
+
+- artifact: `tmp/performance/recommendation-flow/20260718T054938Z`
+- `shared_refresh`: `5598.7ms`, `39` rows, `SCORED=12`, `NOT_REQUESTED=27`
+- `shared_refresh_cached`: `131.0ms`, `39` rows, `SCORED=12`, `NOT_REQUESTED=27`
+- timing log:
+  - `RecommendationAiTiming`: `openAiDurationMs=4160`, `totalDurationMs=4166`, `requestedCandidates=12`, `resultCount=12`
+  - `RecommendationAiScoringTiming`: `cacheMode=bypass-youth-all`, `durationMs=4167`
+
+Interpretation:
+
+- recommendation generation is still dominated by the OpenAI scoring call.
+- `clusterId=youth_all` cache bypass is visible and expected.
+- the same-user saved refresh cache still preserves status distribution and returns quickly.
+- next recommendation optimization should not use `cluster_ai_results` by cluster alone; it should first measure duplicate `promptSha256` frequency.
+
+Chat flow:
+
+- artifact: `tmp/performance/chat-flow/20260718T054957Z`
+- three send-message calls: `6499.1ms`, `3017.2ms`, `2442.9ms`
+- answer modes: `POLICY_GROUNDED=2`, `CLARIFICATION=1`
+- errors/rate limits: `0`
+
+Stage timing:
+
+| question | total log duration | candidate retrieval | semantic total | semantic embedding | vector search | chat OpenAI | answer mode |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| 1 | `6416ms` | `4093ms` | `3348ms` | `3054ms` | `85ms` | `2118ms` | `POLICY_GROUNDED` |
+| 2 | `2996ms` | `839ms` | `761ms` | `674ms` | `58ms` | `2068ms` | `POLICY_GROUNDED` |
+| 3 | `2420ms` | `452ms` | `390ms` | `299ms` | `61ms` | `1888ms` | `CLARIFICATION` |
+
+Interpretation:
+
+- the first chat question had a cold/slow embedding call and spent more time in retrieval than answer generation.
+- after that, OpenAI answer generation was the largest single stage.
+- vector search itself was not the main bottleneck in this run; query embedding was the expensive retrieval substep.
+- lazy semantic search remains a valid next candidate only when it can be proven not to change final candidates.
+- exact query embedding cache may help repeated or near-repeated semantic queries, but should be feature-flagged and evaluated after lazy-skip eligibility is measured.

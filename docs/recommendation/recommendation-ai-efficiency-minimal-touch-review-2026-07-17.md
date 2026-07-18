@@ -206,3 +206,23 @@ Proceed in this order:
 6. Keep cluster-wide `youth_all` AI cache disabled unless cluster segmentation is reintroduced or the cache key includes the full user/prompt signature.
 
 Do not enable `cluster_ai_results` reuse for `youth_all` as a shortcut.
+
+## Post-Instrumentation Reading 2026-07-18
+
+After commit `69435065` was deployed to both app nodes, the controlled non-personal recommendation flow produced:
+
+- artifact: `tmp/performance/recommendation-flow/20260718T054938Z`
+- `shared_refresh`: `5598.7ms`
+- `shared_refresh_cached`: `131.0ms`
+- rows/statuses unchanged between first and cached refresh: `39` rows, `SCORED=12`, `NOT_REQUESTED=27`
+
+New timing logs for the first refresh:
+
+- `RecommendationAiTiming`: `openAiDurationMs=4160`, `totalDurationMs=4166`, `requestedCandidates=12`, `resultCount=12`
+- `RecommendationAiScoringTiming`: `cacheMode=bypass-youth-all`, `durationMs=4167`
+
+Decision:
+
+- the slow part is confirmed as the OpenAI scoring call, not saved recommendation readback.
+- same-user refresh cache is still working and does not change AI status distribution in this controlled run.
+- do not proceed to a behavior change until duplicate `promptSha256` frequency is measured; if duplicates are rare, prompt-result cache will not be worth the added complexity.
