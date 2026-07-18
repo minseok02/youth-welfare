@@ -3,6 +3,7 @@ package com.example.welfare.policy.service;
 import com.example.welfare.chat.config.ChatRetrievalProperties;
 import com.example.welfare.chat.repository.ChatPolicyReadCondition;
 import com.example.welfare.chat.service.ChatSemanticSearchService;
+import com.example.welfare.global.util.RegionCodeUtil;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.policy.repository.WelfareServiceSearchRepository;
@@ -97,12 +98,17 @@ public class PolicyExplorationService {
 
         int minimumTargetCount = Math.min(condition.limit(), tuning.minResultCount());
         if (merged.size() >= minimumTargetCount) {
+            List<WelfareService> filteredCandidates = filterExplicitRegionMismatches(
+                    merged.values().stream().toList(),
+                    condition
+            );
+            filteredCandidates = fillExplicitRegionCategoryCandidates(filteredCandidates, condition, tuning);
             return new ChatExplorationTrace(
                     searchKeyword,
                     "MERGED_RESULTS",
                     ftsCandidates,
                     semanticCandidates,
-                    orderChatCandidatesForRegion(merged.values().stream().toList(), condition).stream()
+                    orderChatCandidatesForRegion(filteredCandidates, condition).stream()
                             .limit(condition.limit())
                             .toList()
             );
@@ -132,12 +138,17 @@ public class PolicyExplorationService {
                 fallbackCandidates,
                 Math.max(0, condition.limit() - merged.size())
         );
+        List<WelfareService> filteredCandidates = filterExplicitRegionMismatches(
+                merged.values().stream().toList(),
+                condition
+        );
+        filteredCandidates = fillExplicitRegionCategoryCandidates(filteredCandidates, condition, tuning);
         return new ChatExplorationTrace(
                 searchKeyword,
                 fallbackStrategy,
                 ftsCandidates,
                 semanticCandidates,
-                orderChatCandidatesForRegion(merged.values().stream().toList(), condition).stream()
+                orderChatCandidatesForRegion(filteredCandidates, condition).stream()
                         .limit(condition.limit())
                         .toList()
         );
@@ -261,17 +272,172 @@ public class PolicyExplorationService {
             originalOrder.put(candidates.get(i).getId(), i);
         }
 
-        List<WelfareService> ordered = new ArrayList<>(candidates);
-        ordered.sort(Comparator
+        Comparator<WelfareService> comparator = condition.explicitRegion()
+                ? Comparator
+                .comparingInt((WelfareService service) -> regionRank(
+                        service,
+                        condition,
+                        servicesWithRegions,
+                        regionMatchedServices
+                ))
+                .thenComparingInt(service -> branchTermRank(service, condition.preferredTerms()))
+                : Comparator
                 .comparingInt((WelfareService service) -> branchTermRank(service, condition.preferredTerms()))
                 .thenComparingInt(service -> regionRank(
                         service,
                         condition,
                         servicesWithRegions,
                         regionMatchedServices
-                ))
-                .thenComparingInt(service -> originalOrder.getOrDefault(service.getId(), Integer.MAX_VALUE)));
+                ));
+
+        List<WelfareService> ordered = new ArrayList<>(candidates);
+        ordered.sort(comparator.thenComparingInt(service -> originalOrder.getOrDefault(
+                service.getId(),
+                Integer.MAX_VALUE
+        )));
         return ordered;
+    }
+
+    private List<WelfareService> fillExplicitRegionCategoryCandidates(List<WelfareService> candidates,
+                                                                      ChatPolicyReadCondition condition,
+                                                                      ChatRetrievalProperties tuning) {
+        if (!condition.explicitRegion()
+                || !hasRegionContext(condition)
+                || !StringUtils.hasText(condition.preferredCategory())
+                || hasExplicitRegionSpecificCandidate(candidates, condition)) {
+            return candidates;
+        }
+
+        List<WelfareService> regionCategoryCandidates = welfareServiceRepository.findExplicitRegionChatCategoryFill(
+                CHAT_SEARCHABLE_STATUSES,
+                condition.preferredCategory(),
+                condition.regionCode(),
+                condition.sido(),
+                condition.sgg(),
+                PageRequest.of(0, Math.max(condition.limit(), tuning.minResultCount()))
+        );
+        if (regionCategoryCandidates.isEmpty()) {
+            return candidates;
+        }
+
+        LinkedHashMap<Long, WelfareService> merged = new LinkedHashMap<>();
+        candidates.forEach(candidate -> merged.putIfAbsent(candidate.getId(), candidate));
+        addUniqueCandidates(merged, regionCategoryCandidates, condition.limit());
+        return filterExplicitRegionMismatches(merged.values().stream().toList(), condition);
+    }
+
+    private boolean hasExplicitRegionSpecificCandidate(List<WelfareService> candidates,
+                                                       ChatPolicyReadCondition condition) {
+        if (candidates.isEmpty()) {
+            return false;
+        }
+
+        List<Long> serviceIds = candidates.stream()
+                .map(WelfareService::getId)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        if (serviceIds.isEmpty()) {
+            return false;
+        }
+
+        Set<Long> servicesWithRegions = new java.util.HashSet<>(
+                welfareServiceRepository.findServiceIdsWithRegions(serviceIds)
+        );
+        Set<Long> regionMatchedServices = new java.util.HashSet<>(
+                welfareServiceRepository.findRegionMatchedServiceIds(
+                        serviceIds,
+                        condition.regionCode(),
+                        condition.sido(),
+                        condition.sgg()
+                )
+        );
+        if (!regionMatchedServices.isEmpty()) {
+            return true;
+        }
+
+        return candidates.stream()
+                .filter(service -> service.getId() != null && servicesWithRegions.contains(service.getId()))
+                .map(this::inferServiceRegions)
+                .flatMap(List::stream)
+                .anyMatch(region -> inferredRegionMatches(condition, region));
+    }
+
+    private List<WelfareService> filterExplicitRegionMismatches(List<WelfareService> candidates,
+                                                                ChatPolicyReadCondition condition) {
+        if (candidates.isEmpty() || !condition.explicitRegion() || !hasRegionContext(condition)) {
+            return candidates;
+        }
+
+        List<Long> serviceIds = candidates.stream()
+                .map(WelfareService::getId)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        if (serviceIds.isEmpty()) {
+            return candidates;
+        }
+
+        Set<Long> servicesWithRegions = new java.util.HashSet<>(
+                welfareServiceRepository.findServiceIdsWithRegions(serviceIds)
+        );
+        Set<Long> regionMatchedServices = new java.util.HashSet<>(
+                welfareServiceRepository.findRegionMatchedServiceIds(
+                        serviceIds,
+                        condition.regionCode(),
+                        condition.sido(),
+                        condition.sgg()
+                )
+        );
+
+        return candidates.stream()
+                .filter(service -> !isExplicitRegionMismatch(
+                        service,
+                        condition,
+                        servicesWithRegions,
+                        regionMatchedServices
+                ))
+                .toList();
+    }
+
+    private boolean isExplicitRegionMismatch(WelfareService service,
+                                             ChatPolicyReadCondition condition,
+                                             Set<Long> servicesWithRegions,
+                                             Set<Long> regionMatchedServices) {
+        Long serviceId = service.getId();
+        if (serviceId != null && regionMatchedServices.contains(serviceId)) {
+            return false;
+        }
+        if (serviceId != null && servicesWithRegions.contains(serviceId)) {
+            List<RegionCodeUtil.RegionName> inferredRegions = inferServiceRegions(service);
+            return inferredRegions.isEmpty()
+                    || inferredRegions.stream().noneMatch(region -> inferredRegionMatches(condition, region));
+        }
+
+        List<RegionCodeUtil.RegionName> inferredRegions = inferServiceRegions(service);
+        if (inferredRegions.isEmpty()) {
+            return false;
+        }
+        return inferredRegions.stream().noneMatch(region -> inferredRegionMatches(condition, region));
+    }
+
+    private List<RegionCodeUtil.RegionName> inferServiceRegions(WelfareService service) {
+        return RegionCodeUtil.inferRegionNamesFromText(
+                service.getTitle(),
+                service.getDescription(),
+                service.getSupportContent(),
+                service.getHostOrg(),
+                service.getOperatingOrg()
+        );
+    }
+
+    private boolean inferredRegionMatches(ChatPolicyReadCondition condition,
+                                          RegionCodeUtil.RegionName region) {
+        if (!StringUtils.hasText(condition.sido()) || !condition.sido().equals(region.sidoName())) {
+            return false;
+        }
+        if (!StringUtils.hasText(condition.sgg())) {
+            return true;
+        }
+        return condition.sgg().equals(region.sggName());
     }
 
     private int branchTermRank(WelfareService service, List<String> preferredTerms) {

@@ -41,7 +41,13 @@ class ChatPolicyServiceTest {
     @DisplayName("질문 키워드로 챗봇 정책 후보를 조회한다")
     void findCandidatesSearchesByQuestionKeyword() {
         WelfareService service = createService(1829L, "청년월세 한시 특별지원");
-        when(chatPolicyReadRepository.traceCandidates(new ChatPolicyReadCondition("서울 월세", 5)))
+        when(chatPolicyReadRepository.traceCandidates(new ChatPolicyReadCondition(
+                "서울 월세",
+                5,
+                null,
+                "주거",
+                List.of("주거", "월세", "전세", "임대")
+        )))
                 .thenReturn(new com.example.welfare.policy.service.PolicyExplorationService.ChatExplorationTrace(
                         "서울 월세",
                         "MERGED_RESULTS",
@@ -108,7 +114,13 @@ class ChatPolicyServiceTest {
     @DisplayName("후보 수 제한은 최대 10건으로 정규화한다")
     void findCandidatesNormalizesLimit() {
         WelfareService service = createService(1829L, "청년월세 한시 특별지원");
-        when(chatPolicyReadRepository.traceCandidates(new ChatPolicyReadCondition("서울 월세", 10)))
+        when(chatPolicyReadRepository.traceCandidates(new ChatPolicyReadCondition(
+                "서울 월세",
+                10,
+                null,
+                "주거",
+                List.of("주거", "월세", "전세", "임대")
+        )))
                 .thenReturn(new com.example.welfare.policy.service.PolicyExplorationService.ChatExplorationTrace(
                         "서울 월세",
                         "MERGED_RESULTS",
@@ -209,6 +221,90 @@ class ChatPolicyServiceTest {
 
         assertThat(trace.finalCandidates()).extracting(ChatPolicyCandidate::getServiceId)
                 .containsExactly(11160L);
+    }
+
+    @Test
+    @DisplayName("질문에 명시된 지역은 사용자 프로필 지역보다 우선한다")
+    void traceCandidatesUsesExplicitQuestionRegionBeforeUserProfileRegion() {
+        User user = User.builder()
+                .id(1L)
+                .userKey("user-key-1")
+                .email("chat@example.com")
+                .passwordHash("hash")
+                .sido("서울특별시")
+                .sgg("마포구")
+                .regionCode("11440")
+                .build();
+        WelfareService service = createService(11436L, "인천광역시 청년 주택임차보증금 이자 지원");
+        when(chatPolicyReadRepository.traceCandidates(new ChatPolicyReadCondition(
+                "인천 중구 청년이 받을 수 있는 주거 지원을 알려줘",
+                3,
+                null,
+                "주거",
+                List.of("주거", "월세", "전세", "임대"),
+                "28110",
+                "인천광역시",
+                "중구",
+                true
+        ))).thenReturn(new com.example.welfare.policy.service.PolicyExplorationService.ChatExplorationTrace(
+                "인천 중구 청년이 받을 수 있는 주거 지원을 알려줘",
+                "MERGED_RESULTS",
+                List.of(service),
+                List.of(),
+                List.of(service)
+        ));
+
+        ChatPolicyService.CandidateTrace trace = chatPolicyService.traceCandidatesForUser(
+                "인천 중구 청년이 받을 수 있는 주거 지원을 알려줘",
+                null,
+                3,
+                user
+        );
+
+        assertThat(trace.finalCandidates()).extracting(ChatPolicyCandidate::getServiceId)
+                .containsExactly(11436L);
+    }
+
+    @Test
+    @DisplayName("중복 시군구명만 있는 질문은 명시 지역 hard filter로 승격하지 않는다")
+    void traceCandidatesDoesNotPromoteAmbiguousSggOnlyQuestionToExplicitRegion() {
+        User user = User.builder()
+                .id(1L)
+                .userKey("user-key-1")
+                .email("chat@example.com")
+                .passwordHash("hash")
+                .sido("서울특별시")
+                .sgg("마포구")
+                .regionCode("11440")
+                .build();
+        WelfareService service = createService(77L, "중구 청년 주거 지원");
+        when(chatPolicyReadRepository.traceCandidates(new ChatPolicyReadCondition(
+                "중구 청년 주거 지원",
+                3,
+                null,
+                "주거",
+                List.of("주거", "월세", "전세", "임대"),
+                "11440",
+                "서울특별시",
+                "마포구",
+                false
+        ))).thenReturn(new com.example.welfare.policy.service.PolicyExplorationService.ChatExplorationTrace(
+                "중구 청년 주거 지원",
+                "MERGED_RESULTS",
+                List.of(service),
+                List.of(),
+                List.of(service)
+        ));
+
+        ChatPolicyService.CandidateTrace trace = chatPolicyService.traceCandidatesForUser(
+                "중구 청년 주거 지원",
+                null,
+                3,
+                user
+        );
+
+        assertThat(trace.finalCandidates()).extracting(ChatPolicyCandidate::getServiceId)
+                .containsExactly(77L);
     }
 
     @Test

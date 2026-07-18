@@ -14,6 +14,11 @@ public class ChatCategoryHintCatalog {
 
     private static final List<CategoryHintDefinition> DEFINITIONS = List.of(
             new CategoryHintDefinition(
+                    "주거",
+                    Set.of("주거", "월세", "전세", "임대", "주택", "보증금", "주거비", "이사비"),
+                    List.of("주거", "월세", "전세", "임대")
+            ),
+            new CategoryHintDefinition(
                     "금융·생활지원",
                     Set.of("금융", "생활비", "대출", "저축", "적금", "이자", "채무", "융자"),
                     List.of("금융", "생활비", "대출", "지원금")

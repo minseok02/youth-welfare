@@ -10,7 +10,8 @@ public record ChatPolicyReadCondition(
         List<String> preferredTerms,
         String regionCode,
         String sido,
-        String sgg
+        String sgg,
+        boolean explicitRegion
 ) {
 
     public ChatPolicyReadCondition {
@@ -32,6 +33,17 @@ public record ChatPolicyReadCondition(
                                    String preferredCategory,
                                    List<String> preferredTerms) {
         this(keyword, limit, branchKey, preferredCategory, preferredTerms, null, null, null);
+    }
+
+    public ChatPolicyReadCondition(String keyword,
+                                   int limit,
+                                   String branchKey,
+                                   String preferredCategory,
+                                   List<String> preferredTerms,
+                                   String regionCode,
+                                   String sido,
+                                   String sgg) {
+        this(keyword, limit, branchKey, preferredCategory, preferredTerms, regionCode, sido, sgg, false);
     }
 
     private static String normalize(String value) {

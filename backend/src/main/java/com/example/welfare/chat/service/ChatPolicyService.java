@@ -6,6 +6,7 @@ import com.example.welfare.chat.repository.ChatPolicyReadCondition;
 import com.example.welfare.chat.repository.ChatPolicyReadRepository;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.global.util.RegionCodeUtil;
 import com.example.welfare.global.util.SearchKeywordSupport;
 import com.example.welfare.user.entity.User;
 import lombok.RequiredArgsConstructor;
@@ -79,15 +80,17 @@ public class ChatPolicyService {
                 ? chatCategoryHintCatalog.infer(keyword).orElse(null)
                 : null;
         List<String> preferredTerms = resolvePreferredTerms(keyword, branch, categoryHint);
+        ExplicitRegion explicitRegion = resolveExplicitRegion(question);
         ChatPolicyReadCondition condition = new ChatPolicyReadCondition(
                 keyword,
                 normalizedLimit,
                 branch != null ? branch.branchKey() : null,
                 branch != null ? branch.preferredCategory() : categoryHint != null ? categoryHint.preferredCategory() : null,
                 preferredTerms,
-                user != null ? user.getRegionCode() : null,
-                user != null ? user.getSido() : null,
-                user != null ? user.getSgg() : null
+                explicitRegion != null ? explicitRegion.regionCode() : user != null ? user.getRegionCode() : null,
+                explicitRegion != null ? explicitRegion.sido() : user != null ? user.getSido() : null,
+                explicitRegion != null ? explicitRegion.sgg() : user != null ? user.getSgg() : null,
+                explicitRegion != null
         );
         com.example.welfare.policy.service.PolicyExplorationService.ChatExplorationTrace trace =
                 tuning == null
@@ -148,6 +151,27 @@ public class ChatPolicyService {
         return Math.min(limit, MAX_CANDIDATE_LIMIT);
     }
 
+    private ExplicitRegion resolveExplicitRegion(String question) {
+        List<RegionCodeUtil.RegionName> regionNames = RegionCodeUtil.inferRegionNamesFromText(question);
+        if (regionNames.isEmpty()) {
+            return null;
+        }
+        List<String> distinctSidos = regionNames.stream()
+                .map(RegionCodeUtil.RegionName::sidoName)
+                .filter(StringUtils::hasText)
+                .distinct()
+                .toList();
+        if (distinctSidos.size() != 1) {
+            return null;
+        }
+        String sido = distinctSidos.get(0);
+        if (regionNames.size() == 1) {
+            RegionCodeUtil.RegionName regionName = regionNames.get(0);
+            return new ExplicitRegion(regionName.regionCode(), sido, regionName.sggName());
+        }
+        return new ExplicitRegion(null, sido, null);
+    }
+
     public record CandidateTrace(
             String normalizedKeyword,
             String searchKeyword,
@@ -158,6 +182,13 @@ public class ChatPolicyService {
             List<ChatPolicyCandidate> ftsCandidates,
             List<ChatPolicyCandidate> semanticCandidates,
             List<ChatPolicyCandidate> finalCandidates
+    ) {
+    }
+
+    private record ExplicitRegion(
+            String regionCode,
+            String sido,
+            String sgg
     ) {
     }
 }

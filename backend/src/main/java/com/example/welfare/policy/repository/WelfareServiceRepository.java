@@ -651,6 +651,45 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             Pageable pageable
     );
 
+    @Query("""
+            SELECT ws FROM WelfareService ws
+            WHERE ws.searchYouthRelevant = true
+              AND ws.status IN :statuses
+              AND ws.unifiedCategory = :unifiedCategory
+              AND EXISTS (
+                    SELECT sr.id FROM ServiceRegion sr
+                    WHERE sr.service = ws
+                      AND (
+                            (:regionCode IS NOT NULL AND sr.regionCode = :regionCode)
+                            OR (
+                                :sidoName IS NOT NULL
+                                AND sr.sidoName = :sidoName
+                                AND (:sggName IS NULL OR sr.sggName = :sggName)
+                            )
+                      )
+              )
+            ORDER BY
+              CASE
+                WHEN EXISTS (
+                    SELECT sr1.id FROM ServiceRegion sr1
+                    WHERE sr1.service = ws
+                      AND :regionCode IS NOT NULL
+                      AND sr1.regionCode = :regionCode
+                ) THEN 0
+                ELSE 1
+              END ASC,
+              COALESCE(ws.apiViewCount, 0) DESC,
+              COALESCE(ws.viewCount, 0) DESC,
+              ws.createdAt DESC,
+              ws.id DESC
+            """)
+    List<WelfareService> findExplicitRegionChatCategoryFill(@Param("statuses") List<WelfareService.ServiceStatus> statuses,
+                                                            @Param("unifiedCategory") String unifiedCategory,
+                                                            @Param("regionCode") String regionCode,
+                                                            @Param("sidoName") String sidoName,
+                                                            @Param("sggName") String sggName,
+                                                            Pageable pageable);
+
     // statusFilter 값 의미 (검색·목록 쿼리 공통):
     //   ACTIVE_ONLY(기본) : status IN (ACTIVE, UPCOMING) AND apply_end_date >= 오늘 or NULL
     //   EXPIRED_ONLY      : status = CLOSED OR apply_end_date < 오늘

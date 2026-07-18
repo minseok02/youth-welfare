@@ -562,3 +562,48 @@ Interpretation:
 - the third turn now preserves the previous policy target and uses the application-coaching response mode.
 - latency is not the acceptance criterion for this fix; the goal was quality preservation with minimal behavioral scope.
 - residual issue found during review: `15399` is a `충청남도 논산시` policy, while the second question asks for `인천 중구`. That is a separate explicit-region candidate quality problem. It should be handled in a follow-up by making chat candidates expose/enforce policy region consistency rather than by weakening the application follow-up fix.
+
+## Chat Explicit Region Candidate Consistency Fix 2026-07-18
+
+Trigger:
+
+- the accepted follow-up fix preserved q3's target policy, but it exposed that q2 could ground `인천 중구 청년이 받을 수 있는 주거 지원을 알려줘` on `15399 청년주택자금 대출이자 지원사업`, whose region rows are `충청남도 논산시`.
+- the goal was not to speed up AI generation. The goal was to keep quality stable by preventing explicitly named user regions from being overridden by semantically similar local policies in other regions.
+
+Change:
+
+- `ChatPolicyReadCondition` now carries `explicitRegion`.
+- `ChatPolicyService` infers explicit question regions with `RegionCodeUtil`; an unambiguous full region such as `인천 중구` overrides the user's profile region, while ambiguous bare `중구` does not become a hard filter.
+- `ChatCategoryHintCatalog` now recognizes housing words such as `주거`, `월세`, `전세`, `임대`, `주택`, `보증금`, `주거비`, `이사비`.
+- `PolicyExplorationService` removes explicit-region mismatches from final chat candidates. It keeps national/no-region candidates only when they do not claim another local region, and keeps stale-row candidates only when the policy text itself clearly points to the same region.
+- when explicit-region filtering leaves no region-specific candidate, the chat retrieval path fills from the same category and matching `service_regions` before final ordering. For explicit-region questions, region match is sorted before branch-term match.
+- new audit script: `deploy/smoke/run-local-chat-explicit-region-candidate-audit.sh`.
+
+Measurements:
+
+| artifact | session | q2 mode | q2 reference | q2 ms | q3 mode | q3 reference | result |
+| --- | ---: | --- | --- | ---: | --- | --- | --- |
+| `tmp/performance/chat-flow/20260718T113759Z` | `259` | `POLICY_GROUNDED` | `15399 청년주택자금 대출이자 지원사업` | `3097.5` | `APPLICATION_COACHING` | `15399` | follow-up preserved target, but target region was wrong |
+| `tmp/performance/chat-flow/20260718T125650Z` | `260` | `CLARIFICATION` | `3294 인천 중구 청년 자격시험 응시료 지원사업` | `5407.6` | `APPLICATION_COACHING` | `3294` | wrong-region candidates removed, but missing `주거` category hint caused wrong-topic clarification |
+| `tmp/performance/chat-flow/20260718T130421Z` | `261` | `POLICY_GROUNDED` | `2632 주거안정 월세대출` | `5294.4` | `APPLICATION_COACHING` | `2632` | wrong local region removed, but only national/no-region candidate remained |
+| `tmp/performance/chat-flow/20260718T131921Z` | `263` | `POLICY_GROUNDED` | `11406 인천시 청년월세 지원사업` | `3596.7` | `APPLICATION_COACHING` | `11406` | accepted: explicit region and housing intent both preserved |
+
+Candidate audit:
+
+- before filter artifact `tmp/chat-explicit-region-candidate-audit/20260718T125201Z`: q2 merged candidates included `15399` as `REGION_MISMATCH` with `충청남도 논산시`.
+- after filter-only artifact `tmp/chat-explicit-region-candidate-audit/20260718T130454Z`: q2 merged candidate was only `2632 주거안정 월세대출` as `NO_REGION_ROW`.
+- final artifact `tmp/chat-explicit-region-candidate-audit/20260718T131951Z`: q2 merged candidates were all `REGION_MATCH` for `28110 인천광역시 중구`: `11406 인천시 청년월세 지원사업`, `13926 청년 매입임대주택 지원`, `11409 청년발달장애인 자산형성지원(행복씨앗통장)`.
+- DB message check for session `263`: q2 assistant referenced `[11406]`; q3 application coaching also referenced `[11406]`.
+
+Verification:
+
+- targeted: `./gradlew test --tests 'com.example.welfare.policy.service.PolicyExplorationServiceTest' --tests 'com.example.welfare.chat.service.ChatPolicyServiceTest' --no-daemon`
+- full backend: `./gradlew test --no-daemon`
+- primary rebuild caught a PostgreSQL `SELECT DISTINCT` + `ORDER BY` issue in the new fill query; `DISTINCT` was removed because the query uses `EXISTS` and does not join `service_regions`.
+- final primary rebuild: Docker app `healthy`, actuator `UP`.
+
+Interpretation:
+
+- quality improved because explicit local-region questions no longer select another local government's policy.
+- answer latency was not the optimization target, but q2 improved from the no-region attempt `5294.4ms` to `3596.7ms` in the final run.
+- the remaining AI cost is still mostly answer generation and, on non-skipped paths, semantic embedding/vector search. This change deliberately avoids shrinking LLM evidence or changing prompt behavior.

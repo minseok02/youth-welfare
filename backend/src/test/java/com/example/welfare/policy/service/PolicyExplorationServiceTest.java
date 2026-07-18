@@ -227,6 +227,160 @@ class PolicyExplorationServiceTest {
     }
 
     @Test
+    @DisplayName("명시 지역 질문은 지역 row가 다른 로컬 후보를 final 후보에서 제거한다")
+    void traceChatCandidatesFiltersExplicitRegionMismatches() {
+        WelfareService nonsan = service(15399L, "청년주택자금 대출이자 지원사업", "주거");
+        WelfareService incheon = service(11436L, "인천광역시 청년 주택임차보증금 이자 지원", "주거");
+        WelfareService national = WelfareService.builder()
+                .id(9000L)
+                .sourceType(WelfareService.SourceType.BOKJIRO_CENTRAL)
+                .sourceId("central-9000")
+                .title("청년 주거 안정 지원")
+                .unifiedCategory("주거")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .searchYouthRelevant(true)
+                .build();
+
+        when(welfareServiceSearchRepository.searchChatCandidates("인천 중구 청년 주거 지원", 12))
+                .thenReturn(List.of(nonsan, incheon, national));
+        when(welfareServiceRepository.findServiceIdsWithRegions(List.of(15399L, 11436L, 9000L)))
+                .thenReturn(List.of(15399L, 11436L));
+        when(welfareServiceRepository.findRegionMatchedServiceIds(
+                List.of(15399L, 11436L, 9000L),
+                "28110",
+                "인천광역시",
+                "중구"
+        )).thenReturn(List.of(11436L));
+
+        PolicyExplorationService.ChatExplorationTrace trace = policyExplorationService.traceChatCandidates(
+                new ChatPolicyReadCondition(
+                        "인천 중구 청년 주거 지원",
+                        3,
+                        null,
+                        null,
+                        List.of(),
+                        "28110",
+                        "인천광역시",
+                        "중구",
+                        true
+                )
+        );
+
+        assertThat(trace.finalCandidates()).extracting(WelfareService::getId)
+                .containsExactly(11436L, 9000L);
+    }
+
+    @Test
+    @DisplayName("명시 지역 질문은 코드 row가 낡아도 정책 텍스트가 같은 시도 전체를 가리키면 후보를 유지한다")
+    void traceChatCandidatesKeepsSidoWidePolicyWhenRegionCodeRowsAreStale() {
+        WelfareService incheonWide = service(709L, "인천시 청년월세 지원사업", "주거");
+        WelfareService nonsan = service(15399L, "청년주택자금 대출이자 지원사업", "주거");
+
+        when(welfareServiceSearchRepository.searchChatCandidates("인천 중구 청년 주거 지원", 12))
+                .thenReturn(List.of(incheonWide, nonsan));
+        when(welfareServiceRepository.findServiceIdsWithRegions(List.of(709L, 15399L)))
+                .thenReturn(List.of(709L, 15399L));
+        when(welfareServiceRepository.findRegionMatchedServiceIds(
+                List.of(709L, 15399L),
+                "28110",
+                "인천광역시",
+                "중구"
+        )).thenReturn(List.of());
+        when(welfareServiceRepository.findServiceIdsWithRegions(List.of(709L)))
+                .thenReturn(List.of(709L));
+        when(welfareServiceRepository.findRegionMatchedServiceIds(
+                List.of(709L),
+                "28110",
+                "인천광역시",
+                "중구"
+        )).thenReturn(List.of());
+
+        PolicyExplorationService.ChatExplorationTrace trace = policyExplorationService.traceChatCandidates(
+                new ChatPolicyReadCondition(
+                        "인천 중구 청년 주거 지원",
+                        3,
+                        null,
+                        null,
+                        List.of(),
+                        "28110",
+                        "인천광역시",
+                        "중구",
+                        true
+                )
+        );
+
+        assertThat(trace.finalCandidates()).extracting(WelfareService::getId)
+                .containsExactly(709L);
+    }
+
+    @Test
+    @DisplayName("명시 지역 질문은 필터 후 지역 후보가 없으면 같은 카테고리 지역 후보로 보강한다")
+    void traceChatCandidatesFillsExplicitRegionCategoryWhenOnlyNationalCandidateRemains() {
+        WelfareService nationalMonthlyLoan = WelfareService.builder()
+                .id(2632L)
+                .sourceType(WelfareService.SourceType.BOKJIRO_CENTRAL)
+                .sourceId("central-2632")
+                .title("주거안정 월세대출")
+                .unifiedCategory("주거")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .searchYouthRelevant(true)
+                .build();
+        WelfareService incheonHousingLoan = service(11436L, "인천광역시 청년 주택임차보증금 이자 지원", "주거");
+
+        when(welfareServiceSearchRepository.searchChatCandidates("인천 월세", 12))
+                .thenReturn(List.of(nationalMonthlyLoan));
+        when(welfareServiceSearchRepository.searchChatCandidates("인천 중구 청년 주거 지원 월세", 12))
+                .thenReturn(List.of(nationalMonthlyLoan));
+        when(chatSemanticSearchService.findCandidates(
+                "인천 중구 청년 주거 지원",
+                "주거",
+                List.of("월세"),
+                12
+        )).thenReturn(List.of());
+        when(welfareServiceRepository.findServiceIdsWithRegions(List.of(2632L)))
+                .thenReturn(List.of());
+        when(welfareServiceRepository.findRegionMatchedServiceIds(
+                List.of(2632L),
+                "28110",
+                "인천광역시",
+                "중구"
+        )).thenReturn(List.of());
+        when(welfareServiceRepository.findExplicitRegionChatCategoryFill(
+                eq(List.of(WelfareService.ServiceStatus.ACTIVE, WelfareService.ServiceStatus.UPCOMING)),
+                eq("주거"),
+                eq("28110"),
+                eq("인천광역시"),
+                eq("중구"),
+                any(Pageable.class)
+        )).thenReturn(List.of(incheonHousingLoan));
+        when(welfareServiceRepository.findServiceIdsWithRegions(List.of(2632L, 11436L)))
+                .thenReturn(List.of(11436L));
+        when(welfareServiceRepository.findRegionMatchedServiceIds(
+                List.of(2632L, 11436L),
+                "28110",
+                "인천광역시",
+                "중구"
+        )).thenReturn(List.of(11436L));
+
+        PolicyExplorationService.ChatExplorationTrace trace = policyExplorationService.traceChatCandidates(
+                new ChatPolicyReadCondition(
+                        "인천 중구 청년 주거 지원",
+                        3,
+                        "housing-cash",
+                        "주거",
+                        List.of("월세"),
+                        "28110",
+                        "인천광역시",
+                        "중구",
+                        true
+                )
+        );
+
+        assertThat(trace.finalCandidates()).extracting(WelfareService::getId)
+                .containsExactly(11436L, 2632L);
+    }
+
+    @Test
     @DisplayName("recommendation base 탐색은 regionCode 경로를 유지한다")
     void findRecommendationBaseCandidatesUsesRegionCodeQuery() {
         RecommendationCandidateReadCondition condition =
