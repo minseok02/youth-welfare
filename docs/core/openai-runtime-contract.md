@@ -154,7 +154,7 @@ active 문서 기준 현재 recommendation 트랙은 [recommendation-current-sta
 - 주민등록번호 / 외국인등록번호 형태
 - 계좌번호 라벨형 표현
 - 이름 라벨형 표현
-- 주소 라벨형 표현
+- 주소 라벨형 표현 (라벨 뒤가 `증빙/증명/서류/등본/확인/사실` 등 문서·정책 어휘이면 실제 주소가 아니므로 마스킹 제외)
 - 학교/회사/근무지/소속 라벨형 표현
 
 주의:
@@ -162,6 +162,7 @@ active 문서 기준 현재 recommendation 트랙은 [recommendation-current-sta
 - 자유서술 전체를 완전히 PII-free 로 만드는 것은 아닙니다.
 - 현재 계약은 “라벨이 붙은 자기소개형 값”과 직접 식별자를 우선 제거하는 수준입니다.
 - 한국어 날짜/국제번호/외국인등록번호 같은 변형은 `SensitiveTextRedactorTest` 에 corpus로 고정합니다.
+- 주소 라벨 뒤 문서 어휘(예: "거주지 증빙서류")는 오탐 방지를 위해 마스킹하지 않습니다. 실제 주소는 계속 마스킹하며, 두 경우 모두 `SensitiveTextRedactorTest` 에 고정했습니다.
 
 ## 기본 검증
 

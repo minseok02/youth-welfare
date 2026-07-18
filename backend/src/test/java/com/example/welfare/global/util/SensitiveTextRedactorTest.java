@@ -51,6 +51,30 @@ class SensitiveTextRedactorTest {
     }
 
     @Test
+    @DisplayName("정책 문서 어휘(거주지 증빙서류 등)는 주소로 오탐하지 않는다")
+    void doesNotRedactPolicyDocumentVocabularyAsAddress() {
+        String source = "청년월세 지원사업의 경우 소득 증빙서, 거주지 증빙서류 제출이 필요합니다";
+
+        String redacted = SensitiveTextRedactor.redactDirectIdentifiers(source);
+
+        assertThat(redacted)
+                .doesNotContain("[REDACTED_ADDRESS]")
+                .contains("거주지 증빙서류");
+    }
+
+    @Test
+    @DisplayName("문서 어휘 예외를 넣어도 실제 주소는 계속 마스킹한다")
+    void stillRedactsRealAddressAfterDenylistException() {
+        String source = "거주지 서울특별시 강남구 테헤란로 5, 나머지 서류는 별도 안내";
+
+        String redacted = SensitiveTextRedactor.redactDirectIdentifiers(source);
+
+        assertThat(redacted)
+                .contains("[REDACTED_ADDRESS]")
+                .doesNotContain("서울특별시 강남구 테헤란로 5");
+    }
+
+    @Test
     @DisplayName("한국어 날짜와 숫자형 날짜, 점 구분 연락처, 외국인등록번호도 마스킹한다")
     void redactsKoreanAndCompactIdentifierVariants() {
         String source = "생일은 2001년 4월 30일, 다른 표기는 20010430, 연락처는 010.1234.5678로 주세요, 해외 표기는 +82 10 9876 5432, 외국인등록번호는 900101-5123456";

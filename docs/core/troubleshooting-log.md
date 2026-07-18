@@ -6943,3 +6943,9 @@ admin API와 latest artifact에
 - 문제: 같은 시점에 `latest-status-export` 는 `WAIT_FOR_REAL_USER_TRAFFIC` 로 보이는데 current priority suite 와 real-user precheck 는 `REOPEN_DECISION_READY` 로 닫히는 상황이 있었다. 이름만 보고 latest export 하나를 source of truth 로 삼으면 reopen 판단을 잘못 막게 된다.
 - 해결: reopen decision 은 latest overview, real-user readiness precheck, current priority suite 를 같이 읽는다. baseline/drift helper 성격의 latest export 단독값은 보조 signal 로만 본다.
 - 이유: 둘 다 "latest" 를 말하지만 포함하는 readiness 범위가 다르다. 운영 판단 문서에는 `decision_class=REOPEN_DECISION_READY`, `reopen_allowed=true`, real-user gate ready 값을 함께 남겨 혼선을 줄인다.
+
+## 1061) 챗봇 답변의 마크다운 링크 미렌더링과 PII redaction 토큰 노출은 표시 계층에서 함께 잡아야 한다
+
+- 문제: 챗봇 답변이 `[여기](https://...)` 마크다운을 그대로 글자로 출력했고(프런트가 `message.content` 를 순수 텍스트로 렌더), 별개로 "거주지 증빙서류" 같은 정책 문서 어휘가 `SensitiveTextRedactor` 의 `ADDRESS_LABEL_PATTERN` 오탐으로 `[REDACTED_ADDRESS]` 로 치환된 뒤 대화 이력→프롬프트를 거쳐 답변에 그대로 노출됐다.
+- 해결: (1) 프런트에 `parseChatMessageSegments`/`ChatMessageContent` 를 추가해 마크다운 링크만 안전 URL(`normalizeSafeExternalUrl`, http/https)로 렌더하고, 파싱 불가/unsafe 링크는 원문 텍스트로 폴백한다. `dangerouslySetInnerHTML` 은 쓰지 않는다. (2) 같은 렌더 경로에서 `[REDACTED_*]` 내부 토큰을 제거하는 안전망(`stripInternalRedactionTokens`)을 둔다. (3) 근본 원인인 `ADDRESS_LABEL_PATTERN` 에 문서 어휘(`증빙/서류/등본/확인/사실` 등) 부정 룩어헤드를 넣어 실제 주소만 마스킹하도록 좁혔다. 프런트 파서와 `SensitiveTextRedactorTest` 에 오탐방지·회귀 케이스를 고정했다.
+- 이유: 링크 렌더링은 표시 계층 문제라 프런트에서 고쳐야 하고, redaction 토큰 노출은 백엔드 정규식 오탐이 근본이다. 다만 정규식은 로그 마스킹(`LogSanitizer`)과 공유하는 보안 코드라 예외는 좁게 두고, 프런트 안전망을 두어 향후 다른 오탐이 생겨도 사용자에게 내부 토큰이 보이지 않게 이중으로 막았다.

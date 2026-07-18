@@ -22,8 +22,12 @@ public final class SensitiveTextRedactor {
             Pattern.compile("(?i)(?:계좌(?:번호)?(?:[은는이가]|번호는)?|account)\\s*[:=]?\\s*[0-9-]{8,}");
     private static final Pattern NAME_LABEL_PATTERN =
             Pattern.compile("(?i)\\b(이름|성함|본명|name)(?:은|는|이|가)?\\s*(?:[:=]\\s*|\\s+)([가-힣A-Za-z]{2,20})\\b");
+    // 주소 라벨 뒤가 "증빙/서류/확인서" 같은 문서·정책 어휘이면 실제 주소가 아니므로 마스킹하지 않는다.
+    // (예: 정책 답변의 "거주지 증빙서류 제출"이 [REDACTED_ADDRESS]로 훼손되던 오탐 방지)
+    private static final String ADDRESS_VALUE_DENYLIST =
+            "증빙|증명|확인|서류|등본|사실|요건|조건|기준|여부|이전|변경|등록|신고|이력|제출|인정|정보|관련|우선|필요";
     private static final Pattern ADDRESS_LABEL_PATTERN =
-            Pattern.compile("(?i)\\b(주소|집\\s?주소|거주지|사는\\s?곳|address)(?:는|은|이|가)?\\s*(?:[:=]\\s*|\\s+)(.{4,80}?)(?=\\s*(?:,|\\n|$|학교명|학교|회사명|회사|직장|근무지|소속|school|company|organization))");
+            Pattern.compile("(?i)\\b(주소|집\\s?주소|거주지|사는\\s?곳|address)(?:는|은|이|가)?\\s*(?:[:=]\\s*|\\s+)(?!(?:" + ADDRESS_VALUE_DENYLIST + "))(.{4,80}?)(?=\\s*(?:,|\\n|$|학교명|학교|회사명|회사|직장|근무지|소속|school|company|organization))");
     private static final Pattern ORGANIZATION_LABEL_PATTERN =
             Pattern.compile("(?i)\\b(학교명|학교|회사명|회사|직장|근무지|소속|school|company|organization)(?:은|는|이|가)?\\s*(?:[:=]\\s*|\\s+)(.{2,60}?)(?=\\s*(?:,|\\n|$|학교명|학교|회사명|회사|직장|근무지|소속|school|company|organization))");
 
