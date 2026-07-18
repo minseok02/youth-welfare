@@ -541,9 +541,14 @@ Change:
 
 Verification:
 
+- commit: `4aa8a9bf`
 - targeted: `./gradlew test --tests 'com.example.welfare.chat.service.ChatConversationServiceTest' --no-daemon`
 - adjacent: `./gradlew test --tests 'com.example.welfare.chat.service.ChatSessionContextStateServiceTest' --tests 'com.example.welfare.chat.service.ChatPolicyServiceTest' --tests 'com.example.welfare.chat.gateway.ChatAiGatewayTest' --tests 'com.example.welfare.chat.service.ChatApplicationCoachingServiceTest' --no-daemon`
 - full backend: `./gradlew test --no-daemon`
+- primary: Docker app rebuilt locally, container `healthy`, actuator `UP`
+- secondary `i-0e8a4cc599c1148c8`: fast-forwarded to `4aa8a9bf`, Docker app rebuilt, container `healthy`, actuator `UP`
+- post-deploy smoke artifact: `tmp/prod-post-deploy-smoke/20260718T114510Z`
+- post-deploy smoke result: local actuator passed, ALB healthy targets `2`, public list/search/ranking `200`, nginx user-path 5xx `0`
 
 Operational measurement:
 
