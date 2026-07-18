@@ -398,3 +398,61 @@ Decision:
 - the guard did what it was supposed to do: FTS-full requests no longer pay query embedding/vector search cost.
 - the remaining dominant cost for skipped requests is now OpenAI answer generation.
 - for non-skipped requests, semantic embedding still costs hundreds of milliseconds and remains a candidate for exact query embedding cache only after duplicate/near-duplicate query frequency is measured.
+
+## Lazy Semantic Quality Review 2026-07-18
+
+Question:
+
+- did the lazy semantic skip change answer quality or policy candidate quality?
+
+Code-level result:
+
+- the new guard triggers only when `merged.size() >= condition.limit()`.
+- under the previous code, the same branch produced `semanticAddLimit=0`.
+- `addUniqueCandidates(merged, semanticCandidates, 0)` already meant semantic candidates could not enter the final candidate set.
+- therefore the user-visible final candidates should be unchanged by construction for skipped branches.
+- the only intentional trace change is `semanticCandidates=[]` and empty `semantic_service_ids_json` for skipped snapshots.
+
+Measured chat-flow comparison:
+
+| run | q1 mode/ref | q2 mode/ref | q3 mode/ref |
+| --- | --- | --- | --- |
+| before `20260718T054957Z` | `POLICY_GROUNDED`, `[5875]` | `POLICY_GROUNDED`, `[15399]` | `CLARIFICATION`, `[15351]` |
+| after 1 `20260718T060443Z` | `POLICY_GROUNDED`, `[5875]` | `POLICY_GROUNDED`, `[15399]` | `POLICY_GROUNDED`, `[15351]` |
+| after 2 `20260718T060538Z` | `POLICY_GROUNDED`, `[5875]` | `POLICY_GROUNDED`, `[15399]` | `CLARIFICATION`, `[15351]` |
+
+Interpretation:
+
+- all measured runs kept the same referenced policy IDs for all three questions.
+- the stable repeated after-run restored the same `answerMode` and `needsClarification` pattern as the pre-change run.
+- after-run 1 changed q3 from `CLARIFICATION` to `POLICY_GROUNDED`, but q3 was not a lazy-skip branch (`ftsCandidates=0`, semantic still ran) and the reference ID stayed `[15351]`.
+- that q3 mode difference is consistent with normal OpenAI answer variability, not retrieval candidate drift caused by the skip.
+
+Official retrieval evaluation impact estimate:
+
+- previous official artifact: `tmp/policy-quality-observation/20260717T085956Z/policy-quality-summary-artifact/retrieval-evaluation.json`
+- baseline metrics: top1 `1.0`, top3 `1.0`, branch suggestion `1.0`, fallback count `2`, empty result count `0`, semantic contribution count `6`
+- retrieval scenarios: `9`
+- lazy-skip-eligible scenarios by the official artifact: `2`
+  - `housing-cash`: fts `5`, semantic `5`, semantic-only final contribution `0`, final IDs `[2971, 3112, 7584, 531, 11160]`
+  - `culture-support`: fts `5`, semantic `1`, semantic-only final contribution `0`, final IDs `[2581, 2253, 9362, 1569, 688]`
+- estimated user-facing metric delta from the skip:
+  - top1 delta `0`
+  - top3 delta `0`
+  - fallback delta `0`
+  - empty result delta `0`
+  - semantic contribution delta `0`
+  - average semantic result count delta `-0.67` as trace metadata only
+
+Limitations:
+
+- current admin policy-quality API rerun was blocked because `ALLOW_ADMIN_JWT_MINT=true` resolved an admin email but did not mint an access token from the current local DB/env pairing.
+- direct DB snapshot query through `.env.runtime.production` also failed with the current default query credential.
+- this does not indicate product quality drift, but it means this review uses existing official artifact comparison, code proof, app timing logs, and chat-flow API artifacts rather than a fresh admin quality run.
+
+Conclusion:
+
+- no measured user-visible quality degradation was found.
+- policy reference IDs stayed stable in repeated chat-flow checks.
+- official retrieval metrics are expected to stay unchanged because the eligible skipped scenarios had zero semantic-only final contribution.
+- the only confirmed change is observability metadata: skipped snapshots no longer list semantic candidates that previously could not affect final candidates anyway.
