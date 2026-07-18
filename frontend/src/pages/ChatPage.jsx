@@ -27,6 +27,7 @@ import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
 import SendRoundedIcon from "@mui/icons-material/SendRounded";
 import Header from "../components/Header";
 import FloatingNav from "../components/FloatingNav";
+import ChatMessageContent from "../components/ChatMessageContent";
 import api from "../lib/axios";
 import {
   extractLatestChatAnswerMeta,
@@ -764,9 +765,7 @@ export default function ChatPage() {
                                 </Typography>
                               </Stack>
 
-                              <Typography sx={{ whiteSpace: "pre-wrap", lineHeight: 1.7 }}>
-                                {message.content}
-                              </Typography>
+                              <ChatMessageContent text={message.content} />
 
                               {message.referencedServiceIds.length > 0 ? (
                                 <Stack spacing={1}>

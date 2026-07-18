@@ -6,6 +6,8 @@ import {
   formatChatRelativeTime,
   mapChatMessage,
   mapChatSession,
+  parseChatMessageSegments,
+  stripInternalRedactionTokens,
 } from "./chatDisplay.js";
 
 describe("chat display mapping helpers", () => {
@@ -100,5 +102,38 @@ describe("chat display mapping helpers", () => {
   test("formats invalid chat times with safe fallbacks", () => {
     assert.equal(formatChatRelativeTime("bad-date"), "");
     assert.equal(formatChatMessageTime("bad-date"), "방금 전");
+  });
+});
+
+describe("chat answer content parsing", () => {
+  test("splits a markdown link into text + link segments", () => {
+    const segments = parseChatMessageSegments("관련 사이트는 [여기](https://www.gov.kr/portal/x)에서 확인");
+    assert.deepEqual(segments, [
+      { type: "text", value: "관련 사이트는 " },
+      { type: "link", text: "여기", href: "https://www.gov.kr/portal/x" },
+      { type: "text", value: "에서 확인" },
+    ]);
+  });
+
+  test("keeps unsafe-url markdown as plain text (no data loss)", () => {
+    const segments = parseChatMessageSegments("링크 [클릭](javascript:alert(1)) 끝");
+    // javascript: 스킴은 normalizeSafeExternalUrl에서 걸러져 링크가 되지 않는다.
+    assert.equal(segments.every((s) => s.type === "text"), true);
+    assert.equal(segments.map((s) => s.value).join(""), "링크 [클릭](javascript:alert(1)) 끝");
+  });
+
+  test("removes leaked internal redaction tokens from answer text", () => {
+    assert.equal(
+      stripInternalRedactionTokens("청년월세 지원사업의 경우 소득 증빙서, 거주지 [REDACTED_ADDRESS] 제출"),
+      "청년월세 지원사업의 경우 소득 증빙서, 거주지 제출"
+    );
+    const segments = parseChatMessageSegments("거주지 [REDACTED_ADDRESS] 확인");
+    assert.deepEqual(segments, [{ type: "text", value: "거주지 확인" }]);
+  });
+
+  test("returns plain text unchanged when no link or token present", () => {
+    assert.deepEqual(parseChatMessageSegments("자격 요건을 확인하세요."), [
+      { type: "text", value: "자격 요건을 확인하세요." },
+    ]);
   });
 });
