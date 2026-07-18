@@ -69,6 +69,21 @@ public final class CollectCategorySupport {
     private static final Set<String> HOUSING_PURPOSE_ASSET_HINTS = Set.of(
             "주택드림", "청약통장", "주택청약"
     );
+    private static final Set<String> RESIDENTIAL_HOUSING_KEEP_HINTS = Set.of(
+            "무주택", "숙소", "기숙사", "학숙", "주거비", "주거 비용", "주거 안정", "주거안정",
+            "임시 거주", "거주 공간", "주택 임차", "주택임차", "임차보증금", "임대보증금",
+            "전월세", "월세", "전세", "이사비", "주택자금", "주택구입", "공공임대주택", "임대주택"
+    );
+    private static final Set<String> BUSINESS_STARTUP_JOB_HINTS = Set.of(
+            "창업", "창업자", "청년창업", "사업자", "소상공인", "사업장", "점포", "공유오피스",
+            "인큐베이팅", "푸드빌리지", "창업농", "영농정착", "어촌정착", "수산업 경영인"
+    );
+    private static final Set<String> BUSINESS_RENT_SPACE_OR_SETTLEMENT_HINTS = Set.of(
+            "사업장 임대료", "사업장 임차료", "사업장임대료", "사업장임차료", "점포 임차료", "점포임차료",
+            "창업자 임차료", "사업자 임차료", "사업자 월 임차료", "창업 청년 임대료", "창업공간",
+            "창업 공간", "창업공유공간", "창업 공유공간", "공유오피스", "사무공간", "실험실",
+            "외식창업공간", "푸드빌리지", "창업비용", "영농정착", "어촌정착", "정착금"
+    );
     private static final Set<String> FINANCE_LIFE_HINTS = Set.of(
             "생활안정", "생활지원", "생활비", "생계", "자금", "융자", "대출", "보증", "월세보증금"
     );
@@ -104,11 +119,14 @@ public final class CollectCategorySupport {
         }
         String firstLabel = normalizeMiddleDot(rawYouthMajor.split(",")[0].trim());
         String mapped = YOUTH_COMPAT_CATEGORIES.getOrDefault(firstLabel, COMPAT_OTHER);
+        String heuristicText = combinedNormalizedText(firstLabel, title, description, keyword);
+        if ("주거".equals(mapped) && shouldUseJobForStartupBusinessSupport(heuristicText)) {
+            return "일자리";
+        }
         if (!COMPAT_FINANCE_LIFE.equals(mapped) || !YOUTH_BROAD_WELFARE_CULTURE_LABELS.contains(firstLabel)) {
             return mapped;
         }
 
-        String heuristicText = combinedNormalizedText(title, description, keyword);
         if (containsAny(heuristicText, HEALTH_HINTS)) {
             return COMPAT_HEALTH;
         }
@@ -135,6 +153,10 @@ public final class CollectCategorySupport {
         String firstLabel = normalizeMiddleDot(rawInterestThemesCsv.split(",")[0].trim());
         String mapped = BOKJIRO_COMPAT_CATEGORIES.getOrDefault(firstLabel, COMPAT_OTHER);
         String inferred = inferBokjiroCompatCategory(mapped, firstLabel, title, description, provisionType);
+        String heuristicText = combinedNormalizedText(firstLabel, title, description, provisionType);
+        if ("주거".equals(inferred) && shouldUseJobForStartupBusinessSupport(heuristicText)) {
+            return "일자리";
+        }
         return refineAssetFormationCategory(inferred, title, description, provisionType);
     }
 
@@ -146,6 +168,14 @@ public final class CollectCategorySupport {
         String heuristicText = combinedNormalizedText(normalizedField, title, description, supportType);
         String titleSummaryText = combinedNormalizedText(title, description);
 
+        if ((normalizedField.contains("주거") || normalizedField.contains("주택"))
+                && containsAny(titleSummaryText, RESIDENTIAL_HOUSING_KEEP_HINTS)) {
+            return "주거";
+        }
+        if ((normalizedField.contains("주거") || normalizedField.contains("주택"))
+                && shouldUseJobForStartupBusinessSupport(heuristicText)) {
+            return "일자리";
+        }
         if (normalizedField.contains("일자리") || normalizedField.contains("고용") || heuristicText.contains("취업")) {
             return "일자리";
         }
@@ -248,5 +278,16 @@ public final class CollectCategorySupport {
         return containsAny(heuristicText, ASSET_FORMATION_HINTS)
                 && !containsAny(heuristicText, DIRECT_HOUSING_BENEFIT_HINTS)
                 && !containsAny(heuristicText, HOUSING_PURPOSE_ASSET_HINTS);
+    }
+
+    private static boolean shouldUseJobForStartupBusinessSupport(String heuristicText) {
+        return containsAny(heuristicText, BUSINESS_STARTUP_JOB_HINTS)
+                && containsAny(heuristicText, BUSINESS_RENT_SPACE_OR_SETTLEMENT_HINTS)
+                && !looksLikeResidentialHousingBenefit(heuristicText);
+    }
+
+    private static boolean looksLikeResidentialHousingBenefit(String heuristicText) {
+        return containsAny(heuristicText, RESIDENTIAL_HOUSING_KEEP_HINTS)
+                && !containsAny(heuristicText, BUSINESS_RENT_SPACE_OR_SETTLEMENT_HINTS);
     }
 }

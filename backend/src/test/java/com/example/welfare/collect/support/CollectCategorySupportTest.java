@@ -105,4 +105,54 @@ class CollectCategorySupportTest {
                 null
         )).isEqualTo("주거");
     }
+
+    @Test
+    @DisplayName("주거 원천 카테고리라도 창업/사업장 임차와 공유공간 지원은 일자리로 보정한다")
+    void mapsHousingSourceStartupBusinessSupportToJob() {
+        assertThat(CollectCategorySupport.mapBokjiroCompatCategory(
+                "주거,일자리,서민금융",
+                "청년 소상공인 점포 임차료 지원사업",
+                "관내 청년 사업자의 경영 부담을 완화하고 안정적인 창업환경을 제공합니다.",
+                "주거지원"
+        )).isEqualTo("일자리");
+
+        assertThat(CollectCategorySupport.mapYouthCompatCategory(
+                "주거",
+                "청년키움지원센터 운영",
+                "청년창업 공유공간으로 공유오피스 및 책방, 카페 운영 지원",
+                "주거지원"
+        )).isEqualTo("일자리");
+
+        assertThat(CollectCategorySupport.mapGov24CompatCategory(
+                "주거·자립",
+                "귀향청년 정착장려금(부부) 지원",
+                "귀향청년 부부에게 창업비용을 지원합니다.",
+                "현금"
+        )).isEqualTo("일자리");
+    }
+
+    @Test
+    @DisplayName("취업 맥락이 있어도 실제 혜택이 주거/숙소이면 주거로 유지한다")
+    void keepsEmploymentContextHousingBenefitsAsHousing() {
+        assertThat(CollectCategorySupport.mapBokjiroCompatCategory(
+                "주거,서민금융",
+                "청년 주거 패키지",
+                "취창업 등의 사유로 전입하는 무주택 청년들의 정주여건 향상과 주거 안정 도모",
+                "주거지원"
+        )).isEqualTo("주거");
+
+        assertThat(CollectCategorySupport.mapYouthCompatCategory(
+                "주거",
+                "청년단기숙소 지원사업",
+                "면접 응시 청년 숙박 지원 및 취업 확정 전입 청년 임시 거주 지원",
+                "보조금"
+        )).isEqualTo("주거");
+
+        assertThat(CollectCategorySupport.mapGov24CompatCategory(
+                "주거·자립",
+                "청년 단기숙소 지원",
+                "관내 기업 면접 응시 및 취업 확정 전입 청년 대상 단기 임시거처 지원",
+                "시설이용"
+        )).isEqualTo("주거");
+    }
 }
