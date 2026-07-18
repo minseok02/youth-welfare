@@ -155,4 +155,44 @@ class CollectCategorySupportTest {
                 "시설이용"
         )).isEqualTo("주거");
     }
+
+    @Test
+    @DisplayName("취업자 대상이어도 주거비 자체를 지원하면 주거로 보정한다")
+    void mapsEmploymentTargetHousingCostSupportToHousing() {
+        assertThat(CollectCategorySupport.mapGov24CompatCategory(
+                "주거·자립",
+                "청년 취업자 주거비 지원",
+                "중위소득 150% 이하의 청년 취업자에게 주거비 지원",
+                "현금"
+        )).isEqualTo("주거");
+
+        assertThat(CollectCategorySupport.mapGov24CompatCategory(
+                "생활안정",
+                "청년 취업자, 농업인 주거비 지원",
+                "주거비(월세) 월 최대 20만원 지원",
+                "현금"
+        )).isEqualTo("주거");
+    }
+
+    @Test
+    @DisplayName("복지로 주거 테마라도 장학금/학비가 본질이면 교육·직업훈련으로 보정한다")
+    void mapsBokjiroHousingScholarshipSupportToEducationTraining() {
+        assertThat(CollectCategorySupport.mapBokjiroCompatCategory(
+                "주거,교육,서민금융",
+                "저소득주민 자녀장학금",
+                "학업성적이 우수한 고등학교 및 대학생을 선발하여 장학금 지급",
+                "교육지원"
+        )).isEqualTo("교육·직업훈련");
+    }
+
+    @Test
+    @DisplayName("온통청년 복지문화 계열이라도 자립생활관/1인 1실 주거공간 지원은 주거로 보정한다")
+    void mapsYouthBroadWelfareResidentialSpaceSupportToHousing() {
+        assertThat(CollectCategorySupport.mapYouthCompatCategory(
+                "복지문화",
+                "삼성희망디딤돌 인천센터 운영",
+                "자립생활관 조성을 통해 자립준비청년에게 1인 1실 독립된 주거공간 지원",
+                "바우처,보조금"
+        )).isEqualTo("주거");
+    }
 }

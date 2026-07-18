@@ -14,6 +14,7 @@ public final class CollectCategorySupport {
     private static final String COMPAT_CULTURE = "문화·여가";
     private static final String COMPAT_HEALTH = "건강·의료";
     private static final String COMPAT_FAMILY = "가족·돌봄";
+    private static final String COMPAT_EDUCATION_TRAINING = "교육·직업훈련";
     private static final Map<String, String> YOUTH_COMPAT_CATEGORIES = Map.ofEntries(
             Map.entry("일자리", "일자리"),
             Map.entry("주거", "주거"),
@@ -74,6 +75,9 @@ public final class CollectCategorySupport {
             "임시 거주", "거주 공간", "주택 임차", "주택임차", "임차보증금", "임대보증금",
             "전월세", "월세", "전세", "이사비", "주택자금", "주택구입", "공공임대주택", "임대주택"
     );
+    private static final Set<String> DIRECT_RESIDENTIAL_SPACE_HINTS = Set.of(
+            "자립생활관", "독립된 주거공간", "주거공간 지원", "1인 1실", "1인1실", "생활관"
+    );
     private static final Set<String> BUSINESS_STARTUP_JOB_HINTS = Set.of(
             "창업", "창업자", "청년창업", "사업자", "소상공인", "사업장", "점포", "공유오피스",
             "인큐베이팅", "푸드빌리지", "창업농", "영농정착", "어촌정착", "수산업 경영인"
@@ -89,6 +93,9 @@ public final class CollectCategorySupport {
     );
     private static final Set<String> EDUCATION_HINTS = Set.of(
             "교육", "훈련", "직무", "학습", "어학", "자격증", "장학"
+    );
+    private static final Set<String> DIRECT_SCHOLARSHIP_HINTS = Set.of(
+            "장학금", "학자금", "교육비", "학비", "등록금"
     );
     private static final Set<String> BOKJIRO_BROAD_FINANCE_LIFE_LABELS = Set.of(
             "생활지원",
@@ -127,6 +134,10 @@ public final class CollectCategorySupport {
             return mapped;
         }
 
+        String titleSummaryText = combinedNormalizedText(title, description);
+        if (containsAny(titleSummaryText, DIRECT_RESIDENTIAL_SPACE_HINTS)) {
+            return "주거";
+        }
         if (containsAny(heuristicText, HEALTH_HINTS)) {
             return COMPAT_HEALTH;
         }
@@ -154,6 +165,9 @@ public final class CollectCategorySupport {
         String mapped = BOKJIRO_COMPAT_CATEGORIES.getOrDefault(firstLabel, COMPAT_OTHER);
         String inferred = inferBokjiroCompatCategory(mapped, firstLabel, title, description, provisionType);
         String heuristicText = combinedNormalizedText(firstLabel, title, description, provisionType);
+        if ("주거".equals(inferred) && shouldUseEducationForScholarshipSupport(heuristicText)) {
+            return COMPAT_EDUCATION_TRAINING;
+        }
         if ("주거".equals(inferred) && shouldUseJobForStartupBusinessSupport(heuristicText)) {
             return "일자리";
         }
@@ -176,14 +190,14 @@ public final class CollectCategorySupport {
                 && shouldUseJobForStartupBusinessSupport(heuristicText)) {
             return "일자리";
         }
-        if (normalizedField.contains("일자리") || normalizedField.contains("고용") || heuristicText.contains("취업")) {
-            return "일자리";
-        }
         if (containsAny(titleSummaryText, DIRECT_HOUSING_BENEFIT_HINTS)
                 && (normalizedField.contains("금융")
                 || normalizedField.contains("생활")
                 || normalizedField.contains("복지"))) {
             return "주거";
+        }
+        if (normalizedField.contains("일자리") || normalizedField.contains("고용") || heuristicText.contains("취업")) {
+            return "일자리";
         }
         if ((normalizedField.contains("주거") || normalizedField.contains("주택"))
                 && shouldUseFinanceLifeForAssetFormation(heuristicText)) {
@@ -193,7 +207,7 @@ public final class CollectCategorySupport {
             return "주거";
         }
         if (normalizedField.contains("교육") || normalizedField.contains("훈련")) {
-            return "교육·직업훈련";
+            return COMPAT_EDUCATION_TRAINING;
         }
         if (normalizedField.contains("문화") || normalizedField.contains("여가") || containsAny(heuristicText, CULTURE_HINTS)) {
             return COMPAT_CULTURE;
@@ -249,7 +263,7 @@ public final class CollectCategorySupport {
             return COMPAT_FAMILY;
         }
         if (containsAny(heuristicText, EDUCATION_HINTS) && COMPAT_OTHER.equals(mapped)) {
-            return "교육·직업훈련";
+            return COMPAT_EDUCATION_TRAINING;
         }
         if (containsAny(heuristicText, CULTURE_HINTS) && COMPAT_OTHER.equals(mapped)) {
             return COMPAT_CULTURE;
@@ -284,6 +298,12 @@ public final class CollectCategorySupport {
         return containsAny(heuristicText, BUSINESS_STARTUP_JOB_HINTS)
                 && containsAny(heuristicText, BUSINESS_RENT_SPACE_OR_SETTLEMENT_HINTS)
                 && !looksLikeResidentialHousingBenefit(heuristicText);
+    }
+
+    private static boolean shouldUseEducationForScholarshipSupport(String heuristicText) {
+        return containsAny(heuristicText, DIRECT_SCHOLARSHIP_HINTS)
+                && !containsAny(heuristicText, DIRECT_HOUSING_BENEFIT_HINTS)
+                && !containsAny(heuristicText, RESIDENTIAL_HOUSING_KEEP_HINTS);
     }
 
     private static boolean looksLikeResidentialHousingBenefit(String heuristicText) {
