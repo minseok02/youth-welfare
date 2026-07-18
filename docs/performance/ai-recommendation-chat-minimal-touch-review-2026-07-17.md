@@ -680,3 +680,41 @@ Verification:
 - commit: `974d43fc Add chat region matrix audit`
 - secondary deploy: SSM deploy pulled `974d43fc`, rebuilt `bootJar`, recreated `youth-welfare-app`; container `healthy`, actuator `UP`
 - post deploy smoke: `tmp/prod-post-deploy-smoke/20260718T152558Z`, passed; ALB healthy targets `2`, public list/search/ranking `200`, nginx user-path 5xx `0`
+
+## Policy Category Suspect Review 2026-07-18
+
+Why this step:
+
+- the previous suspect audit found `171` heuristic rows, but that count mixed true category drift, legitimate mixed policies, and keyword false positives.
+- changing all rows would be risky because many policies are intentionally mixed, such as housing-cost support for employed youth or housing-purpose savings products.
+
+Added review:
+
+- script: `deploy/smoke/run-local-policy-category-suspect-review.sh`
+- artifact: `tmp/policy-category-suspect-review/20260718T154100Z`
+- behavior: read-only. It classifies suspect rows as likely remap, likely mixed keep, false positive keep, mixed review, or manual review.
+- the classifier was tightened during review:
+  - housing-purpose savings such as `청년주택드림 청약통장` should not be auto-remapped out of `주거`.
+  - `자립정착금` or `자산형성` rows that merely list housing as an allowed expense should not be auto-remapped to `주거`.
+  - job/startup rows with housing-like support text are treated conservatively unless the title itself says the benefit is housing cost or housing space.
+
+Final result:
+
+- sampled rows: `171`
+- high-confidence remap rows: `48`
+- high-confidence unique services: `42`
+- proposed unique targets:
+  - `주거`: `14`
+  - `금융·생활지원`: `14`
+  - `일자리`: `14`
+- other decisions:
+  - `LIKELY_MIXED_KEEP`: `56`
+  - `MANUAL_REVIEW`: `36`
+  - `LIKELY_FALSE_POSITIVE_KEEP`: `16`
+  - `MIXED_REVIEW`: `15`
+
+Interpretation:
+
+- this is still not an automatic migration approval.
+- the next safe implementation step is a small bounded remap batch from the `42` unique high-confidence services, starting with title-obvious cases such as `청년월세 지원`, `울산 청년가구 주거비 지원사업`, `경기도 청년 노동자 통장`, and `전북청년 함께 두배적금`.
+- after any remap, rerun category suspect audit, category suspect review, chat matrix, and the existing chat flow before deploy.
