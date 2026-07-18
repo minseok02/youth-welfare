@@ -611,3 +611,69 @@ Interpretation:
 - quality improved because explicit local-region questions no longer select another local government's policy.
 - answer latency was not the optimization target, but q2 improved from the no-region attempt `5294.4ms` to `3596.7ms` in the final run.
 - the remaining AI cost is still mostly answer generation and, on non-skipped paths, semantic embedding/vector search. This change deliberately avoids shrinking LLM evidence or changing prompt behavior.
+
+## Chat Region Matrix And Category Suspect Review 2026-07-18
+
+Plan review outcome:
+
+- a DB-only `chat_retrieval_snapshots` audit cannot create new cases because snapshots are only persisted after `/api/chat/sessions/{id}/messages`.
+- the current production API has no chat-candidate-only trace endpoint, so a broad API matrix would mix LLM variability and cost into retrieval validation.
+- the practical shape is: DB preflight to choose valid cases, a small API matrix to create real snapshots, then DB candidate audit against those snapshots.
+
+Added audits:
+
+- `deploy/smoke/run-local-chat-explicit-region-matrix-audit.sh`
+  - runs six real chat API scenarios, then audits the resulting `INTERACTIVE` retrieval snapshots.
+  - cases: `인천 중구 주거`, `서울 마포구 주거`, `부산 해운대구 금융`, `경기 성남시 주거`, `광주 북구 주거 후보 없음`, and ambiguous `중구`.
+  - distinguishes `REGION_MATCH`, `CHILD_REGION_MATCH`, `SIDO_WIDE_MATCH`, `NO_REGION_ROW`, and `REGION_MISMATCH`.
+- `deploy/smoke/run-local-policy-category-suspect-audit.sh`
+  - read-only heuristic sampling for category mismatch suspects.
+  - does not auto-change categories.
+
+Finding and fix:
+
+- first matrix artifact `tmp/chat-explicit-region-matrix-audit/20260718T150501Z` failed two scenarios.
+- `busan-haeundae-finance` was a checker issue: `15336 부산 청년 중개보수 및 이사비 지원` has a `부산광역시`-wide region row and should be acceptable for `해운대구`, so the audit now classifies this as `SIDO_WIDE_MATCH`.
+- `ambiguous-junggu-housing` exposed a real quality issue: because bare `중구` is intentionally not an explicit hard filter, profile-region ordering still allowed `2971 청년 월세 지원` from `충청북도 옥천군` into the final candidate set and the LLM referenced it.
+- `PolicyExplorationService` now removes profile-region mismatches too when at least one region-matched or national/no-region alternative remains. If filtering would empty all candidates, it keeps the original set to avoid over-aggressive empty results.
+
+Final region matrix:
+
+- artifact: `tmp/chat-explicit-region-matrix-audit/20260718T151604Z`
+- result: `PASSED`
+- failed scenarios: `0`
+- attention scenarios: `0`
+- notable rows:
+  - `incheon-junggu-housing`: q answer `POLICY_GROUNDED`, refs `11406,13926`, top `11406 인천시 청년월세 지원사업`, `REGION_MATCH`.
+  - `busan-haeundae-finance`: q answer `CLARIFICATION`, refs `11273,15336`, top `11273 부산 청년 일하는 기쁨카드 지원`, all final candidates region acceptable (`REGION_MATCH` or `SIDO_WIDE_MATCH`).
+  - `seongnam-housing-parent`: q answer `POLICY_GROUNDED`, refs `6259,11742,11758`; parent/child district concern passed with no mismatch.
+  - `gwangju-bukgu-housing-empty`: no local `광주 북구 + 주거` candidate existed by preflight, so top `2632 주거안정 월세대출` as `NO_REGION_ROW` is acceptable.
+  - `ambiguous-junggu-housing`: q answer `POLICY_GROUNDED`, ref `11160`; final candidates are `11160 서울시 청년 월세 지원` and `2632 주거안정 월세대출`, with no `REGION_MISMATCH`.
+
+Existing chat flow check:
+
+- artifact: `tmp/performance/chat-flow/20260718T151709Z`
+- result: passed
+- q2 reference: `11406 인천시 청년월세 지원사업`, `3298.8ms`
+- q3 mode/reference: `APPLICATION_COACHING`, `11406`, action links `2`
+- DB message check for session `277`: q2 and q3 assistant messages both referenced `[11406]`.
+
+Category suspect audit:
+
+- artifact: `tmp/policy-category-suspect-audit/20260718T151651Z`
+- decision: `REVIEW_PRIORITY`
+- total suspect rows: `171`
+- largest buckets:
+  - `housing_job_terms`: `47`
+  - `finance_housing_terms`: `37`
+  - `housing_exam_terms`: `32`
+  - `job_housing_terms`: `30`
+  - `housing_finance_terms`: `19`
+  - `culture_finance_terms`: `6`
+- interpretation: this is not proof of bad categories. Many rows are legitimate mixed policies such as housing-linked loans, rent support for employed youth, or youth startup space. But high-view rows such as `11742 경기도 청년 노동자 통장`, `11564 미래두배 청년통장`, and `3006 전북청년 함께 두배적금` inside `주거` should be reviewed before further chat/recommendation tuning.
+
+Verification:
+
+- targeted: `./gradlew test --tests 'com.example.welfare.global.config.SmokeArtifactSanitizationContractTest' --tests 'com.example.welfare.policy.service.PolicyExplorationServiceTest' --tests 'com.example.welfare.chat.service.ChatPolicyServiceTest' --no-daemon`
+- full backend: `./gradlew test --no-daemon`
+- primary rebuild: Docker app `healthy`, actuator `UP`

@@ -98,7 +98,7 @@ public class PolicyExplorationService {
 
         int minimumTargetCount = Math.min(condition.limit(), tuning.minResultCount());
         if (merged.size() >= minimumTargetCount) {
-            List<WelfareService> filteredCandidates = filterExplicitRegionMismatches(
+            List<WelfareService> filteredCandidates = filterRegionMismatches(
                     merged.values().stream().toList(),
                     condition
             );
@@ -138,7 +138,7 @@ public class PolicyExplorationService {
                 fallbackCandidates,
                 Math.max(0, condition.limit() - merged.size())
         );
-        List<WelfareService> filteredCandidates = filterExplicitRegionMismatches(
+        List<WelfareService> filteredCandidates = filterRegionMismatches(
                 merged.values().stream().toList(),
                 condition
         );
@@ -323,7 +323,7 @@ public class PolicyExplorationService {
         LinkedHashMap<Long, WelfareService> merged = new LinkedHashMap<>();
         candidates.forEach(candidate -> merged.putIfAbsent(candidate.getId(), candidate));
         addUniqueCandidates(merged, regionCategoryCandidates, condition.limit());
-        return filterExplicitRegionMismatches(merged.values().stream().toList(), condition);
+        return filterRegionMismatches(merged.values().stream().toList(), condition);
     }
 
     private boolean hasExplicitRegionSpecificCandidate(List<WelfareService> candidates,
@@ -362,9 +362,9 @@ public class PolicyExplorationService {
                 .anyMatch(region -> inferredRegionMatches(condition, region));
     }
 
-    private List<WelfareService> filterExplicitRegionMismatches(List<WelfareService> candidates,
-                                                                ChatPolicyReadCondition condition) {
-        if (candidates.isEmpty() || !condition.explicitRegion() || !hasRegionContext(condition)) {
+    private List<WelfareService> filterRegionMismatches(List<WelfareService> candidates,
+                                                        ChatPolicyReadCondition condition) {
+        if (candidates.isEmpty() || !hasRegionContext(condition)) {
             return candidates;
         }
 
@@ -388,7 +388,7 @@ public class PolicyExplorationService {
                 )
         );
 
-        return candidates.stream()
+        List<WelfareService> filtered = candidates.stream()
                 .filter(service -> !isExplicitRegionMismatch(
                         service,
                         condition,
@@ -396,6 +396,10 @@ public class PolicyExplorationService {
                         regionMatchedServices
                 ))
                 .toList();
+        if (condition.explicitRegion()) {
+            return filtered;
+        }
+        return filtered.isEmpty() ? candidates : filtered;
     }
 
     private boolean isExplicitRegionMismatch(WelfareService service,

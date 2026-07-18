@@ -186,7 +186,7 @@ class PolicyExplorationServiceTest {
         );
 
         assertThat(trace.finalCandidates()).extracting(WelfareService::getId)
-                .containsExactly(11160L, 2666L, 858L);
+                .containsExactly(11160L, 2666L);
     }
 
     @Test
@@ -223,7 +223,7 @@ class PolicyExplorationServiceTest {
         );
 
         assertThat(trace.finalCandidates()).extracting(WelfareService::getId)
-                .containsExactly(2666L, 858L, 14912L);
+                .containsExactly(2666L, 14912L);
     }
 
     @Test
@@ -378,6 +378,88 @@ class PolicyExplorationServiceTest {
 
         assertThat(trace.finalCandidates()).extracting(WelfareService::getId)
                 .containsExactly(11436L, 2632L);
+    }
+
+    @Test
+    @DisplayName("사용자 지역 질문도 지역/전국 후보가 있으면 타지역 로컬 후보를 제거한다")
+    void traceChatCandidatesFiltersProfileRegionMismatchesWhenAlternativesExist() {
+        WelfareService seoulMonthly = service(11160L, "서울시 청년 월세 지원", "주거");
+        WelfareService nationalMonthly = WelfareService.builder()
+                .id(2632L)
+                .sourceType(WelfareService.SourceType.BOKJIRO_CENTRAL)
+                .sourceId("central-2632")
+                .title("주거안정 월세대출")
+                .unifiedCategory("주거")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .searchYouthRelevant(true)
+                .build();
+        WelfareService okcheonMonthly = service(2971L, "청년 월세 지원", "주거");
+
+        when(welfareServiceSearchRepository.searchChatCandidates("서울 주거 월세 전세", 12))
+                .thenReturn(List.of(seoulMonthly, nationalMonthly, okcheonMonthly));
+        when(welfareServiceSearchRepository.searchChatCandidates("중구 청년 주거 지원 월세 전세", 12))
+                .thenReturn(List.of(seoulMonthly, nationalMonthly, okcheonMonthly));
+        when(welfareServiceRepository.findServiceIdsWithRegions(List.of(11160L, 2632L, 2971L)))
+                .thenReturn(List.of(11160L, 2971L));
+        when(welfareServiceRepository.findRegionMatchedServiceIds(
+                List.of(11160L, 2632L, 2971L),
+                "11440",
+                "서울특별시",
+                "마포구"
+        )).thenReturn(List.of(11160L));
+
+        PolicyExplorationService.ChatExplorationTrace trace = policyExplorationService.traceChatCandidates(
+                new ChatPolicyReadCondition(
+                        "중구 청년 주거 지원",
+                        3,
+                        null,
+                        "주거",
+                        List.of("주거", "월세", "전세", "임대"),
+                        "11440",
+                        "서울특별시",
+                        "마포구",
+                        false
+                )
+        );
+
+        assertThat(trace.finalCandidates()).extracting(WelfareService::getId)
+                .containsExactly(11160L, 2632L);
+    }
+
+    @Test
+    @DisplayName("사용자 지역 후보가 전부 타지역이면 기존 후보를 유지해 과도한 empty 결과를 피한다")
+    void traceChatCandidatesKeepsProfileMismatchesWhenFilteringWouldEmptyCandidates() {
+        WelfareService okcheonMonthly = service(2971L, "청년 월세 지원", "주거");
+
+        when(welfareServiceSearchRepository.searchChatCandidates("서울 주거 월세 전세", 12))
+                .thenReturn(List.of(okcheonMonthly));
+        when(welfareServiceSearchRepository.searchChatCandidates("중구 청년 주거 지원 월세 전세", 12))
+                .thenReturn(List.of(okcheonMonthly));
+        when(welfareServiceRepository.findServiceIdsWithRegions(List.of(2971L)))
+                .thenReturn(List.of(2971L));
+        when(welfareServiceRepository.findRegionMatchedServiceIds(
+                List.of(2971L),
+                "11440",
+                "서울특별시",
+                "마포구"
+        )).thenReturn(List.of());
+
+        PolicyExplorationService.ChatExplorationTrace trace = policyExplorationService.traceChatCandidates(
+                new ChatPolicyReadCondition(
+                        "중구 청년 주거 지원",
+                        3,
+                        null,
+                        "주거",
+                        List.of("주거", "월세", "전세", "임대"),
+                        "11440",
+                        "서울특별시",
+                        "마포구",
+                        false
+                )
+        );
+
+        assertThat(trace.finalCandidates()).extracting(WelfareService::getId)
+                .containsExactly(2971L);
     }
 
     @Test
