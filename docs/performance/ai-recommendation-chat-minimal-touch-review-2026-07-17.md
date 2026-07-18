@@ -718,3 +718,28 @@ Interpretation:
 - this is still not an automatic migration approval.
 - the next safe implementation step is a small bounded remap batch from the `42` unique high-confidence services, starting with title-obvious cases such as `청년월세 지원`, `울산 청년가구 주거비 지원사업`, `경기도 청년 노동자 통장`, and `전북청년 함께 두배적금`.
 - after any remap, rerun category suspect audit, category suspect review, chat matrix, and the existing chat flow before deploy.
+
+## Policy Category First Remap Batch 2026-07-18
+
+Plan review:
+
+- direct DB-only updates were rejected because `welfare_services.unified_category` is rewritten by collection mapping on future refreshes.
+- adding a new admin category override surface was also rejected for this pass because it would open a larger product/admin workflow.
+- the bounded choice is: update `CollectCategorySupport` so future collect/backfill preserves the same category, and add a data migration for the already-collected rows.
+- `주거 -> 일자리` remains deferred because startup rent, business space, and work-linked housing policies are mixed and can regress housing/space questions if moved too early.
+
+Implemented scope:
+
+- code: `CollectCategorySupport`
+  - Gov24 `생활안정/복지/금융` rows whose title/summary directly says 월세, 전세, 임차보증금, 주거비, 중개보수, 기숙사, or 학숙 now map to `주거`.
+  - Gov24 `주거·자립` rows whose title/summary is primarily 통장/적금/저축/자산형성/자립정착금 now map to `금융·생활지원`, unless they are housing-purpose products such as `청년주택드림 청약통장`.
+  - Bokjiro rows whose first theme is `주거` but whose body is pure asset-formation support now map to `금융·생활지원`, while direct 임차보증금/월세 support stays `주거`.
+- migration: `V2026_07_18_01__remap_policy_category_first_batch.sql`
+  - `금융·생활지원 -> 주거`: `14` current rows.
+  - `주거 -> 금융·생활지원`: `14` current rows.
+  - rollback syntax check updated `28` rows inside a transaction and rolled back cleanly.
+
+Pre-apply verification:
+
+- targeted tests: `CollectCategorySupportTest`, `WelfareServiceMapperTest`, `SmokeArtifactSanitizationContractTest`
+- result: passed

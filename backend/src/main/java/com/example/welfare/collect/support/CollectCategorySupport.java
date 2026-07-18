@@ -58,6 +58,17 @@ public final class CollectCategorySupport {
     private static final Set<String> HOUSING_HINTS = Set.of(
             "주거", "주택", "월세", "전세", "보증금", "임대료", "임차료", "주거급여"
     );
+    private static final Set<String> DIRECT_HOUSING_BENEFIT_HINTS = Set.of(
+            "청년월세", "월세", "전월세", "전세", "임차보증금", "임대보증금", "임대료", "임차료",
+            "주거비", "주거자금", "주거안정", "주택구입", "공공임대주택", "임대주택", "중개보수",
+            "기숙사", "학숙"
+    );
+    private static final Set<String> ASSET_FORMATION_HINTS = Set.of(
+            "통장", "적금", "저축", "자산형성", "자립형성", "자립정착금", "매칭 적립", "매칭금"
+    );
+    private static final Set<String> HOUSING_PURPOSE_ASSET_HINTS = Set.of(
+            "주택드림", "청약통장", "주택청약"
+    );
     private static final Set<String> FINANCE_LIFE_HINTS = Set.of(
             "생활안정", "생활지원", "생활비", "생계", "자금", "융자", "대출", "보증", "월세보증금"
     );
@@ -123,7 +134,8 @@ public final class CollectCategorySupport {
         }
         String firstLabel = normalizeMiddleDot(rawInterestThemesCsv.split(",")[0].trim());
         String mapped = BOKJIRO_COMPAT_CATEGORIES.getOrDefault(firstLabel, COMPAT_OTHER);
-        return inferBokjiroCompatCategory(mapped, firstLabel, title, description, provisionType);
+        String inferred = inferBokjiroCompatCategory(mapped, firstLabel, title, description, provisionType);
+        return refineAssetFormationCategory(inferred, title, description, provisionType);
     }
 
     public static String mapGov24CompatCategory(String rawServiceField,
@@ -132,9 +144,20 @@ public final class CollectCategorySupport {
                                                 String supportType) {
         String normalizedField = normalizeMiddleDot(rawServiceField == null ? "" : rawServiceField).trim();
         String heuristicText = combinedNormalizedText(normalizedField, title, description, supportType);
+        String titleSummaryText = combinedNormalizedText(title, description);
 
         if (normalizedField.contains("일자리") || normalizedField.contains("고용") || heuristicText.contains("취업")) {
             return "일자리";
+        }
+        if (containsAny(titleSummaryText, DIRECT_HOUSING_BENEFIT_HINTS)
+                && (normalizedField.contains("금융")
+                || normalizedField.contains("생활")
+                || normalizedField.contains("복지"))) {
+            return "주거";
+        }
+        if ((normalizedField.contains("주거") || normalizedField.contains("주택"))
+                && shouldUseFinanceLifeForAssetFormation(heuristicText)) {
+            return COMPAT_FINANCE_LIFE;
         }
         if (normalizedField.contains("주거") || normalizedField.contains("주택")) {
             return "주거";
@@ -205,5 +228,25 @@ public final class CollectCategorySupport {
             return COMPAT_FINANCE_LIFE;
         }
         return mapped;
+    }
+
+    private static String refineAssetFormationCategory(String mapped,
+                                                       String title,
+                                                       String description,
+                                                       String provisionType) {
+        if (!"주거".equals(mapped)) {
+            return mapped;
+        }
+        String heuristicText = combinedNormalizedText(title, description, provisionType);
+        if (shouldUseFinanceLifeForAssetFormation(heuristicText)) {
+            return COMPAT_FINANCE_LIFE;
+        }
+        return mapped;
+    }
+
+    private static boolean shouldUseFinanceLifeForAssetFormation(String heuristicText) {
+        return containsAny(heuristicText, ASSET_FORMATION_HINTS)
+                && !containsAny(heuristicText, DIRECT_HOUSING_BENEFIT_HINTS)
+                && !containsAny(heuristicText, HOUSING_PURPOSE_ASSET_HINTS);
     }
 }
