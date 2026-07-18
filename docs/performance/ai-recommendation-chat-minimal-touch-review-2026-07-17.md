@@ -677,3 +677,6 @@ Verification:
 - targeted: `./gradlew test --tests 'com.example.welfare.global.config.SmokeArtifactSanitizationContractTest' --tests 'com.example.welfare.policy.service.PolicyExplorationServiceTest' --tests 'com.example.welfare.chat.service.ChatPolicyServiceTest' --no-daemon`
 - full backend: `./gradlew test --no-daemon`
 - primary rebuild: Docker app `healthy`, actuator `UP`
+- commit: `974d43fc Add chat region matrix audit`
+- secondary deploy: SSM deploy pulled `974d43fc`, rebuilt `bootJar`, recreated `youth-welfare-app`; container `healthy`, actuator `UP`
+- post deploy smoke: `tmp/prod-post-deploy-smoke/20260718T152558Z`, passed; ALB healthy targets `2`, public list/search/ranking `200`, nginx user-path 5xx `0`
