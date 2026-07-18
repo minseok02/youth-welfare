@@ -8,6 +8,7 @@
 |------|----------------------|----------------|
 | 정책 데이터 수집 | 온통청년, 복지로 중앙, 복지로 지자체, Gov24 API에서 정책 목록과 상세 정보를 수집한다. | `backend/src/main/java/com/example/welfare/collect/gateway/*Client.java`, `docs/core/api-mapping.md` |
 | 정책 정규화 | 출처별로 다른 정책명, 기관, 지역, 분야, 지원대상, 신청기간, 상세 정보를 내부 정책 모델로 통합한다. | `docs/core/api-mapping.md`, `backend/src/main/java/com/example/welfare/collect/mapper/WelfareServiceMapper.java` |
+| 정책 분류 보정 | 원천 분류와 실제 지원 내용이 어긋나는 경우 명확한 오분류만 보수적으로 보정하고, 복합 정책은 수동 검토 대상으로 남긴다. | `backend/src/main/java/com/example/welfare/collect/support/CollectCategorySupport.java`, `backend/src/main/resources/db/migration/V2026_07_18_01__remap_policy_category_first_batch.sql`, `backend/src/main/resources/db/migration/V2026_07_18_02__remap_policy_category_second_batch.sql`, `backend/src/main/resources/db/migration/V2026_07_18_03__remap_policy_category_manual_review_batch.sql`, `docs/phase-plan.md` |
 | 정책 검색 | 키워드, 지역, 분야, 신청 상태, 출처, 정렬 조건을 기반으로 정책 목록과 상세 정보를 조회한다. | `backend/src/main/java/com/example/welfare/policy/controller/PolicyController.java`, `frontend/src/pages/PoliciesPage.jsx`, `frontend/src/pages/PolicyDetailPage.jsx` |
 | 사용자 인증 | 이메일 기반 회원가입, 로그인, refresh token, 로그아웃, 비밀번호 재설정을 제공한다. | `backend/src/main/java/com/example/welfare/user/controller/AuthController.java`, `docs/core/api-mapping.md` |
 | 프로필/개인화 기준 | 연령, 지역, 소득, 취업상태, 가구형태, 관심분야, 우선순위를 추천 입력값으로 관리한다. | `backend/src/main/java/com/example/welfare/user/controller/UserController.java`, `frontend/src/pages/MyPage.jsx` |
@@ -78,3 +79,5 @@
 | 브라우저 흐름 테스트 | Playwright 기반 주요 사용자 흐름 검증 | `cd frontend && npm run test:e2e` |
 | 운영 smoke | 배포 환경 API, health, 인증, 추천, 북마크, 로그아웃 검증 | `deploy/smoke/run-prod-cutover-verification.sh` |
 | 운영 관측 | 수집, 정책 품질, 알림, 추천, 챗봇 상태 확인 | `deploy/smoke/run-local-ops-observation-suite.sh` |
+| 정책 분류 품질 검증 | 분류 의심 후보를 재검토하고 high-confidence 자동 보정 후보가 0건인지 확인 | `deploy/smoke/run-local-policy-category-suspect-review.sh`, `tmp/policy-category-suspect-review/20260718T175347Z`, `docs/phase-plan.md` |
+| 최종 운영 closeout | ALB target 2대 healthy, log alert ok, DB lock/장기 query 0, no-cost ops check 통과 | `deploy/ops/run-no-cost-ops-check.sh`, `tmp/prod-post-deploy-smoke/20260718T175920Z`, `docs/phase-plan.md` |
