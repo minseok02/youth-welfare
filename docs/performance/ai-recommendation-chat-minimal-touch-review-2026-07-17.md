@@ -344,3 +344,57 @@ Interpretation:
 - vector search itself was not the main bottleneck in this run; query embedding was the expensive retrieval substep.
 - lazy semantic search remains a valid next candidate only when it can be proven not to change final candidates.
 - exact query embedding cache may help repeated or near-repeated semantic queries, but should be feature-flagged and evaluated after lazy-skip eligibility is measured.
+
+## Lazy Semantic Search Deployment 2026-07-18
+
+Change:
+
+- commit: `9cc2327d`
+- semantic search is skipped only when FTS/region keyword merge already fills `condition.limit()`
+- skipped traces keep `fallbackStrategy=MERGED_RESULTS`
+- skip is logged as `ChatSemanticSearchTiming outcome=skipped reason=fts_full`
+
+Verification before deploy:
+
+- `PolicyExplorationServiceTest`, `ChatPolicyServiceTest`, `ChatConversationServiceTest`: `BUILD SUCCESSFUL`
+- full backend `./gradlew test`: `BUILD SUCCESSFUL`
+
+Deployment verification:
+
+- primary actuator: `UP`
+- secondary `i-0e8a4cc599c1148c8`: commit `9cc2327d`, container healthy, actuator `UP`
+- ALB target health: primary `healthy`, secondary `healthy`
+- public ranking/list smoke: `200`
+
+Post-deploy chat measurement:
+
+| run | artifact | q1 | q2 | q3 | send avg | answer modes |
+| --- | --- | ---: | ---: | ---: | ---: | --- |
+| before | `tmp/performance/chat-flow/20260718T054957Z` | `6499.1ms` | `3017.2ms` | `2442.9ms` | `3986.4ms` | `POLICY_GROUNDED=2`, `CLARIFICATION=1` |
+| after 1 | `tmp/performance/chat-flow/20260718T060443Z` | `4093.9ms` | `3452.7ms` | `3458.2ms` | `3668.3ms` | `POLICY_GROUNDED=3` |
+| after 2 | `tmp/performance/chat-flow/20260718T060538Z` | `2317.3ms` | `2527.9ms` | `2194.3ms` | `2346.5ms` | `POLICY_GROUNDED=2`, `CLARIFICATION=1` |
+
+Stage comparison for the eligible first question:
+
+| metric | before | after 2 | change |
+| --- | ---: | ---: | ---: |
+| client send duration | `6499.1ms` | `2317.3ms` | `-64.3%` |
+| conversation total log duration | `6416ms` | `2291ms` | `-64.3%` |
+| candidate retrieval | `4093ms` | `93ms` | `-97.7%` |
+| semantic embedding | `3054ms` | skipped | avoided |
+| chat OpenAI answer | `2102ms` | `2087ms` | effectively unchanged |
+
+Quality/readout comparison:
+
+- q1 reference ID stayed `[5875]`
+- q2 reference ID stayed `[15399]`
+- q3 reference ID stayed `[15351]`
+- after-run 2 restored the same answer-mode pattern as the pre-change run
+- after-run 1 differed only in q3 `needsClarification`, while the reference ID stayed the same; this is consistent with OpenAI answer variability rather than candidate retrieval drift
+
+Decision:
+
+- keep lazy semantic skip enabled.
+- the guard did what it was supposed to do: FTS-full requests no longer pay query embedding/vector search cost.
+- the remaining dominant cost for skipped requests is now OpenAI answer generation.
+- for non-skipped requests, semantic embedding still costs hundreds of milliseconds and remains a candidate for exact query embedding cache only after duplicate/near-duplicate query frequency is measured.
