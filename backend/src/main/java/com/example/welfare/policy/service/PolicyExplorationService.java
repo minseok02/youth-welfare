@@ -8,6 +8,7 @@ import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.policy.repository.WelfareServiceSearchRepository;
 import com.example.welfare.recommend.repository.RecommendationCandidateReadCondition;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PolicyExplorationService {
@@ -72,18 +74,25 @@ public class PolicyExplorationService {
             keywordCandidates.forEach(service -> merged.putIfAbsent(service.getId(), service));
         }
 
-        List<WelfareService> semanticCandidates = chatSemanticSearchService.findCandidates(
-                condition.keyword(),
-                condition.preferredCategory(),
-                condition.preferredTerms(),
-                searchLimit
-        );
-        int semanticAddLimit = merged.isEmpty()
-                ? Math.min(condition.limit(), tuning.semanticOnlyLimit())
-                : Math.min(
-                Math.max(0, condition.limit() - merged.size()),
-                tuning.semanticBlendLimit()
-        );
+        int semanticAddLimit = resolveSemanticAddLimit(merged.size(), condition.limit(), tuning);
+        List<WelfareService> semanticCandidates;
+        if (semanticAddLimit <= 0) {
+            semanticCandidates = List.of();
+            log.info("[ChatSemanticSearchTiming] outcome=skipped reason=fts_full preferredCategory={} preferredTerms={} requestedLimit={} searchLimit={} ftsCandidates={} mergedCandidates={}",
+                    condition.preferredCategory(),
+                    condition.preferredTerms() != null ? condition.preferredTerms().size() : 0,
+                    condition.limit(),
+                    searchLimit,
+                    ftsCandidates.size(),
+                    merged.size());
+        } else {
+            semanticCandidates = chatSemanticSearchService.findCandidates(
+                    condition.keyword(),
+                    condition.preferredCategory(),
+                    condition.preferredTerms(),
+                    searchLimit
+            );
+        }
         addUniqueCandidates(merged, semanticCandidates, semanticAddLimit);
 
         int minimumTargetCount = Math.min(condition.limit(), tuning.minResultCount());
@@ -386,6 +395,18 @@ public class PolicyExplorationService {
                 return;
             }
         }
+    }
+
+    private int resolveSemanticAddLimit(int mergedCandidateCount,
+                                        int requestedLimit,
+                                        ChatRetrievalProperties tuning) {
+        if (mergedCandidateCount <= 0) {
+            return Math.min(requestedLimit, tuning.semanticOnlyLimit());
+        }
+        return Math.min(
+                Math.max(0, requestedLimit - mergedCandidateCount),
+                tuning.semanticBlendLimit()
+        );
     }
 
     public record ChatExplorationTrace(

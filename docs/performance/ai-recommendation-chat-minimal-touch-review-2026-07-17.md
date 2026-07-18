@@ -215,6 +215,21 @@ Verification:
 - run chat flow baseline and compare answer mode/reference count
 - run existing chat continuity/coaching smoke if corpus is available
 
+Implementation plan on `2026-07-18`:
+
+- skip semantic search only when FTS/region keyword merge already has at least `condition.limit()` candidates
+- keep `fallbackStrategy=MERGED_RESULTS` so evaluation reports do not treat this as fallback usage
+- record the skip through `ChatSemanticSearchTiming outcome=skipped reason=fts_full`
+- return `semanticCandidates=[]` for skipped traces, which means `semantic_service_ids_json` is empty by design for that snapshot
+- do not change search keyword construction, region ordering, preferred category filtering, final candidate ordering, candidate limit, prompt, or answer model
+
+Expected effect before deployment:
+
+- no quality change when the guard is true, because the old `semanticAddLimit` was already `0`
+- one embedding call and one vector search are avoided for eligible questions
+- based on the `2026-07-18` stage timing run, a cold eligible question could save up to the observed semantic time (`~3.3s`), while warmer eligible questions may save hundreds of milliseconds
+- questions where FTS is short still use semantic search unchanged
+
 ### 3. Exact Query Embedding Cache
 
 Possible second behavior change.

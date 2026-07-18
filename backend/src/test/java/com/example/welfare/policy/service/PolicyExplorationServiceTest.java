@@ -19,7 +19,9 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -84,6 +86,26 @@ class PolicyExplorationServiceTest {
     }
 
     @Test
+    @DisplayName("chat candidate 탐색은 FTS가 요청 limit을 이미 채우면 semantic 검색을 건너뛴다")
+    void traceChatCandidatesSkipsSemanticSearchWhenFtsAlreadyFillsLimit() {
+        WelfareService keywordOne = service(1L, "청년 월세 지원", "주거");
+        WelfareService keywordTwo = service(2L, "청년 주거비 지원", "주거");
+        WelfareService keywordThree = service(3L, "청년 전세 지원", "주거");
+
+        when(welfareServiceSearchRepository.searchChatCandidates("주거 월세", 3))
+                .thenReturn(List.of(keywordOne, keywordTwo, keywordThree));
+
+        PolicyExplorationService.ChatExplorationTrace trace = policyExplorationService.traceChatCandidates(
+                new ChatPolicyReadCondition("주거", 3, "housing-cash", "주거", List.of("월세"))
+        );
+
+        verify(chatSemanticSearchService, never()).findCandidates(any(), any(), any(), anyInt());
+        assertThat(trace.fallbackStrategy()).isEqualTo("MERGED_RESULTS");
+        assertThat(trace.semanticCandidates()).isEmpty();
+        assertThat(trace.finalCandidates()).extracting(WelfareService::getId).containsExactly(1L, 2L, 3L);
+    }
+
+    @Test
     @DisplayName("chat candidate 탐색은 결과가 부족하면 category fallback 으로 채운다")
     void findChatCandidatesFillsFromCategoryFallbackWhenMergedTooSmall() {
         WelfareService keywordMatch = service(1L, "청년 월세 지원", "주거");
@@ -141,8 +163,6 @@ class PolicyExplorationServiceTest {
                 .thenReturn(List.of(seoul));
         when(welfareServiceSearchRepository.searchChatCandidates("월세 쪽으로 보여줘 주거비 지원금", 12))
                 .thenReturn(List.of(iksanLocal, national, seoul));
-        when(chatSemanticSearchService.findCandidates("월세 쪽으로 보여줘", "주거", List.of("월세", "주거비", "지원금"), 12))
-                .thenReturn(List.of());
         when(welfareServiceRepository.findServiceIdsWithRegions(List.of(11160L, 858L, 2666L)))
                 .thenReturn(List.of(858L, 11160L));
         when(welfareServiceRepository.findRegionMatchedServiceIds(
@@ -180,8 +200,6 @@ class PolicyExplorationServiceTest {
                 .thenReturn(List.of(seoulJeonse, nationalMonthly, iksanMonthly));
         when(welfareServiceSearchRepository.searchChatCandidates("월세 쪽으로 보여줘 주거비 지원금", 12))
                 .thenReturn(List.of(seoulJeonse, nationalMonthly, iksanMonthly));
-        when(chatSemanticSearchService.findCandidates("월세 쪽으로 보여줘", "주거", List.of("월세", "주거비", "지원금"), 12))
-                .thenReturn(List.of());
         when(welfareServiceRepository.findServiceIdsWithRegions(List.of(14912L, 2666L, 858L)))
                 .thenReturn(List.of(14912L, 858L));
         when(welfareServiceRepository.findRegionMatchedServiceIds(
