@@ -129,12 +129,12 @@ artifact_dir = sys.argv[6]
 housing_re = re.compile(
     r"(청년월세|월세|전월세|전세|임차보증금|임대보증금|주거비|주거안정|주거자금|"
     r"임대주택|공공임대|매입임대|행복주택|이사비|중개보수|주택임차|주택구입|"
-    r"주거환경|기숙사|숙소|보금자리|셰어하우스|입주자|주거공간|연계주택)"
+    r"주거환경|주거 안정|정주여건|기숙사|숙소|보금자리|셰어하우스|입주자|주거공간|연계주택)"
 )
 title_housing_re = re.compile(
     r"(청년월세|월세|전월세|전세|임차보증금|임대보증금|주거비|주거안정|주거자금|"
     r"임대주택|공공임대|매입임대|행복주택|이사비|중개보수|주택임차|주택구입|"
-    r"기숙사|숙소|보금자리|학숙|연계주택|주거지원|주거비 지원)"
+    r"주거 패키지|기숙사|숙소|보금자리|학숙|연계주택|주거지원|주거비 지원)"
 )
 weak_housing_re = re.compile(r"(주거급여|주거·자립|주거 마련|주거비용)")
 housing_purpose_asset_re = re.compile(r"(주택드림|청약통장|주택청약|주거.*통장)")
@@ -174,6 +174,8 @@ def classify(row):
     title_housing = has(title_housing_re, title)
     housing_purpose_asset = has(housing_purpose_asset_re, title, description, support, keyword, tags)
     business_context = has(re.compile(r"(창업|사업자|소상공인|사업장|기업|농업인|공장|점포)"), title, description, support)
+    travel_or_crisis_context = has(re.compile(r"(행려자|부랑인|숙식|친지방문|타지방.*여행)"), title, description, support)
+    community_context = has(re.compile(r"(커뮤니티|동아리|네트워크|거버넌스|활동비|사회문제|문화예술)"), title, description, support)
 
     if category == "금융·생활지원" and asset and not title_housing:
         return (
@@ -223,6 +225,20 @@ def classify(row):
             "LIKELY_REMAP_TO_FINANCE",
             "금융·생활지원",
             "asset-building terms dominate and no direct housing benefit term is present",
+        )
+    if category == "주거" and job and travel_or_crisis_context:
+        return (
+            "MEDIUM",
+            "MANUAL_REVIEW",
+            category,
+            "job term appears in travel/crisis context, not as a primary employment benefit",
+        )
+    if category == "주거" and job and community_context:
+        return (
+            "MEDIUM",
+            "MANUAL_REVIEW",
+            category,
+            "community/activity support mentions employment as one field; category needs manual taxonomy review",
         )
     if category == "주거" and job and not strong_housing:
         return (
