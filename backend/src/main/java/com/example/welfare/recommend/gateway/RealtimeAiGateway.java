@@ -26,6 +26,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -68,22 +69,30 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
 
     @Override
     public List<ScoredCandidate> score(String clusterId, List<ScoredCandidate> candidates, RecommendationUserSnapshot user) {
+        long totalStart = System.nanoTime();
         // rule_weighted_score 내림차순으로 상위 N개만 AI 호출
         List<ScoredCandidate> topCandidates = selectTopCandidatesForAi(candidates);
+        String prompt = null;
+        long openAiDurationMs = -1L;
+        boolean exceptionOccurred = false;
 
         try {
-            String prompt = buildUserPrompt(topCandidates, user);
+            prompt = buildUserPrompt(topCandidates, user);
             Long replaySeed = replaySeedOrNull();
             logReplayTrace(clusterId, topCandidates, user, prompt, replaySeed);
             if (shouldBypassOpenAi(apiKey, forceRuleOnly)) {
                 log.info("[RealtimeAiGateway] OpenAI 호출을 건너뛰고 rule-only fallback을 사용합니다. keyMode={}",
                         forceRuleOnly ? "force-rule-only" : (apiKey == null || apiKey.isBlank() ? "blank" : "rule-only-sentinel"));
                 logReplayTraceResponse(clusterId, prompt, AiCallResult.empty());
-                return candidates.stream()
+                List<ScoredCandidate> result = candidates.stream()
                         .map(candidate -> candidate.withAiStatus(AiScoreStatus.RULE_ONLY))
                         .toList();
+                logRecommendationAiTiming(clusterId, candidates, topCandidates, prompt, openAiDurationMs, elapsedMs(totalStart), "bypassed", 0);
+                return result;
             }
+            long openAiStart = System.nanoTime();
             AiCallResult callResult = callOpenAi(prompt, replaySeed);
+            openAiDurationMs = elapsedMs(openAiStart);
             logReplayTraceResponse(clusterId, prompt, callResult);
             AiResponse response = callResult.aiResponse();
             logAiReasonCoverage(clusterId, response);
@@ -95,37 +104,42 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
                 Set<Long> requestedIds = topCandidates.stream()
                         .map(candidate -> candidate.getService().getId())
                         .collect(Collectors.toCollection(HashSet::new));
-                return candidates.stream()
+                List<ScoredCandidate> result = candidates.stream()
                         .map(candidate -> {
                             Long serviceId = candidate.getService().getId();
                             if (!requestedIds.contains(serviceId)) {
                                 return candidate.withAiStatus(AiScoreStatus.NOT_REQUESTED);
                             }
-                            AiResponse.Result result = resultMap.get(candidate.getService().getId());
-                            if (result == null) {
+                            AiResponse.Result aiResult = resultMap.get(candidate.getService().getId());
+                            if (aiResult == null) {
                                 return candidate.withAiStatus(AiScoreStatus.PARTIAL_MISSING);
                             }
                             return candidate.withAiResult(
-                                    (double) result.getScore(),
-                                    RecommendationAiReasonSanitizer.sanitize(result.getReason()),
+                                    (double) aiResult.getScore(),
+                                    RecommendationAiReasonSanitizer.sanitize(aiResult.getReason()),
                                     AiScoreStatus.SCORED
                             );
                         })
                         .toList();
+                logRecommendationAiTiming(clusterId, candidates, topCandidates, prompt, openAiDurationMs, elapsedMs(totalStart), "success", resultMap.size());
+                return result;
             }
         } catch (Exception e) {
             log.warn("[RealtimeAiGateway] AI 호출 실패, fallback to rule-only errorType={}",
                     e.getClass().getSimpleName());
+            exceptionOccurred = true;
         }
 
         Set<Long> requestedIds = topCandidates.stream()
                 .map(candidate -> candidate.getService().getId())
                 .collect(Collectors.toCollection(HashSet::new));
-        return candidates.stream()
+        List<ScoredCandidate> fallback = candidates.stream()
                 .map(candidate -> requestedIds.contains(candidate.getService().getId())
                         ? candidate.withAiStatus(AiScoreStatus.CALL_FAILED)
                         : candidate.withAiStatus(AiScoreStatus.NOT_REQUESTED))
                 .toList();
+        logRecommendationAiTiming(clusterId, candidates, topCandidates, prompt, openAiDurationMs, elapsedMs(totalStart), exceptionOccurred ? "exception" : "empty", 0);
+        return fallback;
     }
 
     static boolean shouldBypassOpenAi(String apiKey, boolean forceRuleOnly) {
@@ -195,6 +209,25 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
                 nonBlankReasonCount,
                 blankReasonServiceIds(response.getResults())
         );
+    }
+
+    void logRecommendationAiTiming(String clusterId,
+                                   List<ScoredCandidate> candidates,
+                                   List<ScoredCandidate> topCandidates,
+                                   String prompt,
+                                   long openAiDurationMs,
+                                   long totalDurationMs,
+                                   String outcome,
+                                   int resultCount) {
+        log.info("[RecommendationAiTiming] clusterId={} outcome={} totalCandidates={} requestedCandidates={} resultCount={} promptSha256={} openAiDurationMs={} totalDurationMs={}",
+                clusterId,
+                outcome,
+                candidates != null ? candidates.size() : 0,
+                topCandidates != null ? topCandidates.size() : 0,
+                resultCount,
+                prompt != null ? sha256Hex(prompt) : "none",
+                openAiDurationMs,
+                totalDurationMs);
     }
 
     static String candidateIds(List<ScoredCandidate> topCandidates) {
@@ -391,6 +424,10 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
         }
         normalized.sort(Comparator.naturalOrder());
         return String.join(", ", normalized);
+    }
+
+    private long elapsedMs(long startNanos) {
+        return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
     }
 
     private AiCallResult callOpenAi(String userPrompt, Long replaySeed) {

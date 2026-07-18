@@ -23,6 +23,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -35,8 +36,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ChatConversationService {
@@ -73,6 +76,7 @@ public class ChatConversationService {
     }
 
     public ChatAnswerResponse sendMessage(Long userId, Long sessionId, SendChatMessageRequest request) {
+        long totalStart = System.nanoTime();
         ActiveUserReadService.ActiveUserContext activeUserContext = activeUserReadService.getActiveUserContext(userId);
         User user = activeUserContext.user();
         chatRateLimitService.checkMessageSendLimit(userId);
@@ -83,7 +87,9 @@ public class ChatConversationService {
         String sessionTitle = StringUtils.hasText(session.getTitle()) ? null : buildSessionTitle(content);
         chatMessageCommandService.appendUserMessage(session.getId(), content, sessionTitle);
 
+        long recentMessagesStart = System.nanoTime();
         List<ChatMessage> recentMessages = getRecentMessages(session.getId());
+        long recentMessagesDurationMs = elapsedMs(recentMessagesStart);
         if (request.getCoachPolicyId() != null) {
             return sendApplicationCoachingMessage(
                     session,
@@ -91,10 +97,13 @@ public class ChatConversationService {
                     activeUserContext.userKey(),
                     content,
                     recentMessages,
-                    request.getCoachPolicyId()
+                    request.getCoachPolicyId(),
+                    totalStart,
+                    recentMessagesDurationMs
             );
         }
 
+        long contextStart = System.nanoTime();
         List<ChatRetrievalSnapshot> recentSnapshots = chatRetrievalSnapshotService.findSessionSnapshots(session.getId());
         ChatConversationContextSupport.ConversationContext conversationContext =
                 chatConversationContextSupport.resolve(
@@ -104,10 +113,14 @@ public class ChatConversationService {
                         recentMessages,
                         recentSnapshots
                 );
+        long contextDurationMs = elapsedMs(contextStart);
 
+        long branchStart = System.nanoTime();
         List<ChatBranchOptionResponse> branchSuggestions =
                 resolveBranchSuggestions(content, conversationContext.effectiveBranchKey());
+        long branchDurationMs = elapsedMs(branchStart);
         if (!branchSuggestions.isEmpty()) {
+            long persistStart = System.nanoTime();
             chatRetrievalSnapshotService.recordInteractiveBranchSuggestions(session, content, request.getBranchKey(), branchSuggestions);
             chatSessionContextStateService.captureHousingBranchSuggestions(session.getId(), content, branchSuggestions);
             String answer = buildBranchSuggestionAnswer(branchSuggestions);
@@ -119,6 +132,16 @@ public class ChatConversationService {
                     LocalDateTime.now()
             );
             chatSessionContextStateService.captureConversationMemory(session.getId(), content, answer, List.of());
+            long persistDurationMs = elapsedMs(persistStart);
+            log.info("[ChatConversationTiming] mode=branch_suggestion sessionId={} recentMessages={} branchSuggestions={} recentMessagesDurationMs={} contextDurationMs={} branchDurationMs={} persistDurationMs={} totalDurationMs={}",
+                    session.getId(),
+                    recentMessages.size(),
+                    branchSuggestions.size(),
+                    recentMessagesDurationMs,
+                    contextDurationMs,
+                    branchDurationMs,
+                    persistDurationMs,
+                    elapsedMs(totalStart));
             return ChatAnswerResponse.builder()
                     .sessionId(session.getId())
                     .answer(answer)
@@ -129,6 +152,7 @@ public class ChatConversationService {
                     .build();
         }
 
+        long candidateStart = System.nanoTime();
         ChatPolicyService.CandidateTrace candidateTrace =
                 chatPolicyService.traceCandidatesForUser(
                         conversationContext.retrievalQuestion(),
@@ -136,14 +160,19 @@ public class ChatConversationService {
                         REFERENCE_LIMIT,
                         user
                 );
+        long candidateDurationMs = elapsedMs(candidateStart);
         List<ChatPolicyCandidate> candidates = candidateTrace.finalCandidates();
+        long groundingStart = System.nanoTime();
         Map<Long, String> evidenceByServiceId = chatGroundingService.loadEvidenceMap(candidates);
+        long groundingDurationMs = elapsedMs(groundingStart);
         List<ChatReferenceResponse> fallbackReferences = candidates.stream()
                 .map(candidate -> toReference(candidate, evidenceByServiceId))
                 .toList();
 
         ChatAiResult aiResult = null;
+        long aiDurationMs = 0L;
         if (!candidates.isEmpty()) {
+            long aiStart = System.nanoTime();
             aiResult = chatAiGateway.generateAnswer(
                     user,
                     resolveAgeBand(activeUserContext.userKey()),
@@ -153,6 +182,7 @@ public class ChatConversationService {
                     evidenceByServiceId,
                     conversationContext.conversationSummary()
             );
+            aiDurationMs = elapsedMs(aiStart);
         }
 
         List<ChatReferenceResponse> references = resolveReferences(aiResult, fallbackReferences);
@@ -163,6 +193,7 @@ public class ChatConversationService {
         );
         String answer = resolveAnswer(aiResult, references, needsClarification);
         ChatAnswerMode answerMode = resolveAnswerMode(needsClarification);
+        long persistStart = System.nanoTime();
         chatRetrievalSnapshotService.recordInteractiveTrace(session, content, candidateTrace, needsClarification);
         chatSessionContextStateService.captureHousingAnswer(
                 session.getId(),
@@ -179,6 +210,26 @@ public class ChatConversationService {
                 LocalDateTime.now()
         );
         chatSessionContextStateService.captureConversationMemory(session.getId(), content, answer, references);
+        long persistDurationMs = elapsedMs(persistStart);
+
+        log.info("[ChatConversationTiming] mode=policy sessionId={} recentMessages={} ftsCandidates={} semanticCandidates={} finalCandidates={} references={} needsClarification={} answerMode={} fallbackStrategy={} recentMessagesDurationMs={} contextDurationMs={} branchDurationMs={} candidateDurationMs={} groundingDurationMs={} aiDurationMs={} persistDurationMs={} totalDurationMs={}",
+                session.getId(),
+                recentMessages.size(),
+                candidateTrace.ftsCandidates().size(),
+                candidateTrace.semanticCandidates().size(),
+                candidateTrace.finalCandidates().size(),
+                references.size(),
+                needsClarification,
+                answerMode,
+                candidateTrace.fallbackStrategy(),
+                recentMessagesDurationMs,
+                contextDurationMs,
+                branchDurationMs,
+                candidateDurationMs,
+                groundingDurationMs,
+                aiDurationMs,
+                persistDurationMs,
+                elapsedMs(totalStart));
 
         return ChatAnswerResponse.builder()
                 .sessionId(session.getId())
@@ -195,14 +246,19 @@ public class ChatConversationService {
                                                               String userKey,
                                                               String content,
                                                               List<ChatMessage> recentMessages,
-                                                              Long coachPolicyId) {
+                                                              Long coachPolicyId,
+                                                              long totalStart,
+                                                              long recentMessagesDurationMs) {
+        long contextStart = System.nanoTime();
         ChatApplicationCoachingService.CoachingContext coachingContext =
                 chatApplicationCoachingService.buildContext(coachPolicyId);
+        long contextDurationMs = elapsedMs(contextStart);
         List<ChatPolicyCandidate> candidates = List.of(coachingContext.candidate());
         List<ChatReferenceResponse> fallbackReferences = candidates.stream()
                 .map(candidate -> toReference(candidate, coachingContext.evidenceByServiceId()))
                 .toList();
 
+        long aiStart = System.nanoTime();
         ChatAiResult aiResult = chatAiGateway.generateApplicationCoachingAnswer(
                 user,
                 resolveAgeBand(userKey),
@@ -211,12 +267,14 @@ public class ChatConversationService {
                 candidates,
                 coachingContext.evidenceByServiceId()
         );
+        long aiDurationMs = elapsedMs(aiStart);
 
         List<ChatReferenceResponse> references = resolveReferences(aiResult, fallbackReferences);
         String answer = aiResult != null && StringUtils.hasText(aiResult.getAnswer())
                 ? aiResult.getAnswer().trim()
                 : coachingContext.fallbackAnswer();
 
+        long persistStart = System.nanoTime();
         chatMessageCommandService.appendAssistantMessage(
                 session.getId(),
                 answer,
@@ -225,6 +283,18 @@ public class ChatConversationService {
                 LocalDateTime.now()
         );
         chatSessionContextStateService.captureConversationMemory(session.getId(), content, answer, references);
+        long persistDurationMs = elapsedMs(persistStart);
+
+        log.info("[ChatConversationTiming] mode=application_coaching sessionId={} recentMessages={} candidates={} references={} recentMessagesDurationMs={} contextDurationMs={} aiDurationMs={} persistDurationMs={} totalDurationMs={}",
+                session.getId(),
+                recentMessages.size(),
+                candidates.size(),
+                references.size(),
+                recentMessagesDurationMs,
+                contextDurationMs,
+                aiDurationMs,
+                persistDurationMs,
+                elapsedMs(totalStart));
 
         return ChatAnswerResponse.builder()
                 .sessionId(session.getId())
@@ -554,5 +624,9 @@ public class ChatConversationService {
         return userProfileRepository.findByUserKey(userKey)
                 .map(com.example.welfare.user.entity.UserProfile::getAgeBand)
                 .orElse(null);
+    }
+
+    private long elapsedMs(long startNanos) {
+        return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
     }
 }

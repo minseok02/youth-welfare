@@ -20,12 +20,15 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -72,15 +75,55 @@ public class ChatAiGateway {
             List<ChatPolicyCandidate> candidates,
             Map<Long, String> evidenceByServiceId,
             String conversationSummary) {
+        long totalStart = System.nanoTime();
         if (!StringUtils.hasText(apiKey) || candidates.isEmpty()) {
+            logChatAiTiming(
+                    "policy",
+                    candidates,
+                    recentMessages,
+                    evidenceByServiceId,
+                    null,
+                    -1,
+                    elapsedMs(totalStart),
+                    "bypassed",
+                    null
+            );
             return null;
         }
 
+        String prompt = null;
+        long openAiDurationMs = -1L;
         try {
-            String responseBody = callOpenAi(buildUserPrompt(user, ageBand, question, recentMessages, candidates, evidenceByServiceId, conversationSummary));
-            return parseResponse(responseBody, candidates, evidenceByServiceId);
+            prompt = buildUserPrompt(user, ageBand, question, recentMessages, candidates, evidenceByServiceId, conversationSummary);
+            long openAiStart = System.nanoTime();
+            String responseBody = callOpenAi(prompt);
+            openAiDurationMs = elapsedMs(openAiStart);
+            ChatAiResult result = parseResponse(responseBody, candidates, evidenceByServiceId);
+            logChatAiTiming(
+                    "policy",
+                    candidates,
+                    recentMessages,
+                    evidenceByServiceId,
+                    prompt,
+                    openAiDurationMs,
+                    elapsedMs(totalStart),
+                    result != null ? "success" : "empty",
+                    result
+            );
+            return result;
         } catch (Exception e) {
             log.warn("[ChatAiGateway] OpenAI 호출 실패, fallback 사용 errorType={}", e.getClass().getSimpleName());
+            logChatAiTiming(
+                    "policy",
+                    candidates,
+                    recentMessages,
+                    evidenceByServiceId,
+                    prompt,
+                    openAiDurationMs,
+                    elapsedMs(totalStart),
+                    "exception",
+                    null
+            );
             return null;
         }
     }
@@ -92,22 +135,62 @@ public class ChatAiGateway {
             List<ChatMessage> recentMessages,
             List<ChatPolicyCandidate> candidates,
             Map<Long, String> evidenceByServiceId) {
+        long totalStart = System.nanoTime();
         if (!StringUtils.hasText(apiKey) || candidates.isEmpty()) {
+            logChatAiTiming(
+                    "application_coaching",
+                    candidates,
+                    recentMessages,
+                    evidenceByServiceId,
+                    null,
+                    -1,
+                    elapsedMs(totalStart),
+                    "bypassed",
+                    null
+            );
             return null;
         }
 
+        String prompt = null;
+        long openAiDurationMs = -1L;
         try {
-            String responseBody = callOpenAi(buildApplicationCoachingPrompt(
+            prompt = buildApplicationCoachingPrompt(
                     user,
                     ageBand,
                     question,
                     recentMessages,
                     candidates,
                     evidenceByServiceId
-            ));
-            return parseResponse(responseBody, candidates, evidenceByServiceId);
+            );
+            long openAiStart = System.nanoTime();
+            String responseBody = callOpenAi(prompt);
+            openAiDurationMs = elapsedMs(openAiStart);
+            ChatAiResult result = parseResponse(responseBody, candidates, evidenceByServiceId);
+            logChatAiTiming(
+                    "application_coaching",
+                    candidates,
+                    recentMessages,
+                    evidenceByServiceId,
+                    prompt,
+                    openAiDurationMs,
+                    elapsedMs(totalStart),
+                    result != null ? "success" : "empty",
+                    result
+            );
+            return result;
         } catch (Exception e) {
             log.warn("[ChatAiGateway] OpenAI 신청 코칭 호출 실패, fallback 사용 errorType={}", e.getClass().getSimpleName());
+            logChatAiTiming(
+                    "application_coaching",
+                    candidates,
+                    recentMessages,
+                    evidenceByServiceId,
+                    prompt,
+                    openAiDurationMs,
+                    elapsedMs(totalStart),
+                    "exception",
+                    null
+            );
             return null;
         }
     }
@@ -378,6 +461,28 @@ public class ChatAiGateway {
                 .block(Duration.ofMillis(timeoutMillis));
     }
 
+    private void logChatAiTiming(String mode,
+                                 List<ChatPolicyCandidate> candidates,
+                                 List<ChatMessage> recentMessages,
+                                 Map<Long, String> evidenceByServiceId,
+                                 String prompt,
+                                 long openAiDurationMs,
+                                 long totalDurationMs,
+                                 String outcome,
+                                 ChatAiResult result) {
+        log.info("[ChatAiTiming] mode={} outcome={} candidateCount={} recentMessages={} evidenceCount={} promptSha256={} openAiDurationMs={} totalDurationMs={} references={} needsClarification={}",
+                mode,
+                outcome,
+                candidates != null ? candidates.size() : 0,
+                recentMessages != null ? recentMessages.size() : 0,
+                evidenceByServiceId != null ? evidenceByServiceId.size() : 0,
+                StringUtils.hasText(prompt) ? sha256Hex(prompt) : "none",
+                openAiDurationMs,
+                totalDurationMs,
+                result != null && result.getReferences() != null ? result.getReferences().size() : 0,
+                result != null && result.isNeedsClarification());
+    }
+
     private ChatReferenceResponse toReference(
             AiReference reference,
             Map<Long, ChatPolicyCandidate> candidateMap,
@@ -493,6 +598,24 @@ public class ChatAiGateway {
 
     private String nullToPlaceholder(String value) {
         return StringUtils.hasText(value) ? value : "없음";
+    }
+
+    private long elapsedMs(long startNanos) {
+        return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+    }
+
+    static String sha256Hex(String input) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] bytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(bytes.length * 2);
+            for (byte value : bytes) {
+                sb.append(String.format(java.util.Locale.ROOT, "%02x", value));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            throw new IllegalStateException("SHA-256 unavailable", e);
+        }
     }
 
     @Getter

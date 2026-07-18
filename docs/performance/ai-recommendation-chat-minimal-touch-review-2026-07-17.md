@@ -170,6 +170,28 @@ Why first:
 - avoids guessing which AI substep matters
 - gives before/after proof for later changes
 
+Implementation on `2026-07-18`:
+
+- added `ChatConversationTiming` at the chat orchestration boundary
+- added `ChatSemanticSearchTiming` for embedding count, query embedding, vector search, service load, and total semantic search time
+- added `ChatAiTiming` for chat OpenAI answer generation, with `promptSha256`, candidate count, evidence count, `openAiDurationMs`, and total gateway duration
+- added `RecommendationAiTiming` for recommendation OpenAI scoring, with prompt hash, total candidates, requested top-N candidates, result count, OpenAI duration, and total gateway duration
+- added `RecommendationAiScoringTiming` for cache bypass/hit/miss timing around the recommendation scoring service
+
+Behavior boundary:
+
+- no prompt text, user question, raw evidence, email, user key, or personal identifier is logged
+- prompt visibility is limited to SHA-256 hash for duplicate-rate analysis
+- no candidate limit, scoring weight, prompt wording, model, cache behavior, or fallback behavior was changed
+- expected quality impact is `none`; any changed answer/reference/ranking after this point should be treated as unrelated runtime variability or a regression to investigate
+
+Measurement use:
+
+- if `ChatConversationTiming.totalDurationMs` is high and `ChatAiTiming.openAiDurationMs` dominates, answer generation is the main bottleneck
+- if `ChatSemanticSearchTiming.embeddingDurationMs` or `vectorDurationMs` is material and `semanticCandidates` do not affect final candidates, lazy semantic search remains the next low-risk candidate
+- if `RecommendationAiTiming.openAiDurationMs` dominates recommendation refresh, prompt-cache viability depends on repeated `promptSha256` frequency, not on `clusterId=youth_all`
+- if `RecommendationAiScoringTiming.cacheMode=bypass-youth-all`, cluster cache should still be treated as intentionally bypassed unless the cache key is changed to the full prompt signature
+
 ### 2. Lazy Chat Semantic Search
 
 Recommended first behavior change after instrumentation, or can be tested with tight unit coverage.

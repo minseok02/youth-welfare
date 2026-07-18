@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -27,13 +28,27 @@ public class AiScoringService {
     private final ClusterAiScoreCache clusterAiScoreCache;
 
     public List<ScoredCandidate> score(String clusterId, List<ScoredCandidate> candidates, RecommendationUserSnapshot user) {
+        long totalStart = System.nanoTime();
         if (candidates == null || candidates.isEmpty()) {
+            log.info("[RecommendationAiScoringTiming] clusterId={} cacheMode=skipped-empty totalCandidates={} cacheHitCount={} hitRate={} durationMs={}",
+                    clusterId,
+                    0,
+                    0,
+                    0,
+                    elapsedMs(totalStart));
             return List.of();
         }
 
         // youth_all은 개인 프로필 기반 실시간 호출 (캐시 미사용)
         if ("youth_all".equals(clusterId)) {
-            return aiRecommendationGateway.score(clusterId, candidates, user);
+            List<ScoredCandidate> scored = aiRecommendationGateway.score(clusterId, candidates, user);
+            log.info("[RecommendationAiScoringTiming] clusterId={} cacheMode=bypass-youth-all totalCandidates={} cacheHitCount={} hitRate={} durationMs={}",
+                    clusterId,
+                    candidates.size(),
+                    0,
+                    0,
+                    elapsedMs(totalStart));
+            return scored;
         }
 
         // 군집 캐시 조회
@@ -51,7 +66,7 @@ public class AiScoringService {
 
         // 캐시 히트율 50% 이상이면 캐시 사용
         if (hitRate >= 0.5) {
-            return candidates.stream()
+            List<ScoredCandidate> scored = candidates.stream()
                     .map(candidate -> {
                         ClusterAiScoreCache.CachedClusterAiScore cached = cacheMap.get(candidate.getService().getId());
                         if (cached == null) {
@@ -64,6 +79,13 @@ public class AiScoringService {
                         );
                     })
                     .toList();
+            log.info("[RecommendationAiScoringTiming] clusterId={} cacheMode=cache-hit totalCandidates={} cacheHitCount={} hitRate={} durationMs={}",
+                    clusterId,
+                    candidates.size(),
+                    cacheHitCount,
+                    hitRatePercent,
+                    elapsedMs(totalStart));
+            return scored;
         }
 
         // 캐시 미스 — 실시간 AI 호출
@@ -79,6 +101,16 @@ public class AiScoringService {
                 ))
                 .toList());
 
+        log.info("[RecommendationAiScoringTiming] clusterId={} cacheMode=gateway-miss totalCandidates={} cacheHitCount={} hitRate={} durationMs={}",
+                clusterId,
+                candidates.size(),
+                cacheHitCount,
+                hitRatePercent,
+                elapsedMs(totalStart));
         return scored;
+    }
+
+    private long elapsedMs(long startNanos) {
+        return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
     }
 }

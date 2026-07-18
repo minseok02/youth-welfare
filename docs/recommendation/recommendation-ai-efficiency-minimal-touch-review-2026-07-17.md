@@ -142,6 +142,30 @@ Expected effect:
 - no direct speedup
 - prevents implementing a cache whose real-user hit rate may be too low to matter
 
+Implemented on `2026-07-18`:
+
+- `RecommendationAiTiming`
+  - `clusterId`
+  - `outcome`
+  - `totalCandidates`
+  - `requestedCandidates`
+  - `resultCount`
+  - `promptSha256`
+  - `openAiDurationMs`
+  - `totalDurationMs`
+- `RecommendationAiScoringTiming`
+  - `cacheMode`
+  - `totalCandidates`
+  - `cacheHitCount`
+  - `hitRate`
+  - `durationMs`
+
+Interpretation rule:
+
+- `promptSha256` is now enough to measure duplicate prompt frequency without logging the prompt itself.
+- `clusterId=youth_all` cache bypass remains intentional.
+- Do not add prompt-result cache until repeated prompt hashes are observed at a material rate and a cache-hit quality comparison shows unchanged top `20` service IDs and `aiStatus` distribution.
+
 ### 3. Personal Refresh Async UX
 
 Quality-preserving but not actual generation efficiency.
