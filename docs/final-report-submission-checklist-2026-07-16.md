@@ -41,26 +41,6 @@ Checked on `2026-07-18`:
 - figure numbers `1` through `15` match the working draft captions
 - implementation screenshots belong under `제2장 제4절 주요 구현 내용`
 
-### External Format Review
-
-Checked against common graduation/capstone report formats on `2026-07-18`:
-
-- front matter commonly includes a cover, abstract or summary, table of contents, figure list, and table list
-- body commonly follows introduction/background, design or theory, implementation, result/verification, conclusion, references, and appendix
-- school-specific cover, team information, professor signature, and submission form should use the school-provided HWP template rather than a repository-generated generic cover
-
-Reference examples checked:
-
-- Hanyang University graduation project final report template: cover, abstract, table of contents, figure list, table list, introduction, body, result
-- SeoulTech capstone notice: cover and table of contents are required, with the final report written in the attached HWP form
-- Sangmyung capstone final report template: final report form includes task type and a required summary section
-
-Current handling:
-
-- the working draft and HWP paste draft include `초록`, `목차`, `그림 목차`, and `표 목차`
-- the main body already follows introduction, design, implementation, verification, conclusion, references, and appendix
-- cover page, team information, professor signature, and submission form remain outside the paste draft because those fields depend on the school template
-
 ### Performance Numbers
 
 Use [final-report-performance-summary-2026-07-16.md](./performance/final-report-performance-summary-2026-07-16.md) as the official source for report-grade performance numbers. That document keeps the original `2026-07-16` file name for link stability, but its accepted table values were synchronized on `2026-07-18`.
