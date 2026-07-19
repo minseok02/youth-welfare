@@ -77,7 +77,7 @@
 | 백엔드 통합 테스트 | PostgreSQL, Redis 포함 흐름 검증 | `cd backend && ./gradlew integrationTest` |
 | 프론트 정적 검증 | ESLint와 Vite build 통과 여부 | `cd frontend && npm run lint && npm run build` |
 | 브라우저 흐름 테스트 | Playwright 기반 주요 사용자 흐름 검증 | `cd frontend && npm run test:e2e` |
-| 운영 smoke | 배포 환경 API, health, 인증, 추천, 북마크, 로그아웃 검증 | `deploy/smoke/run-prod-cutover-verification.sh` |
+| 운영 API 점검 | 배포 환경 API, health, 인증, 추천, 북마크, 로그아웃 검증 | `deploy/smoke/run-prod-cutover-verification.sh` |
 | 운영 관측 | 수집, 정책 품질, 알림, 추천, 챗봇 상태 확인 | `deploy/smoke/run-local-ops-observation-suite.sh` |
-| 정책 분류 품질 검증 | 분류 의심 후보를 재검토하고 high-confidence 자동 보정 후보가 0건인지 확인 | `deploy/smoke/run-local-policy-category-suspect-review.sh`, `tmp/policy-category-suspect-review/20260718T175347Z`, `docs/phase-plan.md` |
-| 최종 운영 closeout | ALB target 2대 healthy, log alert ok, DB lock/장기 query 0, no-cost ops check 통과 | `deploy/ops/run-no-cost-ops-check.sh`, `tmp/prod-post-deploy-smoke/20260718T175920Z`, `docs/phase-plan.md` |
+| 정책 분류 품질 검증 | 분류 의심 후보를 재검토하고 명확한 자동 보정 대상이 남아 있지 않은지 확인 | `deploy/smoke/run-local-policy-category-suspect-review.sh`, `tmp/policy-category-suspect-review/20260718T175347Z`, `docs/phase-plan.md` |
+| 최종 운영 상태 점검 | ALB target 2대 healthy, log alert ok, DB lock/장기 query 0, no-cost 운영 점검 통과 | `deploy/ops/run-no-cost-ops-check.sh`, `tmp/prod-post-deploy-smoke/20260718T175920Z`, `docs/phase-plan.md` |
