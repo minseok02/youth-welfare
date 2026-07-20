@@ -718,7 +718,7 @@ export default function SignupPage() {
                 )}
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(3, minmax(0, 1fr))", gap: 10 }}>
                 {PRIORITY_OPTIONS.map(c => {
                   const idx = priorities.indexOf(c.value);
                   const active = idx >= 0;

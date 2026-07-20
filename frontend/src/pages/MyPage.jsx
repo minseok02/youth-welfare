@@ -1757,7 +1757,7 @@ export default function MyPage() {
                 </SectionCard>
 
                 <SectionCard title="취업상태" desc="'해당 없음'은 현재 해당되는 상태가 없다는 뜻이고, '기타'는 위 분류 밖의 다른 상태가 있다는 뜻입니다.">
-                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(5, 1fr)", gap: 10 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(5, minmax(0, 1fr))", gap: 10 }}>
                     {EMPLOYMENT_STATUS_OPTIONS.map(v => {
                       const active = myInfo.employ === v;
                       return (
@@ -1777,7 +1777,7 @@ export default function MyPage() {
                 </SectionCard>
 
                 <SectionCard title="가구 형태" desc="'해당 없음'은 특화 가구 조건이 없다는 뜻이고, '기타'는 별도 특화 가구 조건이 있다는 뜻입니다.">
-                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(6, 1fr)", gap: 10 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(6, minmax(0, 1fr))", gap: 10 }}>
                     {HOUSEHOLD_TYPES.map(v => {
                       const active = myInfo.householdType === v;
                       return (
@@ -1926,7 +1926,7 @@ export default function MyPage() {
                 />
 
                 <SectionCard title="추천 우선순위" desc="최대 5개까지 선택할 수 있어요 · 순서가 곧 추천 우선순위예요">
-                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 12 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(4, minmax(0, 1fr))", gap: 12 }}>
                     {PRIORITY_OPTIONS.map(c => {
                       const idx = priorities.indexOf(c.value);
                       const active = idx >= 0;
