@@ -219,7 +219,9 @@ sudo find /var/www/youth-welfare/frontend -type f -exec chmod 644 {} +
 
 ### 3. Preserve Database Recovery Capability
 
-At minimum keep one final manual RDS snapshot before deletion.
+If you want to preserve the exact runtime data, keep one final manual RDS snapshot before deletion.
+
+If there were no real users and the data is disposable, deleting RDS without a final snapshot is a valid choice. In that case, preserve the repo state, env files, nginx config, and infra notes instead of treating DB state as an artifact.
 
 Known state on 2026-09-01:
 
@@ -230,11 +232,17 @@ Known state on 2026-09-01:
 - latest restorable time observed: `2026-08-27T12:01:44Z`
 - recent automated snapshots existed through `2026-08-26`
 
-Recommended:
+When DB preservation matters:
 
 1. create a final manual snapshot
 2. export a logical dump if you may need table-level restore or offline analysis later
 3. store both in an encrypted location because the DB includes PII
+
+When DB preservation does not matter:
+
+1. confirm there were no real users and no must-keep manual records
+2. record that RDS was intentionally deleted without a final snapshot
+3. rely on migrations, seed/collect flows, and preserved env/infra notes for rebuild
 
 Relevant schema areas include:
 

@@ -33,12 +33,12 @@
   - `/home/ubuntu/.config/youth-welfare/ops.env`
 - edge 설정
   - `/etc/nginx/sites-available/youth-welfare`
-- DB 복구 수단
-  - final manual RDS snapshot
-  - optional `pg_dump` logical backup
 
 ### 선택
 
+- DB 복구 수단
+  - final manual RDS snapshot
+  - `pg_dump` logical backup
 - `/var/log/youth-welfare` 에서 필요한 로그만 추출
 - `/home/ubuntu/youth-welfare/tmp` 에서 최종 보고/검증 근거만 선별 보존
 - Route53 record inventory export
@@ -50,7 +50,7 @@
 - restart 경로를 local-only / existing AWS / full rebuild 기준으로 정리했다.
 - worktree 정리본은 원격 브랜치에 push 된 상태다.
 
-즉 지금 남은 핵심은 코드 수정이 아니라 백업 확정과 실제 AWS 자원 삭제다.
+즉 지금 남은 핵심은 코드 수정이 아니라 env 보존 확인과 실제 AWS 자원 삭제다.
 
 ## 4. 삭제 전에 사람이 직접 해야 하는 일
 
@@ -81,18 +81,25 @@ git rev-parse teardown-ready-2026-09-01
 - 값이 비어 있지 않은지 확인
 - 백업 위치를 기록
 
-### 4-3. DB final snapshot 생성
+### 4-3. DB 보존 여부 최종 확정
 
-최소 요구:
+현재 프로젝트 결정:
 
-1. `youth-welfare-prod-db` final manual snapshot 생성
-2. snapshot identifier 기록
+1. 실사용자 없음
+2. 운영 데이터 보존 우선순위 낮음
+3. RDS final snapshot 생성 없이 삭제 가능
+4. `pg_dump` 도 생략 가능
 
-권장:
+삭제 전에 확인할 것:
 
-1. `pg_dump` 추가 생성
-2. dump 파일 checksum 기록
-3. dump 파일을 암호화 저장소에 보관
+1. 꼭 남겨야 할 테스트/데모 데이터가 없는지 마지막 확인
+2. 과거 DB 상태 그대로 재현할 요구가 없는지 확인
+3. 삭제 후에는 migration + 수집/테스트 데이터 재생성으로 다시 시작한다는 점을 합의
+
+아래는 DB를 남기고 싶을 때만 참고한다.
+
+- final manual RDS snapshot
+- optional `pg_dump`
 
 AWS 참고:
 
@@ -130,12 +137,12 @@ AWS 참고:
 5. ElastiCache `youth-welfare-prod-redis-valkey` 삭제
 6. primary EC2 `i-0b8d95e454df5e0f0` 삭제
 7. RDS `youth-welfare-prod-db` 삭제
-   - final snapshot 생성 옵션 사용
+   - 현재 결정 기준으로 final snapshot 없이 삭제 가능
 8. 필요 시 security group / subnet group 정리
 
 주의:
 
-- RDS는 final snapshot 생성 확인 전 삭제하지 않는다.
+- DB를 보존하지 않는 방향이면 final snapshot 없이 삭제해도 된다.
 - Route53 alias record가 ALB를 가리키고 있으므로 ALB 삭제 후 DNS 정리 여부를 결정한다.
 - Redis는 snapshot retention이 `0` 이었으므로 별도 보존 수단이 없다. 캐시 데이터는 복구 대상이 아니다.
 
@@ -143,8 +150,6 @@ AWS 참고:
 
 - GitHub repository
 - docs/
-- final DB snapshot
-- `pg_dump` backup
 - 도메인을 재사용할 계획이 있으면 Route53 hosted zone
 - 같은 이유로 ACM certificate metadata
 
@@ -152,8 +157,6 @@ AWS 참고:
 
 아래 값은 문서 또는 별도 ops 메모에 적는다.
 
-- final snapshot identifier
-- `pg_dump` 파일명과 저장 위치
 - env 백업 저장 위치
 - 삭제 완료 날짜
 - 실제 삭제한 리소스 이름/ID
@@ -166,8 +169,8 @@ date: 2026-09-01
 git_tag: teardown-ready-2026-09-01
 handoff_commit: 94d0fea8
 snapshot_commit: 338bcd86
-rds_final_snapshot: <fill>
-pg_dump_backup: <fill>
+rds_final_snapshot: skipped
+pg_dump_backup: skipped
 env_backup_location: <fill>
 route53_kept: yes|no
 acm_kept: yes|no
@@ -177,19 +180,20 @@ acm_kept: yes|no
 
 1. repo checkout: `94d0fea8`
 2. preserved env 복원
-3. RDS snapshot restore
-4. Redis 생성
-5. EC2 생성
-6. nginx/frontend 복원
-7. app 기동
-8. ALB / Route53 연결
-9. `/alb-health` 와 주요 API smoke 확인
+3. 새 RDS 생성
+4. migration/bootstrap 실행
+5. 필요하면 수집 또는 테스트 데이터 재생성
+6. Redis 생성
+7. EC2 생성
+8. nginx/frontend 복원
+9. app 기동
+10. ALB / Route53 연결
+11. `/alb-health` 와 주요 API smoke 확인
 
 상세 절차는 아래 문서를 기준으로 본다.
 
 - [restart-and-teardown-handoff-2026-09-01.md](./restart-and-teardown-handoff-2026-09-01.md)
 - [production-ops-quickstart.md](./production-ops-quickstart.md)
-- [db-backup-restore-rehearsal-runbook.md](./db-backup-restore-rehearsal-runbook.md)
 
 ## 8. 마지막 판단 기준
 
@@ -197,5 +201,5 @@ acm_kept: yes|no
 
 - tag `teardown-ready-2026-09-01` 확인
 - env / nginx 설정 외부 백업 완료
-- final RDS snapshot 완료
+- DB 보존 포기 결정 확인
 - 삭제 후 재생성 문서를 처음부터 읽었을 때 막히는 빈칸이 없음
