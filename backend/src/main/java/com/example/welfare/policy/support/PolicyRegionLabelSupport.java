@@ -12,6 +12,8 @@ import java.util.Set;
 
 public final class PolicyRegionLabelSupport {
 
+    private static final int BROAD_REGION_LABEL_MIN_COUNT = 8;
+
     private static final Map<String, String> REGION_ALIASES = Map.ofEntries(
             Map.entry("서울시", "서울특별시"),
             Map.entry("부산시", "부산광역시"),
@@ -43,11 +45,19 @@ public final class PolicyRegionLabelSupport {
                 extractRegionHint(service.getHostOrg())
         );
         if (organizationHint != null) {
+            String collapsedLabel = resolveBroadTopLevelLabel(candidates, organizationHint);
+            if (collapsedLabel != null) {
+                return collapsedLabel;
+            }
             return chooseMatchingCandidateOrHint(organizationHint, candidates);
         }
         if (service.getSourceType() == WelfareService.SourceType.GOV24 && looksLikeCentralGovernmentAgency(service)) {
             // 중앙부처/기관 Gov24 정책은 stray region row를 local label로 노출하는 것이 더 위험하다.
             return null;
+        }
+        String collapsedLabel = resolveBroadTopLevelLabel(candidates, null);
+        if (collapsedLabel != null) {
+            return collapsedLabel;
         }
         return candidates.isEmpty() ? null : candidates.get(0);
     }
@@ -79,6 +89,44 @@ public final class PolicyRegionLabelSupport {
             }
         }
         return bestMatch != null ? bestMatch : normalizedHint;
+    }
+
+    private static String resolveBroadTopLevelLabel(List<String> candidates, String organizationHint) {
+        if (candidates == null || candidates.size() < BROAD_REGION_LABEL_MIN_COUNT) {
+            return null;
+        }
+
+        String normalizedHint = normalizeRegionAlias(organizationHint);
+        String topLevelHint = extractTopLevelRegion(normalizedHint);
+        if (normalizedHint != null && !normalizedHint.equals(topLevelHint)) {
+            return null;
+        }
+
+        Set<String> topLevelRegions = new LinkedHashSet<>();
+        for (String candidate : candidates) {
+            String topLevelRegion = extractTopLevelRegion(normalizeRegionAlias(candidate));
+            if (topLevelRegion != null) {
+                topLevelRegions.add(topLevelRegion);
+            }
+        }
+        if (topLevelRegions.size() != 1) {
+            return null;
+        }
+
+        String onlyTopLevelRegion = topLevelRegions.iterator().next();
+        if (topLevelHint != null && !topLevelHint.equals(onlyTopLevelRegion)) {
+            return null;
+        }
+        return onlyTopLevelRegion;
+    }
+
+    private static String extractTopLevelRegion(String value) {
+        String normalized = normalizeBlank(value);
+        if (normalized == null) {
+            return null;
+        }
+        String firstToken = normalized.split("\\s+")[0];
+        return looksLikeTopLevelRegion(firstToken) ? firstToken : null;
     }
 
     private static String extractRegionHint(String organizationName) {

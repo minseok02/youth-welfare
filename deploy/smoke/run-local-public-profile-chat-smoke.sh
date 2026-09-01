@@ -25,6 +25,7 @@ COOKIE_JAR="${ARTIFACT_DIR}/user.cookie"
 HEALTH_RESPONSE="${ARTIFACT_DIR}/health.json"
 POLICY_LIST_RESPONSE="${ARTIFACT_DIR}/policies.json"
 POLICY_SEARCH_RESPONSE="${ARTIFACT_DIR}/policy-search.json"
+POLICY_SEARCH_REQUEST="${ARTIFACT_DIR}/policy-search-request.json"
 POLICY_DETAIL_RESPONSE="${ARTIFACT_DIR}/policy-detail.json"
 SIGNUP_RESPONSE="${ARTIFACT_DIR}/signup.json"
 LOGIN_RESPONSE="${ARTIFACT_DIR}/login.json"
@@ -89,16 +90,18 @@ if [[ -z "${POLICY_ID}" ]]; then
 fi
 
 smoke_print_step "public policy search (${PUBLIC_SEARCH_KEYWORD})"
-ENCODED_KEYWORD="$(
-  python3 - "${PUBLIC_SEARCH_KEYWORD}" <<'PY'
+python3 - "${PUBLIC_SEARCH_KEYWORD}" "${POLICY_SEARCH_REQUEST}" <<'PY'
+import json
 import sys
-from urllib.parse import quote
 
-print(quote(sys.argv[1]))
+keyword, out_path = sys.argv[1], sys.argv[2]
+with open(out_path, "w", encoding="utf-8") as fp:
+    json.dump({"keyword": keyword, "size": 3}, fp, ensure_ascii=False)
 PY
-)"
 POLICY_SEARCH_STATUS="$(
-  smoke_http_status GET "${APP_BASE_URL}/api/policies/search?keyword=${ENCODED_KEYWORD}&size=3" "${POLICY_SEARCH_RESPONSE}"
+  smoke_http_status POST "${APP_BASE_URL}/api/policies/search" "${POLICY_SEARCH_RESPONSE}" \
+    -H 'Content-Type: application/json' \
+    -d @"${POLICY_SEARCH_REQUEST}"
 )"
 smoke_assert_status 200 "${POLICY_SEARCH_STATUS}" "public policy search" "${POLICY_SEARCH_RESPONSE}"
 

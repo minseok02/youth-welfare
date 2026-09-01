@@ -26,6 +26,7 @@ import {
   formatAdminReviewNoteSuffix,
   formatDateTime,
   formatMaskedUserKey,
+  formatSourceIdLabel,
   formatSourceType,
   parseRegionCorrectionCodes,
   parseSuggestedRegionCodes,
@@ -39,7 +40,7 @@ export function PolicyErrorReportHeader({ item }) {
           {item.policyTitle}
         </Typography>
         <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25, overflowWrap: "anywhere", wordBreak: "break-word" }}>
-          {formatSourceType(item.sourceType)} · {item.sourceId || "sourceId 없음"} · {formatDateTime(item.createdAt)}
+          {formatSourceType(item.sourceType)} · {formatSourceIdLabel(item.sourceId)} · {formatDateTime(item.createdAt)}
         </Typography>
       </Box>
       <Chip
@@ -60,7 +61,7 @@ export function PolicyErrorReportHeader({ item }) {
 export function PolicyErrorReportReporterNote({ item }) {
   return (
     <Typography sx={{ fontSize: 13, color: INK2 }}>
-      제보자 {formatMaskedUserKey(item.userKey, "익명")} · {formatAdminDisplayText(item.note, "추가 메모 없음")}
+      제보자 {formatMaskedUserKey(item.userKeyHash ?? item.userKey, "익명")} · {formatAdminDisplayText(item.note, "추가 메모 없음")}
     </Typography>
   );
 }

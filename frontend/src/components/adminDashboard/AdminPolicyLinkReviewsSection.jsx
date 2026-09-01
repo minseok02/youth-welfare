@@ -34,6 +34,7 @@ import {
   formatMaskedUserKey,
   formatNumber,
   formatPolicyLinkReviewBucket,
+  formatSourceIdLabel,
   formatSourceType,
 } from "../../lib/adminDashboardDisplay";
 
@@ -72,10 +73,10 @@ export default function AdminPolicyLinkReviewsSection({
                 링크 품질 리뷰
               </Typography>
               <Typography sx={{ fontSize: 20, fontWeight: 900, color: INK, mt: 0.75, letterSpacing: "-0.02em" }}>
-                정책 링크 review queue
+                정책 링크 검토 대기열
               </Typography>
               <Typography sx={{ fontSize: 13, color: INK3, mt: 0.75 }}>
-                현재 노출될 수 있는 정책 중 `detail URL`과 대표 참고 링크가 모두 비어 있는 항목만 recent queue로 보여줍니다. source contract와 실제 사용자 체감을 분리해 운영자가 review할 수 있게 둔 경계입니다.
+                사용자에게 노출될 수 있는 정책 중 상세 링크와 대표 참고 링크가 모두 비어 있는 항목만 모아 보여줍니다.
               </Typography>
             </Box>
 
@@ -94,15 +95,15 @@ export default function AdminPolicyLinkReviewsSection({
 
             {policyLinkReviewsQuery.isLoading && (
               <SectionLoadingCard
-                title="정책 링크 review 로딩 중"
-                description="최근 열린 링크 review 후보를 불러오는 중입니다."
+                title="정책 링크 검토 항목 로딩 중"
+                description="최근 열린 링크 검토 후보를 불러오는 중입니다."
               />
             )}
 
             {policyLinkReviewsQuery.isError && (
               <SectionErrorCard
-                title="정책 링크 review 로드 실패"
-                description="현재 사용자에게 노출될 수 있는 링크 공백 정책 queue를 읽지 못했습니다."
+                title="정책 링크 검토 항목 로드 실패"
+                description="현재 사용자에게 노출될 수 있는 링크 공백 정책 대기열을 읽지 못했습니다."
                 message={policyLinkReviewsErrorMessage}
                 onRetry={() => policyLinkReviewsQuery.refetch()}
               />
@@ -119,26 +120,26 @@ export default function AdminPolicyLinkReviewsSection({
                   <MetricCard
                     title="최근 24시간 신규"
                     value={formatNumber(policyLinkReviews.recentOpenCount24h)}
-                    description="지난 24시간에 새로 열린 링크 review 후보"
+                    description="지난 24시간에 새로 열린 링크 검토 후보"
                   />
                   <MetricCard
                     title="표시 항목"
                     value={formatNumber(policyLinkReviews.recentReviews?.length ?? 0)}
-                    description="최근 링크 review 샘플"
+                    description="최근 링크 검토 샘플"
                   />
                 </Box>
 
                 {(policyLinkReviews.recentReviews?.length ?? 0) === 0 ? (
                   <Alert severity="success">
                     {policyLinkStatusFilter === "OPEN"
-                      ? "현재 열린 정책 링크 review 후보가 없습니다."
+                      ? "현재 열린 정책 링크 검토 후보가 없습니다."
                       : policyLinkStatusFilter === "REVIEWED"
-                        ? "표시할 처리완료 링크 review가 없습니다."
-                        : "표시할 정책 링크 review 항목이 없습니다."}
+                        ? "표시할 처리완료 링크 검토 항목이 없습니다."
+                        : "표시할 정책 링크 검토 항목이 없습니다."}
                   </Alert>
                 ) : (
                   <CompactListCard
-                    title="최근 정책 링크 review"
+                    title="최근 정책 링크 검토"
                     description="링크 공백이 있는 최신 정책부터 표시합니다."
                     items={policyLinkReviews.recentReviews ?? []}
                     renderItem={(item) => (
@@ -153,7 +154,7 @@ export default function AdminPolicyLinkReviewsSection({
                                 {item.policyTitle}
                               </Typography>
                               <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25, overflowWrap: "anywhere", wordBreak: "break-word" }}>
-                                {formatSourceType(item.sourceType)} · {item.sourceId || "sourceId 없음"} · {formatDateTime(item.createdAt)}
+                                {formatSourceType(item.sourceType)} · {formatSourceIdLabel(item.sourceId)} · {formatDateTime(item.createdAt)}
                               </Typography>
                             </Box>
                             <Chip

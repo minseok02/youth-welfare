@@ -29,6 +29,13 @@ const listStyle = {
   fontSize: 14,
 };
 
+const summaryGridStyle = {
+  display: "grid",
+  gap: 12,
+  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+  marginTop: 18,
+};
+
 function Section({ title, children }) {
   return (
     <section style={sectionStyle}>
@@ -74,7 +81,21 @@ export default function TermsPage() {
               <li>이 서비스는 정책 정보를 쉽게 찾도록 돕는 안내 서비스입니다.</li>
               <li>추천 결과와 챗봇 답변은 참고용이며, 신청 가능 여부를 확정하지 않습니다.</li>
               <li>정책 내용은 원문 공고, 신청 페이지, 운영기관 안내가 우선합니다.</li>
+              <li>정책 오류는 상세 페이지의 오류 제보로, 서비스 이용 문제는 고객센터로 접수해 주세요.</li>
             </ul>
+          </div>
+
+          <div style={summaryGridStyle}>
+            {[
+              ["정책 정보", "외부 기관 공고를 보기 쉽게 재구성한 정보입니다."],
+              ["맞춤 추천", "입력한 조건과 우선순위를 바탕으로 후보를 좁히는 기능입니다."],
+              ["AI 답변", "정책 탐색과 신청 준비를 돕는 보조 설명입니다."],
+            ].map(([title, body]) => (
+              <div key={title} style={{ background: SOFT, border: `1px solid ${LINE}`, borderRadius: 8, padding: "14px 16px" }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: INK }}>{title}</div>
+                <div style={{ marginTop: 6, color: INK2, fontSize: 13, lineHeight: 1.65 }}>{body}</div>
+              </div>
+            ))}
           </div>
 
           <Section title="1. 약관의 적용">
@@ -125,6 +146,10 @@ export default function TermsPage() {
             <p style={{ ...paragraphStyle, marginTop: 10 }}>
               챗봇 답변과 알림은 정책 탐색을 돕기 위한 보조 기능입니다. 법률, 세무, 의료, 행정상 최종 판단이나 신청 자격 확정을 대신하지 않습니다.
             </p>
+            <p style={{ ...paragraphStyle, marginTop: 10 }}>
+              정책 상세의 내 조건 사전점검과 AI 신청 준비하기는 신청 전 확인해야 할 항목을 정리하는 기능입니다.
+              맞음, 확인, 주의 같은 표시가 있더라도 최종 접수 가능 여부와 제출서류는 운영기관의 최신 공고와 신청 페이지가 우선합니다.
+            </p>
           </Section>
 
           <Section title="6. 이용자가 지켜야 할 사항">
@@ -153,6 +178,11 @@ export default function TermsPage() {
               서비스 이용 중 불편한 점은 고객센터로 문의할 수 있습니다. 정책의 지역, 신청 기간, 자격조건, 링크가 실제와 다르게 보이면
               정책 상세 페이지의 오류 제보를 이용해 주세요. 접수된 내용은 운영자가 확인한 뒤 필요한 경우 데이터 정정이나 표시 개선에 반영합니다.
             </p>
+            <ul style={listStyle}>
+              <li>로그인, 회원가입, 알림, 챗봇, 검색 사용 문제: 고객센터</li>
+              <li>정책 지역, 기간, 자격조건, 링크, 중복 정책 문제: 정책 상세의 오류 제보</li>
+              <li>개인정보 열람, 정정, 삭제, 동의 철회 요청: 개인정보 처리방침의 권리 행사 안내</li>
+            </ul>
           </Section>
 
           <Section title="9. 책임의 범위">
@@ -180,7 +210,7 @@ export default function TermsPage() {
           </Section>
 
           <p style={{ color: INK3, fontSize: 13, margin: "24px 0 0" }}>
-            시행일: 2026년 6월 10일
+            시행일: 2026년 7월 21일
           </p>
         </div>
       </div>

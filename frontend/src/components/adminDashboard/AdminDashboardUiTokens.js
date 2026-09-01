@@ -65,19 +65,19 @@ export const ATTENTION_SEVERITY_TONE = {
 };
 
 const ATTENTION_SOURCE_LABELS = {
-  collect: "collect",
-  "user-profile-standard-codes": "standard-codes",
-  "wrapper-observation": "wrapper",
-  "policy-duplicate-groups": "duplicates",
-  "policy-error-reports": "policy-error",
-  "policy-link-reviews": "links",
-  "support-inquiries": "support",
-  "policy-duplicate-backlog": "duplicates",
-  "policy-error-report-backlog": "policy-error",
-  "policy-link-review-backlog": "links",
-  "support-inquiry-backlog": "support",
-  "notification-backlog": "notification",
-  "notification-stale-backlog": "notification",
+  collect: "수집",
+  "user-profile-standard-codes": "선택 프로필",
+  "wrapper-observation": "상위 요약",
+  "policy-duplicate-groups": "중복 정책",
+  "policy-error-reports": "오류 제보",
+  "policy-link-reviews": "정책 링크",
+  "support-inquiries": "문의",
+  "policy-duplicate-backlog": "중복 정책",
+  "policy-error-report-backlog": "오류 제보",
+  "policy-link-review-backlog": "정책 링크",
+  "support-inquiry-backlog": "문의",
+  "notification-backlog": "알림",
+  "notification-stale-backlog": "오래된 알림",
 };
 
 export const ADMIN_QUEUE_STATUS_OPTIONS = [
@@ -88,19 +88,19 @@ export const ADMIN_QUEUE_STATUS_OPTIONS = [
 
 export function formatAttentionSource(sourceOrKey) {
   if (!sourceOrKey) {
-    return "attention";
+    return "주의 항목";
   }
   if (ATTENTION_SOURCE_LABELS[sourceOrKey]) {
     return ATTENTION_SOURCE_LABELS[sourceOrKey];
   }
   if (sourceOrKey.includes("standard-code")) {
-    return "standard-codes";
+    return "선택 프로필";
   }
   if (sourceOrKey.includes("collect")) {
-    return "collect";
+    return "수집";
   }
   if (sourceOrKey.includes("wrapper")) {
-    return "wrapper";
+    return "상위 요약";
   }
   return sourceOrKey;
 }
@@ -108,20 +108,30 @@ export function formatAttentionSource(sourceOrKey) {
 export function formatAttentionActionLabel(source) {
   switch (source) {
     case "collect":
+    case "수집":
       return "수집 실패 보기";
     case "standard-codes":
-      return "표준코드 입력률 보기";
+    case "표준코드":
+    case "선택 프로필":
+      return "선택 프로필 입력 현황 보기";
     case "wrapper":
-      return "상위 wrapper 보기";
+    case "상위 요약":
+      return "상위 요약 보기";
     case "notification":
-      return "stale 알림 보기";
+    case "알림":
+    case "오래된 알림":
+      return "오래된 알림 보기";
     case "duplicates":
-      return "중복 리뷰 보기";
+    case "중복 정책":
+      return "중복 검토 보기";
     case "policy-error":
+    case "오류 제보":
       return "오류 제보 보기";
     case "links":
-      return "링크 review 보기";
+    case "정책 링크":
+      return "링크 검토 보기";
     case "support":
+    case "문의":
       return "서비스 문의 보기";
     default:
       return "관련 섹션 보기";

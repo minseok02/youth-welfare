@@ -11,7 +11,12 @@ import {
   INK3,
   PANEL_LINE,
 } from "./AdminDashboardUiTokens";
-import { formatSourceType } from "../../lib/adminDashboardDisplay";
+import {
+  formatPolicyCorrectionScope,
+  formatPolicyCorrectionType,
+  formatSourceIdLabel,
+  formatSourceType,
+} from "../../lib/adminDashboardDisplay";
 
 export default function AdminPolicyCorrectionHistory({
   policyRegionCorrections,
@@ -37,7 +42,7 @@ export default function AdminPolicyCorrectionHistory({
                     {item.policyTitle}
                   </Typography>
                   <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25 }}>
-                    {formatSourceType(item.sourceType)} · {item.sourceId || "sourceId 없음"} · {item.correctionScope} · {item.active ? "활성" : "비활성"}
+                    {formatSourceType(item.sourceType)} · {formatSourceIdLabel(item.sourceId)} · {formatPolicyCorrectionScope(item.correctionScope)} · {item.active ? "적용 중" : "해제됨"}
                   </Typography>
                   <Typography sx={{ fontSize: 12, color: INK2, mt: 0.5, overflowWrap: "anywhere" }}>
                     {(item.regions ?? []).length > 0
@@ -74,7 +79,7 @@ export default function AdminPolicyCorrectionHistory({
                 {item.policyTitle}
               </Typography>
               <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25 }}>
-                {formatSourceType(item.sourceType)} · {item.sourceId || "sourceId 없음"} · {item.correctionType}
+                {formatSourceType(item.sourceType)} · {formatSourceIdLabel(item.sourceId)} · {formatPolicyCorrectionType(item.correctionType)}
               </Typography>
               <Typography sx={{ fontSize: 12, color: INK2, mt: 0.5, overflowWrap: "anywhere" }}>
                 {item.correctionJson}

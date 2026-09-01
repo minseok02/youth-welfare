@@ -24,6 +24,7 @@ import {
   WARNING_TEXT,
 } from "./AdminDashboardUiTokens";
 import {
+  formatAdminOperationalText,
   formatDateTime,
   formatNumber,
 } from "../../lib/adminDashboardDisplay";
@@ -37,15 +38,15 @@ export default function AdminNotificationAttemptSummarySection({
     <Box id="admin-notification-attempt-summary" sx={{ mt: 2, scrollMarginTop: 96 }}>
       {notificationAttemptSummaryQuery.isLoading && (
         <SectionLoadingCard
-          title="알림 attempt 로딩 중"
-          description="채널별 발송 attempt outcome과 최근 실패 샘플을 불러오는 중입니다."
+          title="알림 발송 시도 로딩 중"
+          description="채널별 발송 시도 결과와 최근 실패 샘플을 불러오는 중입니다."
         />
       )}
 
       {notificationAttemptSummaryQuery.isError && (
         <SectionErrorCard
-          title="알림 attempt 로드 실패"
-          description="신규 notification_attempt_logs migration 적용 상태와 admin read 권한을 확인해야 합니다."
+          title="알림 발송 시도 로드 실패"
+          description="알림 발송 로그 적용 상태와 관리자 조회 권한을 확인해야 합니다."
           message={notificationAttemptSummaryErrorMessage}
           onRetry={() => notificationAttemptSummaryQuery.refetch()}
         />
@@ -57,7 +58,7 @@ export default function AdminNotificationAttemptSummarySection({
             <Stack spacing={2}>
               <Box>
                 <Typography sx={{ fontSize: 12, fontWeight: 800, color: ACCENT, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                  알림 attempt
+                  알림 발송 시도
                 </Typography>
                 <Typography sx={{ fontSize: 20, fontWeight: 900, color: INK, mt: 0.75, letterSpacing: "-0.02em" }}>
                   채널별 발송 상태
@@ -65,42 +66,42 @@ export default function AdminNotificationAttemptSummarySection({
               </Box>
               <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" } }}>
                 <MetricCard
-                  title={`${notificationAttemptSummary.windowDays}일 attempt`}
+                  title={`${notificationAttemptSummary.windowDays}일 발송 시도`}
                   value={formatNumber(notificationAttemptSummary.totalAttempts)}
                   description={`최근 ${formatDateTime(notificationAttemptSummary.latestAttemptAt)}`}
                 />
                 <MetricCard
                   title="성공 / 실패"
                   value={`${formatNumber(notificationAttemptSummary.successAttempts)} / ${formatNumber(notificationAttemptSummary.failedAttempts)}`}
-                  description="sent, fanout, gateway outcome 기준"
+                  description="발송 완료, 대상 확장, 발송 시스템 결과 기준"
                   descriptionColor={Number(notificationAttemptSummary.failedAttempts) > 0 ? WARNING_TEXT : INK3}
                 />
                 <MetricCard
-                  title="disabled"
+                  title="비활성 수신처"
                   value={formatNumber(notificationAttemptSummary.disabledAttempts)}
-                  description="web push 구독 무효화/해제 신호"
+                  description="웹푸시 구독 무효화/해제 신호"
                 />
                 <MetricCard
                   title="평균 지연"
                   value={`${formatNumber(notificationAttemptSummary.averageDurationMs)}ms`}
-                  description="channel attempt 기준"
+                  description="채널별 발송 시도 기준"
                 />
               </Box>
 
               <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", xl: "1fr 1fr" } }}>
                 <CompactListCard
-                  title="attempt outcome 분포"
-                  description="channel / kind / outcome 기준 상위 집계"
+                  title="발송 결과 분포"
+                  description="채널 / 유형 / 결과 기준 상위 집계"
                   items={notificationAttemptSummary.breakdowns}
                   renderItem={(item) => (
                     <Box key={`${item.channel}-${item.kind}-${item.outcome}`} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
                       <Stack direction="row" justifyContent="space-between" spacing={2}>
                         <Box sx={{ minWidth: 0 }}>
                           <Typography sx={{ fontSize: 13, fontWeight: 800, color: INK }}>
-                            {item.channel} · {item.kind}
+                            {formatAdminOperationalText(item.channel)} · {formatAdminOperationalText(item.kind)}
                           </Typography>
                           <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25 }}>
-                            {item.outcome} · 평균 {formatNumber(item.averageDurationMs)}ms
+                            {formatAdminOperationalText(item.outcome)} · 평균 {formatNumber(item.averageDurationMs)}ms
                           </Typography>
                         </Box>
                         <Chip
@@ -113,22 +114,22 @@ export default function AdminNotificationAttemptSummarySection({
                   )}
                 />
                 <CompactListCard
-                  title="최근 실패/disabled"
-                  description="실패 outcome과 disabled endpoint 샘플"
+                  title="최근 실패/비활성"
+                  description="실패 결과와 비활성 수신처 샘플"
                   items={notificationAttemptSummary.recentFailures}
                   renderItem={(item) => (
                     <Box key={item.id} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
                       <Stack spacing={0.75}>
                         <Stack direction="row" justifyContent="space-between" spacing={2}>
                           <Typography sx={{ fontSize: 13, fontWeight: 800, color: INK }}>
-                            {item.channel} · {item.kind}
+                            {formatAdminOperationalText(item.channel)} · {formatAdminOperationalText(item.kind)}
                           </Typography>
                           <Typography sx={{ fontSize: 12, fontWeight: 800, color: WARNING_TEXT }}>
-                            {item.outcome}
+                            {formatAdminOperationalText(item.outcome)}
                           </Typography>
                         </Stack>
                         <Typography sx={{ fontSize: 12, color: INK3 }}>
-                          {formatDateTime(item.createdAt)} · {item.endpointHost || "endpoint 없음"} · {item.errorType || "errorType 없음"}
+                          {formatDateTime(item.createdAt)} · {item.endpointHost || "수신처 없음"} · {formatAdminOperationalText(item.errorType, "오류 유형 없음")}
                         </Typography>
                       </Stack>
                     </Box>

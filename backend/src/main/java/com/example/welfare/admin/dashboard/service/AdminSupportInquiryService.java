@@ -5,6 +5,7 @@ import com.example.welfare.admin.dashboard.dto.AdminSupportInquiryResponse;
 import com.example.welfare.admin.dashboard.dto.AdminReviewActionResponse;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.notification.gateway.EmailClient;
 import com.example.welfare.support.entity.SupportInquiry;
 import com.example.welfare.support.repository.SupportInquiryRepository;
@@ -46,10 +47,10 @@ public class AdminSupportInquiryService {
                         inquiry.getId(),
                         inquiry.getCategory().name(),
                         inquiry.getCategory().getLabel(),
-                        inquiry.getContactEmail(),
+                        maskEmail(inquiry.getContactEmail()),
                         inquiry.getMessage(),
                         inquiry.getRoutePath(),
-                        inquiry.getUserKey(),
+                        hashNullable(inquiry.getUserKey()),
                         inquiry.getCreatedAt(),
                         inquiry.getStatus().name(),
                         inquiry.getReviewNote(),
@@ -73,6 +74,25 @@ public class AdminSupportInquiryService {
             );
             case ALL -> supportInquiryRepository.findAllByOrderByCreatedAtDesc(pageRequest);
         };
+    }
+
+    private String maskEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return "이메일 없음";
+        }
+        String trimmed = email.trim();
+        int atIndex = trimmed.lastIndexOf("@");
+        if (atIndex <= 0 || atIndex == trimmed.length() - 1) {
+            return "이메일 형식 오류";
+        }
+        String local = trimmed.substring(0, atIndex);
+        String domain = trimmed.substring(atIndex + 1);
+        String visibleLocal = local.length() <= 2 ? local.substring(0, 1) : local.substring(0, 2);
+        return visibleLocal + "***@" + domain;
+    }
+
+    private String hashNullable(String value) {
+        return value == null || value.isBlank() ? null : RedisKeyHash.sha256Hex(value);
     }
 
     @Transactional

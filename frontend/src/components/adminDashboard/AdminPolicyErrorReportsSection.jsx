@@ -82,10 +82,10 @@ export default function AdminPolicyErrorReportsSection({
                 사용자 제보
               </Typography>
               <Typography sx={{ fontSize: 20, fontWeight: 900, color: INK, mt: 0.75, letterSpacing: "-0.02em" }}>
-                정책 오류 제보 recent queue
+                정책 오류 제보 대기열
               </Typography>
               <Typography sx={{ fontSize: 13, color: INK3, mt: 0.75 }}>
-                정책 상세에서 사용자가 보낸 오류 제보를 최근 열린 순서대로 봅니다. 지역, 기간, 자격조건, 링크 같은 데이터 품질 문제를 운영에서 빠르게 triage하는 용도입니다.
+                정책 상세에서 사용자가 보낸 오류 제보를 최근 열린 순서대로 봅니다. 지역, 기간, 자격조건, 링크 같은 데이터 품질 문제를 운영에서 빠르게 분류하는 용도입니다.
               </Typography>
             </Box>
 
@@ -139,7 +139,7 @@ export default function AdminPolicyErrorReportsSection({
             {policyErrorReportsQuery.isError && (
               <SectionErrorCard
                 title="정책 오류 제보 로드 실패"
-                description="정책 상세에서 접수된 제보 queue를 읽지 못했습니다."
+                description="정책 상세에서 접수된 제보 대기열을 읽지 못했습니다."
                 message={policyErrorReportsErrorMessage}
                 onRetry={() => policyErrorReportsQuery.refetch()}
               />

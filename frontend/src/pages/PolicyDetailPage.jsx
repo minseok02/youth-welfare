@@ -7,6 +7,7 @@ import api from "../lib/axios";
 import { useAuthStore } from "../store/authStore";
 import {
   appendRelatedPolicyCandidates,
+  buildPolicyRegionDisplay,
   parsePolicyContacts,
   parsePolicyReferenceUrls,
 } from "../lib/policyDetailDisplay";
@@ -27,6 +28,7 @@ import {
   resolveGov24FallbackLabels,
   splitMultiValue,
 } from "../lib/policyDisplay";
+import { resolvePolicyEligibilityPrecheck } from "../lib/policyEligibility";
 import { resolveSafeRouteTarget, sanitizePostLoginAction, sanitizeTransientRouteState } from "../lib/safeNavigation";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
@@ -132,6 +134,13 @@ function ContentSection({ id, title, children }) {
   );
 }
 
+const PRECHECK_STATUS_STYLE = {
+  success: { label: "맞음", color: "#047857", bg: "#ecfdf5", border: "#a7f3d0" },
+  warning: { label: "확인", color: "#92400e", bg: "#fffbeb", border: "#fde68a" },
+  error: { label: "주의", color: "#b91c1c", bg: "#fef2f2", border: "#fecaca" },
+  info: { label: "참고", color: INK3, bg: LINE2, border: LINE },
+};
+
 function Spinner() {
   return (
     <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: 400 }}>
@@ -162,6 +171,9 @@ export default function PolicyDetailPage() {
   const [reportReasonCode, setReportReasonCode] = useState(POLICY_ERROR_REPORT_REASONS[0].value);
   const [reportNote, setReportNote] = useState("");
   const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [profileForPrecheck, setProfileForPrecheck] = useState(null);
+  const [profilePrecheckLoading, setProfilePrecheckLoading] = useState(false);
+  const [profilePrecheckError, setProfilePrecheckError] = useState(false);
   const bookmarkActionKeyRef = useRef(null);
   const recommendationClickKeyRef = useRef(null);
 
@@ -199,6 +211,34 @@ export default function PolicyDetailPage() {
       }
     }
   }, [location.pathname, location.search, location.state, navigate]);
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setProfileForPrecheck(null);
+      setProfilePrecheckError(false);
+      setProfilePrecheckLoading(false);
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    const fetchProfileForPrecheck = async () => {
+      setProfilePrecheckLoading(true);
+      setProfilePrecheckError(false);
+      try {
+        const { data } = await api.get("/api/users/me", { signal: controller.signal });
+        setProfileForPrecheck(data?.data ?? null);
+      } catch (error) {
+        if (error.name === "CanceledError" || error.code === "ERR_CANCELED") return;
+        setProfileForPrecheck(null);
+        setProfilePrecheckError(true);
+      } finally {
+        if (!controller.signal.aborted) setProfilePrecheckLoading(false);
+      }
+    };
+
+    fetchProfileForPrecheck();
+    return () => controller.abort();
+  }, [isLoggedIn]);
 
   useEffect(() => {
     const logId = location.state?.recommendationLogId;
@@ -391,9 +431,12 @@ export default function PolicyDetailPage() {
   ]);
   const statusLabel = policy ? formatStatusLabel(policy.status, policy.applyEndDate) : "";
   const policySourceLabel = policy ? formatSource(policy.sourceType) : "출처 정보 없음";
-  const regionText = policy?.sido
-    || policy?.regions?.filter(r => !/^\d+$/.test(r))?.join(", ")
-    || "";
+  const regionDisplay = useMemo(() => buildPolicyRegionDisplay(policy), [policy]);
+  const regionText = regionDisplay.compactLabel;
+  const eligibilityPrecheck = useMemo(
+    () => (isLoggedIn && policy ? resolvePolicyEligibilityPrecheck(policy, profileForPrecheck) : null),
+    [isLoggedIn, policy, profileForPrecheck]
+  );
 
   useEffect(() => {
     if (!detailTabs.some((tab) => tab.id === activeTab)) {
@@ -401,27 +444,111 @@ export default function PolicyDetailPage() {
     }
   }, [activeTab, detailTabs]);
 
+  useEffect(() => {
+    if (!detailTabs.length) return undefined;
+
+    let frameId = 0;
+    const sectionIds = detailTabs.map((tab) => tab.id);
+    const updateActiveSection = () => {
+      frameId = 0;
+      const anchorOffset = 150;
+      let currentSectionId = sectionIds[0];
+
+      for (const sectionId of sectionIds) {
+        const section = document.getElementById(sectionId);
+        if (!section) continue;
+        const top = section.getBoundingClientRect().top;
+        if (top <= anchorOffset) {
+          currentSectionId = sectionId;
+        } else {
+          break;
+        }
+      }
+
+      setActiveTab((current) => (current === currentSectionId ? current : currentSectionId));
+    };
+
+    const scheduleUpdate = () => {
+      if (frameId) return;
+      frameId = window.requestAnimationFrame(updateActiveSection);
+    };
+
+    updateActiveSection();
+    window.addEventListener("scroll", scheduleUpdate, { passive: true });
+    window.addEventListener("resize", scheduleUpdate);
+    return () => {
+      if (frameId) {
+        window.cancelAnimationFrame(frameId);
+      }
+      window.removeEventListener("scroll", scheduleUpdate);
+      window.removeEventListener("resize", scheduleUpdate);
+    };
+  }, [detailTabs]);
+
   const ddayInfo = useMemo(() => {
     if (!policy) return null;
     const { applyEndDate: end, applyStartDate: start, status } = policy;
-    if (status === "CLOSED") return { label: "종료", daysLeft: -1, progress: 100 };
-    if (!end) return { label: status === "UPCOMING" ? "예정" : "상시", daysLeft: null, progress: 0 };
+    if (status === "CLOSED") {
+      return { label: "종료", daysLeft: -1, progress: 100, description: "신청이 종료된 정책입니다" };
+    }
 
     const today = new Date(); today.setHours(0, 0, 0, 0);
+    if (status === "UPCOMING" && start) {
+      const startD = new Date(`${start}T00:00:00`);
+      if (!Number.isNaN(startD.getTime())) {
+        const daysUntilStart = Math.ceil((startD - today) / 86400000);
+        if (daysUntilStart >= 0) {
+          return {
+            label: daysUntilStart === 0 ? "오늘 시작" : `D-${daysUntilStart}`,
+            daysLeft: daysUntilStart,
+            progress: 0,
+            countdownTitle: "신청 시작까지",
+            dayUnitLabel: daysUntilStart === 0 ? null : "일 남음",
+            description: "아직 신청 예정 상태입니다",
+          };
+        }
+      }
+    }
+    if (!end) {
+      return {
+        label: status === "UPCOMING" ? "예정" : "상시/문의",
+        daysLeft: null,
+        progress: 0,
+        description: status === "UPCOMING"
+          ? "신청 예정 상태입니다. 시작일은 원문에서 확인하세요"
+          : "상시 신청 또는 기관 문의가 필요한 정책입니다",
+      };
+    }
+
     const endD = new Date(`${end}T00:00:00`);
+    if (Number.isNaN(endD.getTime())) {
+      return {
+        label: "상시/문의",
+        daysLeft: null,
+        progress: 0,
+        description: "신청기간을 원문 또는 운영기관에서 확인하세요",
+      };
+    }
     const daysLeft = Math.ceil((endD - today) / 86400000);
-    if (daysLeft < 0) return { label: "종료", daysLeft: -1, progress: 100 };
+    if (daysLeft < 0) {
+      return { label: "종료", daysLeft: -1, progress: 100, description: "신청이 종료된 정책입니다" };
+    }
 
     let progress = 0, totalDays = 0, elapsedDays = 0;
     if (start) {
       const startD = new Date(`${start}T00:00:00`);
-      totalDays = Math.max(1, Math.ceil((endD - startD) / 86400000));
-      elapsedDays = Math.max(0, Math.ceil((today - startD) / 86400000));
-      progress = Math.min(100, Math.max(0, (elapsedDays / totalDays) * 100));
+      if (!Number.isNaN(startD.getTime())) {
+        totalDays = Math.max(1, Math.ceil((endD - startD) / 86400000));
+        elapsedDays = Math.max(0, Math.ceil((today - startD) / 86400000));
+        progress = Math.min(100, Math.max(0, (elapsedDays / totalDays) * 100));
+      }
     }
     return {
       label: daysLeft === 0 ? "D-Day" : `D-${daysLeft}`,
       daysLeft, progress, totalDays, elapsedDays,
+      countdownTitle: "신청 마감까지",
+      dayUnitLabel: daysLeft === 0 ? null : "일 남음",
+      description: daysLeft === 0 ? "오늘 신청 마감입니다" : "신청 마감일을 기준으로 계산했습니다",
       startDate: formatDate(start),
       endDate: formatDate(end),
     };
@@ -943,6 +1070,40 @@ export default function PolicyDetailPage() {
                   ))}
                   {regionText && <Tag bg={WHITE} border={LINE}>{regionText}</Tag>}
                 </div>
+                {regionDisplay.detailLabels.length > 1 && (
+                  <details style={{
+                    marginBottom: 14,
+                    background: WHITE,
+                    border: `1px solid ${LINE}`,
+                    borderRadius: 12,
+                    padding: "10px 12px",
+                  }}>
+                    <summary style={{
+                      cursor: "pointer",
+                      color: INK2,
+                      fontSize: 13,
+                      fontWeight: 800,
+                    }}>
+                      {regionDisplay.broadRegion
+                        ? `${regionText} 상세 지역 보기`
+                        : `지원 지역 ${regionDisplay.detailLabels.length}곳 보기`}
+                    </summary>
+                    <div style={{
+                      display: "flex",
+                      gap: 8,
+                      flexWrap: "wrap",
+                      marginTop: 10,
+                      maxHeight: 180,
+                      overflow: "auto",
+                    }}>
+                      {regionDisplay.detailLabels.map((label) => (
+                        <Tag key={`region-detail-${label}`} bg={LINE2} border={LINE}>
+                          {label}
+                        </Tag>
+                      ))}
+                    </div>
+                  </details>
+                )}
                 {youthOfficialFactRows.length > 0 && (
                   <div
                     style={{
@@ -1156,13 +1317,15 @@ export default function PolicyDetailPage() {
               <div style={{ background: WHITE, border: `1px solid ${LINE}`, borderRadius: 16, padding: 24, boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
                 {ddayInfo && ddayInfo.daysLeft !== null && ddayInfo.daysLeft >= 0 ? (
                   <>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: INK3 }}>신청 마감까지</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: INK3 }}>
+                      {ddayInfo.countdownTitle || "신청 마감까지"}
+                    </div>
                     <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 4 }}>
-                      <span style={{ fontSize: 32, fontWeight: 800, color: ddayInfo.daysLeft <= 7 ? WARN : A, letterSpacing: "-0.02em" }}>
-                        {ddayInfo.daysLeft === 0 ? "오늘" : ddayInfo.daysLeft}
+                      <span style={{ fontSize: 32, fontWeight: 800, color: ddayInfo.daysLeft <= 7 ? WARN : A, letterSpacing: 0 }}>
+                        {ddayInfo.daysLeft === 0 ? ddayInfo.label : ddayInfo.daysLeft}
                       </span>
-                      {ddayInfo.daysLeft > 0 && (
-                        <span style={{ fontSize: 14, color: INK2, fontWeight: 600 }}>일 남음</span>
+                      {ddayInfo.dayUnitLabel && (
+                        <span style={{ fontSize: 14, color: INK2, fontWeight: 600 }}>{ddayInfo.dayUnitLabel}</span>
                       )}
                     </div>
                     {ddayInfo.totalDays > 0 && (
@@ -1187,7 +1350,7 @@ export default function PolicyDetailPage() {
                       {ddayInfo?.label || "상시/문의"}
                     </div>
                     <div style={{ fontSize: 12, color: INK3, marginTop: 4 }}>
-                      {ddayInfo?.label === "종료" ? "신청이 종료된 정책입니다" : "상시 신청 가능 또는 별도 문의"}
+                      {ddayInfo?.description || "신청기간을 원문 또는 운영기관에서 확인하세요"}
                     </div>
                   </div>
                 )}
@@ -1303,32 +1466,76 @@ export default function PolicyDetailPage() {
               </div>
 
               <div style={{ background: AS, border: `1px solid ${A}33`, borderRadius: 16, padding: 20, marginTop: 16 }}>
-                <div style={{ fontSize: 13, fontWeight: 800, color: AI, display: "flex", alignItems: "center", gap: 4 }}><LightbulbOutlinedIcon sx={{ fontSize: 16 }} /><span>내가 자격될까?</span></div>
-                <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.6 }}>
-                  {isLoggedIn
-                    ? "마이페이지에서 내 조건을 설정하면 자격 여부를 자동으로 확인해드려요."
-                    : "로그인하고 1분만에 내 정보를 등록하면 자격 여부를 자동으로 확인해드려요."}
+                <div style={{ fontSize: 13, fontWeight: 800, color: AI, display: "flex", alignItems: "center", gap: 4 }}>
+                  <LightbulbOutlinedIcon sx={{ fontSize: 16 }} /><span>내 조건 사전점검</span>
                 </div>
-                <button
-                  onClick={() => navigate(
-                    isLoggedIn
-                      ? "/mypage"
-                      : "/login",
-                    {
-                      state: {
-                        from: {
-                          pathname: location.pathname,
-                          search: location.search,
+                {!isLoggedIn ? (
+                  <>
+                    <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.6 }}>
+                      로그인하고 내 정보를 등록하면 나이, 지역, 기간, 소득 조건을 먼저 비교해볼 수 있어요.
+                    </div>
+                    <button
+                      onClick={() => navigate("/login", {
+                        state: {
+                          from: {
+                            pathname: location.pathname,
+                            search: location.search,
+                          },
+                          ...(chatFromTarget ? { chatFrom: chatFromTarget } : {}),
+                          reason: "login-required",
                         },
-                        ...(chatFromTarget ? { chatFrom: chatFromTarget } : {}),
-                        ...(!isLoggedIn ? { reason: "login-required" } : {}),
-                      },
-                    }
-                  )}
-                  style={{ marginTop: 12, padding: "8px 14px", fontSize: 12, fontWeight: 700, background: A, color: WHITE, border: 0, borderRadius: 8, cursor: "pointer" }}
-                >
-                  자격 확인하기 →
-                </button>
+                      })}
+                      style={{ marginTop: 12, padding: "8px 14px", fontSize: 12, fontWeight: 700, background: A, color: WHITE, border: 0, borderRadius: 8, cursor: "pointer" }}
+                    >
+                      로그인하고 점검하기 →
+                    </button>
+                  </>
+                ) : profilePrecheckLoading ? (
+                  <div style={{ fontSize: 13, color: INK2, marginTop: 8 }}>내 정보를 불러오는 중입니다.</div>
+                ) : profilePrecheckError ? (
+                  <>
+                    <div style={{ fontSize: 13, color: WARN, marginTop: 8, lineHeight: 1.6 }}>
+                      내 정보를 불러오지 못했습니다. 마이페이지에서 정보를 확인해주세요.
+                    </div>
+                    <button
+                      onClick={() => navigate("/mypage?tab=0")}
+                      style={{ marginTop: 12, padding: "8px 14px", fontSize: 12, fontWeight: 700, background: A, color: WHITE, border: 0, borderRadius: 8, cursor: "pointer" }}
+                    >
+                      내 정보 확인하기 →
+                    </button>
+                  </>
+                ) : eligibilityPrecheck ? (
+                  <>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: eligibilityPrecheck.status === "error" ? WARN : AI, marginTop: 8 }}>
+                      {eligibilityPrecheck.title}
+                    </div>
+                    <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
+                      {eligibilityPrecheck.items.map((item) => {
+                        const statusStyle = PRECHECK_STATUS_STYLE[item.status] ?? PRECHECK_STATUS_STYLE.info;
+                        return (
+                          <div key={item.key} style={{ background: WHITE, border: `1px solid ${statusStyle.border}`, borderRadius: 10, padding: "9px 10px" }}>
+                            <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
+                              <span style={{ fontSize: 12, fontWeight: 900, color: statusStyle.color, background: statusStyle.bg, border: `1px solid ${statusStyle.border}`, borderRadius: 999, padding: "2px 7px" }}>
+                                {statusStyle.label}
+                              </span>
+                              <span style={{ fontSize: 13, fontWeight: 800, color: INK }}>{item.label}</span>
+                            </div>
+                            <div style={{ fontSize: 12, color: INK2, lineHeight: 1.55 }}>{item.message}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div style={{ fontSize: 12, color: INK3, lineHeight: 1.55, marginTop: 10 }}>
+                      {eligibilityPrecheck.description}
+                    </div>
+                    <button
+                      onClick={() => navigate("/mypage?tab=0")}
+                      style={{ marginTop: 12, padding: "8px 14px", fontSize: 12, fontWeight: 700, background: WHITE, color: AI, border: `1px solid ${A}55`, borderRadius: 8, cursor: "pointer" }}
+                    >
+                      내 정보 보완하기 →
+                    </button>
+                  </>
+                ) : null}
               </div>
             </aside>
           </div>

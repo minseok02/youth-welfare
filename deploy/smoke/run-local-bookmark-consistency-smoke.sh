@@ -29,6 +29,7 @@ RECOMMEND_LIST_RESPONSE="${ARTIFACT_DIR}/recommend-list.json"
 TOGGLE_ON_RESPONSE="${ARTIFACT_DIR}/toggle-on.json"
 TOGGLE_OFF_RESPONSE="${ARTIFACT_DIR}/toggle-off.json"
 POLICY_SEARCH_RESPONSE="${ARTIFACT_DIR}/policy-search.json"
+POLICY_SEARCH_REQUEST="${ARTIFACT_DIR}/policy-search-request.json"
 POLICY_DETAIL_RESPONSE="${ARTIFACT_DIR}/policy-detail.json"
 BOOKMARKS_RESPONSE="${ARTIFACT_DIR}/bookmarks.json"
 
@@ -207,17 +208,19 @@ smoke_assert_status 200 "${RECOMMEND_LIST_STATUS}" "recommendation list" "${RECO
 assert_recommendation_state "${RECOMMEND_LIST_RESPONSE}" "${SERVICE_ID}" "True"
 
 smoke_print_step "policy search bookmarked=true"
-SEARCH_KEYWORD="$(
-  python3 - "${SERVICE_TITLE}" <<'PY'
+python3 - "${SERVICE_TITLE}" "${POLICY_SEARCH_REQUEST}" <<'PY'
+import json
 import sys
-from urllib.parse import quote
 
-print(quote(sys.argv[1]))
+keyword, out_path = sys.argv[1], sys.argv[2]
+with open(out_path, "w", encoding="utf-8") as fp:
+    json.dump({"keyword": keyword, "size": 20}, fp, ensure_ascii=False)
 PY
-)"
 POLICY_SEARCH_STATUS="$(
-  smoke_http_status GET "${APP_BASE_URL}/api/policies/search?keyword=${SEARCH_KEYWORD}&size=20" "${POLICY_SEARCH_RESPONSE}" \
-    -H "Authorization: Bearer ${ACCESS_TOKEN}"
+  smoke_http_status POST "${APP_BASE_URL}/api/policies/search" "${POLICY_SEARCH_RESPONSE}" \
+    -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H 'Content-Type: application/json' \
+    -d @"${POLICY_SEARCH_REQUEST}"
 )"
 smoke_assert_status 200 "${POLICY_SEARCH_STATUS}" "policy search" "${POLICY_SEARCH_RESPONSE}"
 assert_policy_state "${POLICY_SEARCH_RESPONSE}" "${SERVICE_ID}" "True"
@@ -255,8 +258,10 @@ assert_recommendation_state "${RECOMMEND_LIST_RESPONSE}" "${SERVICE_ID}" "False"
 
 smoke_print_step "policy search bookmarked=false"
 POLICY_SEARCH_STATUS="$(
-  smoke_http_status GET "${APP_BASE_URL}/api/policies/search?keyword=${SEARCH_KEYWORD}&size=20" "${POLICY_SEARCH_RESPONSE}" \
-    -H "Authorization: Bearer ${ACCESS_TOKEN}"
+  smoke_http_status POST "${APP_BASE_URL}/api/policies/search" "${POLICY_SEARCH_RESPONSE}" \
+    -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H 'Content-Type: application/json' \
+    -d @"${POLICY_SEARCH_REQUEST}"
 )"
 smoke_assert_status 200 "${POLICY_SEARCH_STATUS}" "policy search after off" "${POLICY_SEARCH_RESPONSE}"
 assert_policy_state "${POLICY_SEARCH_RESPONSE}" "${SERVICE_ID}" "False"

@@ -21,6 +21,7 @@ import {
   WARNING_TEXT,
 } from "./AdminDashboardUiTokens";
 import {
+  formatAdminOperationalText,
   formatCodeOrStatus,
   formatCollectJobName,
   formatDateTime,
@@ -111,12 +112,12 @@ export function OpsSummaryMetrics({ summaryData }) {
         description={`재시도 대기 ${formatNumber(summaryData.notification.retryableFailedNotifications)} / 종결 실패 ${formatNumber(summaryData.notification.terminalFailedNotifications)}`}
       />
       <MetricCard
-        title="stale unread 7일"
+        title="7일 초과 미열람"
         value={formatNumber(summaryData.notification.staleUnread7d)}
         description={`미열람 ${formatNumber(summaryData.notification.unreadAlerts)} / 14일 초과 ${formatNumber(summaryData.notification.staleUnread14d)}`}
       />
       <MetricCard
-        title="stale unread 14일"
+        title="14일 초과 미열람"
         value={formatNumber(summaryData.notification.staleUnread14d)}
         description={`7일 초과 ${formatNumber(summaryData.notification.staleUnread7d)} / 숨김 후보`}
       />
@@ -131,7 +132,7 @@ export function OpsSummaryMetrics({ summaryData }) {
         description={`검색 ${formatNumber(summaryData.search.searchesInWindow)} · 사용자 ${formatNumber(summaryData.search.uniqueFingerprintsInWindow)}`}
       />
       <MetricCard
-        title="PII 동기화 실패"
+        title="개인정보 동기화 실패"
         value={formatNumber(summaryData.userPiiSync.failedCount)}
         description={`대기 ${formatNumber(summaryData.userPiiSync.pendingCount)} · 최근 동기화 ${formatDateTime(summaryData.userPiiSync.latestSyncedAt)}`}
       />
@@ -143,29 +144,29 @@ export function PolicyTriageSummary({ policyTriage }) {
   return (
     <Box id="admin-policy-triage-summary" sx={{ display: "grid", gap: 2, mt: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" }, scrollMarginTop: 96 }}>
       <MetricCard
-        title="policy triage"
+        title="정책 검토 우선순위"
         value={formatStatusLabel(policyTriage?.decisionClass)}
-        description={policyTriage?.operatorReading || "중복/link backlog 우선순위를 계산하지 못했습니다."}
+        description={formatAdminOperationalText(policyTriage?.operatorReading, "중복/링크 검토 우선순위를 계산하지 못했습니다.")}
         chip={
           <Typography sx={{ fontSize: 12, fontWeight: 800, color: ACCENT, maxWidth: 180, textAlign: "right" }}>
-            {policyTriage?.nextAction || "nightly observation 확인"}
+            {formatAdminOperationalText(policyTriage?.nextAction, "야간 관측 결과 확인")}
           </Typography>
         }
       />
       <MetricCard
-        title="exact duplicate"
+        title="완전 중복 후보"
         value={formatNumber(policyTriage?.exactDuplicateGroups)}
-        description={`mirror ${formatNumber(policyTriage?.mirrorVariantGroups)} · 열린 중복 ${formatNumber(policyTriage?.openDuplicateGroups)}`}
+        description={`채널만 다른 후보 ${formatNumber(policyTriage?.mirrorVariantGroups)} · 열린 중복 ${formatNumber(policyTriage?.openDuplicateGroups)}`}
       />
       <MetricCard
-        title="급부형 링크 review"
+        title="급부형 링크 검토"
         value={formatNumber(policyTriage?.benefitSupportLinkReviews)}
         description={`모집형 ${formatNumber(policyTriage?.announcementRecruitmentLinkReviews)} · 열린 링크 ${formatNumber(policyTriage?.openLinkReviews)}`}
       />
       <MetricCard
         title="현재 처리 순서"
-        value={policyTriage?.decisionClass === "DUPLICATE_THEN_LINK_PRIORITY" ? "exact -> mirror -> link" : policyTriage?.decisionClass === "LINK_REVIEW_PRIORITY" ? "benefit -> announcement" : "tail review"}
-        description={policyTriage?.nextAction || "운영 backlog 우선순위 정보 없음"}
+        value={policyTriage?.decisionClass === "DUPLICATE_THEN_LINK_PRIORITY" ? "완전 중복 → 채널 중복 → 링크" : policyTriage?.decisionClass === "LINK_REVIEW_PRIORITY" ? "급부형 → 모집형" : "기간/조건 차이 검토"}
+        description={formatAdminOperationalText(policyTriage?.nextAction, "운영 검토 우선순위 정보 없음")}
       />
     </Box>
   );

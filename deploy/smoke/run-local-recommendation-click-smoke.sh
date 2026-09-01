@@ -31,6 +31,7 @@ SIGNUP_RESPONSE="${ARTIFACT_DIR}/signup.json"
 LOGIN_RESPONSE="${ARTIFACT_DIR}/login.json"
 RECOMMEND_RESPONSE="${ARTIFACT_DIR}/recommendations.json"
 POLICY_RESPONSE="${ARTIFACT_DIR}/policy.json"
+CLICK_RESPONSE="${ARTIFACT_DIR}/click.json"
 DB_ROW_RESPONSE="${ARTIFACT_DIR}/db-row.txt"
 
 cleanup() {
@@ -174,6 +175,15 @@ POLICY_STATUS="$(
     -H "Authorization: Bearer ${ACCESS_TOKEN}"
 )"
 smoke_assert_status 200 "${POLICY_STATUS}" "policy detail click trace" "${POLICY_RESPONSE}"
+
+smoke_print_step "mark recommendation click serviceId=${SERVICE_ID} logId=${LOG_ID}"
+CLICK_STATUS="$(
+  smoke_http_status POST "${APP_BASE_URL}/api/policies/${SERVICE_ID}/recommendation-click" "${CLICK_RESPONSE}" \
+    -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H 'Content-Type: application/json' \
+    -d "{\"logId\": ${LOG_ID}}"
+)"
+smoke_assert_status 200 "${CLICK_STATUS}" "recommendation click mark" "${CLICK_RESPONSE}"
 
 smoke_print_step "verify recommendation_logs click mark"
 smoke_db_query \

@@ -44,7 +44,7 @@ class AdminDashboardAttentionServiceTest {
     );
 
     @Test
-    @DisplayName("collect drift, 관찰용 표준코드 backlog, wrapper warning을 attention feed로 묶는다")
+    @DisplayName("collect drift와 wrapper warning을 attention feed로 묶고 관찰용 표준코드는 승격하지 않는다")
     void buildsAttentionFeed() {
         given(collectService.getCollectFailures(null, null)).willReturn(new AdminCollectFailureResponse(
                 LocalDateTime.of(2026, 6, 3, 14, 0),
@@ -145,30 +145,23 @@ class AdminDashboardAttentionServiceTest {
 
         var response = service.getAttentionFeed();
 
-        assertThat(response.itemCount()).isEqualTo(3);
+        assertThat(response.itemCount()).isEqualTo(2);
         assertThat(response.items()).extracting("key")
-                .containsExactly("collect-drift", "standard-code-backlog", "wrapper-warning");
+                .containsExactly("collect-drift", "wrapper-warning");
         assertThat(response.items()).extracting("key", "severity")
                 .contains(
                         tuple("collect-drift", "warning"),
-                        tuple("standard-code-backlog", "info"),
                         tuple("wrapper-warning", "warning")
                 );
-        assertThat(response.items()).extracting("message", String.class)
-                .anySatisfy(message -> assertThat(message)
-                        .contains("793명이 주거·복지 표준코드 4개를 모두 비워둔 상태입니다.")
-                        .contains("자동 보정 후보 0건")
-                        .contains("충돌 gap 0건"));
         assertThat(response.items()).extracting("nextAction", String.class)
                 .contains(
-                        "수집 실패 샘플과 열린 circuit을 확인하고, 같은 source의 반복 실패면 source별 수동 재수집과 회로 상태를 점검합니다.",
-                        "자동 보정 후보가 없으므로 사용자 입력 유도/관찰 대상으로 유지합니다.",
-                        "current priority와 active baseline summary를 비교하고 표준코드/추천 관측 변화 원인을 확인합니다."
+                        "수집 실패 샘플과 열린 회로를 확인하고, 같은 출처의 반복 실패면 출처별 수동 재수집과 회로 상태를 점검합니다.",
+                        "현재 우선순위와 기준 요약을 비교하고 선택 프로필/추천 관측 변화 원인을 확인합니다."
                 );
     }
 
     @Test
-    @DisplayName("표준코드 자동 보정 후보가 있으면 attention feed에서 warning으로 승격한다")
+    @DisplayName("선택 프로필 자동 보정 후보가 있으면 attention feed에서 warning으로 승격한다")
     void promotesStandardCodeBacklogWhenReconcileCandidatesExist() {
         given(collectService.getCollectFailures(null, null)).willReturn(new AdminCollectFailureResponse(
                 LocalDateTime.of(2026, 6, 4, 9, 0),
@@ -270,13 +263,14 @@ class AdminDashboardAttentionServiceTest {
         assertThat(response.items()).extracting("message", String.class)
                 .anySatisfy(message -> assertThat(message)
                         .contains("자동 보정 후보 2건")
-                        .contains("충돌 gap 0건"));
+                        .contains("기본/상세 값 충돌 0건")
+                        .contains("전부 미입력 사용자는 5명"));
         assertThat(response.items()).extracting("nextAction", String.class)
-                .contains("자동 보정 후보와 충돌 gap을 먼저 검토하고 안전 후보만 reconcile합니다.");
+                .contains("자동 보정 후보와 기본/상세 값 충돌을 먼저 검토하고 안전 후보만 보정합니다.");
     }
 
     @Test
-    @DisplayName("정책 오류 제보와 서비스 문의 backlog가 있으면 attention feed에 함께 승격한다")
+    @DisplayName("정책 오류 제보와 서비스 문의 대기 항목이 있으면 attention feed에 함께 승격한다")
     void includesReportBacklogs() {
         given(collectService.getCollectFailures(null, null)).willReturn(new AdminCollectFailureResponse(
                 LocalDateTime.of(2026, 6, 4, 10, 0),
@@ -436,15 +430,15 @@ class AdminDashboardAttentionServiceTest {
                 .anySatisfy(message -> assertThat(message).contains("최근 24시간 1건"));
         assertThat(response.items()).extracting("nextAction", String.class)
                 .contains(
-                        "duplicate count가 큰 묶음부터 false positive 여부를 판단해 duplicate/link 우선순위를 기록합니다.",
-                        "최근 제보의 정책 원문과 링크를 확인하고 보정 또는 REVIEWED 메모를 남깁니다.",
-                        "bucket별 대표 링크를 열어 공식 상세 URL 여부를 확인하고 REVIEWED 메모를 남깁니다.",
-                        "최근 문의 유형과 route를 보고 재현/응답 여부를 메모한 뒤 처리완료로 닫습니다."
+                        "중복 건수가 큰 묶음부터 오탐 여부를 판단해 중복/링크 검토 우선순위를 기록합니다.",
+                        "최근 제보의 정책 원문과 링크를 확인하고 보정 또는 처리완료 메모를 남깁니다.",
+                        "분류별 대표 링크를 열어 공식 상세 링크 여부를 확인하고 처리완료 메모를 남깁니다.",
+                        "최근 문의 유형과 화면 경로를 보고 재현/응답 여부를 메모한 뒤 처리완료로 닫습니다."
                 );
     }
 
     @Test
-    @DisplayName("안 읽은 알림이나 실패 backlog가 있으면 attention feed에 알림 backlog를 승격한다")
+    @DisplayName("14일 이상 미열람이나 실패 대기 항목이 있으면 attention feed에 알림 항목을 승격한다")
     void includesNotificationBacklog() {
         given(collectService.getCollectFailures(null, null)).willReturn(new AdminCollectFailureResponse(
                 LocalDateTime.of(2026, 6, 4, 11, 0),
@@ -545,16 +539,117 @@ class AdminDashboardAttentionServiceTest {
         assertThat(response.items()).extracting("message", String.class)
                 .anySatisfy(message -> assertThat(message)
                         .contains("안 읽은 알림 11건")
-                        .contains("stale 7일 7건")
-                        .contains("stale 14일 2건")
+                        .contains("7일 이상 미열람 7건")
+                        .contains("14일 이상 미열람 2건")
                         .contains("재시도 대기 2건")
                         .contains("종결 실패 1건"));
         assertThat(response.items()).extracting("nextAction", String.class)
-                .contains("attempt 실패 breakdown과 최근 실패 endpoint를 확인한 뒤 재시도/구독 비활성 원인을 분리합니다.");
+                .contains("알림 발송 실패 상세와 최근 실패 수신처를 확인한 뒤 재시도/구독 비활성 원인을 분리합니다.");
     }
 
     @Test
-    @DisplayName("2주 이상 stale notification target cluster가 있으면 attention feed에 stale backlog를 승격한다")
+    @DisplayName("안 읽은 알림과 7일 이상 미열람만 있으면 attention feed에 알림 대기 항목을 승격하지 않는다")
+    void doesNotPromoteNotificationObservationOnlyTail() {
+        given(collectService.getCollectFailures(null, null)).willReturn(new AdminCollectFailureResponse(
+                LocalDateTime.of(2026, 6, 4, 11, 15),
+                7,
+                0,
+                0,
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of()
+        ));
+        given(userProfileService.getUserProfileStandardCodeCoverage()).willReturn(new AdminUserProfileStandardCodeCoverageResponse(
+                LocalDateTime.of(2026, 6, 4, 11, 15),
+                10,
+                10,
+                0,
+                10,
+                0,
+                0,
+                10,
+                10,
+                10,
+                10,
+                10,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+        ));
+        given(summaryService.getSummary(null, null)).willReturn(new AdminDashboardResponse(
+                LocalDateTime.of(2026, 6, 4, 11, 15),
+                null,
+                null,
+                new AdminDashboardResponse.NotificationSection(2, 0, 7, 14, 0, 11, 7, 0, 0, 0),
+                null,
+                null,
+                null,
+                null
+        ));
+        given(wrapperObservationService.getLatestObservation()).willReturn(new AdminWrapperObservationResponse(
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                0,
+                0,
+                null,
+                null,
+                0,
+                0,
+                null,
+                0,
+                0,
+                0.0,
+                false,
+                null,
+                null,
+                null,
+                false,
+                null,
+                0,
+                0,
+                null,
+                null,
+                0,
+                0,
+                null,
+                0,
+                0,
+                0,
+                0.0,
+                false,
+                null,
+                null,
+                0,
+                0,
+                "이전값 없음",
+                null,
+                false,
+                "이전 상태 없음",
+                null
+        ));
+        given(policyDuplicateGroupService.getRecentGroups(1)).willReturn(new AdminPolicyDuplicateGroupResponse(0, 0, 0, List.of()));
+        given(policyErrorReportService.getRecentReports(1)).willReturn(new AdminPolicyErrorReportResponse(0, 0, List.of()));
+        given(adminPolicyLinkReviewService.getRecentReviews(1)).willReturn(new AdminPolicyLinkReviewResponse(0, 0, List.of()));
+        given(adminNotificationStaleTargetService.getRecentTargets(1, 14)).willReturn(new AdminNotificationStaleTargetResponse(14, 0, 0, List.of()));
+        given(supportInquiryService.getRecentInquiries(1)).willReturn(new AdminSupportInquiryResponse(0, 0, List.of()));
+
+        var response = service.getAttentionFeed();
+
+        assertThat(response.items()).extracting("key").doesNotContain("notification-backlog");
+    }
+
+    @Test
+    @DisplayName("2주 이상 오래된 알림 묶음이 있으면 attention feed에 오래된 알림 항목을 승격한다")
     void includesNotificationStaleBacklog() {
         given(collectService.getCollectFailures(null, null)).willReturn(new AdminCollectFailureResponse(
                 LocalDateTime.of(2026, 6, 4, 11, 30),
@@ -610,6 +705,6 @@ class AdminDashboardAttentionServiceTest {
 
         assertThat(response.items()).extracting("key").contains("notification-stale-backlog");
         assertThat(response.items()).extracting("nextAction", String.class)
-                .contains("대표 deeplink target을 확인한 뒤 같은 cluster만 bounded hide 처리하고 unread 총량 변화를 재확인합니다.");
+                .contains("대표 이동 경로를 확인한 뒤 같은 묶음만 제한적으로 숨김 처리하고 미열람 총량 변화를 재확인합니다.");
     }
 }

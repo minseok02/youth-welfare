@@ -1,6 +1,42 @@
 import { normalizeSafeExternalUrl } from "./policyDisplay.js";
 
+const STEP_BLOCK_PATTERN = /(\d+)\s*단계\s*([\s\S]*?)(?=(?:\d+\s*단계)|$)/g;
+
 export const formatChatSessionTitle = (title) => title?.trim() || "새 대화";
+
+export const parseStepAnswerBlocks = (content) => {
+  const text = (content ?? "").trim();
+  if (!text) {
+    return null;
+  }
+
+  const steps = [];
+  let firstStepIndex = -1;
+  for (const match of text.matchAll(STEP_BLOCK_PATTERN)) {
+    if (firstStepIndex < 0) {
+      firstStepIndex = match.index ?? 0;
+    }
+    const rawBody = (match[2] ?? "").replace(/^[\s:：.-]+/, "").trim();
+    if (!rawBody) {
+      continue;
+    }
+    const titleMatch = rawBody.match(/^([^:：\n]{2,28})[:：]\s*([\s\S]+)$/);
+    steps.push({
+      number: match[1],
+      title: titleMatch ? titleMatch[1].trim() : "",
+      body: titleMatch ? titleMatch[2].trim() : rawBody,
+    });
+  }
+
+  if (steps.length < 2) {
+    return null;
+  }
+
+  return {
+    intro: firstStepIndex > 0 ? text.slice(0, firstStepIndex).trim() : "",
+    steps,
+  };
+};
 
 export const formatChatRelativeTime = (dateText) => {
   if (!dateText) {

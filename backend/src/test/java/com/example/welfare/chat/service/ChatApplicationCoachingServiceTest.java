@@ -70,7 +70,10 @@ class ChatApplicationCoachingServiceTest {
         assertThat(context.candidate().getTitle()).isEqualTo("청년 월세 지원");
         assertThat(context.candidate().getApplyMethodDetail()).isEqualTo("온라인 신청 후 서류 제출");
         assertThat(context.evidenceByServiceId().get(11L)).contains("신청기간: 2026-06-01 ~ 2026-06-30");
-        assertThat(context.fallbackAnswer()).contains("1. 자격 조건").contains("제출서류");
+        assertThat(context.fallbackAnswer())
+                .contains("1단계 자격 조건")
+                .contains("2단계 신청 기간")
+                .contains("4단계 제출서류");
         assertThat(context.candidate().getActionLinks())
                 .extracting(ChatActionLinkResponse::getType)
                 .containsExactly("OFFICIAL_APPLY", "DOCUMENTS", "RELATED_SITE");

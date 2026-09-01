@@ -82,6 +82,7 @@ public class SimilarUsersViewedPolicyReadRepositoryImpl implements SimilarUsersV
                 JOIN welfare_services ws ON ws.id = rpv.service_id
                 WHERE rpv.last_viewed_at >= :viewedSince
                   AND ws.status IN ('ACTIVE', 'UPCOMING')
+                  AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURRENT_DATE)
                   AND ws.search_youth_relevant = true
                   AND (ws.min_age IS NULL OR ws.min_age <= :age)
                   AND (ws.max_age IS NULL OR ws.max_age >= :age)

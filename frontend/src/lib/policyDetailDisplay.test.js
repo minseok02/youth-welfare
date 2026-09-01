@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
   appendRelatedPolicyCandidates,
+  buildPolicyRegionDisplay,
   parsePolicyContacts,
   parsePolicyReferenceUrls,
 } from "./policyDetailDisplay.js";
@@ -80,5 +81,35 @@ describe("policy detail display helpers", () => {
       { id: 3, title: "같은 분야", relationLabel: "같은 분야" },
       { id: 4, title: "같은 지역", relationLabel: "같은 분야" },
     ]);
+  });
+
+  test("summarizes many regions in the same top-level region", () => {
+    const display = buildPolicyRegionDisplay({
+      regionLabel: "충청남도 천안시 동남구",
+      regions: [
+        "충청남도 천안시 동남구",
+        "충청남도 천안시 서북구",
+        "충청남도 공주시",
+        "충청남도 보령시",
+        "충청남도 아산시",
+        "충청남도 서산시",
+        "충청남도 논산시",
+        "충청남도 계룡시",
+      ],
+    });
+
+    assert.equal(display.compactLabel, "충청남도");
+    assert.equal(display.broadRegion, true);
+    assert.equal(display.detailLabels.length, 8);
+  });
+
+  test("keeps single region label specific", () => {
+    const display = buildPolicyRegionDisplay({
+      regionLabel: "충청남도 아산시",
+      regions: ["충청남도 아산시"],
+    });
+
+    assert.equal(display.compactLabel, "충청남도 아산시");
+    assert.equal(display.broadRegion, false);
   });
 });

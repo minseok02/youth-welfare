@@ -1830,7 +1830,7 @@ export default function MyPage() {
                     />
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
-                    <Field label="주거형태" hint="거주 형태가 정책 조건과 맞는지 볼 때 사용합니다. 대상이 아니면 '해당 없음'을 선택하세요.">
+                    <Field label="주거형태" hint="자가는 본인 또는 배우자 소유 주택에 거주하는 경우에만 선택하세요. 부모님 명의 집에 함께 산다면 자가로 보지 않는 편이 안전하며, 무주택세대 여부는 정책별 세대 기준을 다시 확인해야 합니다.">
                       <select
                         style={selCss(optionalProfileFieldDisabled)}
                         disabled={optionalProfileFieldDisabled}

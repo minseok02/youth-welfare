@@ -3,6 +3,7 @@ package com.example.welfare.admin.dashboard.service;
 import com.example.welfare.admin.dashboard.dto.AdminPolicyErrorReportResponse;
 import com.example.welfare.admin.dashboard.dto.AdminQueueStatusFilter;
 import com.example.welfare.admin.dashboard.dto.AdminReviewActionResponse;
+import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.policy.entity.PolicyErrorReport;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.PolicyErrorReportRepository;
@@ -60,6 +61,7 @@ class AdminPolicyErrorReportServiceTest {
         assertThat(response.recentReports()).hasSize(1);
         assertThat(response.recentReports().get(0).policyTitle()).isEqualTo("청년 교통비 지원");
         assertThat(response.recentReports().get(0).reasonLabel()).isEqualTo("링크나 원문이 열리지 않습니다");
+        assertThat(response.recentReports().get(0).userKeyHash()).isEqualTo(RedisKeyHash.sha256Hex("user-key-1"));
     }
 
     @Test

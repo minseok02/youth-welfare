@@ -135,6 +135,32 @@ class WelfareServiceMapperTest {
     }
 
     @Test
+    void fromYouth_parsesApplicationPeriodRangeAndKeepsAlwaysOpenAsNoConcreteDates() throws Exception {
+        YouthApiDto.Item rangedItem = new YouthApiDto.Item();
+        setField(rangedItem, "plcyNo", "Y005-D");
+        setField(rangedItem, "plcyNm", "청년 신청기간 정책");
+        setField(rangedItem, "lclsfNm", "일자리");
+        setField(rangedItem, "aplyYmd", "20260701 ~ 20260731");
+
+        WelfareService rangedService = mapper.fromYouth(rangedItem);
+
+        assertThat(rangedService.getApplyStartDate()).isEqualTo(LocalDate.of(2026, 7, 1));
+        assertThat(rangedService.getApplyEndDate()).isEqualTo(LocalDate.of(2026, 7, 31));
+
+        YouthApiDto.Item alwaysOpenItem = new YouthApiDto.Item();
+        setField(alwaysOpenItem, "plcyNo", "Y005-E");
+        setField(alwaysOpenItem, "plcyNm", "청년 상시모집 정책");
+        setField(alwaysOpenItem, "lclsfNm", "복지문화");
+        setField(alwaysOpenItem, "aplyYmd", "상시모집");
+
+        WelfareService alwaysOpenService = mapper.fromYouth(alwaysOpenItem);
+
+        assertThat(alwaysOpenService.getApplyStartDate()).isNull();
+        assertThat(alwaysOpenService.getApplyEndDate()).isNull();
+        assertThat(alwaysOpenService.getStatus()).isEqualTo(WelfareService.ServiceStatus.ACTIVE);
+    }
+
+    @Test
     void youthDto_deserializesReferenceUrls() throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
 

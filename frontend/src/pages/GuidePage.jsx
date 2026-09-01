@@ -24,8 +24,8 @@ const WARN = "#c2410c";
 const QUICK_STEPS = [
   {
     step: "1",
-    title: "로그인하고 기본 정보를 맞춰요",
-    body: "지역과 기본 프로필이 맞아야 정책 검색과 추천이 지역·연령 기준으로 흔들리지 않습니다.",
+    title: "내 조건을 먼저 맞춰요",
+    body: "생년월일, 지역, 소득수준처럼 기본 조건이 맞아야 정책 추천과 사전점검이 불필요하게 흔들리지 않습니다.",
   },
   {
     step: "2",
@@ -35,12 +35,12 @@ const QUICK_STEPS = [
   {
     step: "3",
     title: "주거·복지 맞춤 정보를 채우세요",
-    body: "생활 여건에 맞는 선택 프로필을 보완하면 추천 정확도가 올라갑니다.",
+    body: "주거형태, 주택유형, 수급 정보처럼 정책 조건에 자주 쓰이는 값을 보완하면 추천 사유가 더 명확해집니다.",
   },
   {
     step: "4",
-    title: "추천, 검색, 챗봇을 같이 쓰세요",
-    body: "추천으로 후보를 좁히고, 검색으로 비교하고, 챗봇으로 후속 질문을 이어가면 탐색 속도가 빨라집니다.",
+    title: "추천, 검색, AI를 같이 쓰세요",
+    body: "추천으로 후보를 좁히고, 검색으로 비교한 뒤 정책 상세의 AI 신청 준비하기로 신청 전 확인 항목을 정리하세요.",
   },
 ];
 
@@ -84,6 +84,21 @@ const ACCURACY_ITEMS = [
   "챗봇 답변은 탐색 보조입니다. 최종 자격조건은 상세 페이지와 원문 공고에서 다시 확인해야 합니다.",
 ];
 
+const TRUST_ITEMS = [
+  {
+    title: "추천 메모",
+    body: "추천된 이유는 지역, 연령, 우선순위, 소득·주거·복지 조건처럼 실제 매칭에 쓰인 신호를 짧게 보여줍니다. 이유가 약하면 상세 페이지에서 원문을 먼저 확인하세요.",
+  },
+  {
+    title: "내 조건 사전점검",
+    body: "정책 상세에서 입력한 프로필과 정책 조건을 먼저 비교합니다. 확인 또는 주의가 뜨면 탈락 확정이 아니라 원문 기준으로 더 봐야 한다는 뜻입니다.",
+  },
+  {
+    title: "AI와 신청 준비하기",
+    body: "특정 정책을 기준으로 자격 조건, 신청기간, 신청방법, 제출서류, 공식 링크를 단계별로 정리합니다. 실제 제출 전에는 운영기관 안내가 우선입니다.",
+  },
+];
+
 const FAQ_ITEMS = [
   {
     q: "추천에 떴다고 바로 신청 가능한 건가요?",
@@ -96,6 +111,10 @@ const FAQ_ITEMS = [
   {
     q: "왜 우선순위와 선택 프로필을 계속 입력하라고 하나요?",
     a: "이 값들이 있어야 추천 상단이 덜 퍼지고, 주거·복지 조건에 맞는 정책이 더 앞으로 올라옵니다.",
+  },
+  {
+    q: "부모님 집에 살면 자가로 입력해야 하나요?",
+    a: "자가는 보통 본인 또는 배우자 명의 주택에 거주하는 경우로 보는 편이 안전합니다. 부모님 명의 집에 함께 산다면 자가로 단정하지 말고, 무주택세대·세대주 기준은 정책별 원문에서 확인하세요.",
   },
 ];
 
@@ -365,6 +384,21 @@ export default function GuidePage() {
                 </button>
               </div>
             </div>
+          </div>
+        </SectionShell>
+
+        <SectionShell
+          eyebrow="READING RESULTS"
+          title="추천과 AI 답변은 이렇게 읽으세요"
+          desc="서비스가 보여주는 결과는 신청 전 판단을 빠르게 돕기 위한 정리입니다. 확정 판정처럼 읽지 않도록 화면마다 확인 기준을 나눴습니다."
+        >
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: 14 }}>
+            {TRUST_ITEMS.map((item) => (
+              <div key={item.title} style={{ background: WHITE, border: `1px solid ${LINE}`, borderRadius: 20, padding: 22 }}>
+                <div style={{ fontSize: 17, fontWeight: 800, color: INK }}>{item.title}</div>
+                <div style={{ marginTop: 8, fontSize: 14, lineHeight: 1.7, color: INK2 }}>{item.body}</div>
+              </div>
+            ))}
           </div>
         </SectionShell>
 

@@ -73,6 +73,7 @@ public class SupportInquiry extends BaseTimeEntity {
         USAGE_QUESTION("사용법 질문"),
         IMPROVEMENT_SUGGESTION("개선 제안"),
         ACCOUNT_ISSUE("계정 문제"),
+        GENERAL_FEEDBACK("일반 의견"),
         ETC("기타");
 
         private final String label;

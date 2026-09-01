@@ -37,6 +37,8 @@ describe("policy display date and status helpers", () => {
     assert.equal(formatPolicyDday("2026-06-25", "ACTIVE", FIXED_NOW), "D-Day");
     assert.equal(formatPolicyDday("2026-07-01", "ACTIVE", FIXED_NOW), "D-6");
     assert.equal(formatPolicyDday(null, "UPCOMING", FIXED_NOW), "예정");
+    assert.equal(formatPolicyDday(null, "ACTIVE", FIXED_NOW), "상시/문의");
+    assert.equal(formatPolicyDday("bad-date", "ACTIVE", FIXED_NOW), "상시/문의");
   });
 });
 

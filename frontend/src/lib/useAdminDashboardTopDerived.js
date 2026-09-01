@@ -12,7 +12,10 @@ import {
   formatAttentionActionLabel,
   formatAttentionSource,
 } from "../components/adminDashboard/AdminDashboardUiTokens";
-import { formatNumber } from "./adminDashboardDisplay";
+import {
+  formatAdminOperationalText,
+  formatNumber,
+} from "./adminDashboardDisplay";
 
 export function useAdminDashboardTopDerived({
   summaryData,
@@ -50,10 +53,12 @@ export function useAdminDashboardTopDerived({
     ?? attentionFeed?.itemCount
     ?? 0;
   const wrapperAttentionFeedPrimaryTitle =
-    wrapperObservation?.currentPriorityAttentionFeedItemTitles
-    || wrapperObservation?.activeBaselineAttentionFeedItemTitles
-    || attentionFeed?.items?.[0]?.title
-    || "대표 항목 없음";
+    formatAdminOperationalText(
+      wrapperObservation?.currentPriorityAttentionFeedItemTitles
+      || wrapperObservation?.activeBaselineAttentionFeedItemTitles
+      || attentionFeed?.items?.[0]?.title,
+      "대표 항목 없음"
+    );
   const wrapperAttentionFeedPrimaryKey =
     wrapperObservation?.currentPriorityAttentionFeedItemKeys
     || wrapperObservation?.activeBaselineAttentionFeedItemKeys
@@ -79,7 +84,8 @@ export function useAdminDashboardTopDerived({
     ? { label: "정리 필요", bg: WARNING_BG, border: WARNING_BORDER, color: WARNING_TEXT }
     : { label: "양호", bg: SUCCESS_BG, border: SUCCESS_BORDER, color: SUCCESS_TEXT };
   const wrapperMissingDelta = wrapperObservation?.currentPriorityUsersMissingAllStandardCodesDelta ?? 0;
-  const wrapperMissingDeltaLabel = wrapperObservation?.currentPriorityUsersMissingAllStandardCodesDeltaLabel
+  const wrapperMissingDeltaLabel = formatAdminOperationalText(
+    wrapperObservation?.currentPriorityUsersMissingAllStandardCodesDeltaLabel
     || (
       wrapperObservation?.currentPriorityPreviousAvailable
         ? (
@@ -90,7 +96,8 @@ export function useAdminDashboardTopDerived({
                 : "변화 없음"
           )
         : "이전값 없음"
-    );
+    )
+  );
   const wrapperMissingDeltaColor = wrapperObservation?.currentPriorityPreviousAvailable
     ? (
         wrapperMissingDelta > 0
@@ -100,7 +107,8 @@ export function useAdminDashboardTopDerived({
             : INK3
       )
     : INK3;
-  const wrapperObservationChangeLabel = wrapperObservation?.currentPriorityRecommendationObservationStatusTransitionLabel
+  const wrapperObservationChangeLabel = formatAdminOperationalText(
+    wrapperObservation?.currentPriorityRecommendationObservationStatusTransitionLabel
     || (
       wrapperObservation?.currentPriorityPreviousAvailable
         ? (
@@ -109,7 +117,8 @@ export function useAdminDashboardTopDerived({
               : "변화 없음"
           )
         : "이전값 없음"
-    );
+    )
+  );
   const wrapperObservationChangeColor = wrapperObservation?.currentPriorityPreviousAvailable
     ? (
         wrapperObservation?.currentPriorityRecommendationObservationStatusChanged
@@ -120,8 +129,8 @@ export function useAdminDashboardTopDerived({
   const wrapperSnapshotAlert = wrapperObservation?.promotedAlert
     ? {
         severity: wrapperObservation.promotedAlert.severity,
-        title: wrapperObservation.promotedAlert.title,
-        message: wrapperObservation.promotedAlert.message,
+        title: formatAdminOperationalText(wrapperObservation.promotedAlert.title),
+        message: formatAdminOperationalText(wrapperObservation.promotedAlert.message),
       }
     : null;
   const localAttentionQueueItems = [
@@ -137,7 +146,12 @@ export function useAdminDashboardTopDerived({
   const attentionQueueItems = [
     ...localAttentionQueueItems,
     ...(attentionFeed?.items ?? []),
-  ];
+  ].map((item) => ({
+    ...item,
+    title: formatAdminOperationalText(item.title),
+    message: formatAdminOperationalText(item.message),
+    nextAction: formatAdminOperationalText(item.nextAction, ""),
+  }));
   const promotedAttentionItems = [...attentionQueueItems]
     .sort((left, right) => {
       const leftRank = ATTENTION_PROMOTION_RANK[left.severity] ?? 99;

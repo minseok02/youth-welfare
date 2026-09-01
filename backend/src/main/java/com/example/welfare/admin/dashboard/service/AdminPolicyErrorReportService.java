@@ -5,6 +5,7 @@ import com.example.welfare.admin.dashboard.dto.AdminQueueStatusFilter;
 import com.example.welfare.admin.dashboard.dto.AdminReviewActionResponse;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.policy.entity.PolicyErrorReport;
 import com.example.welfare.policy.repository.PolicyErrorReportRepository;
 import lombok.RequiredArgsConstructor;
@@ -45,7 +46,7 @@ public class AdminPolicyErrorReportService {
                         report.getReasonCode().name(),
                         report.getReasonCode().getLabel(),
                         report.getNote(),
-                        report.getUserKey(),
+                        hashNullable(report.getUserKey()),
                         report.getCreatedAt(),
                         report.getStatus().name(),
                         report.getReviewNote(),
@@ -54,6 +55,10 @@ public class AdminPolicyErrorReportService {
                 ))
                 .toList();
         return new AdminPolicyErrorReportResponse(openCount, recentOpenCount24h, items);
+    }
+
+    private String hashNullable(String value) {
+        return value == null || value.isBlank() ? null : RedisKeyHash.sha256Hex(value);
     }
 
     private List<PolicyErrorReport> selectReports(AdminQueueStatusFilter statusFilter, int limit) {

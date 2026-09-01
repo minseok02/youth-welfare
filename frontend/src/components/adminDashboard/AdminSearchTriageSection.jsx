@@ -25,7 +25,7 @@ export default function AdminSearchTriageSection({
       <TriageSectionTitle
         eyebrow="검색 진단"
         title="검색 실패 상세"
-        description="0건 검색 패턴, 재시도 묶음, recovery 여부를 같은 페이지에서 바로 확인합니다."
+        description="0건 검색 패턴, 재시도 묶음, 이후 결과 복구 여부를 같은 페이지에서 바로 확인합니다."
       />
 
       {searchFailuresQuery.isLoading && (

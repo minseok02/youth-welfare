@@ -20,6 +20,7 @@ import {
   WARNING_TEXT,
 } from "./AdminDashboardUiTokens";
 import {
+  formatAdminOperationalText,
   formatAdminMessage,
   formatCodeOrStatus,
   formatCollectJobName,
@@ -27,6 +28,7 @@ import {
   formatConfigValue,
   formatDateTime,
   formatNumber,
+  formatAdminRoutePath,
   formatStatusLabel,
 } from "../../lib/adminDashboardDisplay";
 import {
@@ -54,13 +56,13 @@ export default function AdminCollectTriageLists({ collectFailures }) {
               <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={1.5}>
                 <Box sx={{ minWidth: 0 }}>
                   <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK, overflowWrap: "anywhere", wordBreak: "break-word" }}>
-                    {item.label}
+                    {formatAdminOperationalText(item.label)}
                   </Typography>
                   <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25, overflowWrap: "anywhere", wordBreak: "break-word" }}>
-                    {formatCollectJobName(item.laneKey)} · 실행 경로 {item.triggerPath}
+                    {formatCollectJobName(item.laneKey)} · 실행 경로 {formatAdminRoutePath(item.triggerPath, "경로 정보 없음")}
                   </Typography>
                   <Typography sx={{ fontSize: 12, color: INK2, mt: 0.75, lineHeight: 1.5, overflowWrap: "anywhere", wordBreak: "break-word" }}>
-                    {item.governanceReason}
+                    {formatAdminOperationalText(item.governanceReason)}
                   </Typography>
                   {item.latestRun ? (
                     <Box mt={1}>
@@ -90,7 +92,7 @@ export default function AdminCollectTriageLists({ collectFailures }) {
                   ) : null}
                   {item.scheduleLabel && (
                     <Typography sx={{ fontSize: 12, color: INK3, mt: 0.75 }}>
-                      {item.scheduleLabel}
+                      {formatAdminOperationalText(item.scheduleLabel)}
                     </Typography>
                   )}
                 </Box>

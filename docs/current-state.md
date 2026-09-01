@@ -4,6 +4,7 @@
 
 ## 한 줄 요약
 
+- 2026-09-01 기준 teardown/restart handoff와 실제 AWS 상태는 [core/restart-and-teardown-handoff-2026-09-01.md](./core/restart-and-teardown-handoff-2026-09-01.md) 를 먼저 봅니다.
 - 현재 active main track은 기능 추가가 아니라 안정화와 회귀 방지입니다.
 - 안정화 단계의 작업 기준은 [stabilization-checklist.md](core/stabilization-checklist.md) 를 먼저 봅니다.
 - 최근 보안/운영 follow-up은 [core/security-hardening-current-state.md](./core/security-hardening-current-state.md) 를 먼저 봅니다.
@@ -11,6 +12,7 @@
 
 ## 지금 유지하는 active 기준선
 
+- 2026-09-01 teardown 직전 실상태: primary EC2 `i-0b8d95e454df5e0f0` 는 `running`, secondary `i-0e8a4cc599c1148c8` 는 `stopped`, RDS `youth-welfare-prod-db` 는 `stopped`, ElastiCache Valkey `youth-welfare-prod-redis-valkey` 와 ALB/Route53 는 아직 남아 있다. public `https://youthmoa.kr` 는 정적 프론트 `200` 이지만 `/api/policies/ranking` 은 `502` 이고 ALB target health는 primary `unhealthy`, secondary `unused` 다. 인프라 삭제나 재시작 준비는 [core/restart-and-teardown-handoff-2026-09-01.md](./core/restart-and-teardown-handoff-2026-09-01.md) 를 기준으로 본다.
 - 보안: `Tomcat 10.1.55`, `pgjdbc 42.7.11`, `Bouncy Castle 1.84`, logout 후 older token까지 `401/A006`
 - collect/runtime: 로컬 full collect, ops baseline, broad quality 재검사까지 다시 green
 - recommendation/policy: 각 current-state 문서와 runbook을 기준으로 baseline 유지 단계

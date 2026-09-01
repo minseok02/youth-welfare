@@ -69,6 +69,17 @@ describe("resolveSafeRouteTarget", () => {
       hash: "#apply",
       state: { keep: "yes" },
     });
+
+    assert.deepEqual(resolveSafeRouteTarget({
+      pathname: "/chat",
+      state: { coachPolicyId: "7", recommendationLogId: 11, keep: "yes" },
+    }), {
+      path: "/chat",
+      pathname: "/chat",
+      search: "",
+      hash: "",
+      state: { coachPolicyId: 7, keep: "yes" },
+    });
   });
 
   test("rejects malformed route target objects", () => {
@@ -154,6 +165,30 @@ describe("buildSafeReturnLocation", () => {
       state: {
         from: {
           pathname: "/policies/2",
+          search: "",
+          hash: "",
+          state: undefined,
+        },
+      },
+    });
+  });
+
+  test("keeps chat coaching policy id only for chat login returns", () => {
+    assert.deepEqual(buildSafeReturnLocation({
+      pathname: "/chat",
+      state: {
+        coachPolicyId: "12",
+        recommendationLogId: 99,
+        from: "/policies/12",
+      },
+    }), {
+      pathname: "/chat",
+      search: "",
+      hash: "",
+      state: {
+        coachPolicyId: 12,
+        from: {
+          pathname: "/policies/12",
           search: "",
           hash: "",
           state: undefined,

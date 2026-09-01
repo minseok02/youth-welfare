@@ -72,10 +72,10 @@ export default function AdminSupportInquiriesSection({
                 사용자 문의
               </Typography>
               <Typography sx={{ fontSize: 20, fontWeight: 900, color: INK, mt: 0.75, letterSpacing: "-0.02em" }}>
-                서비스 문의 recent queue
+                서비스 문의 대기열
               </Typography>
               <Typography sx={{ fontSize: 13, color: INK3, mt: 0.75 }}>
-                로그인, 추천, 챗봇, 검색, 알림처럼 서비스를 쓰다가 막힌 내용을 최근 열린 순서대로 봅니다. 정책 데이터 오류 제보와는 별도 queue입니다.
+                로그인, 추천, 챗봇, 검색, 알림처럼 서비스를 쓰다가 막힌 내용을 최근 열린 순서대로 봅니다. 정책 데이터 오류 제보와는 별도 대기열입니다.
               </Typography>
             </Box>
 
@@ -102,7 +102,7 @@ export default function AdminSupportInquiriesSection({
             {supportInquiriesQuery.isError && (
               <SectionErrorCard
                 title="서비스 문의 로드 실패"
-                description="서비스 사용 문의 queue를 읽지 못했습니다."
+                description="서비스 사용 문의 대기열을 읽지 못했습니다."
                 message={supportInquiriesErrorMessage}
                 onRetry={() => supportInquiriesQuery.refetch()}
               />
@@ -153,7 +153,7 @@ export default function AdminSupportInquiriesSection({
                                 {item.categoryLabel}
                               </Typography>
                               <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25, overflowWrap: "anywhere", wordBreak: "break-word" }}>
-                                {formatMaskedEmail(item.contactEmail)} · {formatAdminRoutePath(item.routePath)} · {formatDateTime(item.createdAt)}
+                                {item.contactEmailMasked ?? formatMaskedEmail(item.contactEmail)} · {formatAdminRoutePath(item.routePath)} · {formatDateTime(item.createdAt)}
                               </Typography>
                             </Box>
                             <Chip
@@ -172,7 +172,7 @@ export default function AdminSupportInquiriesSection({
                             {formatAdminDisplayText(item.message)}
                           </Typography>
                           <Typography sx={{ fontSize: 12, color: INK3 }}>
-                            문의자 {formatMaskedUserKey(item.userKey, "비로그인/미연결")}
+                            문의자 {formatMaskedUserKey(item.userKeyHash ?? item.userKey, "비로그인/미연결")}
                           </Typography>
                           {item.status === "REVIEWED" && (
                             <Alert severity="success" sx={{ py: 0 }}>

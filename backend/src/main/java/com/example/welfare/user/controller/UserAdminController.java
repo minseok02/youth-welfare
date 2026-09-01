@@ -94,7 +94,7 @@ public class UserAdminController {
         userSessionRevocationService.revokeUserSessions(userKey, cutoffMillis);
         log.info("[AdminAudit] event=forced_logout outcome=accepted actorHash={} targetUserKeyHash={} cutoffMillis={}",
                 RedisKeyHash.sha256Hex(actorKey(authenticatedUser)), RedisKeyHash.sha256Hex(userKey), cutoffMillis);
-        return ResponseEntity.ok(ApiResponse.success(new ForcedLogoutResponse(userKey, true)));
+        return ResponseEntity.ok(ApiResponse.success(new ForcedLogoutResponse(RedisKeyHash.sha256Hex(userKey), true)));
     }
 
     @PostMapping("/pii-sync-replay")
@@ -135,7 +135,7 @@ public class UserAdminController {
     ) {
     }
 
-    public record ForcedLogoutResponse(String userKey, boolean accepted) {
+    public record ForcedLogoutResponse(String targetUserKeyHash, boolean accepted) {
     }
 
     private String actorKey(AuthenticatedUser authenticatedUser) {

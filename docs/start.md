@@ -12,11 +12,12 @@
 ## 먼저 볼 파일
 
 1. [current-state.md](./current-state.md)
-2. [stabilization-handoff.md](./stabilization-handoff.md)
-3. [core/stabilization-checklist.md](./core/stabilization-checklist.md)
-4. [core/final-ops-closeout-checklist.md](./core/final-ops-closeout-checklist.md)
-5. [work-guide.md](./work-guide.md)
-6. 작업과 직접 관련된 문서군의 `*-docs-index.md` 또는 `*-current-state.md`
+2. teardown 또는 장기 중단 뒤 재개면 [core/restart-and-teardown-handoff-2026-09-01.md](./core/restart-and-teardown-handoff-2026-09-01.md)
+3. [stabilization-handoff.md](./stabilization-handoff.md)
+4. [core/stabilization-checklist.md](./core/stabilization-checklist.md)
+5. [core/final-ops-closeout-checklist.md](./core/final-ops-closeout-checklist.md)
+6. [work-guide.md](./work-guide.md)
+7. 작업과 직접 관련된 문서군의 `*-docs-index.md` 또는 `*-current-state.md`
 
 ## 문서군 진입점
 

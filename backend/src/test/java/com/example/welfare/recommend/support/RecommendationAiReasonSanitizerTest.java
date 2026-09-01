@@ -19,6 +19,18 @@ class RecommendationAiReasonSanitizerTest {
     }
 
     @Test
+    void sanitizeReturnsNullForLowConfidenceReason() {
+        assertThat(RecommendationAiReasonSanitizer.sanitize("농업 관련성 낮음")).isNull();
+        assertThat(RecommendationAiReasonSanitizer.sanitize("사용자 조건과 맞지 않음")).isNull();
+    }
+
+    @Test
+    void sanitizeKeepsPositiveLowIncomeReason() {
+        assertThat(RecommendationAiReasonSanitizer.sanitize("소득 낮음으로 주거 지원 필요"))
+                .isEqualTo("소득 낮음으로 주거 지원 필요");
+    }
+
+    @Test
     void sanitizeLimitsReasonToTwentyCodePoints() {
         String reason = "청년 주거 지원 조건과 지역 조건이 잘 맞아요";
 

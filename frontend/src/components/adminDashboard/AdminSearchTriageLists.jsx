@@ -15,6 +15,7 @@ import {
   formatActorType,
   formatBooleanLabel,
   formatDateTime,
+  formatMaskedUserKey,
   formatNumber,
   formatSearchStatusFilter,
   formatSortKey,
@@ -73,7 +74,7 @@ export default function AdminSearchTriageLists({ searchFailures }) {
             <Box key={`${item.actorType}-${item.actorKey}-${item.keyword}-${item.latestSearchedAt}`} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
               <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{item.keyword || "키워드 없음"}</Typography>
               <Typography sx={{ fontSize: 12, color: INK3, mt: 0.35 }}>
-                {formatActorType(item.actorType)} · {item.actorKey || "익명"}
+                {formatActorType(item.actorType)} · {formatMaskedUserKey(item.actorKey, "익명")}
               </Typography>
               <Typography sx={{ fontSize: 12, color: INK2, mt: 0.75 }}>
                 재시도 {formatNumber(item.retryCount)} · {formatDateTime(item.firstSearchedAt)} ~ {formatDateTime(item.latestSearchedAt)}

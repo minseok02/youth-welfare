@@ -82,6 +82,19 @@ const PI_ROWS = [
     basis: "서비스 이용계약 이행 및 정당한 이익",
     retention: "목적 달성 또는 회원 탈퇴 시까지",
   },
+  {
+    category: "문의 및 오류 제보 정보",
+    items: "문의 유형, 문의 내용, 정책 오류 제보 내용, 처리 상태",
+    purpose: "서비스 문의 응대, 정책 데이터 오류 확인, 운영 품질 개선",
+    basis: "서비스 이용계약 이행 및 정당한 이익",
+    retention: "문의 처리 및 분쟁 대응 목적 달성 시까지",
+  },
+];
+
+const SUMMARY_ITEMS = [
+  ["필수 정보", "계정 생성과 로그인, 청년 대상 서비스 제공에 필요한 정보입니다."],
+  ["선택 정보", "추천 품질을 높이기 위한 정보이며 동의하지 않아도 기본 이용은 가능합니다."],
+  ["AI 처리", "추천과 챗봇 답변을 위해 필요한 최소 정보와 정책 후보 정보만 사용합니다."],
 ];
 
 function Section({ title, children }) {
@@ -155,6 +168,15 @@ export default function PrivacyPolicyContent() {
         이 방침은 서비스 화면에서 수집되는 항목, 목적, 보유기간, 이용자의 권리 행사 방법을 안내하기 위한 문서입니다.
       </p>
 
+      <div style={{ display: "grid", gap: 12, gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", marginTop: 16 }}>
+        {SUMMARY_ITEMS.map(([title, body]) => (
+          <div key={title} style={{ background: "#f8fafc", border: `1px solid ${LINE}`, borderRadius: 12, padding: "14px 16px" }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: INK }}>{title}</div>
+            <div style={{ marginTop: 6, fontSize: 13, color: INK2, lineHeight: 1.6 }}>{body}</div>
+          </div>
+        ))}
+      </div>
+
       <Section title="1. 처리하는 개인정보 항목과 목적">
         {isMobile ? <ProcessingItemsCards /> : <ProcessingItemsTable />}
       </Section>
@@ -173,34 +195,48 @@ export default function PrivacyPolicyContent() {
         </p>
       </Section>
 
-      <Section title="4. 만 14세 미만 아동의 개인정보">
+      <Section title="4. 자동화 추천 및 AI 처리 안내">
+        <p style={noteBoxStyle}>
+          맞춤 추천, 추천 사유, 챗봇 답변, 정책 상세의 AI 신청 준비하기는 이용자가 입력한 프로필과 정책 후보 정보를 바탕으로 자동화된 방식으로 생성될 수 있습니다.
+          이 결과는 정책 탐색을 돕는 참고 정보이며, 신청 자격 확정이나 행정상 최종 결정을 대신하지 않습니다.
+        </p>
+        <p style={{ ...noteBoxStyle, marginTop: 10 }}>
+          AI 기능에는 질문 내용, 최근 대화 일부, 정책 후보와 근거 문장, 범주형 추천 신호가 사용될 수 있습니다.
+          서비스는 이름, 이메일, 생년월일, 전화번호 등 직접 식별자를 외부 AI 요청에 포함하지 않도록 최소화와 비식별 처리를 적용합니다.
+          이용자는 마이페이지에서 추천용 정보를 수정하거나 삭제할 수 있고, 고객센터를 통해 AI 추천·답변에 대한 설명과 정정을 요청할 수 있습니다.
+        </p>
+      </Section>
+
+      <Section title="5. 만 14세 미만 아동의 개인정보">
         <p style={noteBoxStyle}>
           청년복지플랫폼은 현재 법정대리인 동의 확인 절차를 제공하지 않으므로 만 14세 미만 아동의 회원가입을 제한합니다.
           생년월일 기준으로 만 14세 미만인 경우 가입 절차를 완료할 수 없습니다.
         </p>
       </Section>
 
-      <Section title="5. 제3자 제공 및 처리위탁">
+      <Section title="6. 제3자 제공 및 처리위탁">
         <p style={noteBoxStyle}>
           청년복지플랫폼은 법령에 근거가 있거나 이용자의 별도 동의가 있는 경우를 제외하고 개인정보를 제3자에게 제공하지 않습니다.
-          이메일 발송, 인프라 운영, 분석 도구 등 외부 서비스에 개인정보 처리를 위탁하는 경우 수탁자, 위탁 업무, 보유기간을 이 방침에 공개합니다.
+          이메일 발송, 인프라 운영, AI 답변 생성, 분석 도구 등 외부 서비스에 개인정보 처리를 위탁하거나 국외 이전이 필요한 경우
+          수탁자, 이전되는 항목, 목적, 보유기간, 거부 방법 등 필요한 사항을 이 방침 또는 별도 안내로 공개합니다.
         </p>
       </Section>
 
-      <Section title="6. 정보주체의 권리">
+      <Section title="7. 정보주체의 권리">
         <p style={noteBoxStyle}>
           이용자는 개인정보 열람, 정정, 삭제, 처리정지, 동의 철회를 요청할 수 있습니다.
+          자동화된 추천 또는 AI 답변에 대해서도 설명, 정정, 재검토 요청을 할 수 있습니다.
           요청은 서비스 내 문의 채널 또는 운영자가 공지한 연락처를 통해 접수할 수 있으며, 본인 확인 후 관련 법령에 따라 처리합니다.
         </p>
       </Section>
 
-      <Section title="7. 안전성 확보조치">
+      <Section title="8. 안전성 확보조치">
         <p style={noteBoxStyle}>
           서비스는 비밀번호 해시 처리, 개인정보 암호화, 접근권한 분리, 접속기록 관리, 민감 정보 접근 제한 등 개인정보 보호를 위한 기술적·관리적 조치를 적용합니다.
         </p>
       </Section>
 
-      <Section title="8. 개인정보 보호책임자">
+      <Section title="9. 개인정보 보호책임자">
         <p style={noteBoxStyle}>
           개인정보 보호책임자는 청년복지플랫폼 운영팀입니다.
           개인정보 관련 문의, 권리 행사, 피해 구제 요청은 서비스 내 문의 채널로 접수할 수 있으며, 운영 연락처가 확정되면 이 방침에 추가로 공지합니다.
@@ -208,7 +244,7 @@ export default function PrivacyPolicyContent() {
       </Section>
 
       <p style={{ color: INK3, fontSize: 13, margin: "24px 0 0" }}>
-        시행일: 2026년 6월 6일
+        시행일: 2026년 7월 21일
       </p>
     </>
   );

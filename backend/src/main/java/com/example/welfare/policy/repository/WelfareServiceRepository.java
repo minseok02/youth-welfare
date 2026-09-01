@@ -84,6 +84,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
     @Query("""
             SELECT ws FROM WelfareService ws
             WHERE ws.status IN ('ACTIVE', 'UPCOMING')
+              AND (ws.applyEndDate IS NULL OR ws.applyEndDate >= CURRENT_DATE)
               AND (ws.minAge IS NULL OR ws.minAge <= :age)
               AND (ws.maxAge IS NULL OR ws.maxAge >= :age)
               AND (
@@ -104,6 +105,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
     @Query("""
             SELECT ws FROM WelfareService ws
             WHERE ws.status IN ('ACTIVE', 'UPCOMING')
+              AND (ws.applyEndDate IS NULL OR ws.applyEndDate >= CURRENT_DATE)
               AND (ws.minAge IS NULL OR ws.minAge <= :age)
               AND (ws.maxAge IS NULL OR ws.maxAge >= :age)
               AND (
@@ -255,6 +257,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
     @Query("""
             SELECT ws FROM WelfareService ws
             WHERE ws.status IN ('ACTIVE', 'UPCOMING')
+              AND (ws.applyEndDate IS NULL OR ws.applyEndDate >= CURRENT_DATE)
               AND (ws.minAge IS NULL OR ws.minAge <= :age)
               AND (ws.maxAge IS NULL OR ws.maxAge >= :age)
               AND (
@@ -364,6 +367,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
     @Query("""
             SELECT ws FROM WelfareService ws
             WHERE ws.status IN ('ACTIVE', 'UPCOMING')
+              AND (ws.applyEndDate IS NULL OR ws.applyEndDate >= CURRENT_DATE)
               AND (ws.minAge IS NULL OR ws.minAge <= :age)
               AND (ws.maxAge IS NULL OR ws.maxAge >= :age)
               AND (
@@ -384,6 +388,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
     @Query("""
             SELECT ws FROM WelfareService ws
             WHERE ws.status IN ('ACTIVE', 'UPCOMING')
+              AND (ws.applyEndDate IS NULL OR ws.applyEndDate >= CURRENT_DATE)
               AND (ws.minAge IS NULL OR ws.minAge <= :age)
               AND (ws.maxAge IS NULL OR ws.maxAge >= :age)
               AND (
@@ -535,6 +540,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
     @Query("""
             SELECT ws FROM WelfareService ws
             WHERE ws.status IN ('ACTIVE', 'UPCOMING')
+              AND (ws.applyEndDate IS NULL OR ws.applyEndDate >= CURRENT_DATE)
               AND (ws.minAge IS NULL OR ws.minAge <= :age)
               AND (ws.maxAge IS NULL OR ws.maxAge >= :age)
               AND (
@@ -640,14 +646,17 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                                                       @Param("sidoName") String sidoName,
                                                       Pageable pageable);
 
+    @Query("""
+            SELECT ws FROM WelfareService ws
+            WHERE ws.searchYouthRelevant = true
+              AND ws.status IN :statuses
+              AND (ws.applyEndDate IS NULL OR ws.applyEndDate >= CURRENT_DATE)
+            ORDER BY COALESCE(ws.apiViewCount, 0) DESC,
+                     COALESCE(ws.viewCount, 0) DESC,
+                     ws.createdAt DESC
+            """)
     List<WelfareService> findBySearchYouthRelevantTrueAndStatusInOrderByApiViewCountDescViewCountDescCreatedAtDesc(
-            List<WelfareService.ServiceStatus> statuses,
-            Pageable pageable
-    );
-
-    List<WelfareService> findBySearchYouthRelevantTrueAndStatusInAndUnifiedCategoryOrderByApiViewCountDescViewCountDescCreatedAtDesc(
-            List<WelfareService.ServiceStatus> statuses,
-            String unifiedCategory,
+            @Param("statuses") List<WelfareService.ServiceStatus> statuses,
             Pageable pageable
     );
 
@@ -655,6 +664,23 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             SELECT ws FROM WelfareService ws
             WHERE ws.searchYouthRelevant = true
               AND ws.status IN :statuses
+              AND (ws.applyEndDate IS NULL OR ws.applyEndDate >= CURRENT_DATE)
+              AND ws.unifiedCategory = :unifiedCategory
+            ORDER BY COALESCE(ws.apiViewCount, 0) DESC,
+                     COALESCE(ws.viewCount, 0) DESC,
+                     ws.createdAt DESC
+            """)
+    List<WelfareService> findBySearchYouthRelevantTrueAndStatusInAndUnifiedCategoryOrderByApiViewCountDescViewCountDescCreatedAtDesc(
+            @Param("statuses") List<WelfareService.ServiceStatus> statuses,
+            @Param("unifiedCategory") String unifiedCategory,
+            Pageable pageable
+    );
+
+    @Query("""
+            SELECT ws FROM WelfareService ws
+            WHERE ws.searchYouthRelevant = true
+              AND ws.status IN :statuses
+              AND (ws.applyEndDate IS NULL OR ws.applyEndDate >= CURRENT_DATE)
               AND ws.unifiedCategory = :unifiedCategory
               AND EXISTS (
                     SELECT sr.id FROM ServiceRegion sr

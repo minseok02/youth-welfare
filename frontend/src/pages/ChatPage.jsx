@@ -35,6 +35,7 @@ import {
   mapChatBranchSuggestion,
   mapChatMessage,
   mapChatSession,
+  parseStepAnswerBlocks,
 } from "../lib/chatDisplay";
 import { sanitizeTransientRouteState } from "../lib/safeNavigation";
 
@@ -733,7 +734,12 @@ export default function ChatPage() {
                     </Box>
                   ) : messages.length ? (
                     <Stack spacing={1.5}>
-                      {messages.map((message) => (
+                      {messages.map((message) => {
+                        const stepAnswer = message.role === "ASSISTANT"
+                          ? parseStepAnswerBlocks(message.content)
+                          : null;
+
+                        return (
                         <Box
                           key={message.messageId}
                           sx={{
@@ -764,9 +770,51 @@ export default function ChatPage() {
                                 </Typography>
                               </Stack>
 
-                              <Typography sx={{ whiteSpace: "pre-wrap", lineHeight: 1.7 }}>
-                                {message.content}
-                              </Typography>
+                              {stepAnswer ? (
+                                <Stack spacing={1}>
+                                  {stepAnswer.intro && (
+                                    <Typography sx={{ whiteSpace: "pre-wrap", lineHeight: 1.7 }}>
+                                      {stepAnswer.intro}
+                                    </Typography>
+                                  )}
+                                  {stepAnswer.steps.map((step) => (
+                                    <Paper
+                                      key={`${message.messageId}-step-${step.number}`}
+                                      elevation={0}
+                                      sx={{
+                                        p: 1.25,
+                                        borderRadius: 2,
+                                        border: "1px solid #D9ECEE",
+                                        bgcolor: "#F8FFFF",
+                                      }}
+                                    >
+                                      <Stack direction="row" spacing={1} alignItems="flex-start">
+                                        <Chip
+                                          size="small"
+                                          label={`${step.number}단계`}
+                                          color="primary"
+                                          variant="outlined"
+                                          sx={{ flexShrink: 0, fontWeight: 800 }}
+                                        />
+                                        <Box sx={{ minWidth: 0 }}>
+                                          {step.title && (
+                                            <Typography fontWeight={800} sx={{ mb: 0.35 }}>
+                                              {step.title}
+                                            </Typography>
+                                          )}
+                                          <Typography sx={{ whiteSpace: "pre-wrap", lineHeight: 1.7 }}>
+                                            {step.body}
+                                          </Typography>
+                                        </Box>
+                                      </Stack>
+                                    </Paper>
+                                  ))}
+                                </Stack>
+                              ) : (
+                                <Typography sx={{ whiteSpace: "pre-wrap", lineHeight: 1.7 }}>
+                                  {message.content}
+                                </Typography>
+                              )}
 
                               {message.referencedServiceIds.length > 0 ? (
                                 <Stack spacing={1}>
@@ -835,7 +883,8 @@ export default function ChatPage() {
                             </Stack>
                           </Paper>
                         </Box>
-                      ))}
+                        );
+                      })}
                     </Stack>
                   ) : (
                     <Box

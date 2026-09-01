@@ -80,8 +80,12 @@ apply_only_step() {
     auth-session)
       RUN_AUTH_SESSION_SMOKE="true"
       RUN_PUBLIC_PROFILE_CHAT_SMOKE="false"
+      RUN_BOOKMARK_CONSISTENCY_SMOKE="false"
       RUN_RECOMMENDATION_CLICK_SMOKE="false"
       RUN_ADMIN_DASHBOARD_SMOKE="false"
+      RUN_ADMIN_RECOMMENDATION_BREAKDOWNS_SMOKE="false"
+      RUN_REAL_NON_EXAMPLE_SEED_SMOKE="false"
+      RUN_REAL_USER_GATE_DRILL_SMOKE="false"
       RUN_REPLAY_SMOKE="false"
       ;;
     public-chat)
@@ -90,6 +94,9 @@ apply_only_step() {
       RUN_BOOKMARK_CONSISTENCY_SMOKE="false"
       RUN_RECOMMENDATION_CLICK_SMOKE="false"
       RUN_ADMIN_DASHBOARD_SMOKE="false"
+      RUN_ADMIN_RECOMMENDATION_BREAKDOWNS_SMOKE="false"
+      RUN_REAL_NON_EXAMPLE_SEED_SMOKE="false"
+      RUN_REAL_USER_GATE_DRILL_SMOKE="false"
       RUN_REPLAY_SMOKE="false"
       ;;
     bookmark)
@@ -98,6 +105,9 @@ apply_only_step() {
       RUN_BOOKMARK_CONSISTENCY_SMOKE="true"
       RUN_RECOMMENDATION_CLICK_SMOKE="false"
       RUN_ADMIN_DASHBOARD_SMOKE="false"
+      RUN_ADMIN_RECOMMENDATION_BREAKDOWNS_SMOKE="false"
+      RUN_REAL_NON_EXAMPLE_SEED_SMOKE="false"
+      RUN_REAL_USER_GATE_DRILL_SMOKE="false"
       RUN_REPLAY_SMOKE="false"
       ;;
     click)
@@ -107,6 +117,8 @@ apply_only_step() {
       RUN_RECOMMENDATION_CLICK_SMOKE="true"
       RUN_ADMIN_DASHBOARD_SMOKE="false"
       RUN_ADMIN_RECOMMENDATION_BREAKDOWNS_SMOKE="false"
+      RUN_REAL_NON_EXAMPLE_SEED_SMOKE="false"
+      RUN_REAL_USER_GATE_DRILL_SMOKE="false"
       RUN_REPLAY_SMOKE="false"
       ;;
     dashboard)
@@ -116,6 +128,8 @@ apply_only_step() {
       RUN_RECOMMENDATION_CLICK_SMOKE="false"
       RUN_ADMIN_DASHBOARD_SMOKE="true"
       RUN_ADMIN_RECOMMENDATION_BREAKDOWNS_SMOKE="false"
+      RUN_REAL_NON_EXAMPLE_SEED_SMOKE="false"
+      RUN_REAL_USER_GATE_DRILL_SMOKE="false"
       RUN_REPLAY_SMOKE="false"
       ;;
     dashboard-breakdowns)

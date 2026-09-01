@@ -61,11 +61,11 @@ public class ChatApplicationCoachingService {
         return """
                 %s 신청 준비는 아래 순서로 확인하세요.
 
-                1. 자격 조건: 신청 대상과 선정 기준을 먼저 확인하세요.
-                2. 신청 기간: %s
-                3. 신청 방법: %s
-                4. 제출서류: %s
-                5. 공식 링크/문의처: %s
+                1단계 자격 조건: 신청 대상과 선정 기준을 먼저 확인하세요.
+                2단계 신청 기간: %s
+                3단계 신청 방법: %s
+                4단계 제출서류: %s
+                5단계 공식 링크/문의처: %s
 
                 실제 신청 가능 여부와 제출서류는 공식 기관 페이지 또는 담당 기관에서 최종 확인해야 합니다.
                 """.formatted(candidate.getTitle(), valueOrFallback(period, "상시 신청 또는 별도 문의"), method, documents, links);

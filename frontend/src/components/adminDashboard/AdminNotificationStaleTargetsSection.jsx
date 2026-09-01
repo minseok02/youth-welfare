@@ -52,13 +52,13 @@ export default function AdminNotificationStaleTargetsSection({
           <Stack spacing={2}>
             <Box>
               <Typography sx={{ fontSize: 12, fontWeight: 800, color: ACCENT, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                알림 backlog triage
+                오래된 알림 정리
               </Typography>
               <Typography sx={{ fontSize: 20, fontWeight: 900, color: INK, mt: 0.75, letterSpacing: "-0.02em" }}>
-                stale notification target queue
+                오래된 미열람 알림 대기열
               </Typography>
               <Typography sx={{ fontSize: 13, color: INK3, mt: 0.75 }}>
-                {formatNumber(notificationStaleTargets?.olderThanDays ?? notificationStaleDays)}일 이상 unread 인 알림을 title/deeplink target 단위로 묶어 보여줍니다. broad unread 총량보다 실제 stale cluster를 먼저 정리할 때 쓰는 운영 경계입니다.
+                {formatNumber(notificationStaleTargets?.olderThanDays ?? notificationStaleDays)}일 이상 읽지 않은 알림을 제목과 이동 경로 기준으로 묶어 보여줍니다.
               </Typography>
             </Box>
 
@@ -85,15 +85,15 @@ export default function AdminNotificationStaleTargetsSection({
 
             {notificationStaleTargetsQuery.isLoading && (
               <SectionLoadingCard
-                title="stale notification target 로딩 중"
-                description={`${formatNumber(notificationStaleDays)}일 이상 unread target cluster를 읽는 중입니다.`}
+                title="오래된 미열람 알림 로딩 중"
+                description={`${formatNumber(notificationStaleDays)}일 이상 읽지 않은 알림 묶음을 읽는 중입니다.`}
               />
             )}
 
             {notificationStaleTargetsQuery.isError && (
               <SectionErrorCard
-                title="stale notification target 로드 실패"
-                description="오래된 unread 알림 target cluster를 읽지 못했습니다."
+                title="오래된 미열람 알림 로드 실패"
+                description="오래된 미열람 알림 묶음을 읽지 못했습니다."
                 message={notificationStaleTargetsErrorMessage}
                 onRetry={() => notificationStaleTargetsQuery.refetch()}
               />
@@ -103,30 +103,30 @@ export default function AdminNotificationStaleTargetsSection({
               <Stack spacing={2}>
                 <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" } }}>
                   <MetricCard
-                    title="stale unread"
+                    title="오래된 미열람"
                     value={formatNumber(notificationStaleTargets.staleRowCount)}
-                    description={`${formatNumber(notificationStaleTargets.olderThanDays)}일 이상 unread row`}
+                    description={`${formatNumber(notificationStaleTargets.olderThanDays)}일 이상 읽지 않은 알림`}
                   />
                   <MetricCard
-                    title="stale target 묶음"
+                    title="오래된 알림 묶음"
                     value={formatNumber(notificationStaleTargets.staleGroupCount)}
-                    description="title / deeplink 기준 cluster 수"
+                    description="제목 / 이동 경로 기준 묶음 수"
                   />
                   <MetricCard
-                    title="표시 target"
+                    title="표시 묶음"
                     value={formatNumber(notificationStaleTargets.recentTargets?.length ?? 0)}
-                    description="최근 stale target 샘플"
+                    description="오래된 미열람 알림 샘플"
                   />
                 </Box>
 
                 {(notificationStaleTargets.recentTargets?.length ?? 0) === 0 ? (
                   <Alert severity="success">
-                    현재 {formatNumber(notificationStaleTargets.olderThanDays)}일 이상 stale notification target cluster가 없습니다.
+                    현재 {formatNumber(notificationStaleTargets.olderThanDays)}일 이상 된 미열람 알림 묶음이 없습니다.
                   </Alert>
                 ) : (
                   <CompactListCard
-                    title="최근 stale notification target"
-                    description="rowCount가 큰 오래된 unread target부터 표시합니다."
+                    title="최근 오래된 미열람 알림"
+                    description="알림 건수가 큰 오래된 미열람 묶음부터 표시합니다."
                     items={notificationStaleTargets.recentTargets ?? []}
                     renderItem={(item) => {
                       const requestKey = `notification-stale-${item.kind}-${item.deeplinkUrl}`;
@@ -142,7 +142,7 @@ export default function AdminNotificationStaleTargetsSection({
                                   {item.title}
                                 </Typography>
                                 <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25, overflowWrap: "anywhere", wordBreak: "break-word" }}>
-                                  {formatStatusLabel(item.kind)} · {formatAdminRoutePath(item.deeplinkUrl, "deeplink 없음")} · 가장 오래된 row {formatDateTime(item.oldestCreatedAt)}
+                                  {formatStatusLabel(item.kind)} · {formatAdminRoutePath(item.deeplinkUrl, "이동 경로 없음")} · 가장 오래된 알림 {formatDateTime(item.oldestCreatedAt)}
                                 </Typography>
                               </Box>
                               <Chip
@@ -158,7 +158,7 @@ export default function AdminNotificationStaleTargetsSection({
                               />
                             </Stack>
                             <Typography sx={{ fontSize: 13, color: INK2 }}>
-                              최근 row {formatDateTime(item.newestCreatedAt)}
+                              최근 알림 {formatDateTime(item.newestCreatedAt)}
                             </Typography>
                             <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ xs: "stretch", md: "center" }}>
                               <Button

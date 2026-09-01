@@ -16,6 +16,7 @@ cross-cutting 문서가 흩어져 있어도
 ### 기본 구조와 계약
 
 - [production-ops-quickstart.md](./production-ops-quickstart.md)
+- [restart-and-teardown-handoff-2026-09-01.md](./restart-and-teardown-handoff-2026-09-01.md)
 - [stabilization-checklist.md](./stabilization-checklist.md)
 - [final-ops-closeout-checklist.md](./final-ops-closeout-checklist.md)
 - [final-production-operations-runbook-2026-07-16.md](./final-production-operations-runbook-2026-07-16.md)
@@ -79,6 +80,8 @@ cross-cutting 문서가 흩어져 있어도
 `stabilization-checklist.md` 는 기능 freeze 이후 CI/nightly/attention 실패만 처리하는 안정화 기준입니다.
 
 `production-ops-quickstart.md` 는 평소 운영자가 먼저 볼 짧은 진입점입니다. smoke, 장애 첫 5분, 백업/확장 판단 문서로 이어지는 상위 요약입니다.
+
+`restart-and-teardown-handoff-2026-09-01.md` 는 teardown 직전의 실제 AWS 상태, dirty worktree, 보존 대상 파일, 재시작 순서를 고정한 snapshot 문서입니다. 인프라 삭제 전과 장기 중단 후 재개 시에는 이 문서를 먼저 봅니다.
 
 `final-production-operations-runbook-2026-07-16.md` 는 최종 제출/인수 기준 운영 상태, AWS 콘솔 확인 위치, IAM/Route53/ALB 기대값, 비용/위험 경계, 주요 점검 명령을 한 문서에 모은 handoff runbook입니다.
 

@@ -561,28 +561,28 @@ public class AdminDashboardSummaryService {
         if (exactDuplicateGroups > 0 || mirrorVariantGroups > 0) {
             return new PolicyTriageSummary(
                     "DUPLICATE_THEN_LINK_PRIORITY",
-                    "YOUTH exact/mirror duplicate 후보가 남아 있어 duplicate queue를 exact -> mirror 순으로 먼저 줄이는 편이 맞습니다.",
-                    "exact duplicate -> mirror variant -> benefit/support link review"
+                    "온통청년 완전 중복/채널 차이 후보가 남아 있어 중복 대기열을 완전 중복, 채널 차이 순으로 먼저 줄이는 편이 맞습니다.",
+                    "완전 중복 -> 채널 차이 후보 -> 급부형/지원형 링크 검토"
             );
         }
         if (benefitSupportLinkReviews > 0 || announcementRecruitmentLinkReviews > 0 || openLinkReviews > 0) {
             return new PolicyTriageSummary(
                     "LINK_REVIEW_PRIORITY",
-                    "현재 backlog는 정책 링크 review가 중심이며, 급부형과 모집형 bucket을 먼저 줄이는 편이 맞습니다.",
-                    "benefit/support -> announcement/recruitment -> program/event"
+                    "현재 대기 항목은 정책 링크 검토가 중심이며, 급부형과 모집형 분류를 먼저 줄이는 편이 맞습니다.",
+                    "급부형/지원형 -> 공고/모집형 -> 프로그램/행사형"
             );
         }
         if (openDuplicateGroups > 0) {
             return new PolicyTriageSummary(
                     "DRIFT_TAIL_PRIORITY",
-                    "exact/mirror 우선 후보는 줄었고, 남은 duplicate tail은 drift/classification review 위주입니다.",
-                    "date/contract drift tail review"
+                    "완전 중복/채널 차이 우선 후보는 줄었고, 남은 중복 잔여 항목은 기간/조건 차이와 분류 검토 위주입니다.",
+                    "기간/조건 차이 잔여 항목 검토"
             );
         }
         return new PolicyTriageSummary(
                 "LOW_BACKLOG_STEADY_STATE",
-                "정책 backlog는 급한 exact/mirror/link 우선 항목이 줄어든 상태입니다.",
-                "keep nightly observation and small-batch review"
+                "정책 대기 항목은 급한 완전 중복/채널 차이/링크 우선 항목이 줄어든 상태입니다.",
+                "야간 관측을 유지하고 소량 단위로 검토"
         );
     }
 

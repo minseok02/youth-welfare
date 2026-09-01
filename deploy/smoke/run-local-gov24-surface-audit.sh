@@ -26,7 +26,9 @@ ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
 COOKIE_JAR="${ARTIFACT_DIR}/surface.cookie"
 HEALTH_RESPONSE="${ARTIFACT_DIR}/health.json"
 SEARCH_RESPONSE="${ARTIFACT_DIR}/search.json"
+SEARCH_REQUEST="${ARTIFACT_DIR}/search-request.json"
 GOV24_SEARCH_RESPONSE="${ARTIFACT_DIR}/search-gov24.json"
+GOV24_SEARCH_REQUEST="${ARTIFACT_DIR}/search-gov24-request.json"
 LIST_RESPONSE="${ARTIFACT_DIR}/list.json"
 DETAIL_RESPONSE="${ARTIFACT_DIR}/detail.json"
 SIGNUP_RESPONSE="${ARTIFACT_DIR}/signup.json"
@@ -62,14 +64,34 @@ HEALTH_STATUS="$(smoke_wait_for_health "${HEALTH_RETRY_COUNT}" "${HEALTH_RETRY_D
 smoke_assert_status 200 "${HEALTH_STATUS}" "health check" "${HEALTH_RESPONSE}"
 
 smoke_print_step "policy search keyword=${SEARCH_KEYWORD}"
+python3 - "${SEARCH_KEYWORD}" "${SEARCH_SIZE}" "${SEARCH_REQUEST}" <<'PY'
+import json
+import sys
+
+keyword, size, out_path = sys.argv[1], int(sys.argv[2]), sys.argv[3]
+with open(out_path, "w", encoding="utf-8") as fp:
+    json.dump({"keyword": keyword, "size": size}, fp, ensure_ascii=False)
+PY
 SEARCH_STATUS="$(
-  smoke_http_status GET "${APP_BASE_URL}/api/policies/search?keyword=$(python3 -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))' "${SEARCH_KEYWORD}")&size=${SEARCH_SIZE}" "${SEARCH_RESPONSE}"
+  smoke_http_status POST "${APP_BASE_URL}/api/policies/search" "${SEARCH_RESPONSE}" \
+    -H 'Content-Type: application/json' \
+    -d @"${SEARCH_REQUEST}"
 )"
 smoke_assert_status 200 "${SEARCH_STATUS}" "policy search" "${SEARCH_RESPONSE}"
 
 smoke_print_step "policy search sourceType=GOV24"
+python3 - "${SEARCH_KEYWORD}" "${SEARCH_SIZE}" "${GOV24_SEARCH_REQUEST}" <<'PY'
+import json
+import sys
+
+keyword, size, out_path = sys.argv[1], int(sys.argv[2]), sys.argv[3]
+with open(out_path, "w", encoding="utf-8") as fp:
+    json.dump({"keyword": keyword, "sourceType": "GOV24", "size": size}, fp, ensure_ascii=False)
+PY
 GOV24_SEARCH_STATUS="$(
-  smoke_http_status GET "${APP_BASE_URL}/api/policies/search?keyword=$(python3 -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))' "${SEARCH_KEYWORD}")&sourceType=GOV24&size=${SEARCH_SIZE}" "${GOV24_SEARCH_RESPONSE}"
+  smoke_http_status POST "${APP_BASE_URL}/api/policies/search" "${GOV24_SEARCH_RESPONSE}" \
+    -H 'Content-Type: application/json' \
+    -d @"${GOV24_SEARCH_REQUEST}"
 )"
 smoke_assert_status 200 "${GOV24_SEARCH_STATUS}" "policy search sourceType=GOV24" "${GOV24_SEARCH_RESPONSE}"
 

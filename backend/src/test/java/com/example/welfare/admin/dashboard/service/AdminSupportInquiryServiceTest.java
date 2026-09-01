@@ -3,6 +3,7 @@ package com.example.welfare.admin.dashboard.service;
 import com.example.welfare.admin.dashboard.dto.AdminReviewActionResponse;
 import com.example.welfare.admin.dashboard.dto.AdminQueueStatusFilter;
 import com.example.welfare.admin.dashboard.dto.AdminSupportInquiryResponse;
+import com.example.welfare.global.util.RedisKeyHash;
 import com.example.welfare.notification.gateway.EmailClient;
 import com.example.welfare.support.entity.SupportInquiry;
 import com.example.welfare.support.repository.SupportInquiryRepository;
@@ -58,6 +59,8 @@ class AdminSupportInquiryServiceTest {
         assertEquals(3L, response.recentOpenCount24h());
         assertEquals(1, response.recentInquiries().size());
         assertEquals("BUG_ERROR", response.recentInquiries().get(0).categoryCode());
+        assertEquals("us***@example.com", response.recentInquiries().get(0).contactEmailMasked());
+        assertEquals(RedisKeyHash.sha256Hex("user-key-21"), response.recentInquiries().get(0).userKeyHash());
     }
 
     @Test
@@ -82,6 +85,32 @@ class AdminSupportInquiryServiceTest {
 
         assertEquals(6L, response.openCount());
         assertEquals(1, response.recentInquiries().size());
+        assertEquals("REVIEWED", response.recentInquiries().get(0).status());
+    }
+
+    @Test
+    @DisplayName("legacy 일반 의견 카테고리 문의도 관리자 queue에서 조회할 수 있다")
+    void getRecentInquiriesReturnsLegacyGeneralFeedbackCategory() {
+        SupportInquiry inquiry = SupportInquiry.builder()
+                .id(24L)
+                .contactEmail("legacy@example.com")
+                .category(SupportInquiry.Category.GENERAL_FEEDBACK)
+                .message("기존 일반 의견 문의")
+                .routePath("/support")
+                .userKey("user-key-24")
+                .status(SupportInquiry.Status.REVIEWED)
+                .build();
+
+        given(supportInquiryRepository.countByStatus(SupportInquiry.Status.OPEN)).willReturn(0L);
+        given(supportInquiryRepository.countByStatusAndCreatedAtAfter(any(), any())).willReturn(0L);
+        given(supportInquiryRepository.findByStatusOrderByCreatedAtDesc(any(), any(Pageable.class)))
+                .willReturn(List.of(inquiry));
+
+        AdminSupportInquiryResponse response = adminSupportInquiryService.getRecentInquiries(5, AdminQueueStatusFilter.REVIEWED);
+
+        assertEquals(1, response.recentInquiries().size());
+        assertEquals("GENERAL_FEEDBACK", response.recentInquiries().get(0).categoryCode());
+        assertEquals("일반 의견", response.recentInquiries().get(0).categoryLabel());
         assertEquals("REVIEWED", response.recentInquiries().get(0).status());
     }
 

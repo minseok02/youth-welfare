@@ -19,6 +19,7 @@ public interface UserRecommendationRepository extends JpaRepository<UserRecommen
             JOIN FETCH ur.service
             WHERE ur.userKey = :userKey
               AND ur.service.status IN ('ACTIVE', 'UPCOMING')
+              AND (ur.service.applyEndDate IS NULL OR ur.service.applyEndDate >= CURRENT_DATE)
               AND ur.recommendedAt = (
                     SELECT MAX(ur2.recommendedAt)
                     FROM UserRecommendation ur2
@@ -33,6 +34,8 @@ public interface UserRecommendationRepository extends JpaRepository<UserRecommen
             JOIN FETCH ur.service
             WHERE ur.userKey = :userKey
               AND ur.recommendedAt = :recommendedAt
+              AND ur.service.status IN ('ACTIVE', 'UPCOMING')
+              AND (ur.service.applyEndDate IS NULL OR ur.service.applyEndDate >= CURRENT_DATE)
             ORDER BY ur.finalScore DESC, ur.service.id DESC
             """)
     List<UserRecommendation> findByUserKeyAndRecommendedAtOrderByFinalScoreDesc(@Param("userKey") String userKey,
@@ -48,6 +51,8 @@ public interface UserRecommendationRepository extends JpaRepository<UserRecommen
                     WHERE ur2.userKey = :userKey
                       AND ur2.service.id = ur.service.id
               )
+              AND ur.service.status IN ('ACTIVE', 'UPCOMING')
+              AND (ur.service.applyEndDate IS NULL OR ur.service.applyEndDate >= CURRENT_DATE)
             ORDER BY ur.finalScore DESC, ur.service.id DESC
             """)
     List<UserRecommendation> findLatestByUserKeyOrderByFinalScoreDesc(@Param("userKey") String userKey);
@@ -58,6 +63,7 @@ public interface UserRecommendationRepository extends JpaRepository<UserRecommen
             JOIN FETCH ur.service
             WHERE ur.userKey = :userKey
               AND ur.service.status IN ('ACTIVE', 'UPCOMING')
+              AND (ur.service.applyEndDate IS NULL OR ur.service.applyEndDate >= CURRENT_DATE)
               AND ur.recommendedAt = (
                     SELECT MAX(ur2.recommendedAt)
                     FROM UserRecommendation ur2
@@ -77,6 +83,8 @@ public interface UserRecommendationRepository extends JpaRepository<UserRecommen
                     WHERE ur2.userKey = :userKey
                       AND ur2.service.id = ur.service.id
               )
+              AND ur.service.status IN ('ACTIVE', 'UPCOMING')
+              AND (ur.service.applyEndDate IS NULL OR ur.service.applyEndDate >= CURRENT_DATE)
             """)
     List<UserRecommendation> findLatestByUserKey(@Param("userKey") String userKey);
 
@@ -86,6 +94,8 @@ public interface UserRecommendationRepository extends JpaRepository<UserRecommen
             JOIN FETCH ur.service
             WHERE ur.userKey = :userKey
               AND ur.isBookmarked = true
+              AND ur.service.status IN ('ACTIVE', 'UPCOMING')
+              AND (ur.service.applyEndDate IS NULL OR ur.service.applyEndDate >= CURRENT_DATE)
               AND ur.recommendedAt = (
                     SELECT MAX(ur2.recommendedAt)
                     FROM UserRecommendation ur2
@@ -101,6 +111,8 @@ public interface UserRecommendationRepository extends JpaRepository<UserRecommen
             WHERE ur.userKey = :userKey
               AND ur.service.id IN :serviceIds
               AND ur.isBookmarked = true
+              AND ur.service.status IN ('ACTIVE', 'UPCOMING')
+              AND (ur.service.applyEndDate IS NULL OR ur.service.applyEndDate >= CURRENT_DATE)
               AND ur.recommendedAt = (
                     SELECT MAX(ur2.recommendedAt)
                     FROM UserRecommendation ur2

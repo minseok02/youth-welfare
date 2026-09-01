@@ -4,11 +4,15 @@ import {
   formatActorType,
   formatAdminDisplayText,
   formatAdminMessage,
+  formatAdminOperationalText,
   formatAdminReviewNoteSuffix,
   formatAdminRoutePath,
   formatCodeOrStatus,
   formatCollectJobName,
   formatCompactJson,
+  formatCodebookIntendedUse,
+  formatCodebookMetadataValue,
+  formatCodebookSetLabel,
   formatConfigLabel,
   formatConfigValue,
   formatDate,
@@ -17,11 +21,14 @@ import {
   formatMaskedUserKey,
   formatNumber,
   formatPercent,
+  formatPolicyCorrectionScope,
+  formatPolicyCorrectionType,
   formatPolicyDuplicateReviewClass,
   formatPolicyLinkReviewBucket,
   formatRelativeDateTime,
   formatSearchStatusFilter,
   formatSortKey,
+  formatSourceIdLabel,
   formatSourceType,
   formatStatusLabel,
   humanizeAdminStatusKey,
@@ -35,15 +42,49 @@ describe("admin dashboard display helpers", () => {
   test("formats known labels and humanizes unknown status keys", () => {
     assert.equal(formatStatusLabel("READY_REAL_USER_TRAFFIC"), "실사용자 이용 데이터 충분");
     assert.equal(humanizeAdminStatusKey("READY_FOR_BOUNDED_PROMOTION_REVIEW"), "준비됨 / 대상 / 제한 범위 / 승격 / 검토");
-    assert.equal(formatStatusLabel("CUSTOM_UNKNOWN_STATUS"), "CUSTOM / UNKNOWN / STATUS");
+    assert.equal(formatStatusLabel("CUSTOM_UNKNOWN_STATUS"), "CUSTOM / UNKNOWN / 상태");
+    assert.equal(formatStatusLabel("NO_CANDIDATES"), "후보 없음");
+    assert.equal(formatStatusLabel("RULE_ONLY"), "규칙 기반만 사용");
+    assert.equal(formatStatusLabel("gateway_false"), "발송 시스템 실패");
+    assert.equal(formatStatusLabel("web_push"), "웹푸시");
     assert.equal(formatSourceType("GOV24"), "정부24");
     assert.equal(formatActorType("ANONYMOUS"), "비회원");
     assert.equal(formatSearchStatusFilter("ACTIVE_ONLY"), "진행중만");
     assert.equal(formatSortKey("DEADLINE_ASC"), "마감임박순");
     assert.equal(formatPolicyLinkReviewBucket("benefit_support"), "지원금/급부형");
-    assert.equal(formatPolicyDuplicateReviewClass("mirror_or_channel_variant_candidate"), "mirror 후보");
+    assert.equal(formatPolicyDuplicateReviewClass("mirror_or_channel_variant_candidate"), "채널만 다른 중복 후보");
+    assert.equal(formatPolicyCorrectionScope("TARGET_REGIONS"), "대상 지역 보정");
+    assert.equal(formatPolicyCorrectionType("DETAIL_URL"), "상세 링크 보정");
+    assert.equal(formatSourceIdLabel("abc-123"), "원천 ID abc-123");
+    assert.equal(formatSourceType("xlsx"), "엑셀 파일");
+    assert.equal(formatCodebookSetLabel("LOCAL_HOUSE_TENURE_TYPE"), "가옥(주거형태)코드");
+    assert.equal(formatCodebookSetLabel("LOCAL_AGENCY_CODES"), "행정기관 코드");
+    assert.equal(formatCodebookIntendedUse("user-profile housing tenure normalization"), "회원 주거형태 입력값 표준화");
+    assert.equal(formatCodebookIntendedUse("gov24 agency normalization crosswalk"), "정부24 기관 코드 매핑/표준화");
+    assert.equal(formatCodebookMetadataValue(135186), "135,186");
     assert.equal(formatCodeOrStatus("FAILED"), "실패");
     assert.equal(formatCodeOrStatus(null), "미분류");
+    assert.equal(
+      formatAdminOperationalText("false positive duplicate link backlog gap -> review queue"),
+      "오탐 중복 링크 대기 항목 누락/불일치 → 검토 대기열",
+    );
+    assert.equal(
+      formatAdminOperationalText("exact duplicate -> mirror variant -> benefit/support link review"),
+      "완전 중복 → 채널만 다른 후보 → 급부형/지원형 링크 검토",
+    );
+    assert.equal(formatAdminOperationalText("priority passed -> failed"), "우선순위 정상 → 실패");
+    assert.equal(
+      formatAdminOperationalText("attempt 실패 breakdown과 최근 실패 endpoint를 확인합니다."),
+      "시도 실패 상세 내역과 최근 실패 수신처를 확인합니다.",
+    );
+    assert.equal(
+      formatAdminOperationalText("열린 circuit과 같은 source의 반복 실패면 safe reconcile 후 bounded hide 처리합니다."),
+      "열린 회로와 같은 출처의 반복 실패면 안전 보정 후 범위 제한 숨김 처리합니다.",
+    );
+    assert.equal(
+      formatAdminOperationalText("attention 표준코드 입력 backlog"),
+      "주의 항목 선택 프로필 코드 보정 항목",
+    );
   });
 
   test("formats numbers, percentages, compact json, and dates with fallbacks", () => {
@@ -53,6 +94,14 @@ describe("admin dashboard display helpers", () => {
     assert.equal(formatPercent("bad"), "—");
     assert.equal(formatCompactJson(""), "—");
     assert.equal(formatCompactJson("x".repeat(100)), `${"x".repeat(96)}...`);
+    assert.equal(
+      formatCompactJson('{"RULE_ONLY":2,"SCORED":1,"NOT_REQUESTED":0}'),
+      "규칙 기반만 사용 2건 · AI 점수 반영 1건 · AI 미요청 0건",
+    );
+    assert.equal(
+      formatCompactJson('{"gateway_false":3,"sent":10}'),
+      "발송 시스템 실패 3건 · 발송 성공 10건",
+    );
     assert.notEqual(formatDateTime("2026-06-25T10:30:00"), "—");
     assert.equal(formatDateTime("bad-date"), "—");
     assert.notEqual(formatDate("2026-06-25"), "—");

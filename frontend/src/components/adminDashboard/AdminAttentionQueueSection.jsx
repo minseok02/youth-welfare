@@ -48,21 +48,21 @@ export default function AdminAttentionQueueSection({
                 지금 먼저 볼 주의 항목
               </Typography>
               <Typography sx={{ fontSize: 13, color: INK3, mt: 0.75 }}>
-                collect drift, 표준코드 backlog, wrapper 경고처럼 바로 조치가 필요한 신호만 우선순위 큐로 묶었습니다.
+                수집 이상, 정책 검토, 문의, 오래된 알림처럼 바로 조치가 필요한 신호만 우선순위 목록으로 묶었습니다.
               </Typography>
             </Box>
 
             {attentionFeedQuery.isLoading && localAttentionQueueItems.length === 0 ? (
               <SectionLoadingCard
                 title="운영 알림 로딩 중"
-                description="재사용 가능한 attention feed를 읽는 중입니다."
+                description="재사용 가능한 주의 항목 목록을 읽는 중입니다."
               />
             ) : null}
 
             {attentionFeedQuery.isError ? (
               <SectionErrorCard
                 title="운영 알림 로드 실패"
-                description="backend attention feed를 읽지 못했습니다."
+                description="서버의 주의 항목 목록을 읽지 못했습니다."
                 message={attentionFeedErrorMessage}
                 onRetry={() => attentionFeedQuery.refetch()}
               />
@@ -73,7 +73,7 @@ export default function AdminAttentionQueueSection({
             ) : (
               <CompactListCard
                 title="주의 항목 큐"
-                description="상단 운영 스냅샷과 하위 섹션을 잇는 우선순위 큐"
+                description="하위 운영 섹션으로 이어지는 우선순위 목록"
                 items={attentionQueueItems}
                 renderItem={(item, index) => (
                   <Box

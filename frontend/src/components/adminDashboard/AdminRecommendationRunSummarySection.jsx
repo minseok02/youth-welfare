@@ -30,6 +30,7 @@ import {
   WARNING_TEXT,
 } from "./AdminDashboardUiTokens";
 import {
+  formatAdminOperationalText,
   formatCompactJson,
   formatDateTime,
   formatNumber,
@@ -46,14 +47,14 @@ export default function AdminRecommendationRunSummarySection({
       {recommendationRunSummaryQuery.isLoading && (
         <SectionLoadingCard
           title="추천 실행 로그 로딩 중"
-          description="추천 생성 run outcome, 저장량, 지연시간, 최근 실행 샘플을 불러오는 중입니다."
+          description="추천 생성 실행 결과, 저장량, 지연시간, 최근 실행 샘플을 불러오는 중입니다."
         />
       )}
 
       {recommendationRunSummaryQuery.isError && (
         <SectionErrorCard
           title="추천 실행 로그 로드 실패"
-          description="신규 recommendation_run_logs migration 적용 상태와 admin read 권한을 확인해야 합니다."
+          description="추천 실행 로그 적용 상태와 관리자 조회 권한을 확인해야 합니다."
           message={recommendationRunSummaryErrorMessage}
           onRetry={() => recommendationRunSummaryQuery.refetch()}
         />
@@ -63,8 +64,8 @@ export default function AdminRecommendationRunSummarySection({
         <Box id="admin-recommendation-run-summary" sx={{ scrollMarginTop: 96 }}>
           <TriageSectionTitle
             eyebrow="추천 실행 로그"
-            title="추천 생성 run 상태"
-            description="recommendation_run_logs 기준으로 생성 결과, 빈 후보, 오류, 평균 지연시간을 확인합니다."
+            title="추천 생성 실행 상태"
+            description="추천 실행 로그 기준으로 생성 결과, 빈 후보, 오류, 평균 지연시간을 확인합니다."
           />
           <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" } }}>
             <MetricCard
@@ -92,8 +93,8 @@ export default function AdminRecommendationRunSummarySection({
 
           <Box sx={{ display: "grid", gap: 2, mt: 2, gridTemplateColumns: { xs: "1fr", xl: "0.8fr 1.2fr" } }}>
             <CompactListCard
-              title="outcome 분포"
-              description="선택한 기간 내 추천 실행 outcome별 집계"
+              title="실행 결과 분포"
+              description="선택한 기간 내 추천 실행 결과별 집계"
               items={recommendationRunSummary.outcomeBreakdowns}
               renderItem={(item) => (
                 <Box key={item.outcome} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
@@ -118,18 +119,18 @@ export default function AdminRecommendationRunSummarySection({
               <CardContent sx={{ p: 2.5 }}>
                 <Typography sx={{ fontSize: 15, fontWeight: 800, color: INK }}>최근 실행 샘플</Typography>
                 <Typography sx={{ fontSize: 13, color: INK3, mt: 0.75 }}>
-                  최신 run 기준 후보 수, 저장 수, AI status count를 확인합니다.
+                  최신 실행 기준 후보 수, 저장 수, AI 상태 건수를 확인합니다.
                 </Typography>
                 <TableContainer sx={{ mt: 2, border: `1px solid ${PANEL_LINE}`, borderRadius: 2, overflow: "auto" }}>
                   <Table size="small">
                     <TableHead>
                       <TableRow>
                         <TableCell>시간</TableCell>
-                        <TableCell>outcome</TableCell>
+                        <TableCell>결과</TableCell>
                         <TableCell align="right">후보</TableCell>
                         <TableCell align="right">저장</TableCell>
                         <TableCell align="right">지연</TableCell>
-                        <TableCell>AI status</TableCell>
+                        <TableCell>AI 상태</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -141,7 +142,7 @@ export default function AdminRecommendationRunSummarySection({
                           <TableCell align="right">{formatNumber(item.savedCount)}</TableCell>
                           <TableCell align="right">{formatNumber(item.durationMs)}ms</TableCell>
                           <TableCell sx={{ maxWidth: 260, overflowWrap: "anywhere", wordBreak: "break-word" }}>
-                            {formatCompactJson(item.aiStatusCountsJson)}
+                            {formatAdminOperationalText(formatCompactJson(item.aiStatusCountsJson), "상태 없음")}
                           </TableCell>
                         </TableRow>
                       ))}

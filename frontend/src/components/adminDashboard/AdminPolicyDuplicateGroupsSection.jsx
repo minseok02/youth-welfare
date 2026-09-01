@@ -36,6 +36,7 @@ import {
   formatMaskedUserKey,
   formatNumber,
   formatPolicyDuplicateReviewClass,
+  formatSourceIdLabel,
   formatSourceType,
 } from "../../lib/adminDashboardDisplay";
 
@@ -74,10 +75,10 @@ export default function AdminPolicyDuplicateGroupsSection({
                 데이터 품질 리뷰
               </Typography>
               <Typography sx={{ fontSize: 20, fontWeight: 900, color: INK, mt: 0.75, letterSpacing: "-0.02em" }}>
-                정책 중복 review queue
+                정책 중복 검토 대기열
               </Typography>
               <Typography sx={{ fontSize: 13, color: INK3, mt: 0.75 }}>
-                `YOUTH`와 `BOKJIRO_LOCAL`에서 title/host 기준으로 반복되는 정책 묶음을 최근 review queue로 보여줍니다. broad parser 변경 전, 실제 운영자가 중복 검토 우선순위를 잡는 용도입니다.
+                온통청년과 복지로 지자체 자료에서 제목과 기관 기준으로 반복되는 정책 묶음을 보여줍니다. 운영자가 중복 처리 우선순위를 잡을 때 사용합니다.
               </Typography>
             </Box>
 
@@ -96,15 +97,15 @@ export default function AdminPolicyDuplicateGroupsSection({
 
             {policyDuplicateGroupsQuery.isLoading && (
               <SectionLoadingCard
-                title="정책 중복 review 로딩 중"
-                description="최근 duplicate title/host 묶음을 불러오는 중입니다."
+                title="정책 중복 검토 항목 로딩 중"
+                description="최근 제목/기관 중복 묶음을 불러오는 중입니다."
               />
             )}
 
             {policyDuplicateGroupsQuery.isError && (
               <SectionErrorCard
-                title="정책 중복 review 로드 실패"
-                description="운영 duplicate review queue를 읽지 못했습니다."
+                title="정책 중복 검토 항목 로드 실패"
+                description="운영 중복 검토 대기열을 읽지 못했습니다."
                 message={policyDuplicateGroupsErrorMessage}
                 onRetry={() => policyDuplicateGroupsQuery.refetch()}
               />
@@ -116,37 +117,37 @@ export default function AdminPolicyDuplicateGroupsSection({
                   <MetricCard
                     title="열린 중복 묶음"
                     value={formatNumber(policyDuplicateGroups.openGroupCount)}
-                    description="아직 운영 검토가 필요한 duplicate title/host 묶음"
+                    description="아직 운영 검토가 필요한 제목/기관 중복 묶음"
                   />
                   <MetricCard
                     title="최근 24시간 신규"
                     value={formatNumber(policyDuplicateGroups.recentOpenGroupCount24h)}
-                    description="지난 24시간 안에 새로 생긴 duplicate 묶음"
+                    description="지난 24시간 안에 새로 생긴 중복 묶음"
                   />
                   <MetricCard
-                    title="열린 관련 row"
+                    title="열린 관련 정책"
                     value={formatNumber(policyDuplicateGroups.openDuplicateRowCount)}
-                    description="현재 열린 duplicate 묶음에 포함된 row 수"
+                    description="현재 열린 중복 묶음에 포함된 정책 수"
                   />
                   <MetricCard
                     title="표시 묶음"
                     value={formatNumber(policyDuplicateGroups.recentGroups?.length ?? 0)}
-                    description="최근 duplicate review 샘플"
+                    description="최근 중복 검토 샘플"
                   />
                 </Box>
 
                 {(policyDuplicateGroups.recentGroups?.length ?? 0) === 0 ? (
                   <Alert severity="success">
                     {policyDuplicateStatusFilter === "OPEN"
-                      ? "현재 열린 정책 중복 review 묶음이 없습니다."
+                      ? "현재 열린 정책 중복 검토 묶음이 없습니다."
                       : policyDuplicateStatusFilter === "REVIEWED"
-                        ? "표시할 처리완료 중복 review 묶음이 없습니다."
-                        : "표시할 정책 중복 review 묶음이 없습니다."}
+                        ? "표시할 처리완료 중복 검토 묶음이 없습니다."
+                        : "표시할 정책 중복 검토 묶음이 없습니다."}
                   </Alert>
                 ) : (
                   <CompactListCard
                     title="최근 정책 중복 묶음"
-                    description="duplicate count가 큰 묶음부터 표시합니다."
+                    description="중복 건수가 큰 묶음부터 표시합니다."
                     items={policyDuplicateGroups.recentGroups ?? []}
                     renderItem={(item) => {
                       const requestKey = `duplicate-${item.sourceType}-${item.title}-${item.hostOrgKey ?? ""}`;
@@ -162,7 +163,7 @@ export default function AdminPolicyDuplicateGroupsSection({
                                   {item.title}
                                 </Typography>
                                 <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25, overflowWrap: "anywhere", wordBreak: "break-word" }}>
-                                  {formatSourceType(item.sourceType)} · {item.hostOrgLabel || "기관명 없음"} · 최신 row {formatDateTime(item.latestCreatedAt)}
+                                  {formatSourceType(item.sourceType)} · {item.hostOrgLabel || "기관명 없음"} · 최신 등록 {formatDateTime(item.latestCreatedAt)}
                                 </Typography>
                               </Box>
                               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap justifyContent={{ xs: "flex-start", md: "flex-end" }}>
@@ -193,7 +194,7 @@ export default function AdminPolicyDuplicateGroupsSection({
                               </Stack>
                             </Stack>
                             <Typography sx={{ fontSize: 13, color: INK2, overflowWrap: "anywhere", wordBreak: "break-word" }}>
-                              sourceIds {item.sourceIds}
+                              {formatSourceIdLabel(item.sourceIds)}
                             </Typography>
                             {item.status === "REVIEWED" && (
                               <Alert severity="success" sx={{ py: 0 }}>

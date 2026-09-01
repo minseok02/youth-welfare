@@ -60,6 +60,7 @@ class SimilarUsersViewedPolicyReadRepositoryImplTest {
         );
 
         assertThat(sqlCaptor.getValue())
+                .contains("ws.apply_end_date IS NULL OR ws.apply_end_date >= CURRENT_DATE")
                 .contains("own_rpv.last_viewed_at >= :viewedSince")
                 .contains("own_ur.recommended_at = (")
                 .contains("SELECT MAX(latest_ur.recommended_at)");

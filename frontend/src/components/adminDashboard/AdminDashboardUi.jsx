@@ -10,6 +10,7 @@ import {
   Typography,
 } from "@mui/material";
 import {
+  formatAdminOperationalText,
   formatNumber,
   formatSourceType,
   formatStatusLabel,
@@ -82,7 +83,7 @@ export function AttentionNextAction({ nextAction }) {
         다음 조치
       </Typography>
       <Typography sx={{ fontSize: 12, color: INK2, mt: 0.35, overflowWrap: "anywhere", wordBreak: "break-word" }}>
-        {nextAction}
+        {formatAdminOperationalText(nextAction)}
       </Typography>
     </Box>
   );

@@ -21,7 +21,11 @@ import {
   PANEL_BG,
   PANEL_LINE,
 } from "./AdminDashboardUiTokens";
-import { formatNumber } from "../../lib/adminDashboardDisplay";
+import {
+  formatAdminOperationalText,
+  formatNumber,
+  formatStatusLabel,
+} from "../../lib/adminDashboardDisplay";
 import {
   ADMIN_DASHBOARD_CARD_KEYS,
   ADMIN_DASHBOARD_TEST_ATTRS,
@@ -43,24 +47,24 @@ export default function AdminStandardCodeEffectSection({
                 추천 관측
               </Typography>
               <Typography sx={{ fontSize: 20, fontWeight: 900, color: INK, mt: 0.75, letterSpacing: "-0.02em" }}>
-                표준코드 추천 효과
+                선택 프로필 추천 영향
               </Typography>
               <Typography sx={{ fontSize: 13, color: INK3, mt: 0.75 }}>
-                latest recommendation observation artifact 기준으로, 주거 표준코드와 복지 표준코드가 실제 추천 점수 변화에 반영되는지 확인합니다.
+                최신 추천 관측 요약 기준으로, 주거·복지 선택 프로필이 실제 추천 점수 변화에 반영되는지 낮은 빈도로 확인합니다.
               </Typography>
             </Box>
 
             {standardCodeEffectObservationQuery.isLoading && (
               <SectionLoadingCard
-                title="표준코드 효과 관측 로딩 중"
-                description="latest recommendation observation summary를 읽는 중입니다."
+                title="선택 프로필 추천 영향 로딩 중"
+                description="최신 추천 관측 요약을 읽는 중입니다."
               />
             )}
 
             {standardCodeEffectObservationQuery.isError && (
               <SectionErrorCard
-                title="표준코드 효과 관측 로드 실패"
-                description="latest observation artifact를 읽지 못했습니다."
+                title="선택 프로필 추천 영향 로드 실패"
+                description="최신 추천 관측 요약을 읽지 못했습니다."
                 message={standardCodeEffectObservationErrorMessage}
                 onRetry={() => standardCodeEffectObservationQuery.refetch()}
               />
@@ -70,53 +74,53 @@ export default function AdminStandardCodeEffectSection({
               <>
                 {!standardCodeEffectObservation.available ? (
                   <Alert severity="warning">
-                    latest recommendation observation artifact가 아직 없습니다. 먼저 `run-local-recommendation-observation-suite.sh`를 실행해야 합니다.
+                    최신 추천 관측 요약이 아직 없습니다. 먼저 추천 관측 배치를 실행해야 합니다.
                   </Alert>
                 ) : (
                   <Stack spacing={2}>
                     <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", xl: "repeat(4, 1fr)" } }}>
                       <MetricCard
-                        title="주거 효과 rule 상승"
+                        title="주거 규칙 상승"
                         value={formatNumber(standardCodeEffectObservation.housingPositiveRuleDeltaRows)}
-                        description={`status=${standardCodeEffectObservation.housingEffectStatus}`}
+                        description={formatStatusLabel(standardCodeEffectObservation.housingEffectStatus)}
                       />
                       <MetricCard
-                        title="주거 최대 rule delta"
+                        title="주거 최대 규칙 변화"
                         value={String(standardCodeEffectObservation.housingMaxRuleDelta)}
-                        description={`final delta ${standardCodeEffectObservation.housingMaxFinalDelta}`}
+                        description={`최종 변화 ${standardCodeEffectObservation.housingMaxFinalDelta}`}
                       />
                       <MetricCard
-                        title="복지 matrix 시나리오"
+                        title="복지 조합 시나리오"
                         value={formatNumber(standardCodeEffectObservation.welfareScenarioCount)}
-                        description={`positive rule ${formatNumber(standardCodeEffectObservation.welfarePositiveRuleScenarios)}`}
+                        description={`상승 규칙 ${formatNumber(standardCodeEffectObservation.welfarePositiveRuleScenarios)}`}
                         focusTarget
                         cardProps={buildDashboardDataAttr(ADMIN_DASHBOARD_TEST_ATTRS.adminCardKey, ADMIN_DASHBOARD_CARD_KEYS.welfareScenarioCount)}
                       />
                       <MetricCard
-                        title="최대 rule delta"
+                        title="최대 규칙 변화"
                         value={String(standardCodeEffectObservation.welfareMaxRuleDelta)}
                         description={standardCodeEffectObservation.welfareMaxRuleDeltaScenario || "시나리오 없음"}
                       />
                     </Box>
 
                     <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                      <Chip label={`precheck ${standardCodeEffectObservation.precheckStatus || "-"}`} size="small" variant="outlined" />
-                      <Chip label={`decision ${standardCodeEffectObservation.decisionClass || "-"}`} size="small" variant="outlined" />
-                      <Chip label={`matrix status ${standardCodeEffectObservation.welfareMatrixStatus || "-"}`} size="small" variant="outlined" />
-                      <Chip label={`final delta ${standardCodeEffectObservation.welfareMaxFinalDelta}`} size="small" variant="outlined" />
+                      <Chip label={`사전 점검 ${formatStatusLabel(standardCodeEffectObservation.precheckStatus)}`} size="small" variant="outlined" />
+                      <Chip label={`판단 ${formatStatusLabel(standardCodeEffectObservation.decisionClass)}`} size="small" variant="outlined" />
+                      <Chip label={`조합표 상태 ${formatStatusLabel(standardCodeEffectObservation.welfareMatrixStatus)}`} size="small" variant="outlined" />
+                      <Chip label={`최종 변화 ${standardCodeEffectObservation.welfareMaxFinalDelta}`} size="small" variant="outlined" />
                     </Stack>
 
                     <CompactListCard
                       title="관측 스냅샷"
-                      description={standardCodeEffectObservation.sourceSummaryPath}
+                      description={standardCodeEffectObservation.sourceSummaryPath ? "내부 결과 파일 저장됨" : "결과 파일 정보 없음"}
                       items={[
                         {
-                          label: "주거 top delta",
-                          value: standardCodeEffectObservation.housingTopPositiveRuleDeltaRows || "empty",
+                          label: "주거 상위 변화",
+                          value: formatAdminOperationalText(standardCodeEffectObservation.housingTopPositiveRuleDeltaRows, "내용 없음"),
                         },
                         {
-                          label: "복지 scenario snapshot",
-                          value: standardCodeEffectObservation.welfareScenarioRuleDeltaSnapshot || "empty",
+                          label: "복지 시나리오 스냅샷",
+                          value: formatAdminOperationalText(standardCodeEffectObservation.welfareScenarioRuleDeltaSnapshot, "내용 없음"),
                         },
                       ]}
                       renderItem={(item) => (

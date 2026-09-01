@@ -17,7 +17,7 @@ public record AdminPolicyErrorReportResponse(
             String reasonCode,
             String reasonLabel,
             String note,
-            String userKey,
+            String userKeyHash,
             LocalDateTime createdAt,
             String status,
             String reviewNote,

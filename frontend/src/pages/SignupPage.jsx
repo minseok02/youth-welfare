@@ -643,6 +643,9 @@ export default function SignupPage() {
                   입력한 선택 프로필은 회원가입 직후부터 추천 점수에 반영됩니다.
                   현재 <span style={{ color: AI, fontWeight: 800 }}>{selectedStandardCodeCount}/{selectableStandardCodeCount}개</span> 선택됨
                 </div>
+                <div style={{ padding: "10px 12px", borderRadius: 10, background: "#fff7ed", border: "1px solid #fed7aa", fontSize: 12, color: "#9a3412", lineHeight: 1.6, marginTop: 8 }}>
+                  자가는 본인 또는 배우자 소유 주택에 거주하는 경우에만 선택하세요. 부모님 명의 집에 함께 산다면 자가로 보지 않는 편이 안전하며, 무주택세대 여부는 정책별 세대 기준을 다시 확인해야 합니다.
+                </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
                   <select style={selCss(optionalProfileInputDisabled)} disabled={optionalProfileInputDisabled} value={houseTenureCode} onChange={e => handleHouseTenureCodeChange(e.target.value)}>
                     <option value="">주거형태 선택</option>

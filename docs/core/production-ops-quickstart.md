@@ -2,6 +2,8 @@
 
 작성 기준일: 2026-07-16
 
+2026-09-01 teardown/restart 시점의 실제 suspended 상태는 [restart-and-teardown-handoff-2026-09-01.md](./restart-and-teardown-handoff-2026-09-01.md) 를 먼저 본다. 이 문서는 2026-07-16 closeout 기준 운영 quickstart를 유지한다.
+
 ## Purpose
 
 Give the normal operator a short entrypoint after the HA, performance, alerting, backup, and runbook cleanup work.

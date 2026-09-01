@@ -6,6 +6,8 @@ import FloatingNav from "../components/FloatingNav";
 import api from "../lib/axios";
 import { useAuthStore } from "../store/authStore";
 import { resolveStandardProfileCodeCompletion } from "../lib/profileStandardCodes";
+import { formatPolicyDday } from "../lib/policyDisplay";
+import { buildRecommendationEvidenceItems, buildRecommendationMemo } from "../lib/recommendationDisplay";
 import { buildSafeReturnLocation, sanitizeTransientRouteState } from "../lib/safeNavigation";
 
 // ── 헬퍼 ──────────────────────────────────────────────────────────────────────
@@ -26,18 +28,7 @@ const FOOTER_LINK_STYLE = {
   cursor: "pointer",
 };
 
-const formatDday = (dateText, status) => {
-  if (status === "CLOSED") return "종료";
-  if (!dateText) return status === "UPCOMING" ? "예정" : "상시";
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const end = new Date(`${dateText}T00:00:00`);
-  if (Number.isNaN(end.getTime())) return "상시";
-  const diff = Math.ceil((end - today) / 86400000);
-  if (diff < 0) return "종료";
-  if (diff === 0) return "D-Day";
-  return `D-${diff}`;
-};
+const formatDday = (dateText, status) => formatPolicyDday(dateText, status);
 
 const mapRec = (r) => ({
   id: r.serviceId,
@@ -57,69 +48,9 @@ const mapRec = (r) => ({
   gov24ServiceFieldLabel: r.gov24ServiceFieldLabel || "",
   gov24UserTypeLabel: r.gov24UserTypeLabel || "",
   gov24BenefitTypeLabel: r.gov24BenefitTypeLabel || "",
+  reasonFactors: Array.isArray(r.reasonFactors) ? r.reasonFactors : [],
   bookmarked: Boolean(r.isBookmarked),
 });
-
-const nonBlank = (value) => (value || "").trim();
-
-const compactJoin = (values, limit = 2) => {
-  const unique = [];
-  values.forEach((value) => {
-    const trimmed = nonBlank(value);
-    if (!trimmed || unique.includes(trimmed)) {
-      return;
-    }
-    unique.push(trimmed);
-  });
-  return unique.slice(0, limit);
-};
-
-const buildFallbackRecommendationMemo = (rec) => {
-  const supportLabels = compactJoin([
-    rec.youthMidLabel,
-    rec.provisionMethodLabel,
-    rec.gov24BenefitTypeLabel,
-    rec.gov24ServiceFieldLabel,
-    rec.youthMajorLabel,
-    rec.category !== "기타" ? rec.category : "",
-  ]);
-
-  if (supportLabels.length >= 2) {
-    return `${supportLabels[0]} · ${supportLabels[1]} 기준으로 먼저 보여드렸어요.`;
-  }
-  if (supportLabels.length === 1) {
-    return `${supportLabels[0]} 기준으로 먼저 보여드렸어요.`;
-  }
-
-  const audienceLabels = compactJoin([
-    rec.gov24UserTypeLabel,
-    rec.source,
-    rec.sourceTypeLabel ? `${rec.sourceTypeLabel} 정책` : "",
-  ], 1);
-
-  if (audienceLabels.length === 1) {
-    return `${audienceLabels[0]} 분류를 기준으로 먼저 보여드렸어요.`;
-  }
-
-  return "정책 분류와 기본 자격 신호를 기준으로 먼저 보여드렸어요.";
-};
-
-const resolveRecommendationMemo = (rec) => {
-  const aiReason = nonBlank(rec.aiReason);
-  if (aiReason) {
-    return {
-      heading: "추천 메모",
-      body: `"${aiReason}"`,
-      accentColor: A,
-    };
-  }
-
-  return {
-    heading: rec.aiStatus === "NOT_REQUESTED" ? "추천 단서" : "추천 메모",
-    body: buildFallbackRecommendationMemo(rec),
-    accentColor: INK2,
-  };
-};
 
 const mapRecentViewedPolicy = (policy) => ({
   id: policy.id,
@@ -186,7 +117,7 @@ function HeroNonLogin({ totalPolicies, deadlineCount, firstDeadlinePolicy, secon
         <div>
           <h1 style={{ fontSize: isMobile ? 28 : 40, fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.2, margin: "0 0 14px", color: "white" }}>
             나에게 딱 맞는<br />
-            <span style={{ background: "linear-gradient(180deg, transparent 65%, rgba(255,255,255,0.25) 65%)", padding: "0 4px" }}>
+            <span>
               청년 복지정책
             </span>을<br />
             찾아드려요
@@ -308,7 +239,7 @@ function HeroLoggedIn({
           </span>
           <h1 style={{ fontSize: isMobile ? 28 : 40, fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.2, margin: "16px 0 14px", color: "white" }}>
             저희가 선별한<br />
-            <span style={{ background: "linear-gradient(180deg, transparent 65%, rgba(255,255,255,0.25) 65%)", padding: "0 4px" }}>
+            <span>
               맞춤 정책
             </span>을<br />
             확인해보세요
@@ -640,11 +571,12 @@ function PopularSection({ teaserPolicies, categoryCounts, navigate, onPolicyNavi
 }
 
 function RecCard({ rec, onPolicyNavigate, onBookmarkToggle }) {
-  const recommendationMemo = resolveRecommendationMemo(rec);
+  const recommendationMemo = buildRecommendationMemo(rec);
+  const evidenceItems = buildRecommendationEvidenceItems(rec);
   const isUrgent = rec.dday.startsWith("D-") && parseInt(rec.dday.replace("D-", "")) <= 14;
   const ddayStyle =
     rec.dday === "종료" ? { background: "#f3f4f6", color: INK3 }
-    : rec.dday === "상시" || rec.dday === "진행중" ? { background: OK_BG, color: OK }
+    : rec.dday === "상시/문의" || rec.dday === "상시" || rec.dday === "진행중" ? { background: OK_BG, color: OK }
     : isUrgent ? { background: "#fef2f2", color: WARN }
     : { background: AS2, color: A };
 
@@ -697,9 +629,29 @@ function RecCard({ rec, onPolicyNavigate, onBookmarkToggle }) {
           border: "1px solid #dbeafe",
         }}>
           <div style={{ fontSize: 11, fontWeight: 800, color: AI, marginBottom: 4 }}>{recommendationMemo.heading}</div>
-          <div style={{ fontSize: 12, lineHeight: 1.55, color: recommendationMemo.accentColor }}>
+          <div style={{ fontSize: 12, lineHeight: 1.55, color: recommendationMemo.tone === "ai" ? A : INK2 }}>
             {recommendationMemo.body}
           </div>
+        </div>
+      )}
+      {evidenceItems.length > 0 && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
+          {evidenceItems.map((item) => (
+            <span
+              key={item.key}
+              style={{
+                fontSize: 11,
+                lineHeight: 1.4,
+                color: INK2,
+                background: "#f8fafc",
+                border: `1px solid ${LINE}`,
+                borderRadius: 999,
+                padding: "3px 8px",
+              }}
+            >
+              <strong style={{ color: INK }}>{item.label}</strong> {item.value}
+            </span>
+          ))}
         </div>
       )}
     </div>

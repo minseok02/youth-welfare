@@ -310,14 +310,35 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
         given(adminPolicyErrorReportService.getRecentReports(5, AdminQueueStatusFilter.OPEN))
-                .willReturn(new AdminPolicyErrorReportResponse(2, 1, List.of()));
+                .willReturn(new AdminPolicyErrorReportResponse(
+                        2,
+                        1,
+                        List.of(new AdminPolicyErrorReportResponse.Item(
+                                9L,
+                                33L,
+                                "청년 교통비 지원",
+                                "GOV24",
+                                "SRC-33",
+                                "BROKEN_LINK",
+                                "링크나 원문이 열리지 않습니다",
+                                "원문 링크가 404입니다.",
+                                com.example.welfare.global.util.RedisKeyHash.sha256Hex("user-key-1"),
+                                LocalDateTime.of(2026, 6, 4, 9, 45),
+                                "OPEN",
+                                null,
+                                null,
+                                null
+                        ))
+                ));
 
         mockMvc.perform(get("/api/admin/dashboard/policy-error-reports")
                         .param("limit", "5")
                         .header("Authorization", "Bearer admin-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.openCount").value(2));
+                .andExpect(jsonPath("$.data.openCount").value(2))
+                .andExpect(jsonPath("$.data.recentReports[0].userKey").doesNotExist())
+                .andExpect(jsonPath("$.data.recentReports[0].userKeyHash").value(com.example.welfare.global.util.RedisKeyHash.sha256Hex("user-key-1")));
     }
 
     @Test
@@ -449,14 +470,35 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
         given(adminSupportInquiryService.getRecentInquiries(5, AdminQueueStatusFilter.OPEN))
-                .willReturn(new AdminSupportInquiryResponse(3, 1, List.of()));
+                .willReturn(new AdminSupportInquiryResponse(
+                        3,
+                        1,
+                        List.of(new AdminSupportInquiryResponse.Item(
+                                21L,
+                                "BUG_ERROR",
+                                "오류/버그",
+                                "us***@example.com",
+                                "필터가 왜 바로 적용되는지 헷갈립니다.",
+                                "/policies",
+                                com.example.welfare.global.util.RedisKeyHash.sha256Hex("user-key-21"),
+                                LocalDateTime.of(2026, 6, 4, 9, 50),
+                                "OPEN",
+                                null,
+                                null,
+                                null
+                        ))
+                ));
 
         mockMvc.perform(get("/api/admin/dashboard/support-inquiries")
                         .param("limit", "5")
                         .header("Authorization", "Bearer admin-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.openCount").value(3));
+                .andExpect(jsonPath("$.data.openCount").value(3))
+                .andExpect(jsonPath("$.data.recentInquiries[0].contactEmail").doesNotExist())
+                .andExpect(jsonPath("$.data.recentInquiries[0].contactEmailMasked").value("us***@example.com"))
+                .andExpect(jsonPath("$.data.recentInquiries[0].userKey").doesNotExist())
+                .andExpect(jsonPath("$.data.recentInquiries[0].userKeyHash").value(com.example.welfare.global.util.RedisKeyHash.sha256Hex("user-key-21")));
     }
 
     @Test
@@ -832,20 +874,20 @@ class AdminSecurityWebMvcTest {
                                 new AdminDashboardAttentionResponse.AttentionItem(
                                         "collect-drift",
                                         "warning",
-                                        "수집 drift 확인",
+                                        "수집 변경 차이 확인",
                                         "실패 2건, 부분 성공 1건, 열린 회로 1개",
                                         "admin-collect-triage",
                                         "collect",
-                                        "수집 실패 샘플과 열린 circuit을 확인합니다."
+                                        "수집 실패 샘플과 열린 회로를 확인합니다."
                                 ),
                                 new AdminDashboardAttentionResponse.AttentionItem(
                                         "standard-code-backlog",
                                         "warning",
-                                        "표준코드 입력 backlog",
-                                        "793명이 주거·복지 표준코드 4개를 모두 비워둔 상태입니다.",
+                                        "선택 프로필 코드 보정 필요",
+                                        "자동 보정 후보 2건, 기본/상세 값 충돌 0건. 전부 미입력 사용자는 793명입니다.",
                                         "admin-standard-code-coverage",
                                         "user-profile-standard-codes",
-                                        "자동 보정 후보와 충돌 gap을 먼저 검토합니다."
+                                        "자동 보정 후보와 기본/상세 값 충돌을 먼저 검토하고 안전 후보만 보정합니다."
                                 )
                         )
                 ));
@@ -856,7 +898,7 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.itemCount").value(2))
                 .andExpect(jsonPath("$.data.items[0].key").value("collect-drift"))
-                .andExpect(jsonPath("$.data.items[0].nextAction").value("수집 실패 샘플과 열린 circuit을 확인합니다."))
+                .andExpect(jsonPath("$.data.items[0].nextAction").value("수집 실패 샘플과 열린 회로를 확인합니다."))
                 .andExpect(jsonPath("$.data.items[1].key").value("standard-code-backlog"));
 
         then(adminDashboardAttentionService).should().getAttentionFeed();
@@ -1607,8 +1649,8 @@ class AdminSecurityWebMvcTest {
                         new AdminDashboardResponse.NotificationSection(1, 0, 7, 5, 1, 4, 2, 0, 2, 1),
                         new AdminDashboardResponse.PolicyTriageSection(
                                 "DUPLICATE_THEN_LINK_PRIORITY",
-                                "duplicate queue를 exact -> mirror 순으로 먼저 줄이는 편이 맞습니다.",
-                                "exact duplicate -> mirror variant -> benefit/support link review",
+                                "중복 대기열을 완전 중복, 채널 차이 순으로 먼저 줄이는 편이 맞습니다.",
+                                "완전 중복 -> 채널 차이 후보 -> 급부형/지원형 링크 검토",
                                 139,
                                 12,
                                 16,
@@ -1905,8 +1947,8 @@ class AdminSecurityWebMvcTest {
                         new AdminDashboardResponse.NotificationSection(0, 0, 14, 0, 0, 0, 0, 0, 0, 0),
                         new AdminDashboardResponse.PolicyTriageSection(
                                 "LOW_BACKLOG_STEADY_STATE",
-                                "정책 backlog는 급한 exact/mirror/link 우선 항목이 줄어든 상태입니다.",
-                                "keep nightly observation and small-batch review",
+                                "정책 대기 항목은 급한 완전 중복/채널 차이/링크 우선 항목이 줄어든 상태입니다.",
+                                "야간 관측을 유지하고 소량 단위로 검토",
                                 0,
                                 0,
                                 0,
@@ -3164,7 +3206,8 @@ class AdminSecurityWebMvcTest {
                         .header("Authorization", "Bearer admin-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.userKey").value("user-key-1"))
+                .andExpect(jsonPath("$.data.userKey").doesNotExist())
+                .andExpect(jsonPath("$.data.targetUserKeyHash").value(com.example.welfare.global.util.RedisKeyHash.sha256Hex("user-key-1")))
                 .andExpect(jsonPath("$.data.accepted").value(true));
 
         then(userSessionRevocationService).should().revokeUserSessions(org.mockito.BDDMockito.eq("user-key-1"), org.mockito.ArgumentMatchers.anyLong());

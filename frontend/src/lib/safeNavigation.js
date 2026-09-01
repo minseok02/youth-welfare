@@ -3,6 +3,7 @@ const TRANSIENT_ROUTE_STATE_KEYS = new Set([
   "coachPolicyId",
   "recommendationLogId",
 ]);
+const CHAT_RETURN_TRANSIENT_ROUTE_STATE_KEYS = new Set(["coachPolicyId"]);
 const POST_LOGIN_ACTION_TYPES = new Set(["toggle-bookmark"]);
 
 const hasControlCharacter = (value) => {
@@ -85,7 +86,7 @@ export function resolveSafeRouteTarget(value, depth = 0) {
     pathname: parsed.pathname,
     search: parsed.search,
     hash: parsed.hash,
-    state: sanitizeTransientRouteState(value.state, depth),
+    state: sanitizeTransientRouteState(value.state, depth, resolveStateSanitizeOptionsForPath(parsed.pathname)),
   };
 }
 
@@ -103,13 +104,33 @@ export function sanitizePostLoginAction(action) {
   return { type, policyId };
 }
 
-export function sanitizeTransientRouteState(state, depth = 0) {
+const sanitizeCoachPolicyId = (value) => {
+  const policyId = Number(value);
+  return Number.isSafeInteger(policyId) && policyId > 0 ? policyId : undefined;
+};
+
+const resolveStateSanitizeOptionsForPath = (pathname) => {
+  return pathname === "/chat"
+    ? { preserveTransientKeys: CHAT_RETURN_TRANSIENT_ROUTE_STATE_KEYS }
+    : {};
+};
+
+export function sanitizeTransientRouteState(state, depth = 0, options = {}) {
   if (!state || typeof state !== "object") {
     return undefined;
   }
 
   const nextState = { ...state };
   TRANSIENT_ROUTE_STATE_KEYS.forEach((key) => {
+    if (options.preserveTransientKeys?.has(key)) {
+      if (key === "coachPolicyId") {
+        const coachPolicyId = sanitizeCoachPolicyId(nextState[key]);
+        if (coachPolicyId) {
+          nextState[key] = coachPolicyId;
+          return;
+        }
+      }
+    }
     delete nextState[key];
   });
 
@@ -151,6 +172,10 @@ export function buildSafeReturnLocation(location) {
     pathname: location.pathname,
     search: typeof location.search === "string" ? location.search : "",
     hash: typeof location.hash === "string" ? location.hash : "",
-    state: sanitizeTransientRouteState(location.state),
+    state: sanitizeTransientRouteState(
+      location.state,
+      0,
+      resolveStateSanitizeOptionsForPath(location.pathname),
+    ),
   };
 }

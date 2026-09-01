@@ -15,7 +15,10 @@ import {
   INK2,
   PANEL_LINE,
 } from "./AdminDashboardUiTokens";
-import { formatNumber } from "../../lib/adminDashboardDisplay";
+import {
+  formatAdminOperationalText,
+  formatNumber,
+} from "../../lib/adminDashboardDisplay";
 import {
   ADMIN_DASHBOARD_LIST_KEYS,
   ADMIN_DASHBOARD_TEST_ATTRS,
@@ -34,12 +37,12 @@ function FacetDistributionCard({
       items={items}
       renderItem={(group) => (
         <Box key={group.facetKey} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
-          <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{group.label}</Typography>
+          <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{formatAdminOperationalText(group.label)}</Typography>
           <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap mt={1}>
             {group.buckets?.map((bucket) => (
               <Chip
                 key={`${group.facetKey}-${bucket.label}`}
-                label={`${bucket.label} · 행 ${formatNumber(bucket.rowCount)} / 서비스 ${formatNumber(bucket.distinctServices)}`}
+                label={`${formatAdminOperationalText(bucket.label)} · 추천 행 ${formatNumber(bucket.rowCount)} / 서비스 ${formatNumber(bucket.distinctServices)}`}
                 size="small"
                 sx={{
                   bgcolor: "#f8fafc",

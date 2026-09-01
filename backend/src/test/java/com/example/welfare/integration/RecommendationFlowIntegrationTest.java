@@ -38,6 +38,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -186,6 +187,24 @@ class RecommendationFlowIntegrationTest {
                 .registeredAt(java.time.LocalDateTime.now().minusMinutes(1))
                 .build());
 
+        WelfareService expiredActivePolicy = welfareServiceRepository.save(WelfareService.builder()
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId(TEST_SOURCE_PREFIX + "EXPIRED-" + UUID.randomUUID())
+                .title("마감 지난 청년 월세 지원")
+                .description("신청기간이 지난 정책")
+                .unifiedCategory("주거")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .minAge(19)
+                .maxAge(34)
+                .minIncome(1)
+                .maxIncome(10)
+                .applyEndDate(LocalDate.now().minusDays(1))
+                .lifeStage("청년")
+                .viewCount(99_999)
+                .apiViewCount(99_999L)
+                .registeredAt(java.time.LocalDateTime.now())
+                .build());
+
         given(aiRecommendationGateway.score(anyString(), anyList(), any(RecommendationUserSnapshot.class)))
                 .willAnswer(invocation -> invocation.getArgument(1));
 
@@ -196,6 +215,7 @@ class RecommendationFlowIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data[*].serviceId").value(hasItem(housingPolicy.getId().intValue())))
+                .andExpect(jsonPath("$.data[*].serviceId").value(not(hasItem(expiredActivePolicy.getId().intValue()))))
                 .andExpect(jsonPath("$.data[?(@.serviceId == %s)].title".formatted(housingPolicy.getId()))
                         .value(hasItem("청년 월세 지원")))
                 .andExpect(jsonPath("$.data[?(@.serviceId == %s)].bookmarked".formatted(housingPolicy.getId()))
@@ -216,6 +236,7 @@ class RecommendationFlowIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data[*].serviceId").value(hasItem(housingPolicy.getId().intValue())))
+                .andExpect(jsonPath("$.data[*].serviceId").value(not(hasItem(expiredActivePolicy.getId().intValue()))))
                 .andExpect(jsonPath("$.data[?(@.serviceId == %s)].bookmarked".formatted(housingPolicy.getId()))
                         .value(hasItem(true)));
 
@@ -225,6 +246,7 @@ class RecommendationFlowIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data[*].serviceId").value(hasItem(housingPolicy.getId().intValue())))
+                .andExpect(jsonPath("$.data[*].serviceId").value(not(hasItem(expiredActivePolicy.getId().intValue()))))
                 .andExpect(jsonPath("$.data[?(@.serviceId == %s)].bookmarked".formatted(housingPolicy.getId()))
                         .value(hasItem(true)));
 
@@ -232,7 +254,8 @@ class RecommendationFlowIntegrationTest {
         assertThat(latestRecommendations).isNotEmpty();
         assertThat(latestRecommendations.stream()
                 .map(rec -> rec.getService().getId()))
-                .contains(housingPolicy.getId(), culturePolicy.getId());
+                .contains(housingPolicy.getId(), culturePolicy.getId())
+                .doesNotContain(expiredActivePolicy.getId());
         assertThat(latestRecommendations.stream()
                 .filter(rec -> rec.getService().getId().equals(housingPolicy.getId()))
                 .findFirst()

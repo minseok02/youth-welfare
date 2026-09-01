@@ -29,7 +29,14 @@ import {
   PANEL_BG,
   PANEL_LINE,
 } from "./AdminDashboardUiTokens";
-import { formatNumber } from "../../lib/adminDashboardDisplay";
+import {
+  formatCodebookIntendedUse,
+  formatCodebookMetadataKey,
+  formatCodebookMetadataValue,
+  formatCodebookSetLabel,
+  formatNumber,
+  formatSourceType,
+} from "../../lib/adminDashboardDisplay";
 import {
   ADMIN_DASHBOARD_CARD_KEYS,
   ADMIN_DASHBOARD_TEST_ATTRS,
@@ -96,7 +103,7 @@ export default function AdminReferenceCodebooksSection({
                     >
                       {officialCodebooks.map((item) => (
                         <MenuItem key={item.codeSetKey} value={item.codeSetKey}>
-                          {item.codeSetKey}
+                          {item.displayName ?? item.name ?? formatCodebookSetLabel(item.codeSetKey)}
                         </MenuItem>
                       ))}
                     </Select>
@@ -114,10 +121,10 @@ export default function AdminReferenceCodebooksSection({
 
                 {selectedCodebookSummary && (
                   <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                    <Chip label={selectedCodebookSummary.sourceType} size="small" />
-                    <Chip label={`${selectedCodebookSummary.rowCount.toLocaleString()} rows`} size="small" variant="outlined" />
+                    <Chip label={formatSourceType(selectedCodebookSummary.sourceType)} size="small" />
+                    <Chip label={`${formatNumber(selectedCodebookSummary.rowCount)}행`} size="small" variant="outlined" />
                     <Chip label={selectedCodebookSummary.rowDataIncluded ? "행 조회 가능" : "메타데이터 전용"} size="small" variant="outlined" />
-                    <Chip label={selectedCodebookSummary.sourceFile} size="small" variant="outlined" />
+                    <Chip label={`원본 파일 ${selectedCodebookSummary.sourceFile}`} size="small" variant="outlined" />
                   </Stack>
                 )}
 
@@ -154,8 +161,8 @@ export default function AdminReferenceCodebooksSection({
                       />
                       <MetricCard
                         title="용도"
-                        value={officialCodebookDetail.intendedUse ?? "-"}
-                        description={officialCodebookDetail.sourceFile}
+                        value={formatCodebookIntendedUse(officialCodebookDetail.intendedUse)}
+                        description={`원본 파일 ${officialCodebookDetail.sourceFile}`}
                       />
                     </Box>
 
@@ -168,7 +175,7 @@ export default function AdminReferenceCodebooksSection({
                             .map(([key, value]) => (
                               <Chip
                                 key={key}
-                                label={`${key}: ${Array.isArray(value) ? value.join(", ") : String(value)}`}
+                                label={`${formatCodebookMetadataKey(key)}: ${formatCodebookMetadataValue(value)}`}
                                 size="small"
                                 variant="outlined"
                               />
@@ -183,7 +190,7 @@ export default function AdminReferenceCodebooksSection({
                           <TableHead sx={{ bgcolor: "#f8fafc" }}>
                             <TableRow>
                               {(officialCodebookDetail.headers ?? Object.keys(detailRows[0] ?? {})).map((header) => (
-                                <TableCell key={header} sx={{ fontWeight: 800, color: INK2 }}>{header}</TableCell>
+                                <TableCell key={header} sx={{ fontWeight: 800, color: INK2 }}>{formatCodebookMetadataKey(header)}</TableCell>
                               ))}
                             </TableRow>
                           </TableHead>

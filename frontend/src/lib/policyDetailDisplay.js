@@ -1,5 +1,60 @@
 import { normalizeSafeExternalUrl } from "./policyDisplay.js";
 
+const BROAD_REGION_MIN_COUNT = 8;
+const REGION_DETAIL_PREVIEW_COUNT = 8;
+
+export const normalizePolicyRegionLabel = (value) => {
+  const normalized = (value ?? "").trim();
+  if (!normalized || /^\d+$/.test(normalized)) {
+    return "";
+  }
+  return normalized;
+};
+
+export const resolvePolicyTopLevelRegion = (label) => normalizePolicyRegionLabel(label).split(/\s+/)[0] ?? "";
+
+export const buildPolicyRegionDisplay = (policy) => {
+  const labels = [...new Set((policy?.regions ?? []).map(normalizePolicyRegionLabel).filter(Boolean))];
+  const topLevelLabels = [...new Set(labels.map(resolvePolicyTopLevelRegion).filter(Boolean))];
+  const fallback = normalizePolicyRegionLabel(policy?.regionLabel)
+    || normalizePolicyRegionLabel(policy?.sido)
+    || "";
+
+  if (!labels.length) {
+    return {
+      compactLabel: fallback,
+      detailLabels: [],
+      hiddenDetailCount: 0,
+      broadRegion: false,
+    };
+  }
+
+  if (topLevelLabels.length === 1 && labels.length >= BROAD_REGION_MIN_COUNT) {
+    return {
+      compactLabel: topLevelLabels[0],
+      detailLabels: labels,
+      hiddenDetailCount: Math.max(0, labels.length - REGION_DETAIL_PREVIEW_COUNT),
+      broadRegion: true,
+    };
+  }
+
+  if (labels.length === 1) {
+    return {
+      compactLabel: labels[0],
+      detailLabels: labels,
+      hiddenDetailCount: 0,
+      broadRegion: false,
+    };
+  }
+
+  return {
+    compactLabel: fallback || labels.slice(0, 2).join(", "),
+    detailLabels: labels,
+    hiddenDetailCount: Math.max(0, labels.length - REGION_DETAIL_PREVIEW_COUNT),
+    broadRegion: false,
+  };
+};
+
 export const parsePolicyContacts = (raw) => {
   if (!raw) return [];
   try {

@@ -6,6 +6,7 @@ import {
   formatChatRelativeTime,
   mapChatMessage,
   mapChatSession,
+  parseStepAnswerBlocks,
 } from "./chatDisplay.js";
 
 describe("chat display mapping helpers", () => {
@@ -100,5 +101,19 @@ describe("chat display mapping helpers", () => {
   test("formats invalid chat times with safe fallbacks", () => {
     assert.equal(formatChatRelativeTime("bad-date"), "");
     assert.equal(formatChatMessageTime("bad-date"), "방금 전");
+  });
+
+  test("parses numbered step answers into display blocks", () => {
+    const parsed = parseStepAnswerBlocks("신청 준비 순서입니다.\n1단계 자격 조건 확인: 대상과 소득을 봅니다.\n2단계 신청기간 확인: 마감일을 확인합니다.");
+
+    assert.equal(parsed.intro, "신청 준비 순서입니다.");
+    assert.deepEqual(parsed.steps, [
+      { number: "1", title: "자격 조건 확인", body: "대상과 소득을 봅니다." },
+      { number: "2", title: "신청기간 확인", body: "마감일을 확인합니다." },
+    ]);
+  });
+
+  test("does not parse ordinary answer as step blocks", () => {
+    assert.equal(parseStepAnswerBlocks("지원 조건을 먼저 확인하세요."), null);
   });
 });
