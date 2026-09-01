@@ -16,15 +16,12 @@ Use it when one of these is true:
 
 - working repo: `/home/ubuntu/youth-welfare`
 - branch: `refactor/admin-dashboard-sections`
-- HEAD: `17f2676c`
+- preserved snapshot commit: `338bcd86`
 - git remote: `git@github.com:minseok02/youth-welfare.git`
-- working tree was **not clean**
-  - modified/untracked files: `85` tracked changes plus `7` untracked files
-  - broad change buckets:
-    - admin dashboard/backend review surfaces
-    - recommendation/chat/policy display and eligibility helpers
-    - nginx/smoke script updates
-    - final report documentation updates
+- preservation note:
+  - before this handoff was written, the observed local state was `17f2676c` plus `85` tracked changes and `7` untracked files
+  - that suspended state was preserved and pushed as commit `338bcd86`
+  - current branch can now be rebuilt from git without depending on the old dirty worktree
 
 ### Live AWS State
 
@@ -40,6 +37,108 @@ Region: `ap-northeast-2`
 - ElastiCache Valkey: `youth-welfare-prod-redis-valkey` `available`
 - SNS topic: `arn:aws:sns:ap-northeast-2:857721769929:youth-welfare-ops-alerts`
 - IAM ops role: `arn:aws:iam::857721769929:role/youth-welfare-ops-monitor-v2-role`
+
+### Exact AWS Resource Shape
+
+#### EC2
+
+- EC2-1:
+  - instance id: `i-0b8d95e454df5e0f0`
+  - name: `youthmoa-prod-ec2`
+  - state at audit time: `running`
+  - instance type: `t3.medium`
+  - AMI: `ami-0765f9741eedf9c7b`
+  - VPC: `vpc-093662d691f85e844`
+  - subnet: `subnet-018e1db2c13f63c3c`
+  - AZ: `ap-northeast-2b`
+  - private IP: `172.31.25.51`
+  - key pair: `youthmoa-new-key`
+  - instance profile: `youth-welfare-ops-monitor-v2-role`
+  - IMDS: `required`, hop limit `2`
+  - root volume: `20GiB gp3`, `3000 IOPS`, `encrypted=false`, `DeleteOnTermination=true`
+  - security group: `sg-01b664b3af6ad95a2` `youthmoa-ec2-sg`
+- EC2-2:
+  - instance id: `i-0e8a4cc599c1148c8`
+  - name: `youthmoa-prod-ec2-2`
+  - state at audit time: `stopped`
+  - instance type: `t3.medium`
+  - AMI: `ami-0e4ab31f1847c850c`
+  - VPC: `vpc-093662d691f85e844`
+  - subnet: `subnet-0c7127a0767ebc2e9`
+  - AZ: `ap-northeast-2c`
+  - key pair: `youthmoa-new-key`
+  - instance profile: `youth-welfare-ops-monitor-v2-role`
+  - IMDS: `required`, hop limit `2`
+  - security group: `sg-01b664b3af6ad95a2` `youthmoa-ec2-sg`
+
+#### Security Groups
+
+- EC2 SG `sg-01b664b3af6ad95a2` `youthmoa-ec2-sg`
+  - inbound `80/tcp` from ALB SG `sg-06ac84b1d37d48409`
+  - inbound `22/tcp` from `222.118.115.90/32`
+  - inbound `22/tcp` from prefix list `pl-00ec8fd779e5b4175`
+- ALB SG `sg-06ac84b1d37d48409` `youth-welfare-alb-sg`
+  - inbound `80/tcp` from `0.0.0.0/0`
+  - inbound `443/tcp` from `0.0.0.0/0`
+- RDS SG `sg-036bbd2c8c0ac2bef` `youthmoa-rds-sg`
+  - inbound `5432/tcp` from EC2 SG `sg-01b664b3af6ad95a2`
+- Redis SG `sg-08a9bcba60cfd16b0` `youthmoa-redis-sg`
+  - inbound `6379/tcp` from EC2 SG `sg-01b664b3af6ad95a2`
+
+#### ALB
+
+- name: `youth-welfare-alb`
+- scheme: `internet-facing`
+- type: `application`
+- VPC: `vpc-093662d691f85e844`
+- subnets:
+  - `subnet-018e1db2c13f63c3c`
+  - `subnet-0c7127a0767ebc2e9`
+- security group: `sg-06ac84b1d37d48409`
+- listener `80/HTTP`: redirect to `443/HTTPS`
+- listener `443/HTTPS`: forward to target group `youth-welfare-web-tg`
+- target group:
+  - ARN suffix: `5625712bc3af7438`
+  - protocol: `HTTP`
+  - port: `80`
+  - target type: `instance`
+  - health check path: `/alb-health`
+  - health check matcher: `200`
+- certificate in use by listener `443`:
+  - ARN: `arn:aws:acm:ap-northeast-2:857721769929:certificate/9c6cae15-619a-47b7-9e23-e540434dd004`
+  - note: `acm:DescribeCertificate` permission was not available to the ops role during this audit
+
+#### RDS
+
+- identifier: `youth-welfare-prod-db`
+- engine: `postgres`
+- engine version: `16.14`
+- class: `db.t3.small`
+- storage: `20GiB gp3`
+- public: `false`
+- encrypted: `true`
+- Multi-AZ: `false`
+- deletion protection: `true`
+- master username: `masteradmin`
+- endpoint: `youth-welfare-prod-db.cnqsmges40i1.ap-northeast-2.rds.amazonaws.com`
+- subnet group: `default-vpc-093662d691f85e844`
+- VPC security group: `sg-036bbd2c8c0ac2bef`
+
+#### ElastiCache Valkey
+
+- replication group: `youth-welfare-prod-redis-valkey`
+- member cluster: `youth-welfare-prod-redis-valkey-001`
+- engine: `valkey`
+- engine version: `9.1.0`
+- node type: `cache.t4g.micro`
+- primary endpoint: `youth-welfare-prod-redis-valkey.xcwfaw.ng.0001.apn2.cache.amazonaws.com`
+- node endpoint: `youth-welfare-prod-redis-valkey-001.xcwfaw.0001.apn2.cache.amazonaws.com`
+- security group: `sg-08a9bcba60cfd16b0`
+- subnet group: `youth-welfare-prod-redis-valkey-subnet-group`
+- preferred AZ: `ap-northeast-2a`
+- Multi-AZ: `disabled`
+- automatic failover: `disabled`
+- snapshot retention: `0`
 
 ### Public Service State
 
@@ -57,19 +156,19 @@ Reading:
 
 ## Preserve Before Deleting Anything
 
-### 1. Preserve The Dirty Repository First
+### 1. Preserve The Git Snapshot First
 
-Do not delete the instance before the current worktree is stored somewhere durable.
+Do not delete the instance unless the repo state at or after the preserved snapshot is stored somewhere durable.
 
 Minimum:
 
-- push a commit containing the current worktree
+- keep the pushed branch containing commit `338bcd86`
 - or archive the full repo directory including `.git`
 
 Why:
 
-- GitHub only has `17f2676c`
-- local uncommitted work is materially ahead of that point
+- the previously suspended dirty worktree is now represented by commit `338bcd86`
+- deleting the instance is no longer blocked on recovering uncommitted local work, but it is still blocked on preserving the repo itself if the remote is not trusted as the only copy
 
 ### 2. Preserve Runtime Configuration
 
@@ -94,6 +193,29 @@ These files contain or point to:
 - ops webhook or Healthchecks settings
 
 Do not copy secrets into git. Preserve the files separately in encrypted storage.
+
+### 2-1. Preserve The Frontend And Edge Layout
+
+Keep these path conventions because the current nginx config expects them:
+
+- frontend static root: `/var/www/youth-welfare/frontend`
+- ACME challenge root: `/var/www/certbot`
+- nginx site file: `/etc/nginx/sites-available/youth-welfare`
+- nginx enabled symlink: `/etc/nginx/sites-enabled/youth-welfare`
+- direct host TLS cert path currently in use:
+  - `/etc/letsencrypt/live/youthmoa.kr/fullchain.pem`
+  - `/etc/letsencrypt/live/youthmoa.kr/privkey.pem`
+
+If you rebuild the same host-style edge, the frontend deploy step is:
+
+```bash
+cd /home/ubuntu/youth-welfare/frontend
+npm ci
+npm run build
+sudo rsync -a --delete dist/ /var/www/youth-welfare/frontend/
+sudo find /var/www/youth-welfare/frontend -type d -exec chmod 755 {} +
+sudo find /var/www/youth-welfare/frontend -type f -exec chmod 644 {} +
+```
 
 ### 3. Preserve Database Recovery Capability
 
@@ -207,6 +329,41 @@ If `youthmoa.kr` will be reused later, export the record inventory before deleti
 - Web Push VAPID keys
 - AWS CloudWatch, SNS, Route53 health check, ALB target health
 
+### Current Runtime Toolchain On EC2-1
+
+- OS family: Ubuntu `24.04`
+- Docker: `29.1.3`
+- Docker Compose: `2.40.3`
+- nginx: `1.24.0`
+- Java: `17.0.20`
+- Node.js: `v24.15.0`
+- npm: `11.12.1`
+
+If you rebuild a new EC2 and want the least surprise, staying close to this toolchain is the conservative move.
+
+### Runtime Env Coverage Audit
+
+`env.production.example` is close, but restart should not rely on the template alone unless the preserved env files are gone.
+
+During the 2026-09-01 audit, active runtime keys also included:
+
+- `SECURITY_ADMIN_EMAILS`
+- `RECOMMEND_RATE_LIMIT_PERSONAL_REFRESH_MAX_REQUESTS`
+- `WEB_PUSH_PUBLIC_KEY`
+- `WEB_PUSH_PRIVATE_KEY`
+- `WEB_PUSH_SUBJECT`
+- `WEB_PUSH_MAX_SUBSCRIPTIONS_PER_USER`
+- `WEB_PUSH_SEND_TIMEOUT_SECONDS`
+- `POLICY_RANKING_CANDIDATE_ENABLED`
+- `POLICY_RANKING_SNAPSHOT_READ_ENABLED`
+- `POLICY_RANKING_SNAPSHOT_REFRESH_ENABLED`
+- `POLICY_RANKING_SNAPSHOT_MAX_SIZE`
+- `POLICY_RANKING_SNAPSHOT_TTL_SECONDS`
+- `POLICY_RANKING_SNAPSHOT_REFRESH_FIXED_DELAY_MS`
+- `POLICY_RANKING_SNAPSHOT_REFRESH_INITIAL_DELAY_MS`
+
+Most ranking flags have code defaults, but `SECURITY_ADMIN_EMAILS` and the web push keys are operationally important. Preserve the real env files first; use the template only as fallback.
+
 ## Fast Restart Paths
 
 ### Path A: Local-Only Restart
@@ -247,10 +404,24 @@ bash deploy/env/render-app-runtime-env.sh
 docker compose --env-file .env.production -f docker-compose.prod.elasticache.yml up -d app
 ```
 
-7. verify:
+7. if nginx or frontend was lost on the host, restore it:
+
+```bash
+cd /home/ubuntu/youth-welfare/frontend
+npm ci
+npm run build
+sudo rsync -a --delete dist/ /var/www/youth-welfare/frontend/
+sudo cp /home/ubuntu/youth-welfare/deploy/nginx/youth-welfare.conf /etc/nginx/sites-available/youth-welfare
+sudo ln -sfn /etc/nginx/sites-available/youth-welfare /etc/nginx/sites-enabled/youth-welfare
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+8. verify:
 
 ```bash
 curl -fsS http://127.0.0.1:8082/actuator/health
+PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/nginx/verify-edge-baseline.sh
 RUN_ALB_TARGET_HEALTH=true bash deploy/smoke/run-prod-post-deploy-smoke.sh
 ```
 
@@ -265,20 +436,57 @@ If the API still returns `502`, check:
 
 Use this when everything is gone and you want the closest reproduction of the previous setup.
 
-1. recreate Route53 hosted zone or reuse the domain
-2. recreate ACM cert for `youthmoa.kr` and `www.youthmoa.kr`
-3. recreate EC2
-4. recreate RDS PostgreSQL
-5. recreate ElastiCache Valkey if you want the production-era topology
-6. restore `.env.production`
-7. bootstrap DB:
+1. recreate or keep the domain and hosted zone for `youthmoa.kr`
+2. request a new ACM certificate for `youthmoa.kr` and `www.youthmoa.kr`
+3. recreate ALB in `vpc-093662d691f85e844` with subnets:
+   - `subnet-018e1db2c13f63c3c`
+   - `subnet-0c7127a0767ebc2e9`
+4. recreate EC2 primary with the closest known shape:
+   - `t3.medium`
+   - Ubuntu 24.04
+   - AMI-compatible x86_64 image
+   - subnet `subnet-018e1db2c13f63c3c`
+   - SG `youthmoa-ec2-sg` equivalent
+   - instance profile `youth-welfare-ops-monitor-v2-role` equivalent
+   - root volume `20GiB gp3`, `3000 IOPS`, `encrypted=false`
+5. recreate EC2 secondary only if you want the former HA topology:
+   - `t3.medium`
+   - subnet `subnet-0c7127a0767ebc2e9`
+   - same SG and instance profile
+   - `APP_SCHEDULER_ENABLED=false`
+6. recreate RDS PostgreSQL with the closest known shape:
+   - identifier `youth-welfare-prod-db`
+   - engine `postgres 16`
+   - class `db.t3.small`
+   - storage `20GiB gp3`
+   - public access `false`
+   - encrypted `true`
+   - backup retention `7`
+   - deletion protection `true`
+   - DB name `youth_welfare`
+   - SG allowing `5432` only from the EC2 SG
+7. recreate ElastiCache Valkey only if you want the former production topology:
+   - replication group `youth-welfare-prod-redis-valkey`
+   - node type `cache.t4g.micro`
+   - SG allowing `6379` only from the EC2 SG
+   - snapshot retention `0`
+8. on the EC2 host install the base tools:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y docker.io docker-compose-v2 nginx git curl jq postgresql-client
+```
+
+9. restore `.env.production`, `.env.runtime.production`, `/home/ubuntu/.config/youth-welfare/ops.env`, and nginx config if preserved
+10. if preserved env files are unavailable, rebuild them from `env.production.example` plus the preserved key inventory and secret store
+11. bootstrap DB:
 
 ```bash
 ENV_FILE=.env.production bash deploy/postgres/bootstrap-rds-runtime.sh
 ENV_FILE=.env.production bash deploy/postgres/verify-rds-runtime-privileges.sh
 ```
 
-8. preflight and deploy:
+12. preflight and deploy:
 
 ```bash
 ENV_FILE=.env.production \
@@ -289,12 +497,61 @@ bash deploy/smoke/preflight-runtime-cutover-env.sh
 docker compose --env-file .env.production -f docker-compose.prod.elasticache.yml up -d app
 ```
 
-9. apply nginx config and verify edge:
+13. build and publish the frontend bundle:
 
 ```bash
+cd /home/ubuntu/youth-welfare/frontend
+npm ci
+npm run build
+sudo mkdir -p /var/www/youth-welfare/frontend /var/www/certbot
+sudo rsync -a --delete dist/ /var/www/youth-welfare/frontend/
+sudo find /var/www/youth-welfare/frontend -type d -exec chmod 755 {} +
+sudo find /var/www/youth-welfare/frontend -type f -exec chmod 644 {} +
+```
+
+14. apply nginx config and verify edge:
+
+```bash
+sudo cp /home/ubuntu/youth-welfare/deploy/nginx/youth-welfare.conf /etc/nginx/sites-available/youth-welfare
+sudo ln -sfn /etc/nginx/sites-available/youth-welfare /etc/nginx/sites-enabled/youth-welfare
+sudo nginx -t
+sudo systemctl reload nginx
+
 PUBLIC_BASE_URL='https://youthmoa.kr' \
 bash deploy/nginx/verify-edge-baseline.sh
 ```
+
+15. if ALB mode is used, recreate the target group with:
+   - protocol `HTTP`
+   - port `80`
+   - target type `instance`
+   - health check path `/alb-health`
+   - matcher `200`
+16. point Route53 apex and `www` alias records to the ALB
+17. finish with:
+
+```bash
+curl -fsS http://127.0.0.1:8082/actuator/health
+RUN_ALB_TARGET_HEALTH=true bash deploy/smoke/run-prod-post-deploy-smoke.sh
+```
+
+## Audit Result On 2026-09-01
+
+After the second pass, restart is practical **if and only if** these are preserved:
+
+1. git repo at or after `338bcd86`
+2. `.env.production` and `.env.runtime.production`
+3. final RDS snapshot or dump
+4. nginx site file and frontend deployment path convention
+5. Route53/ALB/RDS/Redis exact shape above
+
+The main gaps found during audit were:
+
+- the first handoff document was stale after the preservation commit
+- `env.production.example` did not cover several active runtime keys
+- the earlier handoff summary did not include SG IDs, subnets, target-group health check, frontend root path, or host TLS paths
+
+Those gaps were fixed in this document and in `env.production.example`.
 
 Start with these docs:
 
