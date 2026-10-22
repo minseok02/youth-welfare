@@ -317,6 +317,21 @@ PR 생성 직후 해당 SHA의 [CI 실행](https://github.com/minseok02/youth-we
 
 통합 커밋을 일반 푸시한 뒤 PR #366의 활성 CI 전부 성공과 변경 검토를 확인하고, 검토한 HEAD SHA를 지정해 병합합니다. 새 원격 CI의 실제 결과와 최종 병합 SHA는 PR 본문에 남깁니다. PR #365·운영 배포·DB·실제 수집/AI/발송은 이번 승인 범위에서 제외합니다.
 
+## 2026-10-23 수집 결과 판정 보완
+
+사용자가 첫 수집 코드 개선을 승인했습니다. 새 main `11d2097d`에서 `fix/backend-collect-result-status` 브랜치를 만들었으며 이번 범위는 `collect/all`의 항목 부분 실패와 목록 비교 오류의 집계·표시입니다. `systematic-debugging` 절차로 코드와 기존 테스트의 기대값을 대조하고, 수정 전 최소 검사 5개 중 3개 실패(목록 부분 실패·snapshot 오류·관리자 부분 실패 응답)를 실제 재현했습니다.
+
+- source 결과에 항목 실패가 있으면 완전 성공으로 표시하지 않습니다. 부분/전건 실패를 나누고 기존 요청·저장·skip·filtered·failed 건수를 유지합니다. source 집계는 성공·부분 실패·실패의 합이 실행 entry 수와 같으며 같은 lane의 forced/rotation 결과는 합치지 않습니다.
+- 목록 비교 결과를 별도 목록으로 반환합니다. snapshot 저장/변경 정책 예외는 최종 실패 표시에 포함하지만 성공한 목록 저장과 건수는 유지합니다. source 부분/전건 실패로 비교하지 않은 경우, baseline·임계치 미달·후보 없음·count-drop guard를 실제 비교 오류와 구분합니다.
+- 관리자 API의 기존 필드·HTTP 200/envelope는 유지하고 status·부분 실패 실행 수·비교 실패 수/결과를 추가했습니다. source별 success는 이제 항목 실패가 없어야 true이며, 완료 로그도 전체 status와 집계값을 남깁니다. 비밀·PII·SQL/URL을 담을 수 있는 예외 원문은 응답에 넣지 않습니다.
+- 실제 수집·AI·메일/웹푸시·DB/schema·운영 설정·호출 예산은 변경하거나 실행하지 않습니다. raw/replay 기반·소스 확장·정규화와 개별/async API 모델은 후속 범위입니다. 이 수정으로 과거 로컬의 누락 테이블·지원조건 빈 응답·embedding 미갱신이 복구됐다고 처리하지 않습니다.
+
+검증: 원래 작업공간의 Java 17에서 `DB_USERNAME=app_core_rw RUN_SMTP_SMOKE=false ./gradlew test --tests '*CollectBatchRunResultTest' --tests '*CollectBatchServiceTest' --tests '*AdminSecurityWebMvcTest.collectAllEndpoint*' --no-daemon`으로 3 suites / 28 tests, 실패·오류·skip 0을 확인했습니다. 초기 실패 3개를 해소했고 전건 실패·skip/필터·비교 오류/생략·후속 실행·forced/rotation 결과 보존을 검사합니다. 이후 `DB_USERNAME=app_core_rw RUN_SMTP_SMOKE=false ./gradlew test --no-daemon`으로 전체 기본 테스트를 실제 실행해 290 suites / 1,292 tests, 실패·오류 0, opt-in SMTP 검사 1개 skip을 확인했습니다. integration 제외 기준을 유지하며 새 회귀는 기존 전체 기본 검사보다 24개 증가했습니다.
+
+전체 검사 뒤 비-list 표본의 source 이름을 정합화하고 `DB_USERNAME=app_core_rw RUN_SMTP_SMOKE=false ./gradlew test --tests '*CollectBatchRunResultTest' --tests '*ContractTest' --rerun --no-daemon`을 실제 실행했습니다. 모델 13개와 문서 계약 112개를 합친 21 suites / 125 tests, 실패·오류·skip 0이며 전체 검사의 부분집합이지 추가 독립 총계가 아닙니다. Markdown 261개·링크 2,420개·코드 문서 참조 63개에서 누락 0건, `bash deploy/smoke/verify-collect-detail-execution-contract.sh`와 `git diff --check`도 통과했습니다. 외부 URL 가용성·프론트 회귀를 별도 실행한 결과는 아닙니다.
+
+실제 외부 API/DB/브라우저/운영 검증과 새 브랜치의 원격 CI는 실행하지 않았습니다. DB 복구·실수집 재검증은 별도이며, stream 중간 예외 때 앞선 forced detail 처리량을 복구해 집계하는 개선과 개별/async 결과 모델도 이번 범위에 포함하지 않습니다. 로컬 변경을 검증·커밋하는 범위로 마무리하며 푸시·PR 생성·병합은 수행하지 않습니다.
+
 ## 다음 작업
 
 다음 범위는 [현재 확인 과제](current-state.md)의 각 항목을 재현 가능한 기능 작업으로 분리하는 것입니다. 추가적인 대규모 문서 통폐합을 필수 선행 작업으로 두지 않습니다. 과거의 `KEEP_OBSERVING` 값은 추천 품질 실험과 운영 관측의 기록으로 남기고, 데이터 유실·보안·계약 불일치 수정의 금지 조건으로 사용하지 않습니다.

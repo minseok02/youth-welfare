@@ -39,7 +39,7 @@ RDS-backed 앱의 DB 이력을 볼 때는 `ENV_FILE=.env.production SMOKE_DB_MOD
 
 ## 실행 직후와 결과 판정
 
-HTTP 응답보다 `api_sync_logs`의 실행별 status·count·시각·오류 코드를 대조합니다. `collect/all`은 후속 detail/support도 별도 실행이며 `completedWithFailures=false`만으로 전체 성공을 확정하지 않습니다. list diff의 new/changed/missing·guard·후보와 실제 row 변화도 기록합니다.
+HTTP 응답의 수신 성공과 실제 수집 결과를 구분하고 `api_sync_logs`의 실행별 status·count·시각·오류 코드를 대조합니다. `collect/all`은 [전체 수집 결과 계약](collect-current-state.md#전체-수집-결과-계약)의 `status`, 부분 실패 실행 수와 `listDiffResults`를 확인합니다. 후속 detail/support도 별도 실행이며 `completedWithFailures=false`만으로 데이터 품질·전체 coverage·embedding까지 성공했다고 확정하지 않습니다. list diff의 new/changed/missing·guard·후보와 실제 row 변화도 기록합니다.
 
 ```sql
 SELECT job_name, status, started_at, finished_at,

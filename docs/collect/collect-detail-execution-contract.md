@@ -29,6 +29,8 @@ nightly `collect/all` 에서 list source, list diff forced detail, 요일별 det
 list source가 실패해도 다음 source는 계속 실행합니다.
 list source가 partial success, 즉 `failedCount > 0` 이면 그 source의 list diff snapshot은 저장하지 않습니다.
 
+부분 실패/실패로 수행하지 않은 비교는 `listDiffResults[].status=SKIPPED`와 source 원인으로 남깁니다. snapshot 저장 또는 변경 정책 판정의 예외는 `FAILED`로 남기며 다른 list source와 rotation은 계속 진행합니다. 성공한 목록 저장과 비교 실패를 같은 source 실패로 덮어쓰지 않습니다. 전체 status·건수의 대표 기준은 [전체 수집 결과 계약](collect-current-state.md#전체-수집-결과-계약)을 따릅니다.
+
 ## COLLECT_DETAIL_PHASE_FORCED_DETAIL
 
 모든 list source 실행이 끝난 뒤에만 forced detail phase를 실행합니다.

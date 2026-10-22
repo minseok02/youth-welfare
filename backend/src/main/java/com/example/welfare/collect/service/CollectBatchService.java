@@ -12,6 +12,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
@@ -50,16 +51,23 @@ public class CollectBatchService {
         collectExecutionGuard.runExclusive("collect-all", () -> {
             log.info("[CollectBatchService] 공공API daily list 수집 시작");
             List<CollectBatchRunResult.SourceRunResult> sourceResults = new ArrayList<>();
+            List<CollectBatchRunResult.ListDiffRunResult> listDiffResults = new ArrayList<>();
             List<ForcedDetailPlan> forcedDetailPlans = new ArrayList<>();
             CollectSource.executionOrder().forEach(source -> {
                 CollectBatchRunResult.SourceRunResult sourceRunResult = runSourceSafely(source);
                 sourceResults.add(sourceRunResult);
-                collectForcedDetailPlan(sourceRunResult).ifPresent(forcedDetailPlans::add);
+                ListDiffEvaluation listDiffEvaluation = evaluateListDiff(sourceRunResult);
+                listDiffResults.add(listDiffEvaluation.result());
+                listDiffEvaluation.detailPlan().ifPresent(forcedDetailPlans::add);
             });
             forcedDetailPlans.forEach(plan -> sourceResults.addAll(runForcedDetailsSafely(plan)));
             runRotationDetailSafely().forEach(sourceResults::add);
-            resultRef.set(new CollectBatchRunResult(sourceResults));
-            log.info("[CollectBatchService] 공공API daily list/detail rotation 수집 완료");
+            CollectBatchRunResult result = new CollectBatchRunResult(sourceResults, listDiffResults);
+            resultRef.set(result);
+            log.info("[CollectBatchService] 공공API daily list/detail rotation 수집 완료 "
+                            + "status={} succeeded={} partial={} failed={} failedListDiff={}",
+                    result.status(), result.succeededSourceCount(), result.partialSourceCount(),
+                    result.failedSourceCount(), result.failedListDiffCount());
         });
         return resultRef.get();
     }
@@ -67,7 +75,7 @@ public class CollectBatchService {
     private CollectBatchRunResult.SourceRunResult runSourceSafely(CollectSource source) {
         try {
             CollectResult result = collectSourceExecutionService.collectSource(source);
-            return CollectBatchRunResult.SourceRunResult.success(source, result);
+            return CollectBatchRunResult.SourceRunResult.completed(source, result);
         } catch (Exception e) {
             log.warn("[CollectBatchService][{}] 수집 실패 - 다음 source 계속 진행 errorType={}",
                     source.jobName(), e.getClass().getSimpleName());
@@ -75,40 +83,49 @@ public class CollectBatchService {
         }
     }
 
-    private java.util.Optional<ForcedDetailPlan> collectForcedDetailPlan(CollectBatchRunResult.SourceRunResult sourceRunResult) {
-        if (!sourceRunResult.success() || !sourceRunResult.source().isListSource()) {
-            return java.util.Optional.empty();
+    private ListDiffEvaluation evaluateListDiff(CollectBatchRunResult.SourceRunResult sourceRunResult) {
+        CollectSource source = sourceRunResult.source();
+        if (!source.isListSource()) {
+            return ListDiffEvaluation.withoutDetail(
+                    CollectBatchRunResult.ListDiffRunResult.skipped(source, "NOT_LIST_SOURCE"));
         }
-        if (sourceRunResult.result().failedCount() > 0) {
-            log.warn("[CollectBatchService] list diff snapshot skipped after partial list collect source={} failed={}",
-                    sourceRunResult.source().jobName(), sourceRunResult.result().failedCount());
-            return java.util.Optional.empty();
+        if (!sourceRunResult.success()) {
+            log.warn("[CollectBatchService] list diff snapshot skipped after unsuccessful list collect "
+                            + "source={} status={} failed={}",
+                    source.jobName(), sourceRunResult.status(), sourceRunResult.result().failedCount());
+            String reason = sourceRunResult.status() == CollectBatchRunResult.Status.PARTIAL_SUCCESS
+                    ? "SOURCE_PARTIAL_SUCCESS" : "SOURCE_FAILED";
+            return ListDiffEvaluation.withoutDetail(
+                    CollectBatchRunResult.ListDiffRunResult.skipped(source, reason));
         }
         try {
             CollectListDiffService.CollectListDiff diff =
-                    collectListDiffService.recordSnapshot(sourceRunResult.source(), sourceRunResult.result());
+                    collectListDiffService.recordSnapshot(source, sourceRunResult.result());
             CollectListChangePolicy.Decision decision = collectListChangePolicy.decide(diff);
+            CollectBatchRunResult.ListDiffRunResult result =
+                    CollectBatchRunResult.ListDiffRunResult.success(source, decision.reason());
             if (decision.guardedCountDrop()) {
                 log.warn("[CollectBatchService] list diff count drop guarded source={} snapshotId={} reason={}",
                         diff.source().jobName(), diff.snapshotId(), decision.reason());
-                return java.util.Optional.empty();
+                return ListDiffEvaluation.withoutDetail(result);
             }
             if (!decision.forceDetail()) {
                 log.info("[CollectBatchService] list diff below force threshold source={} snapshotId={} reason={}",
                         diff.source().jobName(), diff.snapshotId(), decision.reason());
-                return java.util.Optional.empty();
+                return ListDiffEvaluation.withoutDetail(result);
             }
             log.warn("[CollectBatchService] list diff forced detail source={} snapshotId={} reason={}",
                     diff.source().jobName(), diff.snapshotId(), decision.reason());
-            return java.util.Optional.of(new ForcedDetailPlan(
+            return new ListDiffEvaluation(result, Optional.of(new ForcedDetailPlan(
                     diff.source(),
                     decision.detailCandidateSourceIds(),
                     decision.reason()
-            ));
+            )));
         } catch (Exception e) {
             log.warn("[CollectBatchService] list diff snapshot failed source={} errorType={}",
                     sourceRunResult.source().jobName(), e.getClass().getSimpleName());
-            return java.util.Optional.empty();
+            return ListDiffEvaluation.withoutDetail(
+                    CollectBatchRunResult.ListDiffRunResult.failure(source, e));
         }
     }
 
@@ -129,26 +146,26 @@ public class CollectBatchService {
             return List.of();
         }
         return switch (plan.listSource()) {
-            case YOUTH -> List.of(CollectBatchRunResult.SourceRunResult.success(
+            case YOUTH -> List.of(CollectBatchRunResult.SourceRunResult.completed(
                     CollectSource.YOUTH,
                     aggregate(candidates.stream()
                             .map(collectSourceExecutionService::collectYouthDetailsForSourceId)
                             .toList())
             ));
-            case BOKJIRO_CENTRAL, BOKJIRO_LOCAL -> List.of(CollectBatchRunResult.SourceRunResult.success(
+            case BOKJIRO_CENTRAL, BOKJIRO_LOCAL -> List.of(CollectBatchRunResult.SourceRunResult.completed(
                     CollectSource.BOKJIRO_DETAIL_REFRESH,
                     aggregate(candidates.stream()
                             .map(collectSourceExecutionService::collectBokjiroDetailsRefreshForSourceId)
                             .toList())
             ));
             case GOV24 -> List.of(
-                    CollectBatchRunResult.SourceRunResult.success(
+                    CollectBatchRunResult.SourceRunResult.completed(
                             CollectSource.GOV24_DETAIL,
                             aggregate(candidates.stream()
                                     .map(collectSourceExecutionService::collectGov24DetailsForSourceId)
                                     .toList())
                     ),
-                    CollectBatchRunResult.SourceRunResult.success(
+                    CollectBatchRunResult.SourceRunResult.completed(
                             CollectSource.GOV24_SUPPORT_CONDITIONS,
                             aggregate(candidates.stream()
                                     .map(collectSourceExecutionService::collectGov24SupportConditionsForSourceId)
@@ -167,23 +184,23 @@ public class CollectBatchService {
         DayOfWeek dayOfWeek = LocalDate.now(clock).getDayOfWeek();
         try {
             return switch (dayOfWeek) {
-                case MONDAY -> List.of(CollectBatchRunResult.SourceRunResult.success(
+                case MONDAY -> List.of(CollectBatchRunResult.SourceRunResult.completed(
                         CollectSource.BOKJIRO_DETAIL,
                         collectSourceExecutionService.collectBokjiroDetails(bokjiroDetailRotationMaxCalls)
                 ));
-                case TUESDAY -> List.of(CollectBatchRunResult.SourceRunResult.success(
+                case TUESDAY -> List.of(CollectBatchRunResult.SourceRunResult.completed(
                         CollectSource.GOV24_DETAIL,
                         collectSourceExecutionService.collectGov24Details(gov24DetailRotationMaxCalls)
                 ));
-                case WEDNESDAY -> List.of(CollectBatchRunResult.SourceRunResult.success(
+                case WEDNESDAY -> List.of(CollectBatchRunResult.SourceRunResult.completed(
                         CollectSource.GOV24_SUPPORT_CONDITIONS,
                         collectSourceExecutionService.collectGov24SupportConditions(gov24SupportConditionsRotationMaxCalls)
                 ));
-                case THURSDAY -> List.of(CollectBatchRunResult.SourceRunResult.success(
+                case THURSDAY -> List.of(CollectBatchRunResult.SourceRunResult.completed(
                         CollectSource.BOKJIRO_DETAIL_REFRESH,
                         collectSourceExecutionService.collectBokjiroDetailsRefresh(bokjiroRefreshRotationMaxCalls)
                 ));
-                case FRIDAY -> List.of(CollectBatchRunResult.SourceRunResult.success(
+                case FRIDAY -> List.of(CollectBatchRunResult.SourceRunResult.completed(
                         CollectSource.YOUTH,
                         collectSourceExecutionService.collectYouthDetails()
                 ));
@@ -231,6 +248,15 @@ public class CollectBatchService {
             case THURSDAY -> CollectSource.BOKJIRO_DETAIL_REFRESH;
             case FRIDAY, SATURDAY, SUNDAY -> CollectSource.YOUTH;
         };
+    }
+
+    private record ListDiffEvaluation(
+            CollectBatchRunResult.ListDiffRunResult result,
+            Optional<ForcedDetailPlan> detailPlan
+    ) {
+        private static ListDiffEvaluation withoutDetail(CollectBatchRunResult.ListDiffRunResult result) {
+            return new ListDiffEvaluation(result, Optional.empty());
+        }
     }
 
     private record ForcedDetailPlan(

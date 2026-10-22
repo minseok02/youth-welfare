@@ -374,7 +374,11 @@ public class CollectAdminController {
             int requestedSourceCount,
             int succeededSourceCount,
             int failedSourceCount,
-            java.util.List<CollectSourceRunResponse> sourceResults
+            java.util.List<CollectSourceRunResponse> sourceResults,
+            CollectBatchRunResult.Status status,
+            int partialSourceCount,
+            int failedListDiffCount,
+            java.util.List<CollectListDiffRunResponse> listDiffResults
     ) {
         static CollectAllResponse from(CollectBatchRunResult result) {
             return new CollectAllResponse(
@@ -384,6 +388,12 @@ public class CollectAdminController {
                     result.failedSourceCount(),
                     result.sourceResults().stream()
                             .map(CollectSourceRunResponse::from)
+                            .toList(),
+                    result.status(),
+                    result.partialSourceCount(),
+                    result.failedListDiffCount(),
+                    result.listDiffResults().stream()
+                            .map(CollectListDiffRunResponse::from)
                             .toList()
             );
         }
@@ -400,7 +410,8 @@ public class CollectAdminController {
             int filteredCount,
             int failedCount,
             String errorCode,
-            String errorMessage
+            String errorMessage,
+            CollectBatchRunResult.Status status
     ) {
         static CollectSourceRunResponse from(CollectBatchRunResult.SourceRunResult result) {
             return new CollectSourceRunResponse(
@@ -414,8 +425,23 @@ public class CollectAdminController {
                     result.result().filteredCount(),
                     result.result().failedCount(),
                     result.errorCode(),
-                    result.errorMessage()
+                    result.errorMessage(),
+                    result.status()
             );
+        }
+    }
+
+    public record CollectListDiffRunResponse(
+            String sourceKey,
+            String jobName,
+            CollectBatchRunResult.Status status,
+            String reason,
+            String errorCode,
+            String errorMessage
+    ) {
+        static CollectListDiffRunResponse from(CollectBatchRunResult.ListDiffRunResult result) {
+            return new CollectListDiffRunResponse(result.source().pathKey(), result.source().jobName(),
+                    result.status(), result.reason(), result.errorCode(), result.errorMessage());
         }
     }
 
