@@ -1,4 +1,6 @@
-# 공공 API → DB 컬럼 매핑
+# 서비스 API 계약과 공공 API 매핑
+
+> 앱 API 계약과 외부 source→DB 매핑은 서로 다른 절입니다. 로컬/서버 실행 대상은 [환경 안내](environment-guide.md), 기존 설명과 실제 구현의 불일치는 [현재 과제](../current-state.md)를 확인합니다. 소득 값의 단위·누락 의미는 아직 검증 과제이며 기존 SQL 예시가 올바른 자격판정을 보장하지 않습니다.
 
 API / 응답 contract 문서군 진입점은 [system-docs-index.md](./system-docs-index.md)를 먼저 봅니다.
 
@@ -12,14 +14,15 @@ API / 응답 contract 문서군 진입점은 [system-docs-index.md](./system-doc
 - 로그인 아이디는 별도 username이 아니라 `email`이다.
 - 따라서 1차 범위에서는 `아이디 찾기` API를 만들지 않는다. 로그인 화면에서는 "아이디 = 가입한 이메일"로 안내한다.
 - 이메일 중복확인은 회원가입 전에만 사용하고, 응답은 사용 가능 여부 boolean만 반환한다.
-- 회원가입 `POST /api/auth/signup`은 토큰을 바로 발급하지 않는다. 프론트는 가입 성공 후 `POST /api/auth/login`을 한 번 더 호출해 세션을 만든다.
+- 회원가입 `POST /api/auth/signup`은 토큰을 바로 발급하지 않는다. 현재 프론트는 가입 성공 후 `signup-complete` 안내와 함께 로그인 화면으로 이동하며, 사용자가 로그인해 세션을 만든다.
 - 로그인 전 비밀번호 재설정은 `request -> 메일 링크 -> confirm` 2단계로 처리한다.
 - 재설정 요청은 존재하지 않는 이메일이어도 동일 성공 응답을 반환해 계정 존재 여부를 노출하지 않는다.
 
-### `GET /api/auth/check-email`
+### `POST /api/auth/check-email`
 
-- query
+- JSON request body
   - `email`
+- 이메일을 URL query로 보내지 않는다.
 - response
 
 ```json
@@ -170,7 +173,9 @@ API / 응답 contract 문서군 진입점은 [system-docs-index.md](./system-doc
 
 ---
 
-## 챗봇 API 계약 (2차 준비)
+## 챗봇 API 계약
+
+아래 API는 현재 구현 경로이며, 과거의 2차 예정 기능으로 취급하지 않는다.
 
 - 챗봇은 로그인 사용자 전용이다.
 - `chat` 모듈은 정책 조회 결과를 요약해 답변하며, 추천 재계산은 하지 않는다.
@@ -646,13 +651,15 @@ public void resetAiScoreForClosed() {
   - BOKJIRO_LOCAL 1,223개 정책이 sido_name 있고 hostOrg 없음 → 해당 정책의 카드에만 실효
   - 프론트 source 폴백 순서: hostOrg → sido → applyMethodName
 
-### `GET /api/policies/search`
+### `POST /api/policies/search`
 
-- 현재 지원 파라미터
+- `Content-Type: application/json`의 request body로 전달합니다. 검색어를 URL query에 넣는 GET 계약은 아닙니다.
+- 현재 지원 JSON 필드
   - `keyword` (필수)
   - `status`, `statusFilter`, `category`, `sourceType`, `onlineApply`, `sido`, `sgg`
   - `sort` = `RELEVANCE|VIEWS|LATEST|DEADLINE` (NAME은 API 코드만 유지, UI 노출 없음)
   - `incomeLevel`, `targetGroup` — 목록 API와 동일한 소프트 부스팅 동작
+  - `gov24ServiceField`, `gov24UserType`, `gov24BenefitType`
   - `page`, `size`
 - 현재 응답 형식
   - `data.content`

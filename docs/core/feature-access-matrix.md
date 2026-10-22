@@ -53,23 +53,22 @@
 
 ### 1. 비로그인 상태에서 되는 “임시 유지”
 
-현재 비로그인 상태에서 유지되는 것은 **정책 목록 필터/정렬/페이지네이션의 URL 상태**가 사실상 전부입니다.
+정책 목록의 필터/정렬/페이지네이션은 URL 상태로 유지합니다. 검색어는 URL에 노출하지 않고 `policySearchKeyword` 라우터 상태에 두어 상세 왕복 시 복원합니다. 서버에 저장한 개인 목록과는 다릅니다.
 
 예:
 
-- `search`
 - `category`
 - `region`
 - `subRegion`
 - `income`
-- `employ`
+- `targetGroup`
 - `sourceType`
 - `statusFilter`
 - `sort`
 - `page`
 - `pageSize`
 
-즉 브라우저 새로고침이나 URL 공유 시 같은 필터 조합이 복원됩니다.
+브라우저 새로고침이나 URL 공유 시 URL에 담긴 필터 조합이 복원됩니다. 검색어까지 URL 공유로 전달되는 것은 아닙니다.
 
 다만 이것은:
 
@@ -90,12 +89,14 @@
 
 ### 3. 로그인 상태에서 저장되는 것
 
-- 인증 상태와 사용자 기본 상태: `zustand persist`
-- access token: `localStorage`
+- access token·로그인 상태·사용자 프로필: Zustand 메모리 상태. `localStorage`나 `sessionStorage`에 영구 저장하지 않음
+- refresh token: HttpOnly cookie. 새로고침 후 인증 복구는 refresh API와 사용자 조회로 처리
 - 정책/추천 북마크: 서버 저장
 - 추천 결과/로그: 서버 저장
 - 챗 세션/메시지: 서버 저장
-- 마이페이지 기본 필터 설정(`includeExpired`): auth store persisted state
+- 마이페이지 기본 필터 설정(`includeExpired`): `auth-ui-store`의 `zustand persist` 대상은 `filterSettings`만 해당
+
+[authStore.js](../../frontend/src/store/authStore.js)는 과거 `token`, `auth-store` localStorage key도 초기화합니다. 토큰이나 사용자 프로필을 persist 대상에 다시 넣는 것은 현재 보안 계약과 다릅니다.
 
 ## 관리자 계정 정리
 

@@ -5,7 +5,7 @@
 관련 문서:
 
 - [policy-gov24-canonical-mapping-draft.md](./policy-gov24-canonical-mapping-draft.md)
-- [policy-gov24-canonical-promotion-plan.md](./policy-gov24-canonical-promotion-plan.md)
+- [Gov24 데이터 계약과 계획](./policy-gov24-lane-closeout.md#label과-내부-코드)
 - [policy-gov24-lane-closeout.md](./policy-gov24-lane-closeout.md)
 - [policy-gov24-runtime-audit-runbook.md](./policy-gov24-runtime-audit-runbook.md)
 

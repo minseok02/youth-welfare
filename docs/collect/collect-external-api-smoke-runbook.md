@@ -1,5 +1,7 @@
 # Collect External API Smoke Runbook
 
+> 기본 smoke의 DB 조회와 아래 Bounded Detail의 실제 수집 실행은 별도 작업입니다. 로컬/서버는 [환경 안내](../core/environment-guide.md)를 따르고 앱 runtime DB와 smoke DB를 맞춥니다. 본문 2026-06-25 결과는 당시 환경의 관측 기록입니다.
+
 문서군 진입점: [collect-docs-index.md](./collect-docs-index.md)
 
 ## 목적

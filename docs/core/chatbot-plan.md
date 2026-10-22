@@ -1,17 +1,24 @@
 # 챗봇 구현 계획
 
 전체 cross-cutting 구조/확장 설계 문서 진입점은 [system-docs-index.md](./system-docs-index.md)를 먼저 봅니다.
-이 문서는 현재 코드베이스를 기준으로 챗봇 구조와 남은 확장 방향을 정리한 설계 메모입니다.
+챗봇의 구현된 범위와 초기 설계·검증 기록을 구분합니다. 세션·메시지 저장, CRUD API, AI 답변, 프론트 화면은 이미 구현되어 있으며, 아래 초기 구현 순서는 새 작업 목록이 아닙니다.
 기준 문서는 [architecture.md](../architecture.md), [srs-v2.10.md](./srs-v2.10.md), [phase-plan.md](../phase-plan.md)입니다.
 현재 OpenAI runtime/fallback/privacy 계약은 [openai-runtime-contract.md](./openai-runtime-contract.md) 를 source of truth로 같이 봅니다.
+현재 리팩토링 우선순위는 [current-state.md](../current-state.md), API 계약은 [api-mapping.md](./api-mapping.md), 세션 복귀·코칭 진입의 프론트 동작은 [frontend-qa-current-state.md](../frontend/frontend-qa-current-state.md)를 따릅니다.
 
-## 현재 상태
+## 구현된 범위
 
 - 백엔드는 `policy`, `user`, `recommend`, `notification` 모듈까지 구현되어 있습니다.
 - OpenAI 호출은 추천 모듈의 [`RealtimeAiGateway`](../../backend/src/main/java/com/example/welfare/recommend/gateway/RealtimeAiGateway.java)에서 이미 사용 중입니다.
 - 인증은 JWT + HttpOnly refresh cookie 구조이며, 정책 조회 API는 비로그인 허용, 추천/마이페이지는 로그인 필수입니다.
 - 현재는 `/chat` 화면, `chat_sessions/chat_messages` 저장, branch suggestion, retrieval snapshot, grounding evidence, OpenAI JSON 응답 파싱까지 구현돼 있습니다.
 - 챗봇은 로그인 전용이며, 로그아웃/회원탈퇴 시 세션 cleanup 경로도 따로 있습니다.
+- 프론트는 선택 세션을 `location.state.activeChatSessionId`, 정책 상세의 코칭 진입을 `location.state.coachPolicyId`로 전달합니다. legacy `session/coachPolicyId` query는 읽은 뒤 URL에서 제거하며 다시 쓰지 않습니다.
+
+## 구현과 검증 이력
+
+아래는 2026-06-03~2026-06-21의 구현 경과와 당시 환경의 관측 기록입니다. `/chat?coachPolicyId=...` 진입, `HOLD_LONG_TERM_MEMORY` 판단, 운영 DB 수치와 "최신/최종" artifact는 해당 시점의 기록이며 현재 동작·운영 상태나 새 개선 작업의 금지 조건으로 해석하지 않습니다.
+
 - 2026-06-03 기준 continuity 보강으로 짧은 후속 질문은 `직전 질문 + 직전 branch + 직전 추천 정책` 맥락을 retrieval/AI prompt에 bounded 하게 다시 싣습니다.
 - 2026-06-03 기준 branch suggestion 다음의 자유 입력(`월세 쪽으로`, `청약으로`)도 최근 `branchSuggestionKeysJson` 안에서 leaf branch를 다시 해석해 retrieval branch로 계승합니다.
 - 2026-06-03 기준 prompt에는 `최근 질문 흐름`, `최근 탐색 흐름`, `최근 제안 갈래`, `최근 추천 정책`을 묶은 bounded session summary memory도 같이 실립니다.
@@ -42,13 +49,13 @@
 - 실사용자 샘플은 [run-local-chat-real-user-quality-sample-audit.sh](../../deploy/smoke/run-local-chat-real-user-quality-sample-audit.sh) 로 별도 관측합니다. 원문 질문은 artifact에 남기지 않고, smoke/seed/test domain을 제외한 사용자 hash와 reference/action link/mode 추정만 남깁니다. 최신 운영 RDS artifact `tmp/chat-real-user-quality-sample-audit/20260621T135216Z` 는 real user `2`, assistant messages `5`, reference rate `100.00%`, clarification rate `40.00%`, `REAL_USER_CHAT_SAMPLE_THIN` 입니다.
 - 신청 코칭은 [run-local-chat-application-coaching-matrix-audit.sh](../../deploy/smoke/run-local-chat-application-coaching-matrix-audit.sh) 로 링크가 많은 정책, 링크가 없는 정책, 종료됐지만 공고/참고 링크가 있는 정책, 종료됐지만 공식 신청 링크가 있는 정책을 나눠 확인합니다. 최신 artifact `tmp/chat-application-coaching-matrix-audit/20260621T135516Z` 는 4개 scenario 모두 `APPLICATION_COACHING`, 지정 정책 reference, 기대 action link type/개수, 신청·자격·서류 안내 조건을 통과했습니다.
 
-## 왜 주거만 먼저 붙였는가
+## 주거 continuity 우선 도입 배경
 
-- 이번 continuity QA에서 실제로 깨지던 축이 주거 follow-up 이었습니다.
+- 초기 continuity QA에서 실제로 깨지던 축이 주거 follow-up 이었습니다.
 - `housing-followup`, `housing-branch-freeform`, `mixed-topic-memory` 는 기존 구조에서 마지막 턴이 `CLARIFICATION` 으로 끝났고, 반면 `job-branch-freeform` 은 `POLICY_GROUNDED` 로 유지됐습니다.
 - 그래서 처음부터 전 도메인 long-term memory를 열기보다, 문제 구간이 분명한 `housing-*` branch에만 구조화 state를 먼저 붙였습니다.
 - 이 선택은 구현 범위를 줄이기 위한 임의 축소가 아니라, 시나리오 측정 결과에 따라 memory 오염 범위를 통제하기 위한 의도적 제한입니다.
-- 현재 판단 기준은 이렇습니다.
+- 당시 판단 기준은 이렇습니다.
   - 주거 한정 state만으로도 `3/4` 시나리오가 grounded 되면 전 도메인 long-term memory는 보류
   - 그래도 housing follow-up 이 계속 clarification 위주면 그때만 다음 단계 memory를 검토
 
@@ -61,7 +68,9 @@
 - 답변에는 근거 정책 제목과 `serviceId`를 함께 포함해 프론트가 상세 페이지 링크를 만들 수 있게 합니다.
 - 신청 코칭은 실제 신청서 제출/대행이 아니라 공식 신청 전 준비 보조입니다. 공식 신청 링크와 공고/서류/관련 링크를 구분해서 보여주고, 최종 자격/서류는 운영기관 원문 또는 담당 기관 확인으로 안내합니다.
 
-## 권장 MVP 범위
+## 초기 MVP 설계
+
+이하 MVP 흐름·데이터 모델·API·프롬프트 초안은 초기 설계 기록입니다. 현재 필드·권한·fallback 계약은 앞서 연결한 API 매핑과 OpenAI runtime 계약을 따르며, 아래 초안만으로 테이블이나 API를 다시 만들지 않습니다.
 
 ### 1. 사용자 경험
 
@@ -96,7 +105,7 @@ ChatController
 7. 프론트에 `answer + references + sessionId` 반환
    - 신청 코칭 참조 정책에는 `actionLinks` 로 공식 신청/공고·서류/관련 사이트 링크를 함께 반환
 
-## 데이터 모델 초안
+## 초기 데이터 모델 초안
 
 ### `chat_sessions`
 
@@ -131,7 +140,7 @@ ChatController
 - 회원탈퇴 시도 같은 정리 로직 재사용
 - 세션당 최근 20~30턴만 프롬프트에 포함
 
-## API 초안
+## 초기 API 초안
 
 ### `POST /api/chat/sessions`
 
@@ -177,7 +186,7 @@ ChatController
 
 - 사용자가 특정 세션 삭제
 
-## 프롬프트 방향
+## 초기 프롬프트 방향
 
 시스템 프롬프트 기본 원칙:
 
@@ -202,14 +211,16 @@ ChatController
 }
 ```
 
-## 현재 코드에서 바로 재사용할 부분
+## 초기 구현에서 재사용한 부분
 
 - 인증/인가: `SecurityConfig`, JWT 필터
 - OpenAI 호출 방식: `RealtimeAiGateway`의 `WebClient` + `openai.api-key`
 - 정책 조회 엔티티/리포지토리: `WelfareServiceRepository`, `WelfareServiceDetailRepository`
 - 상세 이동 경로: 프론트 `/policies/:id`
 
-## 작은 task 단위 권장 순서
+## 초기 구현 순서 기록
+
+아래는 이미 구현된 기능의 작업 분해 기록입니다. 현재 미구현 목록이나 후속 실행 지시가 아닙니다.
 
 1. 문서/계약 확정: `chatbot-plan.md`, API 응답 형식, 세션 정책 확정
 2. DB 마이그레이션: `chat_sessions`, `chat_messages` 추가
@@ -221,9 +232,9 @@ ChatController
 8. 프론트 `/chat` 화면, 로그인 가드, 세션 목록 UI 구현
 9. 테스트: 세션 권한, 메시지 저장, 정책 참조, JSON 파싱 실패 fallback
 
-## 바로 시작할 첫 task
+## 초기 착수 작업 기록
 
-챗봇은 아래 순서로 착수하면 한 번에 너무 넓게 열지 않고 진행할 수 있다.
+당시에는 AI 연결 전에 DTO·테이블·세션 CRUD 기반을 먼저 확보하는 순서로 작업을 나눴습니다.
 
 1. 응답 DTO 확정
    - `POST /api/chat/sessions/{sessionId}/messages` 응답 필드 `sessionId`, `answer`, `references`, `needsClarification` 고정
@@ -237,9 +248,9 @@ ChatController
 5. `ChatPolicyService` 골격 추가
    - 정책 검색 전용 조회 함수와 참조 정책 DTO를 먼저 고정
 
-위 5개가 끝나면 그다음부터 `ChatAiGateway`, JSON 파서, 메시지 전송 API를 붙이는 순서가 자연스럽다.
+위 기반 작업 뒤 `ChatAiGateway`, JSON 파서, 메시지 전송 API까지 구현했습니다.
 
-## 현재까지 완료된 선행 작업
+## 구현 완료 항목
 
 - 응답 DTO/API 계약 고정
 - DB 마이그레이션 추가 (`chat_sessions`, `chat_messages`)
@@ -259,11 +270,13 @@ ChatController
   - 비로그인 접근은 `/login`으로 리다이렉트하고, 로그인 후 원래 `/chat`으로 복귀
   - 프론트 로그아웃도 `/api/auth/logout`을 호출해 서버 세션 정리와 refresh cookie 무효화를 보장
 
-## 다음 바로 할 작업
+## 후속 검토 범위
 
-- 현재 필수 범위 완료. 이후는 운영 점검과 UI 미세조정 단계
+- 위 구현 완료 항목은 기능이 존재한다는 뜻이며, 현재 운영 상태나 응답 품질 검증의 완료를 뜻하지 않습니다. 리팩토링 우선순위는 [현재 확인 과제](../current-state.md#코드-대조에서-드러난-확인-과제)를 따릅니다.
+- 챗봇 변경 시 세션 권한·삭제, 후속 질문의 정책 근거, 코칭 지정 정책과 action link, 외부 AI 실패 시 fallback을 회귀 검증합니다. 데이터 의존 smoke의 `INSUFFICIENT_POLICY_CORPUS` skip은 품질 검증 통과가 아닙니다.
+- 별도 ranking model 재학습, memory table, 비동기 LLM summarizer는 위 이력에서 남겨 둔 확장 제안입니다. 실제 실패 사례와 데이터·개인정보·비용 영향을 검토해 채택 여부를 정하며, 과거 `HOLD_LONG_TERM_MEMORY` 결과만으로 현재 도입 여부를 확정하지 않습니다.
 
-## 먼저 하지 않을 것
+## 초기 MVP에서 제외한 범위
 
 - 추천 재계산 요청
 - 자유 주제 일반 상담
@@ -271,7 +284,9 @@ ChatController
 - 장문 히스토리 무제한 보관
 - 추천 모듈 내부 점수 직접 노출
 
-## 구현 전 체크포인트
+## 초기 구현 전 검토 기록
+
+아래는 초기 설계 당시의 질문입니다. 이미 구현된 인증·fallback 동작은 현재 계약을 따르며, 변경하려면 별도 기대 동작과 검증 기준을 정합니다.
 
 - 챗봇 답변의 근거 정책이 항상 상세 페이지로 연결되는지
 - 비로그인 접근 시 `/login`으로 유도할지, 403만 줄지 프론트 정책 통일

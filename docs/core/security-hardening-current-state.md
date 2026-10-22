@@ -227,6 +227,8 @@ auth observation/session, admin dashboard/collect/recommendation/attention, ops 
 
 ## 지금 남은 리스크
 
+운영 Redis의 비영속 설정은 별도 미해결 보안 문제입니다. revoke/cutoff 유실 뒤 아직 만료되지 않은 회수 대상 JWT가 다시 허용될 수 있습니다. [auth의 상태 유실 위험과 검증 과제](../auth/auth-session-revocation-current-state.md#redis-상태-유실-미해결-위험)를 우선 확인합니다. 기존 smoke 통과나 아래 hardening 완료 목록이 내구성을 보장하지는 않습니다.
+
 1. 저장소 템플릿 수정과 실제 운영 nginx 반영은 별개입니다.
 2. `SecurityConfig` 는 여전히 `/actuator/health` 를 앱 레벨에서 `permitAll` 로 둡니다.
    - 현재 설계는 “외부 차단은 nginx, 내부 직접 포트 health는 허용”입니다.

@@ -5,8 +5,8 @@
 관련 문서:
 
 - [policy-gov24-implementation-checklist.md](./policy-gov24-implementation-checklist.md)
-- [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)
-- [collect-operation-checklist.md](../collect/collect-operation-checklist.md)
+- [Gov24 데이터 계약과 계획](./policy-gov24-lane-closeout.md#보류와-재검토)
+- [수집 실행과 장애 판정](../collect/collect-ops.md#실행-전)
 
 ## 목적
 

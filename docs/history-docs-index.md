@@ -1,98 +1,36 @@
-# 히스토리 문서 묶음
+# 설계와 관측 이력
 
-## 목적
+과거 판단을 찾을 때 사용하는 목차입니다. 날짜·커밋·로컬/서버·표본을 구분하며 현재 동작과 운영 절차는 [현재 상태](current-state.md)와 [환경 안내](core/environment-guide.md)에서 확인합니다.
 
-`history/` 와 `archive/` 아래 문서는 현재 계약 자체보다
+## 누적 작업과 관측 원문
 
-- 왜 그런 설계를 했는지
-- 어떤 실험/조사/드리프트 분석이 있었는지
-- 지금은 보류된 과거 계획이 무엇인지
+- [정리 전 작업 이력](history/core/phase-plan-before-doc-cleanup.md)
+- [정리 전 현재 상태](history/core/current-state-before-doc-cleanup.md)
+- [문제 해결 누적 기록](history/core/troubleshooting-log-before-doc-cleanup.md)
+- [기존 migration 설계와 MySQL 예시](history/core/db-migration-before-doc-cleanup.md)
+- [기존 추천 상태와 gate 관측](history/recommendation/recommendation-state-before-doc-cleanup.md)
+- [기존 정규화 상태와 inventory](history/policy/normalization-state-before-doc-cleanup.md)
 
-를 남긴 문서입니다.
+정리 전 원문의 사실·수치를 현재 결과로 바꾸지 않습니다. 이동한 문서의 상대 링크는 현재 참조 위치에 맞춥니다.
 
-이 묶음은 current-state 문서와 design history 문서를 명확히 분리해서 찾게 정리합니다.
+## 설계 배경
 
-## 지금 먼저 볼 문서
+| 분야 | 내용과 진입점 |
+| --- | --- |
+| 인증 | `history/auth/`: exact revoke·session cutoff·JWT·권한의 결정. [서비스 책임과 이름·구현 순서](history/auth/auth-admin-forced-logout-service-structure-policy.md) |
+| 정책·정규화 | `history/policy/`: source 조사·bridge·단위·fact 갱신의 근거 |
+| AI와 replay | `history/ai/`: 교육 실험·OpenAI 변동·검증 방법 |
+| PostgreSQL 전환 | [기존 Phase 목차](postgres/postgres-refactor-spec-index.md). 현재 공통 탐색/벡터 구조는 [아키텍처](architecture.md) |
+| 성능 | [최적화 이력](performance/performance-optimization-log.md), [날짜별 baseline](performance/performance-baseline-current.md) |
+| 과거 프로젝트 계획·SQL | [archive/README.md](archive/README.md), [MySQL SQL](archive/mysql-migrations/README.md) |
 
-### 현재 계약을 먼저 봐야 할 때
+## 현재도 참조하는 고유 근거
 
-먼저 아래 current-state / index 문서를 봅니다.
+`history/`에 있다는 이유만으로 모두 폐기하지 않습니다.
 
-- [auth-docs-index.md](auth/auth-docs-index.md)
-- [collect-docs-index.md](collect/collect-docs-index.md)
-- [recommendation-docs-index.md](recommendation/recommendation-docs-index.md)
-- [frontend-qa-docs-index.md](frontend/frontend-qa-docs-index.md)
-- [policy-docs-index.md](policy/policy-docs-index.md)
-- [local-validation-docs-index.md](core/local-validation-docs-index.md)
-- [system-docs-index.md](core/system-docs-index.md)
+- [YOUTH 소득 0/0 해석](history/policy/policy-normalization-youth-income-zero-policy.md): 현재 추천 설명이 참조하는 과거 근거. 금액·비율·구간의 단위 정합성은 별도 확인.
+- [fact merge 설계](history/policy/policy-normalization-fact-merge-rules.md): list/detail의 역할과 우선순위 근거. 삭제·갱신 동작은 현재 구현과 대조.
+- [목록 정렬과 지역](history/policy/policy-listing-sort-region-strategy.md), [카드 source 지역](history/policy/policy-card-source-sido-field.md): 당시 선택과 조사.
+- [공식 코드북 출처](policy/policy-user-provided-official-codebooks.md): reference asset·변환·seed의 연결.
 
-그 다음 설계 배경이 필요할 때만 `history/` 로 내려갑니다.
-
-## 문서 역할
-
-### 1. auth design history
-
-- `docs/history/auth/*`
-
-주로 남아 있는 내용:
-
-- admin forced logout 설계 순서
-- Redis/JWT/helper/service 경계
-- revoke / logout / withdraw 정책 배경
-
-### 2. policy / normalization design history
-
-- `docs/history/policy/*`
-
-주로 남아 있는 내용:
-
-- canonical normalization
-- summary slot / bridge / schema draft
-- `Gov24` blocked 근거
-- `YOUTH_MID` inventory
-- 복지로 detail/gap-fill 조사
-
-#### 정책 목록 UI 관련 결정 (2026-05-04 추가)
-
-- [policy-listing-sort-region-strategy.md](./history/policy/policy-listing-sort-region-strategy.md) — 정렬 B안 채택 (LATEST strict region-first, VIEWS/DEADLINE tiebreaker), A안 대안 포함
-- [policy-card-source-sido-field.md](./history/policy/policy-card-source-sido-field.md) — 카드 source 필드 sido 추가 결정 (BOKJIRO_LOCAL 1,223개 대상, DB 조사 결과 포함)
-
-### 3. AI / replay design history
-
-- `docs/history/ai/*`
-
-주로 남아 있는 내용:
-
-- education replay
-- OpenAI drift
-- prompt / reason pattern 분석
-
-### 4. archive 문서
-
-- [archive/README.md](./archive/README.md)
-
-현재 직접 참고하지 않는 과거 계획 문서를 보관하는 위치입니다.
-
-## 읽는 순서
-
-### 현재 코드와 문서가 왜 이렇게 됐는지 볼 때
-
-1. 현재 current-state 또는 docs index
-2. [phase-plan.md](./phase-plan.md)
-3. 필요하면 `docs/history/...`
-
-### 외부 blocked 근거를 찾을 때
-
-1. [policy-gov24-blocked-track-status.md](policy/policy-gov24-blocked-track-status.md)
-2. 필요하면 `docs/history/policy/policy-normalization-gov24-*`
-
-### OpenAI / replay 배경을 찾을 때
-
-1. [recommendation-docs-index.md](recommendation/recommendation-docs-index.md)
-2. 필요하면 `docs/history/ai/*`
-
-## 요약
-
-1. `history/` 문서는 현재 계약보다 설계 배경 문서로 봅니다.
-2. `archive/` 문서는 과거 계획 보관용입니다.
-3. 먼저 current-state/index 문서를 보고, 배경이 필요할 때만 이 묶음으로 내려오는 흐름이 맞습니다.
+과거 `next step`과 단계별 브랜치·명령은 새 작업을 자동 승인하지 않습니다. 미완료 제안은 현재 요구와 대조한 뒤 별도 범위로 정합니다.

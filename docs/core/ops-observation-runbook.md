@@ -4,21 +4,17 @@
 
 ## 목적
 
-daily operator가 `health -> admin dashboard -> collect failures -> recommendation breakdowns` read-only baseline을 raw stdout 대신 compact artifact로 다시 읽게 합니다.
+daily operator가 `health -> admin dashboard -> collect failures -> recommendation breakdowns` 조회용 baseline을 compact artifact로 읽게 합니다. 로그인·토큰 발급과 로컬 artifact 생성은 부수적으로 있을 수 있습니다. 인증 선택·앱/DB 대상은 [운영 baseline](ops-baseline-runbook.md#실행-대상과-인증)을 따릅니다.
 
 entrypoint는 아래 wrapper입니다.
 
 - `bash deploy/smoke/run-local-ops-observation-suite.sh`
 - 운영 서버/RDS:
-  - `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-ops-observation-suite.sh`
+  - `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' ALLOW_ADMIN_JWT_MINT=false bash deploy/smoke/run-local-ops-observation-suite.sh`
 
 이 wrapper는 기존 `run-local-ops-baseline-suite.sh` child artifact를 재사용합니다.
 
-운영 서버/RDS 경로에서는 admin password file이 없어도 됩니다.
-
-- `ADMIN_ACCESS_TOKEN` 이 있으면 그대로 재사용합니다.
-- 없으면 `ENV_FILE` 의 `JWT_SECRET` 과 DB query credential로 short-lived admin access token을 bounded mint 합니다.
-- 즉 기본 서버 명령은 운영 비밀번호 파일 없이도 닫히는 계약입니다.
+유효한 `ADMIN_ACCESS_TOKEN` 또는 승인된 token file이 있으면 비밀번호 없이 사용할 수 있습니다. 토큰이 없으면 로그인 자격이 필요합니다. `JWT_SECRET`과 DB 계정이 있다는 이유만으로 자동 mint하지 않으며, 공통 도우미는 `ALLOW_ADMIN_JWT_MINT=true`에서만 직접 발급을 시도합니다. 운영 자격 누락은 허용된 비밀 전달 경로로 해결하고 이 옵션을 켜는 방식으로 우회하지 않습니다.
 
 ## latest artifact
 

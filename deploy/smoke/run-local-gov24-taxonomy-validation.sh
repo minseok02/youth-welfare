@@ -81,7 +81,7 @@ operator_reading = (
     else "Gov24 3축 live inventory와 Java/SQL seed 사이에 drift가 있다. code map 또는 migration seed를 다시 맞춰야 한다."
 )
 next_action = (
-    "docs/policy/policy-gov24-canonical-promotion-plan.md"
+    "docs/policy/policy-gov24-lane-closeout.md"
     if status == "ok"
     else "backend/src/main/resources/db/migration/V2026_06_01_01__seed_gov24_taxonomy_codes.sql"
 )

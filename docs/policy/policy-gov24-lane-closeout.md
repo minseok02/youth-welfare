@@ -1,273 +1,91 @@
-# `Gov24` lane closeout
+# Gov24 데이터와 소비 계약
 
-문서군 진입점: [policy-docs-index.md](./policy-docs-index.md)
+[정책 목차](policy-docs-index.md)에서 들어오는 현재 계약 안내입니다. 코드상 수집·label-first taxonomy·public filter·soft scoring은 구현돼 있습니다. 과거 closeout은 현재 서버의 적재 완전성이나 자격판정 정확성을 보장하지 않습니다. 작업·실행 조건은 [작업 체크리스트](policy-gov24-implementation-checklist.md), 전체 결함과 새 우선순위는 [현재 상태](../current-state.md)를 봅니다.
 
-관련 문서:
+## 수집과 저장
 
-- [policy-normalization-current-state.md](./policy-normalization-current-state.md)
-- [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)
-- [policy-gov24-reopen-checklist.md](./policy-gov24-reopen-checklist.md)
-- [policy-gov24-canonical-mapping-draft.md](./policy-gov24-canonical-mapping-draft.md)
-- [policy-gov24-canonical-promotion-plan.md](./policy-gov24-canonical-promotion-plan.md)
+`serviceList → serviceDetail → supportConditions`는 같은 `서비스ID`로 연결하고 목록·상세·지원조건을 별도 저장/재처리합니다. `PUBLIC_DATA_PORTAL_API_KEY` 설정을 사용하며 detail/support에는 lightweight retry가 있습니다. support payload snapshot은 `{"서비스ID","서비스명","conditions":{...}}` 형태입니다. DTO 재직렬화 snapshot과 실제 HTTP 원문은 구분합니다.
 
-## 목적
+`GOV24_SUPPORT_CONDITION` fact extractor의 범위는 다음과 같습니다. 코드가 존재하는 것과 특정 DB에 전건 저장된 것은 별개입니다.
 
-이 문서는 `Gov24` lane에서
+| 축 | 코드 |
+| --- | --- |
+| 성별·연령 | `JA0101/JA0102`, `JA0110/JA0111` |
+| 소득·교육·고용 | `JA0201~JA0205`, `JA0317~JA0320`, `JA0326/JA0327` |
+| 가구·특수대상 | `JA0401~JA0404`, `JA0411~JA0414`, `JA0328~JA0330` |
+| 산업 종사자·창업 | `JA0313~JA0316`, `JA1101~JA1103` |
+| 업종·사업체 | `JA1201/JA1202/JA1299`, `JA2201~JA2203/JA2299`, `JA2101~JA2103` |
+| 해당사항없음 | `JA0322/JA0410`을 `NO_OP` fact로 보존 |
 
-- 이미 운영 반영까지 닫힌 범위
-- 계속 deferred 로 남기는 범위
-- 다시 열 때의 최소 조건
+세부 결측·미매핑 조사는 [support inventory](policy-gov24-support-unmapped-inventory.md), shape·coverage 확인은 [runtime audit](policy-gov24-runtime-audit-runbook.md)을 따릅니다. 수집 후 embedding refresh 실패는 warning만 남고 응답이 성공할 수 있으므로 둘을 따로 판정합니다.
 
-만 빠르게 읽기 위한 closeout 요약입니다.
+## Label과 내부 코드
 
-## 현재 결론
+공식 분류 label의 출처와 내부 code의 출처를 구분합니다. 기존 2026-05-19 Swagger 조사에서 `서비스분야/사용자구분/지원유형`은 string 필드로 관측됐으며, 그 기록을 현재 외부 API schema 확인으로 대체하지 않습니다. 원문·조사 근거는 [공공데이터 조사](policy-gov24-public-data-source-findings.md)에 있습니다.
 
-현재 `Gov24` lane은 **bounded 제품 확장, runtime fact gap 해소, `YOUTH_MID` bridge, stable internal code seed/backfill까지 닫힌 상태** 입니다.
-
-이미 active/closed 인 범위:
-
-1. `serviceField` public filter
-2. `userType` public filter
-3. `benefitType` public filter
-4. detail page `Gov24` tag -> filtered discovery bridge
-5. broad keyword public search first-page discovery balance
-6. recommendation soft additive scoring
-7. recommendation priority bucket bridge
-8. `Gov24 -> YOUTH_MID` bridge
-9. `supportConditions` full-scope business/industry/startup fact 승격
-10. `Gov24` 3축 stable internal code seed/backfill
-11. `JA0322`, `JA0410` no-op support condition fact 보존
-12. `Gov24` list 텍스트 기반 지역 row 추론
-
-계속 deferred 인 범위:
-
-1. 외부 공식 stable codebook 기반 import/backfill
-2. `Gov24` raw 조합값 전체를 hard eligibility fact로 승격
-
-## 지금 운영 기준으로 열린 것
-
-### 1. public discovery filter
-
-현재 `/api/policies`, `/api/policies/search`, `/policies` 에서 실제로 열린 축은 아래 셋입니다.
-
-1. `gov24ServiceField`
-2. `gov24UserType`
-3. `gov24BenefitType`
-
-이 셋은 모두 canonical term 우선, legacy raw summary fallback 계약을 유지합니다.
-
-추가로 `PolicyDetailPage` 도 `Gov24` 태그를 read-only badge로만 두지 않고,
-같은 `Gov24` filter 결과로 바로 돌아가는 discovery bridge까지 연 상태입니다.
+| 축 | 저장 규칙 | 기존 관리 범위 |
+| --- | --- | --- |
+| `GOV24_SERVICE_FIELD` | exact-label term, split하지 않음 | 10 labels |
+| `GOV24_USER_TYPE_TOKEN` | allowlist token만 additive multi-term | 개인·가구·법인/시설/단체·소상공인 4 tokens |
+| `GOV24_BENEFIT_TYPE_TOKEN` | allowlist token만 additive multi-term | 20 tokens |
 
-- `분야 {gov24ServiceFieldLabel}` -> `/policies?sourceType=GOV24&gov24ServiceField=...`
-- `대상 {gov24UserTypeLabel}` -> `/policies?sourceType=GOV24&gov24UserType=...`
-- `유형 {gov24BenefitTypeLabel}` -> `/policies?sourceType=GOV24&gov24BenefitType=...`
+전체 label/code 목록은 [Gov24TaxonomyCodeSupport](../../backend/src/main/java/com/example/welfare/collect/support/Gov24TaxonomyCodeSupport.java)와 [seed migration](../../backend/src/main/resources/db/migration/V2026_06_01_01__seed_gov24_taxonomy_codes.sql)을 기준으로 대조합니다. 날짜 없는 live `tmp/*/latest*`를 다른 환경의 최신 결과로 사용하지 않습니다.
 
-운영 데이터처럼 detail API의 `gov24UserTypeLabel`, `gov24BenefitTypeLabel` 이 비어 있는 경우에도,
-현재 프런트는 managed token 범위 안에서만 `tags` / `provisionType` fallback 을 써서 같은 discovery chip 을 유지합니다.
-
-2026-06-02 기준으로 필터가 없는 넓은 키워드 검색의 첫 페이지 발견성도 bounded 하게 보정했습니다.
-조건은 `keyword` 토큰이 있고, 첫 페이지(`offset=0`), `RELEVANCE` 정렬, `pageSize>=10`,
-`sourceType` 및 Gov24 3축 필터가 모두 없는 경우로 제한합니다.
-이때 repository는 후보 window를 최대 100건까지 넓혀 읽고, 첫 페이지에 `GOV24` 가 하나도 없지만
-window 안에는 `GOV24` 후보가 있으면 첫 `GOV24` 후보 1건을 첫 페이지 중간부에 삽입합니다.
-명시 Gov24 필터, 출처 필터, 페이지네이션 후속 페이지, 최신순/마감순 정렬에는 적용하지 않습니다.
-
-### 2. region enrichment
-
-`Gov24` 는 원천 응답에 온통청년 같은 명시 지역코드가 없기 때문에,
-현재 수집 단계에서 아래 list text를 함께 읽어 `service_regions` 를 추론합니다.
-
-- 소관기관명
-- 접수기관
-- 부서명
-- 서비스명
-- 서비스목적요약
-- 지원대상
-- 선정기준
-- 지원내용
-- 신청방법
-
-명확한 `시도 + 시군구` 또는 전국 고유 시군구명이 있으면 해당 5자리 행정구역코드를 저장합니다.
-시도 단위 기관명이나 본문 신호만 있으면 해당 시도 전체 행정구역코드로 확장합니다.
-`전국` 신호가 있으면 지역 row를 만들지 않아 기존 전국 노출 계약을 유지합니다.
-추가로 2026-06-02 runtime audit에서 확인된 누락 패턴을 닫기 위해
-`세종특별자치시` 는 단일 region `36110/세종시` 로 저장하고,
-전국 유일 시군구명에서 `시/군/구` 접미사만 빠진 기관명도 추론합니다
-(`재단법인안산인재육성재단` -> `안산시`). 지방 계열 기관유형(`광역시도`, `시군구`,
-`교육청`, `지방공기업`, `지방출자_출연기관`)에서는 기관명에 bare 시도 약칭이 있을 때
-해당 시도 전체로 확장합니다. 공공기관의 bare 시도명은 false positive 위험 때문에 확장하지 않습니다
-(`서울올림픽기념국민체육진흥공단` 은 서울 지역 정책으로 보지 않음).
-
-이 보강은 기존 recommendation retrieval 의 Gov24 제목/설명 text fallback을 대체하지 않고,
-수집된 Gov24 row가 다른 source와 같은 `service_regions` 경로도 탈 수 있게 하는 보완입니다.
-
-이미 저장된 Gov24 row는 외부 API 재호출 없이 아래 경로로 LIST raw payload를 재생해
-지역 row만 교체할 수 있습니다.
-
-```bash
-curl -sS -X POST "http://127.0.0.1:8082/api/admin/collect/gov24-sidecars-backfill?scope=regions&limitPerSource=0"
-```
-
-2026-06-03 local runtime 재검증 결과:
-
-- Gov24 LIST 수집 row: `10954`
-- region backfill: `scanned=10954`, `upserted=10954`, `missing=0`, `failed=0`
-- 2026-06-03 latest local region backfill smoke: endpoint metric `5209ms`,
-  `region_rows=36545`
-- 최종 region coverage: `9816/10954 = 89.61%`
-- 최종 region row: `36545`
-- regionless service: `1138`
-- regionless non-central agency metric: `448`
-- regionless true local-agency metric: `1`
-- 남은 미추론 상위 기관은 `대한법률구조공단`, `기술보증기금`, `한국전력공사`,
-  `소상공인시장진흥공단`, `한국장학재단` 등 공공기관 중심입니다.
-- 추가 복구는 `소관기관코드 -> 로컬정부 기관코드 lookup` 으로 처리했습니다.
-  - `재단법인고성교육재단` → `5420000` → `경상남도 고성군(48820)`
-  - `(재)한국전통문화전당` → `4641000` → `전주시 하위 구(52111, 52113)`
-- 남은 true residual은 `온라인 신청 시연 테스트(운영)` `1`건뿐이고,
-  테스트성 행정안전부 row라 자동 추론하지 않습니다.
-
-회귀 확인은 아래 smoke로 봅니다.
-
-```bash
-bash deploy/smoke/run-local-gov24-acceptance-suite.sh
-bash deploy/smoke/run-local-gov24-region-backfill-smoke.sh
-bash deploy/smoke/run-local-gov24-region-coverage-audit.sh
-```
-
-주의: collect batch scope의 embedding refresh는 수집 저장 후처리입니다. local fallback 설정에서
-strict embedding refresh가 `OpenAI embeddings are unavailable` 로 실패해도 수집 응답은 깨지지 않고,
-warning 로그로만 남깁니다. 데이터 무결성을 확인할 때는 LIST/detail/support 저장 count와
-embedding rebuild 상태를 분리해서 봅니다.
-
-```bash
-bash deploy/smoke/run-local-gov24-collect-embedding-boundary-smoke.sh
-```
-
-### 3. recommendation scoring
+`개인||가구`, `현금||서비스(의료)` 같은 조합 원문과 `gov24ServiceFieldLabel/gov24UserTypeLabel/gov24BenefitTypeLabel` summary는 보존하고, canonical은 `service_taxonomy_terms`와 summary slot으로 읽습니다. token을 승격해도 조합 전체를 자격조건 fact로 만들지 않습니다. UX grouping은 [지원유형 grouping 초안](policy-gov24-benefit-type-grouping-draft.md), 세부 규칙은 [mapping 초안](policy-gov24-canonical-mapping-draft.md)을 참고합니다.
 
-recommendation 은 이제 `Gov24` taxonomy를 **soft additive bonus** 와
-priority matcher bucket bridge로 소비합니다.
+## 검색과 추천
 
-- `serviceField`: category-aligned bounded bonus
-- `benefitType`: 일부 managed token의 bounded bonus
-- `userType`: `개인`, `가구` audience bonus
+- `GET /api/policies`와 `POST /api/policies/search`는 `gov24ServiceField/gov24UserType/gov24BenefitType`을 지원합니다. 검색 필드는 JSON body로 전달합니다. canonical term을 우선하고 legacy row만 summary/split fallback을 사용합니다.
+- 상세 태그는 `/policies?sourceType=GOV24&gov24ServiceField=...` 등의 필터 링크로 연결합니다. user/benefit label이 없을 때도 managed token 범위의 tag/provisionType fallback만 사용합니다.
+- 넓은 검색 첫 페이지 발견성 보정은 keyword 있음, offset 0, RELEVANCE, pageSize ≥ 10, 출처·Gov24 필터 없음일 때의 후보 window 최대 100건에 한정합니다. 첫 페이지에 Gov24가 없고 window에는 있으면 1건을 중간부에 배치합니다. 후속 페이지·명시 필터·다른 정렬로 일반화하지 않습니다.
+- Gov24 taxonomy는 category-aligned/managed benefit/audience soft bonus와 priority bucket에 연결됩니다. 기존 bounded bonus cap은 10입니다. 점수가 높다는 이유로 신청 자격을 확정하지 않습니다.
+- `Gov24 → YOUTH_MID`는 표시·education priority narrow boost용 파생 bridge입니다. 원래 `unifiedCategory` 호환 응답을 무조건 바꾸는 규칙이 아닙니다.
 
-또한 `주거·자립`, `고용·창업`, `보육·교육`, `생활안정` 같은 `serviceField` 와
-`현금`, `현금(융자)`, `서비스(일자리)`, `서비스(돌봄)` 같은 managed `benefitType` 은
-projection의 `priorityBuckets` 로 연결됩니다.
+| 서비스분야 | 파생 청년 분류 |
+| --- | --- |
+| 주거·자립 | 주거 / 주택 및 거주지 |
+| 고용·창업 | 일자리 / 취업·재직자·창업 (title/summary/benefit 신호로 선택) |
+| 보육·교육 | 교육 / 미래역량강화·교육비지원·온라인교육 |
+| 생활안정 | 복지문화 / 취약계층 및 금융지원 |
+| 문화·환경 | 복지문화 / 문화활동 |
+| 보건·의료, 임신·출산 | 복지문화 / 건강 |
+| 보호·돌봄 | 복지문화 / 권익보호 |
+| 행정·안전 | 참여권리 / 정책인프라구축 |
+| 농림축산어업 | 일자리 / 재직자 |
 
-2026-06-02 기준 additive bonus cap은 `10` 입니다. 즉 `Gov24` 값은 추천에서 더 강하게 소비되지만,
-raw 조합값 전체를 eligibility hard gate로 승격한 것은 아닙니다.
-사용자 우선순위 matcher가 이해하는 bucket에는 공식 taxonomy 기반으로 연결됩니다.
+정확한 원문 label과 분기 순서는 위 Java bridge를 확인합니다. rule/AI·조회/생성·북마크/로그 보존 경계는 [추천 파이프라인](../recommendation/recommendation-pipeline.md)을 따릅니다.
 
-2026-06-02 server Docker `run-local-gov24-housing-signal-smoke.sh` 기준 fresh recommendation batch는
-`44`건 전부 Gov24였고, top2 source distribution은 `GOV24:2`, top10 Gov24 row는 `10`건입니다.
-이어 `run-local-gov24-recommend-surface-audit.sh` 와 `run-local-gov24-recommend-score-audit.sh` 는
-latest batch cohort를 `GOV24_EDUCATION_SIGNAL:2,GOV24_HOUSING_SIGNAL:2,GOV24_SURFACE_AUDIT:1`
-로 분리해 출력합니다.
-현재 top1/top2/top10 Gov24 share는 모두 `100.00%` 이고, top10 source distribution은
-5개 Gov24 smoke user 기준 `GOV24:50` 입니다.
-같은 서버에서 `run-local-gov24-surface-audit.sh` 도 통과했고, `keyword=청년` 검색,
-`sourceType=GOV24` 필터 검색, 기본 목록, Gov24 상세, 추천 top10 모두 Gov24 surface를 정상 반환했습니다.
-2026-06-02 server Docker `run-local-gov24-education-signal-smoke.sh` 기준 교육축 fresh batch는 `32`건 전부
-Gov24였고, top2는 `청년 학자금대출 장기연체자 학자금상환 지원`, `화성시 학생 장학금 지원` 입니다.
-같은 서버의 signal 포함 acceptance suite는 `10` steps 모두 통과했고 `suite_duration_ms=71712` 입니다.
+## 지역 보강
 
-### 4. `supportConditions` fact scope
+명시 지역코드가 부족해 기관·접수기관·부서·서비스명·목적요약·지원대상·선정기준·지원내용·신청방법에서 지역을 추론합니다. 명확한 시도+시군구/전국 유일 시군구는 5자리 코드로, 시도 단위 신호는 시도 전체로 확장합니다. 전국은 지역 row를 만들지 않는 계약입니다.
 
-`GOV24_SUPPORT_CONDITION` runtime fact scope는 개인 eligibility subset에서
-사업체/업종/창업 상태까지 확장했습니다.
+세종은 `36110/세종시`, 전국 유일 시군구의 접미사 생략(`재단법인안산인재육성재단 → 안산시`)도 처리합니다. 지방 기관유형의 bare 시도명은 확장하지만, `서울올림픽기념국민체육진흥공단` 같은 공공기관 명칭에는 같은 추론을 적용하지 않습니다. 기관코드 lookup 보강은 고성교육재단 `5420000 → 48820`, 한국전통문화전당 `4641000 → 52111/52113` 사례가 있습니다.
 
-- 산업 종사자: `JA0313~JA0316`
-- 창업/사업 단계: `JA1101~JA1103`
-- 업종: `JA1201`, `JA1202`, `JA1299`, `JA2201~JA2203`, `JA2299`
-- 사업체 유형: `JA2101~JA2103`
+이는 추천의 텍스트 fallback을 대체하지 않는 보조 경로입니다. 기존 row의 지역 교체는 외부 API 없이 LIST snapshot을 재생할 수 있지만 **DB 쓰기 작업**입니다. 실행은 [작업 체크리스트](policy-gov24-implementation-checklist.md#실행과검증)를 따릅니다.
 
-2026-06-02 current server Docker audit 기준 coverage는 `10954 / 10954` 입니다.
-동일 audit에서 `support_raw=10954`, `support_fact_rows=194819`, `support_missing_fact_services=0`,
-`support_nested_shape=10954`, `support_flat_shape=0` 으로 닫혔습니다.
-`JA0322`, `JA0410` 같은 `해당사항없음` 계열 code는 `NO_OP` fact로 보존합니다.
+## 보류와 재검토
 
-### 4-1. missing list sidecar repair 성능
+외부 공식 stable codebook 재수입과 raw 조합값의 hard eligibility 승격은 기존 내부 코드·runtime fact와 다른 설계입니다. codebook 부재만으로 수집/label-first를 막지 않으며, 반대로 내부 inventory를 공식 enum이라고 부르지 않습니다.
 
-`gov24-sidecars-backfill?scope=list&missingOnly=true&limitPerSource=0` 은 Gov24 필수 summary slot
-(`GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE`) 이 비어 있는 LIST row만 빠르게 복구합니다.
-2026-06-02 server Docker runtime에서 필수 slot을 의도적으로 비운 뒤 재측정했고,
-`before_missing=10954 -> after_missing=0`, service log `elapsedMs=16118`,
-acceptance suite step `15377ms` 로 확인했습니다. 이전 generic writer 기반 suite 측정은 `308290ms` 였습니다.
+새 목표에는 변경할 lane·제외 범위·원본 근거·migration/backfill·호환/복구 계획을 정합니다. 공식 field/code/label과 API 버전을 확인하고, 외부 자료는 taxonomy 3축(track A)과 supportConditions(track B)를 별도로 판정합니다. 요청 자료는 [패키지 체크리스트](../history/policy/policy-normalization-gov24-request-package-checklist.md), [codebook 요청](../history/policy/policy-normalization-gov24-codebook-request-template.md), [조건 요청](../history/policy/policy-normalization-gov24-support-condition-request-template.md)을 참고합니다.
 
-### 5. `Gov24 -> YOUTH_MID` bridge
+과거 reopen 기본값은 당시 제품 확장 범위의 방침이지 버그·데이터 유실·보안 수정 금지 지시가 아닙니다. 현재 오류는 별도 재현 작업으로 처리하며 외부 codebook을 기다리지 않습니다.
 
-`Gov24` `serviceField` 를 온통청년 대/중분류 label로 연결합니다.
+## 날짜가 있는 관측과 초기 계획
 
-- `주거·자립` -> `주거 / 주택 및 거주지`
-- `고용·창업` -> `일자리 / 취업|재직자|창업`
-- `보육·교육` -> `교육 / 미래역량강화|교육비지원|온라인교육`
-- `생활안정` -> `복지문화 / 취약계층 및 금융지원`
-- `문화·환경` -> `복지문화 / 문화활동`
-- `보건·의료`, `임신·출산` -> `복지문화 / 건강`
-- `보호·돌봄` -> `복지문화 / 권익보호`
-- `행정·안전` -> `참여권리 / 정책인프라구축`
-- `농림축산어업` -> `일자리 / 재직자`
+아래는 원래 관측의 날짜·환경에 한정됩니다. 전건 coverage·green 기록을 현재 환경의 보장으로 읽지 않습니다.
 
-이 bridge는 recommendation projection의 표시 label뿐 아니라 `educationPriorityBoostEligible`
-판정에도 연결됩니다. 따라서 `unifiedCategory=기타` 인 `Gov24` row라도
-`serviceField=보육·교육` 으로 `youthMajorLabel=교육` 이 해석되면 교육 priority narrow boost 경로에
-들어갑니다. 단, 이 경로도 soft projection 보정이며 `Gov24` raw 조합값을 hard eligibility fact로
-승격하는 것은 아닙니다.
+| 시점·환경 | 원래 기록 |
+| --- | --- |
+| 2026-06-01 로컬 seed/backfill 후 | list/detail/support raw 각 10,945, support fact 194,622, 서비스 coverage 10,945/10,945. missing-no-raw/all-null/unmapped-only/mapped-signal 모두 0 |
+| 2026-06-02 서버 Docker support audit | raw 10,954, fact 194,819, coverage 10,954/10,954, nested 10,954/flat 0 |
+| 2026-06-02 서버 missing-list repair | 필수 slot 결측 10,954 → 0, service elapsed 16,118ms / suite step 15,377ms, 이전 generic writer 308,290ms |
+| 2026-06-02 서버 합성 추천 | housing fresh 44건, education fresh 32건 모두 Gov24. 5개 smoke user top10 50건, top1/2/10 share 100%; 실제 사용자 품질 근거 아님. acceptance 10 steps / 71,712ms |
+| 2026-06-03 로컬 region backfill | list/scanned/upserted 10,954, missing/failed 0, endpoint 5,209ms, region rows 36,545, coverage 9,816/10,954 (89.61%), regionless 1,138, non-central 448, true-local 1 |
+| 2026-10-21 로컬 수집 | 후속 support 48/50 저장·2건 실패, snapshot 누락·strict embedding 미갱신. [실행 기록](../phase-plan.md#2026-10-21-로컬-수집-실행-확인) |
 
-### 6. stable internal code
+6월 교육 합성 예시는 `청년 학자금대출 장기연체자 학자금상환 지원`, `화성시 학생 장학금 지원`이며, region true residual은 `온라인 신청 시연 테스트(운영)` 1건이었습니다.
 
-`GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE_TOKEN`, `GOV24_BENEFIT_TYPE_TOKEN` 은
-현재 observed inventory 기준 internal code를 seed하고,
-기존 `service_taxonomy_terms` 와 `service_taxonomy_summary_slots` 에 backfill 했습니다.
+5월 우선순위/pending 문서는 당시 local regression·bounded baseline·external blocked·future infra를 나누던 계획이었습니다. 이후 support fact·내부 code·YOUTH_MID/priority bridge는 구현됐고 서버/RDS 환경도 존재합니다. “로컬 할 일 거의 없음”, “서버 생긴 뒤”, “관찰만 유지”를 현재 지침으로 재사용하지 않습니다. 과거 합성 cohort/CTR·개인 캐시·replay(9→9/1→1, fingerprint same, reason_changed 0)·회귀 기록은 [추천 이력](../history/recommendation/recommendation-state-before-doc-cleanup.md), [작업 이력](../history/core/phase-plan-before-doc-cleanup.md)을 봅니다.
 
-## 지금 일부러 안 연 것
-
-아래는 현재 명시적으로 안 연 상태입니다.
-
-### 1. 외부 공식 stable codebook import
-
-현재 code는 current observed inventory 기준의 internal stable code입니다.
-Gov24가 별도 공식 enum/codebook을 제공하면 그 값을 source-of-truth로 다시 import할 수 있습니다.
-
-### 2. raw 조합값 hard fact 승격
-
-`개인||가구`, `현금||서비스(의료)` 같은 raw 조합값 전체를
-hard eligibility fact로 올리지는 않습니다.
-
-## 왜 여기서 멈췄는가
-
-이 lane의 목적은 `Gov24` 값을 제품 surface에 실제로 연결하되,
-외부 공식 codebook 없이 raw 조합값 전체를 hard eligibility로 오해하지 않게 경계를 두는 것입니다.
-
-여기서 더 가면 다음부터는 observed inventory 기반 internal code가 아니라,
-외부 공식 codebook이나 더 강한 제품/데이터 모델 결정을 여는 작업이 됩니다.
-
-즉 지금 남은 것은 “구현 누락”보다 **명시 승인 전제의 deferred scope** 입니다.
-
-## 다시 열 조건
-
-아래 중 하나가 명시적으로 승인될 때만 reopen 하는 편이 맞습니다.
-
-1. 외부 공식 stable codebook import
-2. raw 조합값 전체를 hard eligibility fact로 승격할 제품 요구
-
-그 전까지는 현재 label-first canonical + public filter + soft scoring 경계를 유지합니다.
-
-## 지금 먼저 볼 문서
-
-1. 현재 구현 계약: [policy-normalization-current-state.md](./policy-normalization-current-state.md)
-2. blocked/deferred 경계: [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)
-3. reopen 판단 절차: [policy-gov24-reopen-checklist.md](./policy-gov24-reopen-checklist.md)
-
-## 요약
-
-1. `Gov24` public filter 3축은 이미 운영 반영까지 닫혔습니다.
-2. 넓은 키워드 검색 첫 페이지에서도 Gov24 후보가 candidate window 안에 있으면 완전히 묻히지 않게 했습니다.
-3. recommendation scoring도 bounded soft additive bonus까지는 열렸습니다.
-4. Gov24 list text 기반 지역 row 추론도 열어 다른 source와 같은 `service_regions` 경로를 탈 수 있게 했습니다.
-5. `supportConditions` full-scope business/industry/startup/no-op fact gap은 해소했습니다.
-6. 현재 남은 것은 외부 공식 codebook이 생겼을 때의 재수입 여부입니다.
+Batch AI·군집 캐시는 호출량·표본·운영 복잡도에 대한 별도 설계 후보이고, 알림톡은 운영 자격·심사 조건을 확인해야 하는 외부 연동 후보입니다. 인프라/PII/secret/HTTPS 작업의 현재 절차는 [배포](../deployment.md), [테스트](../core/testing.md), [PII cutover](../core/user-data-separation-design.md)에서 확인합니다. 당시의 비용·일정 가정은 새로운 요구를 자동 금지하거나 승인하지 않습니다.

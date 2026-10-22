@@ -2,7 +2,7 @@
 
 관련 문서:
 
-- [policy-source-onboarding-playbook.md](../../policy/policy-source-onboarding-playbook.md)
+- [policy-source-onboarding-playbook.md](../../policy/policy-source-onboarding-checklist.md#8-소스별-검토-예시와-출처)
 - [policy-normalization-schema-draft.md](./policy-normalization-schema-draft.md)
 - [recommendation-pipeline.md](../../recommendation/recommendation-pipeline.md)
 - [phase-plan.md](../../phase-plan.md)

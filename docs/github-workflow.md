@@ -8,8 +8,8 @@
 
 | 영역 | 경로 | 기본 검증 |
 |------|------|----------|
-| 프론트 | `frontend/` | `cd frontend && npm run lint && npm run build && npm run test:e2e` |
-| 백엔드 | `backend/` | `cd backend && ./gradlew test` |
+| 프론트 | `frontend/` | `cd frontend && npm run test:unit && npm run lint && npm run build` + 영향에 맞는 browser 검사 |
+| 백엔드 | `backend/` | `cd backend && DB_USERNAME=app_core_rw ./gradlew test --no-daemon` |
 | 배포 | `deploy/`, Docker 관련 파일 | 관련 배포 문서 확인 |
 | 문서 | `docs/` | 링크, 작업 추적, 검증 결과 확인 |
 
@@ -156,16 +156,18 @@ PR 범위가 커졌다면 왜 커졌는지 본문에 적는다.
 
 ## 검증
 
-변경 영역에 맞는 검증을 실행한다.
+변경 영역에 맞는 검증을 실행한다. 준비 조건과 단위·통합·외부 호출의 차이는 [테스트 실행 기준](core/testing.md), 앱/DB 대상과 부작용은 [환경 안내](core/environment-guide.md)를 따른다. 아래 명령은 저장소 루트에서 시작한다.
 
-- 프론트: `cd frontend && npm run lint && npm run build && npm run test:e2e`
+- 프론트 단위·정적: `cd frontend && npm run test:unit && npm run lint && npm run build`
+- 프론트 browser: 테스트용 앱·fixture를 준비한 뒤 `cd frontend && npm run test:e2e`. 배포 origin 대상 검사는 서버 데이터를 변경할 수 있다.
 - 프론트 보안 기준선: `cd frontend && npm audit`
-- 백엔드: `cd backend && ./gradlew test`
-- DB/Redis 흐름: `docker compose up -d db redis` 후 `cd backend && ./gradlew integrationTest`
+- 백엔드: `cd backend && DB_USERNAME=app_core_rw ./gradlew test --no-daemon`
+- 문서 계약: `backend/`에서 `DB_USERNAME=app_core_rw ./gradlew test --tests '*ContractTest' --rerun-tasks --no-daemon`. 문서 변경은 test 캐시에 반영되지 않을 수 있으므로 실제 실행 여부를 확인한다.
+- DB/Redis 흐름: **개발 컴퓨터에서만** `ALLOW_LOCAL_DOCKER_DB=true docker compose --env-file .env -f docker-compose.yml up -d db redis`, `bash deploy/smoke/preflight-integration-runtime.sh` 순서로 준비한 뒤 `cd backend && DB_USERNAME=app_core_rw ./gradlew integrationTest --no-daemon`. 운영 RDS에 fixture를 쓰지 않는다.
 - runtime auth/session 기준선: `APP_BASE_URL=http://127.0.0.1:8082 APP_HEALTH_URL=http://127.0.0.1:8082/actuator/health REQUIRE_RECOMMENDATIONS=false bash deploy/smoke/run-local-runtime-api-smoke.sh`
 - auth/session 보안 경계: `bash deploy/smoke/run-local-admin-forced-logout-smoke.sh`
 
-프론트에서 라우팅, 인증 복귀, admin dashboard를 건드렸다면 browser smoke까지 통과해야 작업 단위가 닫힌 것으로 본다.
+runtime/admin smoke는 로그인·세션 무효화 등 상태 변경을 포함한다. 로컬/서버의 대상과 테스트 계정을 확인한 별도 검증 범위에서만 실행한다. 프론트에서 라우팅, 인증 복귀, admin dashboard를 건드렸다면 관련 browser smoke까지 확인한다.
 
 실행하지 못한 검증은 이유를 남긴다.
 
@@ -173,8 +175,8 @@ PR 범위가 커졌다면 왜 커졌는지 본문에 적는다.
 
 작업 완료 후 `docs/phase-plan.md`를 갱신한다.
 
-- 완료한 항목은 `완료`로 옮긴다.
-- 새로 발견한 작업은 `진행 예정`에 추가한다.
-- 검증 결과를 반영한다.
+- 해당 작업에 완료 여부와 범위를 명시한다. 기존에 없는 `완료`/`진행 예정` 절을 기계적으로 추가하지 않는다.
+- 새로 발견한 기능·운영 문제는 미해결 과제로 남기고 문서 수정 완료와 구분한다.
+- 실행 명령·대상 환경·결과·skip·미실행 범위를 반영한다.
 
 문제가 발생했거나 재발 가능성이 있는 판단을 했다면 `docs/core/troubleshooting-log.md`에 `문제 / 해결 / 이유` 형식으로 남긴다.

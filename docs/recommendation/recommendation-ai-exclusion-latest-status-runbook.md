@@ -1,215 +1,95 @@
-# recommendation ai exclusion latest status runbook
+# 추천 AI exclusion 산출물 조회와 해석
 
-문서군 진입점: [recommendation-docs-index.md](./recommendation-docs-index.md)
+기존 snapshot·refresh·drift 결과를 읽거나 비교하는 안내입니다. **산출물 파일 비교와 실제 추천 재실행은 다릅니다.** 실행을 포함하는 suite/snapshot/refresh 절차는 [증거 재수집](recommendation-ai-exclusion-baseline-refresh-runbook.md)에 있습니다. [환경 안내](../core/environment-guide.md)에 따라 환경·코호트·시각이 같은 자료를 선택합니다.
 
-관련 문서:
+## 기존 산출물 조회
 
-- [recommendation-pr-review-brief.md](./recommendation-pr-review-brief.md)
-- [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
-- [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
-- [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
-- [recommendation-ai-exclusion-latest-overview-runbook.md](./recommendation-ai-exclusion-latest-overview-runbook.md)
-- [recommendation-review-gate-promotion-approval-record-smoke-runbook.md](./recommendation-review-gate-promotion-approval-record-smoke-runbook.md)
-
-## 현재 단계 해석
-
-현재 local 기본값은 full latest batch review gate `DEFERRED_NON_REAL_LEADER_SIGNAL`, recent-window supplemental reading `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`, latest reading `VOLATILE_ONLY_DRIFT` 입니다.
-
-즉 이 runbook은 새 refresh를 다시 태우는 reopen entrypoint가 아니라, **이미 남아 있는 latest artifact를 기준으로 current stable baseline / latest volatile observation / drift 판정을 read-only로 확인하는 daily status helper** 로 읽는 편이 맞습니다.
-
-## 목적
-
-이 문서는 최신 `baseline refresh` 요약과 최신 `drift-check` 요약을 한 번에 읽는 read-only entrypoint 입니다.
-
-즉 재실행 없이 지금 남아 있는 latest artifact 기준으로
-
-- stable baseline
-- latest volatile observation
-- latest drift 판정
-
-을 한 화면에서 바로 보고 싶을 때 씁니다.
-
-## 기본 스크립트
+summary/JSON이 없거나 다른 환경이면 먼저 자료를 확보합니다. 없다는 이유로 운영에서 refresh를 자동 실행하지 않습니다.
 
 ```bash
+REFRESH_SUMMARY='/abs/path/run/baseline-refresh-summary.txt' \
+DRIFT_SUMMARY='/abs/path/run/baseline-refresh-drift-summary.txt' \
+STATUS_JSON='/abs/path/run/latest-status.json' \
+AUTO_REFRESH_STATUS_JSON_IF_STALE=false \
 bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh
 ```
 
-latest JSON이 summary보다 오래됐을 때 자동으로 export를 다시 태우고 싶으면:
+default summary는 `tmp/recommendation-ai-exclusion-baseline-refresh/latest-baseline-refresh-summary.txt`, `tmp/recommendation-ai-exclusion-baseline-refresh-drift-check/latest-baseline-refresh-drift-summary.txt`입니다. `latest`는 환경·실행 시점을 보장하지 않습니다. `generated_at_utc/generated_at_kst`, 입력 경로·커밋·코호트와 함께 읽습니다.
+
+`status_json_stale_relative_to_summaries=true`이면 `RERUN_LATEST_STATUS_EXPORT`가 필요합니다. `AUTO_REFRESH_STATUS_JSON_IF_STALE=true`는 JSON export를 다시 만드는 옵션이지 추천을 재생성하는 옵션이 아닙니다. 기본값은 status/gate에서 false입니다.
+
+## 파일만 읽는 helper
+
+아래는 기본 구현에서 기존 파일을 입력으로 사용합니다. export/report는 로컬 파일·latest 링크를 만들 수 있지만 앱/DB 추천을 새로 생성하지 않습니다.
+
+| 목적 | Script `deploy/smoke/` 아래 | 명시 입력 / 핵심 출력 |
+| --- | --- | --- |
+| Snapshot 2개 비교 | [snapshot-compare](../../deploy/smoke/run-local-recommendation-ai-exclusion-snapshot-compare.sh) | `BASELINE_SUMMARY`, `TARGET_SUMMARY`; drift_detected·changed_keys·baseline/target 값 |
+| Refresh 요약 2개 비교 | [baseline-refresh-compare](../../deploy/smoke/run-local-recommendation-ai-exclusion-baseline-refresh-compare.sh) | `BASELINE_REFRESH_SUMMARY`, `TARGET_REFRESH_SUMMARY`; interpretation/stable/latest 변화 분리 |
+| Stable/volatile 분류 | [stability-report](../../deploy/smoke/run-local-recommendation-ai-exclusion-stability-report.sh) | `VOLATILITY_SUMMARY`; stable_keys·volatile_keys·run별 값 |
+| Drift 분류 | [drift-classify](../../deploy/smoke/run-local-recommendation-ai-exclusion-drift-classify.sh) | `VOLATILITY_SUMMARY`, `BASELINE_SUMMARY`, `TARGET_SUMMARY`; drift_class·stable_changed_keys·volatile_changed_keys |
+| 사람용 보고서 | [baseline-report](../../deploy/smoke/run-local-recommendation-ai-exclusion-baseline-report.sh) | stability+classify; recommended_reading·stable baseline·latest observation |
+| 상태 note/JSON 생성 | [latest-status-export](../../deploy/smoke/run-local-recommendation-ai-exclusion-latest-status-export.sh) | refresh/drift summary → latest-status-note.md·latest-status.json·latest 링크 |
+| 상태 조회 | [latest-status](../../deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh) | REFRESH_SUMMARY·DRIFT_SUMMARY·STATUS_JSON; gate/status/next step |
+| 자동 판정 | [latest-gate](../../deploy/smoke/run-local-recommendation-ai-exclusion-latest-gate.sh) | STATUS_JSON; gate_status·gate_reason·policy/action·생성 시각 |
+
+snapshot-compare는 기본으로 snapshot root의 최신 2개, refresh-compare는 최신 refresh 요약을 선택합니다. 환경이 섞일 수 있으므로 운영 비교에서는 baseline/target 파일을 명시합니다. drift-classify/baseline-report는 volatility와 snapshot의 시각·대상도 맞춰야 합니다.
+
+## Gate와 overview
 
 ```bash
-AUTO_REFRESH_STATUS_JSON_IF_STALE=true \
-bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh
+AUTO_REFRESH_STATUS_JSON_IF_STALE=false \
+bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-gate.sh
+
+AUTO_REFRESH_STATUS_JSON_IF_STALE=false FAIL_ON_LATEST_OBSERVATION_CHANGE=true \
+bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-gate.sh
 ```
 
-## 주요 출력
+기본 gate는 `interpretation_changed=true` 또는 `stable_baseline_changed=true`이면 실패합니다. strict는 latest observation 변화도 실패로 봅니다. `PASS`는 선택한 artifact의 drift 정책 통과이지 모델 품질·운영 health·데이터 보존·승격 승인 증거가 아닙니다.
 
-- `generated_at_utc`
-- `generated_at_kst`
-- `operator_next_step`
-- `effective_operator_next_step`
-- `gate_action_class`
-- `gate_policy_status`
-- `gate_policy_reason`
-- `review_gate_policy_candidate_status`
-- `review_gate_policy_candidate_reason`
-- `review_gate_policy_promotion_status`
-- `review_gate_policy_promotion_reason`
-- `review_gate_policy_promotion_action_status`
-- `review_gate_policy_promotion_action_reason`
-- `review_gate_policy_promotion_readiness_status`
-- `review_gate_policy_promotion_readiness_reason`
-- `review_gate_policy_promotion_execution_status`
-- `review_gate_policy_promotion_execution_reason`
-- `review_gate_policy_promotion_approval_criteria_status`
-- `review_gate_policy_promotion_approval_criteria_reason`
-- `review_gate_policy_promotion_approval_status`
-- `review_gate_policy_promotion_approval_reason`
-- `review_gate_policy_promotion_approval_decision_status`
-- `review_gate_policy_promotion_approval_decision_reason`
-- `review_gate_policy_promotion_approval_record_status`
-- `review_gate_policy_promotion_approval_record_reason`
-- `review_gate_policy_promotion_review_run_status`
-- `review_gate_policy_promotion_review_run_reason`
-- `review_gate_policy_promotion_review_run_criteria_status`
-- `review_gate_policy_promotion_review_run_criteria_reason`
-- `review_gate_policy_promotion_review_run_decision_status`
-- `review_gate_policy_promotion_review_run_decision_reason`
-- `review_gate_policy_promotion_review_run_approval_criteria_status`
-- `review_gate_policy_promotion_review_run_approval_criteria_reason`
-- `review_gate_policy_promotion_review_run_approval_decision_status`
-- `review_gate_policy_promotion_review_run_approval_decision_reason`
-- `review_gate_policy_promotion_review_run_approval_status`
-- `review_gate_policy_promotion_review_run_approval_reason`
-- `review_gate_policy_promotion_review_run_approval_record_criteria_status`
-- `review_gate_policy_promotion_review_run_approval_record_criteria_reason`
-- `review_gate_policy_promotion_review_run_approval_record_status`
-- `review_gate_policy_promotion_review_run_approval_record_reason`
-- `review_gate_policy_promotion_review_run_approval_record_transition_status`
-- `review_gate_policy_promotion_review_run_approval_record_transition_reason`
-- `review_gate_policy_promotion_review_run_approval_record_write_status`
-- `review_gate_policy_promotion_review_run_approval_record_write_reason`
-- `status_json_stale_relative_to_summaries`
-- `status_json_recommended_action`
-- `latest_drift_class`
-- `latest_recommended_reading`
-- `stable_baseline_zero_ai_reason_buckets`
-- `stable_dashboard_real_user_gate`
-- `stable_breakdown_real_user_cohort_gate`
-- `latest_fresh_top_ai_zero_count`
-- `latest_ai_zero_count`
-- `latest_ai_zero_reason_buckets`
-- `latest_volatility_reference_frequency`
-- `latest_drift_detected`
-- `latest_interpretation_changed`
-- `latest_stable_baseline_changed`
-- `latest_observation_changed`
-- `latest_changed_keys`
-- `primary_review_gate_blocker_class`
-- `review_gate_interpretation_class`
-- `review_gate_operating_mode`
-- `review_gate_policy_candidate_status`
-- `review_gate_policy_candidate_reason`
-- `review_gate_policy_promotion_status`
-- `review_gate_policy_promotion_reason`
-- `review_gate_policy_promotion_action_status`
-- `review_gate_policy_promotion_action_reason`
-- `recent_window_recommendation_review_reading`
-- `historical_example_dominance_detected`
+[latest-overview](../../deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh)는 export → status → basic/strict gate → 선택적 readiness를 묶습니다. strict 실패는 `strict_gate_exit_code`로 기록하고 overview 자체는 계속될 수 있습니다. 기본 `INCLUDE_REAL_USER_READINESS=auto`는 admin 자격을 발견하면 앱 호출을 시도하므로 파일만 보고 싶으면 다음처럼 끕니다.
 
-## 읽는 법
+```bash
+INCLUDE_REAL_USER_READINESS=false AUTO_REFRESH_STATUS_JSON_IF_STALE=false \
+bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh
+```
 
-- `generated_at_utc`, `generated_at_kst`
-  - latest export JSON이 있으면 같은 latest artifact의 UTC/KST 실행 시각을 같이 보여 줍니다.
-- `operator_next_step`
-  - older baseline artifact가 들고 있던 historical pointer입니다.
-- `effective_operator_next_step=USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
-  - current local truth 기준 실제 다음 해석입니다. full latest batch gate가 stale historical example inertia를 포함하므로, recent-window current signal을 같이 읽으라는 뜻입니다.
-- `gate_action_class=READ_PRIMARY_AND_SUPPLEMENTAL_REVIEW_GATES`
-  - operator가 한 줄로 먼저 읽을 실행 분류입니다. 현재 local 기준으로는 full latest batch historical baseline과 recent-window current-live signal을 같이 보라는 뜻입니다.
-- `gate_policy_status=PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR`
-  - drift 여부와 별도로, current 운영 정책 상태를 짧게 읽는 값입니다. primary full latest batch gate는 blocker지만 supplemental recent-window signal은 clear라는 뜻입니다.
-- `gate_policy_reason=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
-  - 위 policy 상태를 만든 운영 해석 클래스입니다.
-- `review_gate_policy_candidate_status=RECENT_WINDOW_POLICY_CANDIDATE`
-  - primary full latest batch gate는 아직 blocker지만, recent-window current-live signal은 실제 policy gate 후보로 볼 수 있는 상태라는 뜻입니다.
-- `review_gate_policy_candidate_reason=PRIMARY_GATE_BLOCKED_BY_STALE_ALL_TIME_EXAMPLE_REFERENCE_BUT_RECENT_WINDOW_CLEAR`
-  - 위 candidate 상태를 만든 직접 이유입니다.
-- `review_gate_policy_promotion_status=REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW`
-  - recent-window는 후보이지만, primary baseline이 아직 `ALL_TIME_LATEST_PER_USER` 이라 즉시 승격이 아니라 explicit policy change review가 필요하다는 뜻입니다.
-- `review_gate_policy_promotion_reason=RECENT_WINDOW_IS_A_CANDIDATE_BUT_PRIMARY_BASELINE_IS_STILL_ALL_TIME_LATEST`
-  - 위 promotion 보류 상태를 만든 직접 이유입니다.
-- `review_gate_policy_promotion_action_status=KEEP_PRIMARY_BASELINE`
-  - current 시점에 operator가 즉시 취할 행동을 더 짧게 접은 값입니다. 지금은 승격 검토를 열기보다 primary baseline을 유지하는 편이 맞다는 뜻입니다.
-- `review_gate_policy_promotion_action_reason=PROMOTION_STILL_REQUIRES_EXPLICIT_POLICY_REVIEW`
-  - 위 action status를 만든 직접 이유입니다.
-- `review_gate_policy_promotion_readiness_status=READY_FOR_BOUNDED_PROMOTION_REVIEW`
-  - 지금 당장 primary baseline을 바꾸진 않더라도, bounded promotion review를 시작할 prerequisite 자체는 충족됐는지 보여 주는 값입니다. 현재 local 기준으로는 `READY_FOR_BOUNDED_PROMOTION_REVIEW` 입니다.
-- `review_gate_policy_promotion_readiness_reason=EXPLICIT_POLICY_REVIEW_PENDING_WITH_BOUNDED_REVIEW_PREREQUISITES_MET`
-  - 위 readiness 상태를 만든 직접 이유입니다. 현재 local 기준으로는 explicit policy review는 아직 남아 있지만 bounded review를 열 prerequisite은 이미 충족된 상태라는 뜻입니다.
-- `review_gate_policy_promotion_execution_status=AWAIT_EXPLICIT_POLICY_REVIEW_DECISION`
-  - readiness는 충족됐지만 explicit policy review decision이 아직 남아 있어 bounded review를 바로 실행하진 않는다는 뜻입니다.
-- `review_gate_policy_promotion_execution_reason=READINESS_MET_BUT_EXPLICIT_POLICY_REVIEW_DECISION_IS_STILL_PENDING`
-- `review_gate_policy_promotion_approval_status=PENDING_EXPLICIT_PROMOTION_APPROVAL`
-  - execution readiness와 별도로, bounded promotion review 승인 자체는 아직 기록되지 않았다는 뜻입니다.
-- `review_gate_policy_promotion_approval_reason=EXECUTION_READY_BUT_EXPLICIT_PROMOTION_APPROVAL_NOT_RECORDED`
-- `review_gate_policy_promotion_approval_decision_status=AWAIT_EXPLICIT_PROMOTION_APPROVAL_DECISION`
-  - approval criteria는 충족됐지만 explicit approval decision record는 아직 없다는 뜻입니다.
-- `review_gate_policy_promotion_approval_decision_reason=APPROVAL_CRITERIA_MET_BUT_EXPLICIT_APPROVAL_NOT_RECORDED`
-- `review_gate_policy_promotion_approval_record_status=PENDING_EXPLICIT_PROMOTION_APPROVAL_RECORD`
-  - explicit approval decision이 아직 기록되지 않아 approval record도 아직 남기지 못한 상태라는 뜻입니다.
-- `review_gate_policy_promotion_approval_record_reason=APPROVAL_DECISION_PENDING_AND_RECORD_NOT_WRITTEN`
-- `review_gate_policy_promotion_review_run_status=PENDING_BOUNDED_PROMOTION_REVIEW_RUN`
-  - explicit approval record가 아직 없어 actual bounded promotion review run도 아직 시작할 수 없다는 뜻입니다.
-- `review_gate_policy_promotion_review_run_reason=EXPLICIT_APPROVAL_RECORD_NOT_WRITTEN_FOR_BOUNDED_REVIEW_RUN`
-- `review_gate_policy_promotion_review_run_criteria_status=READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN`
-  - actual run은 아직 pending이지만 bounded promotion review run을 열 prerequisite 자체는 이미 충족됐다는 뜻입니다.
-- `review_gate_policy_promotion_review_run_criteria_reason=BOUNDED_REVIEW_RUN_PREREQUISITES_MET_BUT_APPROVAL_RECORD_PENDING`
-- `review_gate_policy_promotion_review_run_decision_status=AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_DECISION`
-  - prerequisite은 이미 충족됐지만, 마지막 review run decision은 아직 explicit approval record 미작성 때문에 pending이라는 뜻입니다.
-- `review_gate_policy_promotion_review_run_decision_reason=REVIEW_RUN_CRITERIA_MET_BUT_APPROVAL_RECORD_NOT_WRITTEN`
-- `review_gate_policy_promotion_review_run_approval_criteria_status=READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL`
-  - 마지막 review run approval prerequisite 자체는 이미 충족됐고, approval record만 pending인 상태라는 뜻입니다.
-- `review_gate_policy_promotion_review_run_approval_criteria_reason=REVIEW_RUN_APPROVAL_PREREQUISITES_MET_BUT_APPROVAL_RECORD_PENDING`
-- `review_gate_policy_promotion_review_run_approval_decision_status=AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_DECISION`
-  - 마지막 review run approval prerequisite은 이미 충족됐지만, approval decision 자체는 explicit approval record 미작성 때문에 아직 pending이라는 뜻입니다.
-- `review_gate_policy_promotion_review_run_approval_decision_reason=REVIEW_RUN_APPROVAL_CRITERIA_MET_BUT_APPROVAL_RECORD_NOT_WRITTEN`
-- `review_gate_policy_promotion_review_run_approval_status=PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL`
-  - 마지막 review run decision 뒤 approval 자체도 아직 explicit approval record 미작성 때문에 pending이라는 뜻입니다.
-- `review_gate_policy_promotion_review_run_approval_reason=REVIEW_RUN_DECISION_PENDING_BECAUSE_APPROVAL_RECORD_NOT_WRITTEN`
-- `review_gate_policy_promotion_review_run_approval_record_criteria_status=READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD`
-  - 마지막 review run approval record를 남길 prerequisite 자체는 이미 충족됐다는 뜻입니다.
-- `review_gate_policy_promotion_review_run_approval_record_criteria_reason=REVIEW_RUN_APPROVAL_RECORD_PREREQUISITES_MET_BUT_RECORD_PENDING`
-- `review_gate_policy_promotion_review_run_approval_record_status=PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD`
-  - 마지막 review run approval decision이 아직 pending이라 approval record 자체도 아직 남기지 못한 상태라는 뜻입니다.
-- `review_gate_policy_promotion_review_run_approval_record_reason=REVIEW_RUN_APPROVAL_DECISION_PENDING_AND_RECORD_NOT_WRITTEN`
-- `review_gate_policy_promotion_review_run_approval_record_transition_status=AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE`
-  - 마지막 approval record write를 막는 것이 prerequisite 부족이 아니라 explicit record 미작성이라는 뜻입니다.
-- `review_gate_policy_promotion_review_run_approval_record_transition_reason=APPROVAL_RECORD_CRITERIA_MET_BUT_RECORD_NOT_WRITTEN`
-- `review_gate_policy_promotion_review_run_approval_record_write_status=PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE`
-  - transition prerequisite은 이미 닫혔고 final write 자체만 아직 실행되지 않았다는 뜻입니다.
-- `review_gate_policy_promotion_review_run_approval_record_write_reason=APPROVAL_RECORD_TRANSITION_READY_BUT_WRITE_NOT_EXECUTED`
-- `review_gate_interpretation_class=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
-  - primary full latest batch gate는 아직 historical blocker인데, supplemental recent-window current signal은 이미 clear 쪽으로 움직였다는 뜻입니다.
-- `review_gate_operating_mode=PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW`
-  - operator는 full latest batch gate를 historical baseline으로 두고, current live signal은 recent-window gate를 같이 보라는 뜻입니다.
-- `operator_next_step=OBSERVE_FRESH_WINDOW_VOLATILITY`
-  - stable baseline은 유지되고 있고 fresh window 관찰값만 더 보면 되는 상태입니다.
-- `operator_next_step=INVESTIGATE_STABLE_BASELINE_DRIFT`
-  - 해석 또는 stable baseline 자체가 바뀌어 current-state/기준선 재검토가 필요한 상태입니다.
-- `status_json_stale_relative_to_summaries=true`
-  - latest JSON이 최신 refresh/drift summary보다 오래된 상태입니다.
-- `status_json_recommended_action=RERUN_LATEST_STATUS_EXPORT`
-  - note/json/latest-gate 기준선도 summary와 맞추려면 export를 다시 태우는 편이 맞습니다.
-- `AUTO_REFRESH_STATUS_JSON_IF_STALE=true`
-  - stale JSON이면 `latest-status-export` 를 먼저 다시 태운 뒤 fresh latest JSON으로 출력합니다.
-- `latest_stable_baseline_changed=false`, `latest_observation_changed=true`
-  - latest compare는 fresh window 관찰값만 흔들린 것입니다.
-- `latest_recommended_reading=READ_LATEST_AS_VOLATILE_OBSERVATION`
-  - latest fresh window 값은 고정 baseline이 아니라 관찰값으로 읽는 편이 맞습니다.
-- `primary_review_gate_blocker_class=MIXED_BATCH_NON_REAL_DOMINANCE_WITH_NO_REAL_USER_PATH`
-  - full latest batch review gate는 현재 historical example inertia가 섞인 primary baseline으로 읽습니다.
-- `recent_window_recommendation_review_reading=RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`
-  - recent 24h latest batch current-live signal은 이미 old `2622` dominance를 벗어난 상태라는 뜻입니다.
-- `stable_dashboard_real_user_gate` 와 `stable_breakdown_real_user_cohort_gate` 가 deferred면
-  - 아직 `REAL_USER` 운영 분포 비교는 열리지 않은 상태입니다.
+overview는 이 설정에서도 export와 `latest-overview-summary.txt / latest-overview-note.md / latest-overview.json`을 생성합니다. `latest_artifact_link/latest_summary_link/latest_note_link/latest_json_link`는 해당 로컬 산출물 포인터입니다. 실제 readiness를 포함하려면 앱 대상·권한·비밀 전달을 먼저 정하고 [실사용자 재검토](recommendation-real-user-recheck-checklist.md)를 따릅니다.
+
+## 비교 결과 해석
+
+| 결과 | 읽는 법 |
+| --- | --- |
+| `NO_DRIFT` / drift_detected=false | 추적 key가 같음. 누락된 지표나 실제 서비스 동일성까지 증명하지 않음 |
+| `VOLATILE_ONLY_DRIFT` | fresh window만 변화. stable cohort/gate와 분리 |
+| `STABLE_BASELINE_DRIFT` | 고정 기준으로 삼던 key 변화. baseline·코호트·원인 확인 |
+| `MIXED_DRIFT` | stable/volatile이 함께 변화. 자동 baseline 교체 금지 |
+| `READ_LATEST_AS_VOLATILE_OBSERVATION` | 최신 fresh 값은 관찰값으로 유지 |
+| `UPDATE_STABLE_BASELINE` | helper의 갱신 검토 신호. 사용자 승인/실제 기준선 변경을 대신하지 않음 |
+| `INVESTIGATE_BEFORE_BASELINE_UPDATE` | 원인 조사 뒤 갱신 판단 |
+
+`fresh_top_ai_zero_count/ai_zero_count/ai_zero_reason_buckets`와 `baseline_zero_ai_reason_buckets`를 구분합니다. `INCOME_MISMATCH/STUDENT_AUDIENCE_MISMATCH`는 기록된 exclusion reason이며 올바른 자격판정의 자동 증거는 아닙니다. `target_scope_users=0`·`real_user_distribution_executed=false`는 실제 target 분포가 없다는 뜻입니다. `dashboard_real_user_gate/breakdown_real_user_cohort_gate`가 안정적이라는 것만으로 gate가 READY라는 뜻은 아닙니다.
+
+`stable_baseline_changed=false, latest_observation_changed=true`는 fresh 변화이고, `interpretation_changed=true`이면 결론 문구도 재검토합니다. `changed_keys/stable_changed_keys/latest_changed_keys/interpretation_changed_keys`와 baseline_*/target_*를 함께 남깁니다.
+
+## 정책 해석과 승인 상태
+
+`operator_next_step`은 older baseline pointer일 수 있습니다. `effective_operator_next_step`, `gate_action_class`, `gate_policy_status/reason`, `review_gate_context`를 함께 읽습니다. 예를 들어 `PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR`는 primary historical blocker와 supplemental recent-window clear가 공존한다는 뜻입니다.
+
+`primary_review_gate_blocker_class`, `recent_window_recommendation_review_reading`, `historical_example_dominance_detected`, `review_gate_interpretation_class/operating_mode`로 primary `ALL_TIME_LATEST_PER_USER`와 recent-window를 구분합니다. `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`는 해당 관측 창의 결과이지 모든 과거/실사용자 표본의 결론이 아닙니다.
+
+상세 상태 key는 `review_gate_policy_promotion_*`의 다음 층으로 묶어 읽습니다. 전체 key·reason과 계산은 [status 코드](../../deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh), [export 코드](../../deploy/smoke/run-local-recommendation-ai-exclusion-latest-status-export.sh)가 기준입니다.
+
+| 층 | 의미 |
+| --- | --- |
+| candidate / promotion / action | 후보 신호인지, 명시적 policy review가 필요한지, primary 유지인지 |
+| readiness / execution / approval_criteria | 검토 전제와 실제 실행·승인 근거를 구분 |
+| approval / approval_decision / approval_record | 준비됨·승인 대기·실제 record 존재를 구분 |
+| review_run / review_run_criteria / review_run_decision | 실제 bounded review 실행과 실행 전제·결정 대기 |
+| review_run_approval_criteria / review_run_approval_decision / review_run_approval | 마지막 run 승인 전제·결정·승인 상태 |
+| review_run_approval_record_criteria / review_run_approval_record | record 작성 전제와 실제 record |
+| review_run_approval_record_transition / review_run_approval_record_write | write 전환 조건과 실제 실행 여부 |
+
+`READY_FOR_*`는 승인이나 write 완료가 아닙니다. `PENDING_*`·`AWAIT_*`를 기존 record가 있다는 뜻으로 읽지 않습니다. 문서 통합·artifact export만으로 정책을 승격하거나 승인 record를 쓰지 않습니다. 실제 절차는 [bounded promotion](recommendation-bounded-promotion-review-runbook.md), [승인 record smoke](recommendation-review-gate-promotion-approval-record-smoke-runbook.md)에 있습니다.
+
+과거 local 문서의 `DEFERRED_NON_REAL_LEADER_SIGNAL`, `VOLATILE_ONLY_DRIFT`, basic PASS/strict LATEST_OBSERVATION_CHANGED는 당시 관측입니다. 새 결과로 덮어 쓰거나 현재 기본값으로 고정하지 않습니다. 실사용자 여부는 `account_origin=REAL_USER`만으로 입증하지 않습니다. PR 해석은 [review brief](recommendation-pr-review-brief.md), [draft exit](recommendation-pr-draft-exit-checklist.md), [post-merge follow-up](recommendation-post-merge-followup-checklist.md)을 참고하고, 과거 관찰 방침으로 보안·데이터 유실 수정을 막지 않습니다.

@@ -1,5 +1,7 @@
 # PostgreSQL Phase 0 Spec - 안정판 고정
 
+> **전환 당시의 단계 계획·설계·측정 근거**입니다. 현재 PostgreSQL/pgvector/공통 탐색 구현은 [아키텍처](../architecture.md), 실행 환경은 [환경 안내](../core/environment-guide.md)를 확인합니다. 각 목표의 실제 완료 여부는 코드·검증으로 대조하며 본문 `next step`·브랜치·명령을 현재 작업 지시로 재실행하지 않습니다.
+
 문서군 진입점: [postgres-refactor-spec-index.md](./postgres-refactor-spec-index.md)
 
 ## 목표

@@ -1,12 +1,12 @@
-# recommendation next lane brief
+# 추천 단계별 개선 검토 기록
+
+> 2026-05/06의 local/server 표본과 단계별 제안을 보존한 기록입니다. 본문의 `현재`, 완료 판단·정책 ID·다음 lane은 당시 범위이며 현재 데이터셋이나 전체 개발 우선순위를 대신하지 않습니다. 현재 북마크·로그·자격조건 문제는 [추천 현재 상태](recommendation-current-state.md)에서 별도 재현 과제로 확인합니다. 과거 `버그 수정 완료`나 reopen 순서를 승인된 리팩토링·보안·데이터 보존 수정의 금지 조건으로 사용하지 않습니다.
 
 문서군 진입점: [recommendation-docs-index.md](./recommendation-docs-index.md)
 
 ## 목적
 
-이 문서는 현재 recommendation 트랙을
-다시 열기로 결정한다면,
-**무엇부터 여는 편이 맞는지** 를 한 장으로 고정하는 brief 입니다.
+당시 recommendation 트랙을 다시 열 경우 **무엇부터 검토할지** 제안한 근거를 보존합니다.
 
 현재 기준 recommendation 내부 권장안은:
 

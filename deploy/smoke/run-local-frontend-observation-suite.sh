@@ -225,16 +225,16 @@ flow_families = [
     "help-surface",
 ]
 flow_family_docs = {
-    "public-core": "docs/frontend/frontend-core-user-flow-runbook.md",
-    "search-detail": "docs/frontend/frontend-policy-search-detail-flow-runbook.md",
-    "authenticated-home": "docs/frontend/frontend-authenticated-user-flow-runbook.md",
-    "protected-routes": "docs/frontend/frontend-protected-user-flow-runbook.md",
-    "session-recovery": "docs/frontend/frontend-session-recovery-runbook.md",
-    "retention": "docs/frontend/frontend-retention-flow-runbook.md",
-    "account-lifecycle": "docs/frontend/frontend-account-lifecycle-runbook.md",
-    "admin-operator": "docs/frontend/frontend-admin-operator-flow-runbook.md",
-    "recommendation-chat": "docs/frontend/frontend-recommendation-chat-flow-runbook.md",
-    "help-surface": "docs/frontend/frontend-help-surface-runbook.md",
+    "public-core": "docs/frontend/frontend-user-flow-runbook.md#public-core",
+    "search-detail": "docs/frontend/frontend-user-flow-runbook.md#search-detail",
+    "authenticated-home": "docs/frontend/frontend-user-flow-runbook.md#authenticated-home",
+    "protected-routes": "docs/frontend/frontend-user-flow-runbook.md#protected-routes",
+    "session-recovery": "docs/frontend/frontend-user-flow-runbook.md#session-recovery",
+    "retention": "docs/frontend/frontend-user-flow-runbook.md#retention",
+    "account-lifecycle": "docs/frontend/frontend-user-flow-runbook.md#account-lifecycle",
+    "admin-operator": "docs/frontend/frontend-user-flow-runbook.md#admin-operator",
+    "recommendation-chat": "docs/frontend/frontend-user-flow-runbook.md#recommendation-chat",
+    "help-surface": "docs/frontend/frontend-user-flow-runbook.md#help-surface",
 }
 
 lines = [

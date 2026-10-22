@@ -1,243 +1,67 @@
-# ops baseline runbook
+# 운영 baseline과 observation 실행
 
-문서군 진입점: [system-docs-index.md](./system-docs-index.md)
+health·admin dashboard·collect failures·recommendation breakdown의 **조회용 surface contract**를 확인합니다. 로그인/토큰 발급·로컬 artifact 생성은 있을 수 있으므로 “어떤 상태도 바뀌지 않는다”는 뜻은 아닙니다. 일상 triage·배포 후 순서는 [운영 점검](final-ops-closeout-checklist.md)을 따릅니다.
 
-## 목적
+## 실행 대상과 인증
 
-이 문서는 운영 서버에서 앱 상태를 건드리지 않고
+[환경 안내](environment-guide.md)로 앱/DB·로컬/서버를 확인합니다. 운영 Compose 앱의 runtime env와 점검용 DB 계정은 역할이 다릅니다. `.env.runtime.production`에 query/migration 비밀이 없을 수 있으므로 승인된 점검 설정·DB_QUERY 계정을 사용하고 앱에 과도한 비밀을 추가하지 않습니다.
 
-- health
-- admin dashboard summary
-- admin collect failures
-- admin recommendation breakdowns
+운영/RDS는 `SMOKE_DB_MODE=postgres`와 실제 `APP_BASE_URL`을 명시하고 앱 DB와 점검 DB를 맞춥니다. admin 자격은 비밀 관리 또는 허용된 credential file로 전달하고 문서/로그에 비밀번호를 복사하지 않습니다.
 
-를 한 번에 다시 확인하는 read-only baseline 경로를 고정합니다.
+[공통 인증 도우미](../../deploy/smoke/smoke-common.sh)의 실제 선택 순서는 다음과 같습니다.
 
-프론트 browser smoke는 이 문서의 범위가 아닙니다. 로컬 전체 baseline은 아래 순서를 기준으로 읽습니다.
+1. `ADMIN_ACCESS_TOKEN`, 없으면 `ADMIN_ACCESS_TOKEN_FILE` 또는 기본 token file을 읽습니다. 파일이 있다는 것만으로 유효한 토큰이라는 뜻은 아니며, 만료 토큰의 자동 갱신도 보장하지 않습니다.
+2. 토큰이 없고 `ALLOW_ADMIN_JWT_MINT=true`일 때만 JWT secret·DB 조회로 직접 발급을 시도합니다. 도우미 기본값은 `false`이며 실행 위치를 로컬로 강제하는 guard는 없습니다.
+3. 사용할 토큰이 없으면 하위 admin smoke가 `ADMIN_EMAIL/ADMIN_PASSWORD`로 앱 로그인을 수행합니다. 자격이 없으면 실패하며 자동으로 mint를 허용하지 않습니다.
 
-1. `bash deploy/smoke/run-local-active-baseline-suite.sh`
-   - 서버에서는 `APP_BASE_URL='http://127.0.0.1:8082' FRONTEND_E2E_MODE=deployed-origin FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-local-active-baseline-suite.sh`
-   - 이 모드는 배포 번들에서 불가능한 `@dev-only` admin forced-failure Playwright 2개를 자동 제외합니다.
-2. 필요하면 하위 step만 개별 실행
-   - `cd backend && ./gradlew test --no-daemon`
-   - `cd frontend && npm run lint && npm run build && npm run test:e2e`
-   - `bash deploy/smoke/run-local-ops-baseline-suite.sh`
-   - `bash deploy/smoke/run-local-collect-legacy-repair-suite.sh`
-
-운영 cutover 확인은 별도 wrapper를 사용합니다.
-
-- `ENV_FILE=.env.production PUBLIC_BASE_URL='https://youthmoa.kr' bash deploy/smoke/run-prod-cutover-verification.sh`
-
-daily operator가 raw child stdout 대신 compact handoff를 먼저 보려면 아래 wrapper를 먼저 씁니다.
+운영 예시는 `ALLOW_ADMIN_JWT_MINT=false`를 명시하고 승인된 토큰 또는 로그인 자격을 준비합니다. 직접 발급은 승인된 격리 로컬 검증 예외로만 사용합니다. 이 실행 지침과 현재 코드가 허용하는 범위를 구분하며, 기존 운영 cron의 설정이 이미 바뀌었다고 가정하지 않습니다.
 
 ```bash
-bash deploy/smoke/run-local-ops-observation-suite.sh
+(
+  set -euo pipefail
+  : "${OPS_ENV_FILE:?승인된 점검 설정 파일이 필요합니다}"
+  : "${OPS_APP_BASE_URL:?실제 앱 URL을 명시하세요}"
+  ENV_FILE="${OPS_ENV_FILE}" SMOKE_DB_MODE=postgres \
+  APP_BASE_URL="${OPS_APP_BASE_URL}" ALLOW_ADMIN_JWT_MINT=false \
+  bash deploy/smoke/run-local-ops-baseline-suite.sh
+)
 ```
 
-로컬 개발 DB에서 admin password를 따로 두지 않았다면 local-only JWT mint를 명시합니다.
+## Wrapper 선택
 
-```bash
-APP_BASE_URL='http://127.0.0.1:8082' \
-ALLOW_ADMIN_JWT_MINT=true \
-bash deploy/smoke/run-local-ops-observation-suite.sh
-```
+| 목적 | Script `deploy/smoke/` 아래 | 범위 |
+| --- | --- | --- |
+| 운영 surface | [ops-baseline-suite](../../deploy/smoke/run-local-ops-baseline-suite.sh) | admin-dashboard → admin-collect-failures → admin-recommendation-breakdowns |
+| Compact handoff | [ops-observation-suite](../../deploy/smoke/run-local-ops-observation-suite.sh) | baseline·표준코드/추천 관측·attention summary/JSON |
+| Collect lane | [collect-governance-observation-suite](../../deploy/smoke/run-local-collect-governance-observation-suite.sh) | scheduled/rotation/manual·최근 실패·설정·circuit |
+| Nightly 표준코드 | [nightly-standard-code-observation](../../deploy/smoke/run-nightly-standard-code-observation.sh) | 선택된 runtime/frontend 관측 포함; 실행 전 하위 step 영향 확인 |
+| Nightly handoff | [nightly-ops-handoff](../../deploy/smoke/run-nightly-ops-handoff.sh) | nightly/current-priority/policy triage 묶음, raw stdout보다 summary 우선 |
+| 전체 validation | [active-baseline-suite](../../deploy/smoke/run-local-active-baseline-suite.sh) | 코드·브라우저·legacy repair 등 포함 가능. read-only 점검과 구분 |
+| 운영 cutover | [prod-cutover-verification](../../deploy/smoke/run-prod-cutover-verification.sh) | env/RDS privilege/nginx 검증. 별도 배포 범위 |
 
-프론트 baseline을 같이 읽을 때는 `frontend observation` summary의 `flow_families` 를 먼저 봅니다. 이 값은 공개/검색상세/로그인/보호/세션복구/개인유지/admin/추천챗 같은 큰 축을 요약해서, 어떤 runbook을 먼저 열어야 하는지 바로 알려줍니다.
+observation에서 추천 표준코드 full 관측이 필요 없으면 `RUN_RECOMMENDATION_STANDARD_CODE_OBSERVATION=false`로 선택합니다. housing effect와 welfare matrix 감사는 기본 auto이며 policy row가 `STANDARD_CODE_EFFECT_MIN_POLICY_ROWS` 미만이면 skipped일 수 있습니다. 강제 옵션 `RUN_HOUSING_STANDARD_CODE_EFFECT_AUDIT=true/RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT=true`는 승인된 데이터·호출/쓰기 영향을 확인한 경우에만 켭니다.
 
-운영 서버/RDS:
+Nightly를 배포 프론트로 검증할 때는 `FRONTEND_E2E_MODE=deployed-origin`, `FRONTEND_PUBLIC_BASE_URL`을 지정합니다. 배포 번들의 dev-only 제외·admin 권한/opt-in은 유지하고 [프론트 사용자 흐름](../frontend/frontend-user-flow-runbook.md)의 flow_families별 범위를 봅니다. 단순 점검을 위해 repair/가입/browser write까지 자동 실행하지 않습니다.
 
-```bash
-ENV_FILE=.env.runtime.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-ops-observation-suite.sh
-```
+cron 등록/수정·cleanup은 별도 상태 변경입니다. [cron runbook](nightly-ops-handoff-cron-runbook.md)과 [idempotent installer](../../deploy/smoke/install-nightly-ops-handoff-cron.sh)를 사용하되 설치 요청 없이 실행하지 않습니다. 현재 installer의 mint 기본값은 공통 도우미와 달리 `true`이므로, 운영 preview/설치에도 `ALLOW_ADMIN_JWT_MINT=false`를 명시해야 합니다.
 
-이 observation wrapper는 아래 두 가지도 같이 돌립니다.
+## 입력과 artifact
 
-- `user profile standard code coverage`
-- `recommendation standard code observation`
+기본 입력은 APP_BASE_URL·ADMIN_EMAIL/ADMIN_PASSWORD(또는 지원 credential file), SUMMARY_WINDOW_DAYS·TREND_WINDOW_DAYS_CSV·COLLECT_LIMIT·BREAKDOWN_LIMIT·KEEP_ARTIFACTS입니다. 설정 파일을 통째로 출력/source하지 않습니다.
 
-즉 운영 handoff에서 아래를 같은 summary/json 에서 바로 읽습니다.
+baseline summary는 app_base_url·summary_window_days·artifact_dir·admin_dashboard_stdout·admin_collect_failures_stdout·admin_recommendation_breakdowns_stdout를 남깁니다. 보존 artifact는 sanitizer/redaction·cookie 제거·directory 700/file 600 경계를 유지합니다. summary가 다른 run의 latest를 가리키는지 시각·환경을 확인합니다.
 
-- `attention_feed.items`
-- `attention_feed_item_count`
-- `attention_feed_item_titles`
-- `users_missing_all_standard_codes`
-- `non_example_users_missing_all_standard_codes`
-- `example_smoke_users_missing_all_standard_codes`
-- `users_with_any_standard_code`
-- `safe_reconcile_candidate_rows`
-- `conflicting_value_gap_rows`
-- `wrapper_promoted_alert_severity`
-- `wrapper_promoted_alert_message`
-- `housing_standard_code_effect_positive_rule_delta_rows`
-- `welfare_standard_code_matrix_positive_rule_scenarios`
-- `welfare_standard_code_matrix_max_rule_delta`
-- `recommendation_standard_code_adoption_latest_batch_users_with_any_standard_code_share_pct`
-- `recommendation_standard_code_adoption_latest_batch_users_missing_all_standard_codes`
+## 읽을 지표
 
-`housing_standard_code_effect` 와 `welfare_standard_code_matrix` 는 데이터 의존 감사입니다. 기본값은 `auto` 이며, fresh local DB처럼 `welfare_services` row가 `STANDARD_CODE_EFFECT_MIN_POLICY_ROWS` 미만이면 `skipped` 로 남기고 wrapper 자체는 계속 진행합니다. 운영/RDS 또는 충분한 seed DB에서 강제 검증할 때만 `RUN_HOUSING_STANDARD_CODE_EFFECT_AUDIT=true`, `RUN_WELFARE_STANDARD_CODE_MATRIX_AUDIT=true` 를 명시합니다.
+| Surface | 핵심 값 |
+| --- | --- |
+| Dashboard | generatedAt, collect/recommendation/search/notification, trend, unreadAlerts·staleUnread7d/14d·retryableFailedNotifications·terminalFailedNotifications |
+| Collect | failedJobsInWindow·partialSuccessJobsInWindow·collectSourceLanes·latestRun·configEntries |
+| Recommendation | trafficMixInWindow·latestBatchConcentration·youthOfficialFacetGroups·gov24FacetGroups |
+| Observation | decision_class·attention_feed.items/count/keys/titles·warning 수·wrapper_promoted_alert_severity/message |
+| 표준코드 coverage | users/non_example/example_smoke missing-all·users-with-any·safe_reconcile_candidate_rows·conflicting_value_gap_rows |
+| 표준코드 추천 관측 | housing positive rule delta, welfare matrix positive scenarios/max delta, latest-batch adoption share·missing-all |
 
-`standard-code-backlog` attention item은 단순 미입력 잔량이면 `info` 로 읽고,
-`safe_reconcile_candidate_rows > 0` 또는 `conflicting_value_gap_rows > 0` 일 때만 운영자가 바로 처리할 `warning` 으로 봅니다.
-전체 미입력 잔량은 smoke 계정으로 크게 부풀 수 있으므로, 운영 판단은 `user_profile_standard_code_non_example_users_missing_all_standard_codes` 를 같이 봅니다.
+단순 미입력은 info/사용자 입력 유도이고 safe reconcile 또는 conflict가 있을 때만 조치 후보입니다. current-priority 이전 summary에 metric이 없으면 0으로 채우지 않고 “이전값 없음”으로 읽습니다. `flow_families`는 어떤 프론트 검증을 실행했는지의 범위이며 브라우저 전체 회귀를 보장하지 않습니다.
 
-wrapper promoted alert의 current-priority 비교는 비교 대상 metric이 현재/이전 summary 양쪽에 모두 있을 때만 해석합니다.
-이전 summary의 `active_baseline_user_profile_standard_code_users_missing_all_standard_codes` 가 비어 있으면 `0명` 으로 보정하지 않고 `이전값 없음` 으로 읽습니다.
-
-nightly server wrapper가 필요하면 아래를 씁니다.
-
-```bash
-ENV_FILE=.env.runtime.production \
-SMOKE_DB_MODE=postgres \
-APP_BASE_URL='http://127.0.0.1:8082' \
-FRONTEND_E2E_MODE=deployed-origin \
-FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' \
-bash deploy/smoke/run-nightly-standard-code-observation.sh
-```
-
-여러 nightly handoff를 cron 한 줄로 묶을 때는 아래 wrapper를 씁니다.
-
-```bash
-ENV_FILE=.env.runtime.production \
-SMOKE_DB_MODE=postgres \
-APP_BASE_URL='http://127.0.0.1:8082' \
-FRONTEND_E2E_MODE=deployed-origin \
-FRONTEND_PUBLIC_BASE_URL='https://youthmoa.kr' \
-bash deploy/smoke/run-nightly-ops-handoff.sh
-```
-
-이 nightly handoff에는 이제 `policy data triage observation` 도 같이 들어갑니다. 즉 운영자는 policy 쪽에서 raw audit 3개를 따로 열기 전에 `duplicate-first인지, link-first인지` 를 nightly summary 한 줄에서 바로 읽을 수 있습니다.
-
-관리자 대시보드 summary도 같은 경계를 노출합니다. 운영자는 `policy triage` 카드에서 `exact duplicate`, `mirror variant`, `급부형 링크 review` 수치와 함께 현재 처리 순서를 바로 읽을 수 있어, nightly artifact를 열기 전에도 backlog 우선순위를 빠르게 판단할 수 있습니다.
-
-cron 등록과 cleanup은 [nightly-ops-handoff-cron-runbook.md](./nightly-ops-handoff-cron-runbook.md) 기준으로 맞춥니다.
-
-직접 등록 대신 idempotent block install이 필요하면 아래를 사용합니다.
-
-```bash
-bash deploy/smoke/install-nightly-ops-handoff-cron.sh
-```
-
-## 기본 wrapper
-
-```bash
-bash deploy/smoke/run-local-ops-baseline-suite.sh
-```
-
-이 wrapper는 아래 3개 smoke를 순서대로 실행합니다.
-
-1. `run-local-admin-dashboard-smoke.sh`
-2. `run-local-admin-collect-failures-smoke.sh`
-3. `run-local-admin-recommendation-breakdowns-smoke.sh`
-
-collect governance를 compact하게 다시 읽고 싶으면 아래 wrapper를 추가로 쓴다.
-
-```bash
-bash deploy/smoke/run-local-collect-governance-observation-suite.sh
-```
-
-## 언제 쓰나
-
-아래 상황이면 이 runbook이 맞습니다.
-
-1. 서버 재기동 직후 admin 운영 기준선 확인
-2. collect/runtime governance 변경 후 회귀 확인
-3. recommendation admin-only read surface 회귀 확인
-4. “앱은 떠 있는데 운영 화면 contract가 깨지지 않았는지”를 빠르게 확인할 때
-
-브라우저 복귀/query/session/admin 접근 회귀는 먼저 Playwright smoke로 보고, 이 wrapper는 그 다음 read-only runtime contract 확인에 사용합니다.
-
-## 주요 입력
-
-- `APP_BASE_URL`
-- `ADMIN_EMAIL`
-- `ADMIN_PASSWORD`
-- `SUMMARY_WINDOW_DAYS`
-- `TREND_WINDOW_DAYS_CSV`
-- `COLLECT_LIMIT`
-- `BREAKDOWN_LIMIT`
-- `KEEP_ARTIFACTS=true`
-
-예:
-
-```bash
-APP_BASE_URL='http://127.0.0.1:8082' \
-ADMIN_EMAIL='<admin email>' \
-ADMIN_PASSWORD='<admin password>' \
-KEEP_ARTIFACTS=true \
-bash deploy/smoke/run-local-ops-baseline-suite.sh
-```
-
-## 기대 결과
-
-성공하면 suite summary에 아래가 남습니다.
-
-- `app_base_url`
-- `summary_window_days`
-- `artifact_dir`
-- `admin_dashboard_stdout`
-- `admin_collect_failures_stdout`
-- `admin_recommendation_breakdowns_stdout`
-
-서버 기준 최신 확인(`2026-05-18`)에서는 suite가 실제로 끝까지 통과했고,
-
-- `failed_jobs_in_window=0`
-- `partial_success_jobs_in_window=0`
-- `open_collect_circuits=0`
-- `lane_count=10`
-
-까지 한 번에 다시 확인됐습니다.
-
-각 하위 smoke는 자체적으로 contract를 검증합니다.
-
-### dashboard summary
-
-- `generatedAt`
-- collect/recommendation/search/notification 요약 필드
-- trend window
-- notification 운영 품질 핵심 backlog
-  - `unreadAlerts`
-  - `staleUnread7d`
-  - `staleUnread14d`
-  - `retryableFailedNotifications`
-  - `terminalFailedNotifications`
-  - unread/failed triage는 [notification-backlog-audit-runbook.md](./notification-backlog-audit-runbook.md) 기준으로 다시 본다.
-  - `staleUnread14d` 는 hide 후보로, `staleUnread7d` 는 deadline tail/cadence 재검토 대상으로 먼저 읽는다.
-  - stale target cluster maintenance가 필요하면 `POST /api/admin/dashboard/notification-backlog/hide-stale` 로 title/deeplink 단위 hide를 수행한다.
-
-### collect failures
-
-- `failedJobsInWindow`
-- `partialSuccessJobsInWindow`
-- `collectSourceLanes`
-- lane별 `latestRun`
-- lane별 `configEntries`
-
-### recommendation breakdowns
-
-- `trafficMixInWindow`
-- `latestBatchConcentration`
-- `youthOfficialFacetGroups`
-- `gov24FacetGroups`
-
-## 해석
-
-이 wrapper는 feature correctness보다 **운영 surface contract** 를 먼저 봅니다.
-
-- health가 정상인지
-- admin auth가 정상인지
-- collect lane inventory/latestRun/config summary가 깨지지 않았는지
-- recommendation breakdown/facet 카드 데이터가 정상인지
-
-를 한 번에 다시 확인하는 용도입니다.
-
-## 관련 문서
-
-1. [current-state.md](../current-state.md)
-2. [collect-ops.md](../collect/collect-ops.md)
-3. [recommendation-operation-checklist.md](../recommendation/recommendation-operation-checklist.md)
-
-## 요약
-
-1. 이 wrapper는 read-only ops baseline suite입니다.
-2. health + admin summary + collect failures + recommendation breakdowns를 묶습니다.
-3. 서버 재기동 직후나 bounded 운영 변경 뒤 회귀 확인에 씁니다.
+2026-05-18 서버 baseline 메모의 failed/partial/open-circuit 0·lane_count 10은 당시 결과입니다. 현재 runtime은 env override·lane 추가로 달라질 수 있습니다. health와 운영 화면 contract 성공은 feature correctness·품질·세션 내구성·데이터 보존까지 증명하지 않습니다. 실제 backlog 처리·hide/reconcile·promotion write는 [운영 점검](final-ops-closeout-checklist.md)과 해당 분야 runbook의 별도 승인 범위로 둡니다.

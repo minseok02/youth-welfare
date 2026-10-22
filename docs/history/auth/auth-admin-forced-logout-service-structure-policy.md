@@ -4,7 +4,7 @@
 >
 > 이 문서는 현재 구현의 배경을 남긴 **design history** 입니다.
 > 현재 제품/코드 계약은 [auth-session-revocation-current-state.md](../../auth/auth-session-revocation-current-state.md) 와
-> [auth-admin-forced-logout-closeout.md](../../auth/auth-admin-forced-logout-closeout.md) 를 우선 기준으로 봅니다.
+> [auth-admin-forced-logout-closeout.md](../../auth/auth-session-revocation-current-state.md#closeout과-후속-범위) 를 우선 기준으로 봅니다.
 
 
 ## 결정
@@ -132,3 +132,20 @@ class UserSessionRevocationService {
 ## next step
 
 다음 작은 task는 이 구조 정책을 기준으로, `UserSessionRevocationService` 를 어느 package에 둘지와 생성자 dependency 최소 집합을 문서로 고정하는 것이다.
+
+## 통합한 서비스 결정
+
+다음은 2026-05 설계 당시의 이름·인터페이스·적용 순서 근거입니다. 현재 구현은 `UserSessionRevocationService`와 인증 현재 상태를 확인하며 아래 순서를 새 작업 지시로 재실행하지 않습니다.
+
+### 서비스 이름
+
+`UserSessionRevocationService`는 사용자별 refresh 세션 무효화와 access cutoff 판정을 담당합니다. `AccessTokenRevocationService`는 제시된 token 하나의 exact blacklist를 담당하므로 두 책임을 구분합니다. `AdminForcedLogoutGuard`는 admin 전용/read-only guard처럼 보이고, `AccessSessionCutoffService`는 refresh 삭제·세션 무효화보다 cutoff 구현만 강조하므로 당시 선택하지 않았습니다. withdraw 등 다른 session 사건에서도 같은 책임을 재사용할 수 있다는 판단을 보존합니다.
+
+### 메서드 이름
+
+- `isAccessAllowed(String accessToken)`: filter가 필요한 최종 allow/deny를 반환합니다. exact revoke·cutoff·legacy token 판정을 내부에 감추므로 `isTokenPastCutoff` 같은 구현 중심 이름으로 줄이지 않습니다.
+- `revokeUserSessions(String userKey, long cutoffMillis)`: 사용자 단위 refresh 삭제와 cutoff 기록의 intent를 표현합니다. `forceLogoutUser`는 상위 use case와 겹치고 `applyAccessCutoff`는 refresh 삭제 의미가 빠진다는 판단을 보존합니다.
+
+### 구현 순서
+
+당시 적용 순서는 `JwtUtil의 iatm write/read helper -> session service -> filter wiring -> admin write API -> 단위/통합 smoke`였습니다. claim 계약 없이 임시 parsing/fallback을 service에 넣거나, revoke write 경로만 연결하고 인증 read gate를 비워 두는 위험을 피하기 위한 순서입니다. filter 연결은 모든 보호 경로에 영향을 주므로 claim/service 검증 뒤 적용한다는 근거를 남깁니다.

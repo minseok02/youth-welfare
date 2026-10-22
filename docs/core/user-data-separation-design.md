@@ -1,5 +1,7 @@
 # 사용자 데이터 분리 설계
 
+> **설계 근거와 시점별 이행 기록이 섞인 자료**입니다. 2026-04/05의 남은 작업·계정 수·데이터 상태를 현재 운영 상태로 간주하지 않습니다. 현재 보안 계약은 [보안 현재 상태](security-hardening-current-state.md), 로컬/서버별 적용 여부는 [환경 안내](environment-guide.md)와 실제 권한 검증으로 확인합니다. 유효한 PII/최소권한 원칙은 보존합니다.
+
 전체 cross-cutting 구조/데이터 문서 진입점은 [system-docs-index.md](./system-docs-index.md)를 먼저 봅니다.
 
 이 문서는 **사용자 데이터 분리 cut-over 설계와 당시 배경 문제를 보존하는 설계 문서**다.

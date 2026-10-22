@@ -1,5 +1,7 @@
 # PostgreSQL 전환 + 검색/챗봇 고도화 플레이북
 
+> **전환 당시의 단계 계획·설계·측정 근거**입니다. 현재 PostgreSQL/pgvector/공통 탐색 구현은 [아키텍처](../architecture.md), 실행 환경은 [환경 안내](../core/environment-guide.md)를 확인합니다. 각 목표의 실제 완료 여부는 코드·검증으로 대조하며 본문 `next step`·브랜치·명령을 현재 작업 지시로 재실행하지 않습니다.
+
 문서군 진입점: [system-docs-index.md](../core/system-docs-index.md)
 
 이 문서는 현재 MySQL 기반 프로젝트를 보존한 채, `PostgreSQL 전환 -> 검색 계층 재구성 -> 챗봇 고도화 -> 추천/챗봇 공통 탐색 엔진 정리` 순서로 작업하기 위한 실행 문서다.

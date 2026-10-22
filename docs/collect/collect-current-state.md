@@ -1,511 +1,75 @@
 # 수집 현재 동작 기준
 
-문서군 진입점: [collect-docs-index.md](./collect-docs-index.md)
+[수집 목차](collect-docs-index.md)의 현재 코드 계약입니다. 실행·장애 판정은 [수집 운영](collect-ops.md), 호출 순서·예산의 상세 기준은 [detail 실행 계약](collect-detail-execution-contract.md)을 봅니다. 코드 기본값과 실제 서버 env override, 과거 로컬/서버 관측을 구분합니다.
 
-관련 문서:
+## 현재 미해결 문제
 
-- [collect-ops.md](./collect-ops.md)
-- [collect-detail-execution-contract.md](./collect-detail-execution-contract.md)
-- [collect-governance-observation-runbook.md](./collect-governance-observation-runbook.md)
-- [collect-source-resilience-audit-runbook.md](./collect-source-resilience-audit-runbook.md)
-- [youth-regionless-audit-runbook.md](./youth-regionless-audit-runbook.md)
-- [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
-- [phase-plan.md](../phase-plan.md)
-
-## 목적
-
-이 문서는 현재 코드 기준으로 collect가 어떻게 동작하는지,
-무엇이 정상이고 무엇이 장애인지 빠르게 확인하는 current-state 문서입니다.
-
-실행 체크리스트나 장애 기록 양식은 별도 문서를 봅니다.
-현재 collect 문서 해석도 `phase-plan` 의 긴 전환 로그보다 이 문서와 `collect-operation-checklist`, `collect-ops` 를 우선합니다.
-
-daily operator entrypoint는 [collect-governance-observation-runbook.md](./collect-governance-observation-runbook.md) 와 `bash deploy/smoke/run-local-collect-governance-observation-suite.sh` 입니다. 이 wrapper는 `collect-failures` 전체 contract 대신 `scheduled/rotation/manual lane count`, `latest failed/partial lane`, `open circuit`, `next_action` 을 compact하게 요약하고 `latest-collect-governance-observation-note.md` 사람용 artifact도 남깁니다.
-
-외부 API 수집 DB 이력은 [collect-external-api-smoke-runbook.md](./collect-external-api-smoke-runbook.md) 와 `bash deploy/smoke/run-local-collect-external-api-smoke.sh` 로 먼저 봅니다. 이 smoke는 외부 API를 재호출하지 않고 `api_sync_logs`, `raw_api_payloads`, `welfare_services`, `welfare_service_details`, canonical sidecar(`service_taxonomies`, `service_taxonomy_terms`, `service_taxonomy_summary_slots`, `service_facts`), `collect_runtime_statuses`, `collect_execution_locks` 를 읽어 `NO_COLLECT_HISTORY`, source별 수집 성공/저장 정합성(`STORAGE_PARITY_REVIEW`), 저장 이후 sidecar 정합성(`SIDECAR_PARITY_REVIEW`), detail/support coverage 정합성(`DETAIL_SUPPORT_COVERAGE_REVIEW`), 실제 실패/open circuit/active lock을 분리합니다.
-서버/RDS-backed 앱을 확인할 때는 `ENV_FILE=.env.production SMOKE_DB_MODE=postgres` 를 명시해 앱 runtime DB와 smoke DB를 맞춥니다. Docker DB auto mode는 로컬 volume만 읽으므로 prod profile 앱의 수집 상태와 다를 수 있습니다.
-
-source별 retry/rate-limit/duplicate-run guard inventory를 다시 볼 때는 [collect-source-resilience-audit-runbook.md](./collect-source-resilience-audit-runbook.md) 와 `bash deploy/smoke/run-local-collect-source-resilience-audit.sh` 를 먼저 씁니다. 이 audit는 `collectSourceLanes.configEntries` 를 재사용해 lane별 resilience metadata drift를 compact하게 다시 읽습니다.
-
-scheduled `collect/all` 의 list snapshot, forced detail, 요일별 rotation detail 순서와 호출량 경계는 [collect-detail-execution-contract.md](./collect-detail-execution-contract.md) 를 기준으로 봅니다.
-
-## 현재 collect entry
-
-수동 진입:
-
-- `POST /api/admin/collect/all`
-- `POST /api/admin/collect/{sourceKey}`
-- `POST /api/admin/collect/{sourceKey}/async`
-- `GET /api/admin/collect/{sourceKey}/async-status`
-- `POST /api/admin/collect/bokjiro-details-gap-fill`
-- `POST /api/admin/collect/inverted-age-backfill`
-- `POST /api/admin/collect/bokjiro-sidecars-backfill`
-
-정기 진입:
-
-- `CollectBatchService.collectAll()`
-- 매일 새벽 2시 실행
-
-## 현재 collect/runtime governance inventory
-
-`collect-failures` 는 이제 실패/partial/streak/circuit 뿐 아니라 "어떤 lane이 scheduled, rotation, manual인지", lane별 `api_sync_logs` 기준 마지막 실행 요약, 그리고 pacing/budget/retry 같은 `config summary` 도 같이 반환합니다.
-이 inventory는 외부 API를 실제로 치는 lane만 대상으로 하며, raw replay 기반 sidecar backfill은 여기서 제외합니다.
-
-### nightly scheduled lane
-
-현재 nightly `collect/all` 은 "heavy detail full run" 이 아니라 아래 순서로 동작합니다.
-
-1. 매일 list snapshot: `YOUTH`, `BOKJIRO_CENTRAL`, `BOKJIRO_LOCAL`, `GOV24`
-2. source별 `collect_list_snapshots` / `collect_list_snapshot_items` fingerprint 저장
-3. 이전 정상 snapshot 대비 `new / changed / missing` diff 계산
-4. 신규/변경 임계치 초과 시 sourceId 후보만 forced detail 우선 처리
-5. 남은 기본 경로로 요일별 detail rotation 실행
-
-세부 계약:
-
-- list phase는 `YOUTH -> BOKJIRO_CENTRAL -> BOKJIRO_LOCAL -> GOV24` 순서입니다.
-- forced detail은 모든 list source가 끝난 뒤에만 실행합니다.
-- rotation detail은 forced detail이 모두 끝난 뒤 마지막에 실행합니다.
-- 같은 detail lane이 forced phase와 rotation phase에서 각각 한 번씩 결과에 나타날 수 있습니다.
-- 이 경우 중복 버그가 아니라 list diff 대응과 backlog rotation이 같은 날 겹친 상태로 읽습니다.
-
-주의:
-
-- 첫 snapshot은 baseline만 만들고 forced detail을 실행하지 않습니다.
-- `missing` 대량 발생은 upstream 장애나 일시 응답 축소일 수 있으므로 detail 강제가 아니라 `COUNT_DROP_GUARDED` 로 막습니다.
-- `saved_count` 는 변경 건수가 아니라 upsert 처리량일 수 있으므로 list 변화 판단은 fingerprint diff를 우선합니다.
-
-- `YOUTH`
-  - lane type: `SNAPSHOT`
-  - 이유: 핵심 청년 snapshot 기준선이라 nightly 자동수집에 포함
-- `BOKJIRO_CENTRAL`
-  - lane type: `SNAPSHOT`
-  - 이유: 복지로 중앙 목록 기준선 유지
-- `BOKJIRO_LOCAL`
-  - lane type: `SNAPSHOT`
-  - 이유: 복지로 지자체 목록 기준선 유지 + local `429/open-circuit` triage 대상
-- `GOV24`
-  - lane type: `SNAPSHOT`
-  - 이유: 정부24 목록 기준선과 diff snapshot을 매일 유지
-
-### rotation / forced detail lane
-
-- `BOKJIRO_DETAIL`
-  - lane type: `DETAIL`
-  - 실행: 월요일 rotation 또는 복지로 list diff forced candidate
-  - 이유: detail coverage를 매일 full run 하지 않고, 신규/변경 후보와 요일별 예산으로 보강
-- `GOV24_DETAIL`
-  - lane type: `DETAIL`
-  - 실행: 화요일 rotation 또는 Gov24 list diff forced candidate
-  - 이유: Gov24 detail을 list snapshot과 분리해 budgeted로 운영
-- `GOV24_SUPPORT_CONDITIONS`
-  - lane type: `DETAIL`
-  - 실행: 수요일 rotation 또는 Gov24 list diff forced candidate
-  - 이유: 지원조건 fact coverage를 detail과 분리해 budgeted로 운영
-- `BOKJIRO_DETAIL_REFRESH`
-  - lane type: `MAINTENANCE`
-  - 실행: 목요일 rotation 또는 복지로 list changed candidate
-  - 이유: 기존 detail row 재동기화는 full refresh 대신 후보/요일별 예산으로 제한
-- `YOUTH_DETAILS`
-  - lane type: `ENRICHMENT`
-  - 실행: 금요일 rotation 또는 YOUTH list diff forced candidate
-  - 이유: `refUrlAddr1/2` 보강용 detail lane. snapshot과 분리해 budgeted로 운영
-
-### manual on-demand lane
-
-- `GOV24`
-  - lane type: `SNAPSHOT`
-  - 이유: manual 실행도 지원. 수동 실행 시 `serviceList -> detail -> supportConditions` 를 연쇄 실행
-  - 현재 기본 운영 경로는 `POST /api/admin/collect/gov24/async` 와 `GET /api/admin/collect/gov24/async-status` 다.
-  - list collect 자체는 chunked runtime collect로 바뀌었고, 기본값은 `chunkSize=500`, `chunkPauseMs=100` 이다.
-  - `api_sync_logs.metadata_json` 에 `chunkSize/chunkPauseMs/chunkCount/elapsedMs/totalCount/staleDeletedCount` 를 남긴다.
-  - stale cleanup은 각 chunk 중간이 아니라 full run 성공 후 마지막에 `1회`만 실행한다.
-- `BOKJIRO_DETAIL_GAP_FILL`
-  - lane type: `MAINTENANCE`
-  - 이유: backlog gap 을 메우는 one-off maintenance lane
-- `INVERTED_AGE_BACKFILL`
-  - lane type: `MAINTENANCE`
-  - 이유: 이미 저장된 `DETAIL raw_api_payloads` 를 replay해 legacy `min_age > max_age` row를 한 번에 복구하는 backfill lane
-  - 현재는 `?sourceType=YOUTH|BOKJIRO_CENTRAL|BOKJIRO_LOCAL|GOV24` 필터와 `?limitPerSource=` cap을 지원하고, `missingRawPayload / unrepaired / failed` 를 따로 집계한다
-  - 외부 API를 다시 호출하지 않는 raw replay lane이라 collect inventory의 “실제 외부 API 호출 lane” 에는 포함하지 않는다
-  - 운영 one-shot wrapper는 `bash deploy/smoke/run-local-collect-legacy-repair-suite.sh` 이다. 이 wrapper는 `source별 inverted-age backfill -> 남은 GOV24/BOKJIRO sourceId self-heal -> 복지로 detail coverage audit` 순서를 한 번에 묶고, `RUN_GAP_FILL=true` 일 때만 bounded `bokjiro-details-gap-fill` 을 추가 실행한다.
-  - `2026-05-29` local rerun 기준 결과는 `YOUTH=0`, `BOKJIRO_CENTRAL=0`, `BOKJIRO_LOCAL=0`, `GOV24 before=117 -> repaired=117 -> after=0` 이었고, wrapper summary도 `remaining_inverted_rows=(none)` 으로 닫혔다.
-
-### 왜 이렇게 나눴나
-
-- snapshot 기준선과 비싼 detail/enrichment/maintenance lane 을 분리해야 quota, app runtime, 운영 triage 비용을 같이 제어할 수 있다.
-- 특히 `Gov24 detail/support`, `YOUTH detail`, `Bokjiro detail/refresh` 는 "매일 전량 도는 기준선"이 아니라 list diff와 요일별 budget으로 태우는 것이 현재 운영 원칙이다.
-- `Gov24` list snapshot은 chunk 처리로 안정성은 좋아졌고 nightly list 기준선에 포함됐다. admin 수동 운영 smoke에서는 여전히 async trigger/status 경로를 기본으로 읽는다.
-
-## 현재 Gov24 async collect 운영 경계
-
-- trigger:
-  - `POST /api/admin/collect/gov24/async`
-  - 응답: `202 Accepted`
-  - 기대값: `state=QUEUED`, `active=true`
-- status:
-  - `GET /api/admin/collect/gov24/async-status`
-  - 전이: `QUEUED -> RUNNING -> SUCCEEDED/FAILED`
-  - payload에는 latest `api_sync_logs` snapshot과 `metadataJson` 이 같이 포함된다.
-- latest smoke:
-  - `bash deploy/smoke/run-local-gov24-async-collect-smoke.sh`
-  - 최근 local 기준:
-    - trigger wall-clock `18ms`
-    - full async run latest `elapsedMs≈89550`
-    - `chunkCount=22`
-    - `requested=saved=10954`
-    - `failed=0`
-
-### 현재 lane budget/config summary
-
-아래 값은 **코드 기본값 기준 요약**입니다. 실제 운영 서버는 env override를 통해 다른 effective 값을 가질 수 있고, admin `Collect Lane Inventory` 의 `configEntries` 는 그 **실효 runtime 값**을 그대로 보여 줍니다.
-
-- `YOUTH`
-  - scheduler: `0 0 2 * * * @ Asia/Seoul`
-  - list pacing: `300ms`
-  - retry: `3 attempts / 1000ms backoff`
-- `BOKJIRO_CENTRAL`
-  - budget: `max 10000 items/run`
-  - list pacing: `300ms`
-  - `429` guard: `3x 429 / cooldown 10000ms`
-  - retry: `3 attempts / 1000ms backoff`
-- `BOKJIRO_LOCAL`
-  - budget: `max 10000 items/run`
-  - list pacing: `300ms`
-  - `429` guard: `3x 429 / cooldown 10000ms`
-  - open circuit: `1800000ms`
-  - retry: `3 attempts / 1000ms backoff`
-- `BOKJIRO_DETAIL`
-  - rotation budget: `100 calls/run`
-  - source default budget: `central max 10000 calls/run / local max 10000 calls/run`
-  - detail pacing: `1000ms`
-  - `429` abort: `5 consecutive hits`
-  - retry: `3 attempts / 1500ms backoff`
-- `GOV24`
-  - budget: `max 20000 items/run`
-  - list pacing: `300ms`
-  - retry: `3 attempts / 1000ms backoff`
-  - runtime collect chunk: `500`
-  - chunk pause: `100ms`
-- `GOV24_DETAIL`
-  - budget: `max 50 calls/run`
-  - detail pacing: `300ms`
-  - retry: `3 attempts / 1500ms backoff`
-- `GOV24_SUPPORT_CONDITIONS`
-  - budget: `max 50 calls/run`
-  - detail pacing: `300ms`
-  - retry: `3 attempts / 1500ms backoff`
-- `YOUTH_DETAILS`
-  - budget: `max 50 calls/run, missing detail rows first`
-  - detail pacing: `500ms`
-- `BOKJIRO_DETAIL_GAP_FILL`
-  - budget: `operator supplied rounds/maxCallsPerRound`
-  - per-source cap: `controller cap = max 1000 calls/round`
-  - rounds cap: `max 10`
-  - detail pacing: `1000ms`
-  - `429` abort: `5 consecutive hits`
-- `BOKJIRO_DETAIL_REFRESH`
-  - rotation budget: `50 calls/run`
-  - manual override는 max 5000 calls/run, no-arg 실행은 source default
-  - detail pacing: `1000ms`
-  - `429` abort: `5 consecutive hits`
-
-모든 lane은 공통 `CollectExecutionGuard` 아래에서 `lease 15m / heartbeat 60s` lock guard를 사용합니다.
-
-### 서버 runtime override 메모
-
-- 2026-05-18 서버 재검증 기준:
-  - `BOKJIRO_DETAIL`
-    - `Detail pacing = 50ms`
-    - `429 abort = 2 consecutive hits`
-  - `GOV24_DETAIL`
-    - `Detail pacing = 50ms`
-  - 즉 현재 서버 admin inventory는 코드 default dump가 아니라, 실제 운영 env override를 반영하는 effective runtime summary로 읽어야 합니다.
-
-## 현재 source dispatch 구조
-
-현재 collect는 source별 service 메서드를 늘리는 구조가 아니라:
-
-1. `CollectSource`
-2. `CollectSourceAdapter`
-3. `CollectSourceExecutionService`
-4. `CollectBatchService` / `CollectAdminService`
-
-registry dispatch 구조로 동작합니다.
-
-즉 새 source는 보통 adapter 추가로 연결합니다.
-
-## 현재 저장 레이어
-
-collect 이후 저장되는 축은 아래입니다.
-
-### 1. 정책 기본 row
-
-- `welfare_services`
-- `service_regions`
-- `service_tags`
-
-### 2. raw payload
-
-- `raw_api_payloads`
-
-용도:
-
-- list/detail/category 원문 보존
-- 이후 sidecar backfill/replay
-
-### 3. canonical sidecar
-
-- `service_taxonomies`
-- `service_taxonomy_terms`
-- `service_facts`
-
-주의:
-
-- 이 sidecar는 current runtime 기준으로도 실제 저장되지만
-- fresh reset 뒤에도 현재 PostgreSQL integrated schema 기준으로 존재해야 하는 canonical sidecar입니다
-- local helper/replay smoke는 draft schema를 다시 auto-apply 하는 경계가 아니라 integrated schema 존재 여부와 collect/replay precondition을 확인하는 보조 경계로 읽습니다
-
-### 4. sync log
-
-- `api_sync_logs`
-
-용도:
-
-- source별 실행 시작/성공/부분성공/실패 기록
-- requested/saved/skipped/filtered/failed 집계
-
-## 현재 운영 원칙
+2026-10-21 [로컬 Docker 기록](../phase-plan.md#2026-10-21-로컬-수집-실행-확인)에서는 목록 4개 source 저장은 성공했으나 snapshot 두 테이블 누락으로 list diff가 실패했고 Gov24 support는 48/50 저장·2건 실패였습니다. local fallback 설정으로 strict embedding도 미갱신입니다. HTTP 200·`completedWithFailures=false`·health UP으로 이를 해결 완료 처리하지 않습니다. [DB 진단](../core/db-migration.md#수집-snapshot-테이블-누락)과 별도 기능 작업이 필요합니다.
 
-### 1. 동시 실행 금지
+## 진입점과 저장
 
-- collect는 한 번에 하나만 실행
-- 다른 collect 작업이 실행 중이면 `409 / COL002`
+- 수동: `POST /api/admin/collect/all`, `/{sourceKey}`, `/{sourceKey}/async`; 상태는 `GET /{sourceKey}/async-status`입니다.
+- 상세/보정: `/youth-details`, `/bokjiro-details-gap-fill`, `/inverted-age-backfill`, `/bokjiro-sidecars-backfill`, `/gov24-sidecars-backfill`을 목적별로 분리합니다.
+- 정기: `CollectBatchService.collectAll()`, 매일 02:00 Asia/Seoul.
+- Dispatch: CollectSource·CollectSourceAdapter·CollectSourceExecutionService → CollectBatchService/CollectAdminService. adapter뿐 아니라 enum·registry·source별 분기도 점검합니다.
 
-### 1-1. admin 수동 파라미터는 운영 상한 안에서만 허용
+저장은 정책 `welfare_services/service_regions/service_tags`, snapshot `raw_api_payloads`, sidecar `service_taxonomies/service_taxonomy_terms/service_taxonomy_summary_slots/service_facts`, 실행 `api_sync_logs`로 나뉩니다. [RawApiPayloadService](../../backend/src/main/java/com/example/welfare/collect/service/RawApiPayloadService.java)는 DTO/객체를 JSON 재직렬화해 sourceType/sourceId/apiCategory로 upsert합니다. 모든 HTTP 원문·이전 버전 보존은 보장하지 않습니다. sidecar 존재·실제 적재와 replay precondition을 따로 확인하며 draft MySQL SQL 자동 적용으로 해결하지 않습니다.
 
-- `collect/{sourceKey}?maxCallsPerRun=` 는 `1..5000`
-- `bokjiro-sidecars-backfill`, `gov24-sidecars-backfill` 의 `limitPerSource=0` 은 sidecar backfill 경로에서 그대로 `0` 으로 보존하고, repository/service 계층에서는 `0 이하 = unlimited` 로 읽는다.
-- `gov24-sidecars-backfill` 은 `scope=list&missingOnly=true` 를 지원한다. 이 경로는 Gov24 list raw payload 중 필수 summary slot 이 없는 row만 다시 태우며, 전체 재처리보다 우선 사용하는 missing-only repair lane 이다.
-- `reference-urls/rebuild` 의 `limitPerSource=0` 은 무제한이 아니라 capped default `1000`
-- `limitPerSource` 양수 명시값은 `1..1000`
-- `bokjiro-details-gap-fill` 의 `rounds` 는 `1..10`, `maxCallsPerRound` 는 `1..1000`
-- 즉 current-state 기준 `0 = unlimited` 계약은 sidecar backfill 에만 명시적으로 열려 있고, reference-url rebuild 같은 다른 admin repair endpoint 로 일반화하면 안 된다.
+## Scheduled와 manual의 차이
 
-### 2. 부분 성공 허용
+`collect/all`은 매일 모든 상세를 전량 수집하는 경로가 아닙니다.
 
-- 일부 item 저장 실패가 있어도 전체 롤백하지 않음
-- item 단위 트랜잭션과 retry 사용
+1. YOUTH → BOKJIRO_CENTRAL → BOKJIRO_LOCAL → GOV24 list를 처리합니다.
+2. `collect_list_snapshots/collect_list_snapshot_items` fingerprint로 new/changed/missing을 계산합니다.
+3. 모든 list가 끝난 뒤 임계치를 넘은 sourceId 후보의 forced detail을 먼저 실행합니다.
+4. 마지막에 요일별 detail rotation을 실행합니다. forced와 rotation이 같은 lane 결과에 각각 나타날 수 있습니다.
 
-### 3. 외부 API 0건/429는 바로 데이터 삭제로 해석하지 않음
+최초 snapshot은 baseline만 만들며, 대량 missing은 upstream 응답 축소일 수 있어 `COUNT_DROP_GUARDED`로 막습니다. saved_count는 upsert 처리량이지 변경 건수가 아닙니다. 기본 force 기준은 신규 30건 또는 2%, 변경 100건 또는 5%; 이전 total 대비 missing 15% 이상이며 신규/변경보다 크면 guard합니다. 후보 cap 기본 50건입니다.
 
-- `0건` 은 외부 응답 품질 문제일 가능성을 먼저 봄
-- `429` 는 retry 후 현재까지 확보한 결과만 반영 가능
+| 요일 | 기본 rotation |
+| --- | --- |
+| 월 | BOKJIRO_DETAIL, missing detail 보강 100 calls/run |
+| 화·수 | GOV24_DETAIL / GOV24_SUPPORT_CONDITIONS, 각각 50 |
+| 목·금 | BOKJIRO_DETAIL_REFRESH 50 / YOUTH_DETAILS 50 |
+| 토·일 | heavy detail rotation 없음 |
 
-### 4. 복지로 coverage 는 운영 계정 4개 quota 기준으로 다시 해석
+manual Gov24 list는 완료 후 detail/support를 기본 50건씩 follow-up합니다. 운영형 수동 경로는 async trigger 202(QUEUED/active) → status QUEUED/RUNNING/SUCCEEDED/FAILED이며 latest sync log·metadataJson을 같이 확인합니다. List chunk 기본 500, pause 100ms; metadata는 chunkSize/chunkPauseMs/chunkCount/elapsedMs/totalCount/staleDeletedCount입니다. stale cleanup은 chunk 중간이 아닌 full-run 성공 뒤 한 번 수행합니다.
 
-- 2026-05-10 기준 복지로 운영 계정을 확보했고, `중앙 list`, `중앙 detail`, `지자체 list`, `지자체 detail` 은 각각 일일 `100,000` quota를 사용한다.
-- 현재 코드 기본값은 복지로 list source별 `1회 10,000 items`, detail source별 `1회 10,000 calls` 안전 상한이다.
-- detail 호출 pacing 기본값은 `1000ms`, 연속 `429` 임계치는 `5회`다.
-- 따라서 detail backlog 는 더 이상 개발 계정 quota 때문에 남겨둔 의도된 상태로만 보지 않는다.
-- coverage 완전성 평가는 이제 운영 계정 기준 gap-fill / refresh 결과까지 포함해 본다.
+## 호출량과 동시 실행
 
-### 4. collect 성공과 downstream 재현은 분리해서 본다
+아래는 [application.yml](../../backend/src/main/resources/application.yml)과 service의 기본값입니다. admin lane inventory `configEntries`가 실제 runtime 값의 확인 경로입니다. `collect-failures`는 scheduled/rotation/manual lane·최근 log·failure/partial/streak/circuit·설정 요약을 제공하며 raw replay 전용 경로는 외부 호출 inventory와 구분합니다.
 
-- collect success
-- sidecar 저장
-- replay/recommendation downstream
+| 경로 | 기본 예산·pacing·retry |
+| --- | --- |
+| List 공통 | 300ms, 3 attempts / 1000ms backoff |
+| 복지로 list | source별 10,000 items/run, 429 3회 / cooldown 10,000ms; local circuit 1,800,000ms |
+| 복지로 detail | central/local 독립 10,000 calls/run. application 기본 300ms·연속 429 2회, retry 3/1500ms |
+| Gov24 list | 20,000 items/run, chunk 500 / pause 100ms |
+| Gov24 detail/support | 각각 50 calls/run, 300ms, retry 3/1500ms |
+| YOUTH detail | missing detail 우선, 50 calls/run, 500ms |
+| Gap-fill/refresh 수동 | 호출 상한과 source별 적용은 [수집 운영](collect-ops.md#작업-선택과-상한)을 확인 |
 
-은 같은 경계가 아닙니다.
+복지로 detail service의 property fallback은 1000ms·429 5회지만 일반 application 설정은 300ms·2회입니다. 둘을 같은 “코드 기본값”으로 섞지 않습니다. runtime override는 둘과 또 다를 수 있습니다.
 
-특히 local reset 직후에는 collect 성공만으로 replay가 바로 재현되지 않을 수 있습니다.
+[CollectExecutionGuard](../../backend/src/main/java/com/example/welfare/collect/service/CollectExecutionGuard.java)는 DB 전역 `collect-global` lock, lease 기본 15분·heartbeat 60초를 사용합니다. 겹친 collect는 `409/COL002`입니다. 현재 lock을 없는 기능으로 보고 Redis 도입을 필수 개선처럼 적지 않습니다. Backfill도 일반 수집과 겹치지 않게 대상 service의 guard를 확인합니다.
 
-## 현재 정상으로 보는 것
+## YOUTH 상세 링크와 지역
 
-아래는 현재 정상 범주입니다.
+LIST(pageType=1)의 `aplyUrlAddr/sbizCd`와 DETAIL(pageType=2)의 `refUrlAddr1/2` 범위를 구분합니다. 링크 우선순위는 aplyUrlAddr → refUrlAddr1 → refUrlAddr2지만 참고 URL은 기관 메인·기사·SNS일 수 있어 확정 신청 링크로 표현하지 않습니다. YouthDetailCollectService는 detail row가 없는 정책 우선, API 오류는 건별 skip할 수 있고 raw category는 DETAIL입니다.
 
-- 일부 item 저장 실패가 있지만 source collect 전체는 완료
-- 복지로 detail 일부 skip
-- `429` 발생 후 retry 또는 조기 종료
-- `0건` 반환이 한 번 발생했지만 기존 snapshot 유지
+지역은 `WelfareServiceMapper.regionsFromYouth()`에서 zipCd의 시도가 15개 이상이면 전국형 입력으로 보고 host_org 추론을 사용합니다. 전국 유일 시군구 → 시도 전체 → 추론 불가 시 빈 region 순서이며, 빈 region은 현 조회에서 전국 노출될 수 있습니다. 중앙기관 주관 지역 한정 정책의 오노출 위험은 미해결 의미 문제이지 완벽한 자격판정이 아닙니다.
 
-## 현재 장애로 보는 것
+2026-06-02 대조에서 강원 51***·전북 52***·대구 군위 27720과 multi-district city의 ward 단위 입력을 확인했습니다. 법정동 전체자료를 query/프로필 UX 검토 없이 코드 생성 원본으로 치환하지 않습니다. 세부 진단은 [YOUTH regionless](youth-regionless-audit-runbook.md), artifact는 `tmp/youth-region-code-validation/latest-youth-region-code-validation.json`입니다.
 
-아래는 실제 장애 쪽입니다.
+## 과거 관측
 
-- collect 요청 자체가 처리되지 않음
-- 여러 배치 연속 0건
-- `api_sync_logs` 가 남지 않음
-- 외부 응답은 왔는데 DB 반영이 전혀 없음
-- 같은 source가 반복적으로 시작 직후 실패
-- 복지로 detail coverage 가 운영 계정 quota 상향 뒤에도 비정상적으로 backlog 를 남긴 채 유지
+| 시점·환경 | 당시 기록과 범위 |
+| --- | --- |
+| 2026-05-10 운영 계정 확보 메모 | 복지로 central/local list/detail 4개 각각 일일 100,000 quota. 현재 계정 권한/잔여 quota는 실행 전에 재확인 |
+| 2026-05-18 서버 override | 복지로/Gov24 detail pacing 50ms, 복지로 429 abort 2회. 현재 실효값으로 고정하지 않음 |
+| 기존 로컬 async 메모(날짜 미기재) | trigger 18ms, full run 약 89,550ms, 22 chunks, requested=saved 10,954 / failed 0 |
+| 기존 YOUTH DETAIL 메모(날짜 미기재) | 초기 링크 없음 68%(1,754); detail 후 링크 2,012/2,570 (78.3%), 558건은 응답에도 URL 없음. 현재 전건 상태 아님 |
+| 2026-06-04 로컬 regionless | total 2,619 / region services 2,275 / regionless 344. empty zipCd 0, CSV·전국형 344 |
+| 같은 bounded override 검증 | `20250110005400210145 → 46800`, `20250618005400211022 → 31140`; regionless 344→342, suspicious 2→0 |
 
-## 현재 collect 병목 해석
-
-현재 로컬 기준 가장 큰 병목은 `POST /api/admin/collect/youth` 입니다.
-
-해석:
-
-- 내부 코드만의 문제로 보지 않음
-- external API latency / rate limit / upstream instability 영향이 큼
-
-즉 운영 기준 해석은:
-
-- collect는 배치/스냅샷 확보 경로
-- serving은 내부 DB snapshot 사용
-
-입니다.
-
-## 현재 확인할 기본 지표
-
-1. `api_sync_logs`
-2. `welfare_services` row 수
-3. `raw_api_payloads` row 수
-4. `service_taxonomies` / `service_facts` row 수
-5. 필요 시 replay/downstream smoke
-
-## 온통청년 DETAIL 수집 분리 운영
-
-### 배경
-
-온통청년 LIST API(`pageType=1`)는 `refUrlAddr1`, `refUrlAddr2` 필드를 응답에 포함하지 않는다.
-해당 필드는 DETAIL API(`pageType=2`)에서만 반환된다.
-
-LIST API 응답 필드: `aplyUrlAddr`, `sbizCd` 포함, `refUrlAddr1`/`refUrlAddr2` **없음**
-DETAIL API 응답 필드: `aplyUrlAddr` + `refUrlAddr1` + `refUrlAddr2` + `sbizCd` **있음**
-
-초기 수집(LIST만)에서 링크 없는 정책이 68%(1,754건)였던 원인이 여기에 있다.
-
-### refUrlAddr1/refUrlAddr2 주의사항
-
-이 필드는 API 명세상 "참고 URL"로 신청 URL이 아닐 수 있다.
-실제 데이터 기준으로 아래가 혼재한다:
-
-- 실제 신청/프로그램 상세 페이지 (유용)
-- 기관 메인 홈페이지
-- 뉴스 기사, SNS(인스타그램, 블로그) 등
-
-따라서 `detail_url`로 저장은 하되, 프론트에서 버튼 문구를 "신청하기"가 아닌 **"관련 사이트 보기"** 로 표기한다.
-URL 우선순위: `aplyUrlAddr` → `refUrlAddr1` → `refUrlAddr2`
-
-### 수집 구조
-
-- `YouthDetailCollectService.collectYouthDetails()`
-- `POST /api/admin/collect/youth-details` (수동 트리거)
-- `welfare_service_details` row가 없는 YOUTH 서비스만 대상으로 처리
-- raw payload는 `raw_api_payloads` (`api_category = DETAIL`)에 보존
-- 수집 간격: 500ms/건 (온통청년 API rate limit 고려)
-
-### 수집 결과 기준
-
-- DETAIL 수집 후 링크 있음: 2,012건 (78.3%, 2,570건 기준)
-- 링크 없는 558건은 DETAIL API에도 URL 필드가 없는 경우로 해결 불가
-
-### 한계
-
-- 403 등 API 오류 발생 시 해당 건만 skip하고 수집 계속 진행
-- 재수집 시 이미 `welfare_service_details`가 있는 건은 skip (중복 방지)
-- 558건은 온통청년 API 자체에 어떤 URL도 없어 현재로서는 불가
-
----
-
-## 온통청년 지역 코드 처리 방식 (2026-05-03 수정)
-
-### 배경
-
-온통청년 API는 “전국 노출” 설정 정책에 255개 시군구 코드를 모두 `zipCd` 필드에 부여한다.
-이 데이터를 그대로 저장하면 서산시 정책이 서울 지역 필터에도 노출되는 문제가 발생했다.
-
-### 수정 내용
-
-**`WelfareServiceMapper.regionsFromYouth()`**
-
-`zipCd`에 포함된 시도 수가 15개 이상이면 전국 마커로 판단하고,
-`zipCd` 코드 대신 `host_org`(주관기관명)으로 실제 운영 지역을 추정한다.
-
-**`RegionCodeUtil.inferFromHostOrg()`**
-
-host_org에서 지역 코드를 추정하는 순서:
-
-1. 전국 고유 시군구명 포함 → 해당 5자리 코드 반환 (예: “서산시청” → 44210)
-2. 시도명 포함 → 해당 시도 전체 코드 반환 (예: “충청남도청” → 충남 전체)
-3. 매핑 불가 → 빈 리스트 → `service_regions` 행 없음 → NOT EXISTS로 전국 노출
-
-### 한계
-
-- **중앙부처 주관 + 지역 한정 정책**: host_org가 “고용노동부” 등 중앙부처면 추정 불가 → 전국 노출로 처리됨
-- 온통청년 API 자체에 명확한 지역 구분 필드가 없어 현재로서는 이 방식이 최선
-
-### 2026-06-02 current code validation 메모
-
-윈도우에서 받은 `법정동코드 전체자료.txt` 와 실제 온통청년 live API `zipCd` 를 대조한 결과,
-`RegionCodeUtil` 을 최신 법정동 코드로 그대로 치환하면 안 된다.
-
-확인된 사실:
-
-1. 온통청년 live API는 `강원특별자치도` 를 기존 `42***` 가 아니라 `51***` 로 준다.
-2. 온통청년 live API는 `전북특별자치도` 를 기존 `45***` 가 아니라 `52***` 로 준다.
-3. `군위군` 은 더 이상 경북이 아니라 `대구(27720)` 로 응답된다.
-4. 반대로 `수원시`, `성남시`, `청주시`, `전주시`, `창원시` 처럼 구가 있는 도시는
-   city-level 5자리 코드보다 ward-level 5자리 코드가 실제 `zipCd` 에 더 자주 등장한다.
-
-즉 practical 결론은 아래와 같다.
-
-- `강원/전북 prefix`, `대구 군위군` 같이 current API와 명확히 어긋난 값은 즉시 반영한다.
-- `법정동코드 전체자료.txt` 를 generated source로 바로 치환하지는 않는다.
-- multi-district city는 profile UX와 query semantics를 함께 봐야 하므로 별도 active 트랙으로 분리한다.
-
-stable artifact:
-
-- `tmp/youth-region-code-validation/latest-youth-region-code-validation.json`
-
-### 2026-06-04 YOUTH regionless current-state 메모
-
-`YOUTH` 쪽 지역 품질에서 지금 남은 핵심 이슈는 `zipCd` 누락보다 **전국형 `zipCd` 해석 정책**이다.
-
-local 기준 최근 audit를 다시 보면:
-
-- `YOUTH total=2619`
-- `region services=2275`
-- `regionless=344`
-- `regionless empty zipCd=0`
-- `regionless csv zipCd=344`
-- `regionless nationwide zipCd=344`
-
-즉 남은 `regionless` 는 `zipCd` 가 비어서가 아니라, 긴 CSV 지역코드 목록이 current code에서 전국형 입력으로 해석되고 `host_org` 추정으로 넘어간 결과다.
-
-이때 `host_org` 가 중앙/전국성으로 읽히면 빈 `service_regions` 로 남는 것이 현재 정상 경계다. 따라서 지금은 `GOV24` 보다 `YOUTH` 의 `nationwide zipCd interpretation` 을 별도 audit로 다시 읽는 편이 맞다.
-
-운영자가 먼저 볼 bounded entrypoint:
-
-- `bash deploy/smoke/run-local-youth-regionless-audit.sh`
-- [youth-regionless-audit-runbook.md](./youth-regionless-audit-runbook.md)
-
-stable artifact:
-
-- `tmp/youth-regionless-audit/latest-youth-regionless-summary.txt`
-- `tmp/youth-regionless-audit/latest-youth-regionless-summary.json`
-
-bounded override 검증 메모:
-
-- `20250110005400210145 -> 46800 (전라남도 장흥군)`
-- `20250618005400211022 -> 31140 (울산광역시 남구)`
-- local DB bounded verification 기준:
-  - `regionless 344 -> 342`
-  - `local_suspicious_count 2 -> 0`
-
-### 적용 방법
-
-코드 수정 후 `POST /api/admin/collect/youth`로 재수집하면 반영된다.
-기존 DB 데이터(이전 수집분)는 재수집 시 `source_id` 기준 upsert로 자동 교정된다.
-
----
-
-## 요약
-
-1. collect는 adapter registry 기반으로 돈다.
-2. 저장 레이어는 `welfare_services`, `raw_api_payloads`, `sidecars`, `api_sync_logs` 네 축이다.
-3. 부분 성공과 외부 변동성은 정상 범주로 본다.
-4. 진짜 장애는 “로그 없음”, “반영 없음”, “연속 실패” 쪽이다.
-5. collect 성공과 downstream 재현은 분리해서 봐야 한다.
-6. 현재 복지로 detail coverage 부족분은 운영 계정 quota 상향 뒤에도 남는 backlog 인지, 저장/파싱/재시도 경계 문제인지 같이 구분해서 본다.
+YOUTH/복지로/Gov24 의미·코드 변동·미입력·수동 보정은 [정규화 과제](../policy/policy-normalization-current-state.md#리팩토링-확인-과제), Gov24의 개별 계약·과거 coverage는 [Gov24 데이터 계약](../policy/policy-gov24-lane-closeout.md)에서 확인합니다. 외부 API 지연·rate limit 영향과 내부 DB/transaction 병목은 측정으로 분리하며, 특정 source가 항상 최대 병목이라고 고정하지 않습니다.

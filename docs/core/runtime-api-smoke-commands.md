@@ -1,5 +1,7 @@
 # 런타임 API Smoke 명령 모음
 
+> 조회와 실제 write/외부 호출 명령이 섞인 모음입니다. [환경 안내](environment-guide.md)에서 실행 위치·앱·DB를 먼저 확인합니다. 같은 `127.0.0.1:8082`와 `run-local-*` 명령도 서버/RDS를 대상으로 할 수 있으며, rebuild/backfill/refresh/발송을 정기 조회처럼 실행하지 않습니다.
+
 문서군 진입점: [local-validation-docs-index.md](./local-validation-docs-index.md)
 
 서버/기존 volume drift만 따로 볼 때는 [server-runtime-drift-checklist.md](./server-runtime-drift-checklist.md) 를 먼저 봅니다.
@@ -22,7 +24,7 @@ deploy/smoke/run-local-runtime-api-smoke.sh
 deploy/smoke/run-local-recommendation-click-smoke.sh
 ```
 
-이 스크립트는 `signup -> login -> recommendations refresh -> first recommendation detail(serviceId + logId) -> recommendation_logs.is_clicked=1` 을 한 번에 확인합니다.
+이 스크립트는 `signup -> login -> recommendations refresh -> detail GET(클릭 미변경) -> authenticated click POST(logId body) -> recommendation_logs.is_clicked=true/시간 기록`을 확인합니다.
 앱 재기동 직후 startup race가 있으면 `HEALTH_RETRY_COUNT`, `HEALTH_RETRY_DELAY_SECONDS` 로 health check 재시도 횟수를 늘릴 수 있습니다.
 
 비슷한 사용자들이 본 정책 섹션의 API 계약은 아래 스크립트로 확인합니다.
@@ -693,14 +695,28 @@ deploy/smoke/run-local-recommendation-click-smoke.sh
 이 smoke의 핵심 포인트:
 
 - 추천 응답의 상세 진입 path는 `id` 가 아니라 `serviceId` 를 사용
-- CTR 추적은 `logId` 를 query param(`?logId=`) 으로 전달
-- 상세 조회 직후 `recommendation_logs.is_clicked=1`, `clicked_at` 이 채워져야 정상
+- 상세 `GET /api/policies/{serviceId}`는 추천 클릭을 기록하지 않음 (상세 조회수 기록과 구분)
+- 클릭은 인증된 `POST /api/policies/{serviceId}/recommendation-click`에 JSON body `{"logId":123}`로 전달
+- 서버는 log의 사용자 소유권과 정책 ID를 확인하고, 성공 후 `recommendation_logs.is_clicked=true`, `clicked_at`을 기록
+- 이 기록은 생성된 추천 로그의 클릭 표시이지 실제 노출 수를 측정한 CTR 자체가 아님
 
 수동 확인 시 주의:
 
 - `recommendation.id` 는 추천 row id
 - `recommendation.serviceId` 는 정책 상세 path variable
 - 둘을 혼동하면 수동 probe에서 거짓 `500` 을 만들 수 있음
+
+실제 추천 응답에서 얻은 ID로만 호출합니다. 임의 사용자 logId나 운영 데이터를 재사용하지 않습니다.
+
+```bash
+: "${SERVICE_ID:?추천 응답의 serviceId가 필요합니다}"
+: "${LOG_ID:?같은 사용자/정책의 logId가 필요합니다}"
+[[ "${SERVICE_ID}" =~ ^[1-9][0-9]*$ && "${LOG_ID}" =~ ^[1-9][0-9]*$ ]] || exit 1
+curl -sS -X POST "$APP_BASE_URL/api/policies/$SERVICE_ID/recommendation-click" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d "{\"logId\":$LOG_ID}"
+```
 
 ## 6. 정책 북마크 목록 확인
 
@@ -751,7 +767,8 @@ curl -sS \
 - refresh cookie clear
 - 직후 `POST /api/auth/refresh` 는 보통 `401`, `errorCode=A001` 로 실패해야 함
 - 같은 요청에 실린 `Authorization: Bearer <access-token>` 은 Redis revocation으로 즉시 무효화되므로, 같은 token으로 보호 API를 다시 호출하면 `401` 이 나와야 함
-- 다만 logout 요청에 bearer token을 싣지 않은 cookie-only 경로는 refresh 회수만 보장하므로, “현재 access token 즉시 차단” 기대를 그 경로와 혼동하지 않음
+- 식별 가능한 refresh token이 있는 cookie-only logout도 user-wide cutoff로 older access를 차단해야 함. bearer/식별 가능한 refresh가 모두 없는 요청의 쿠키 삭제와 구분
+- 위 차단은 Redis revoke 상태 유지 전제이며, [상태 유실 위험](../auth/auth-session-revocation-current-state.md#redis-상태-유실-미해결-위험)은 아직 해결되지 않음
 
 ## 9. 실패 시 먼저 볼 것
 
@@ -793,18 +810,20 @@ curl -sS \
 기대 로그 라인 형식:
 
 ```text
-[Admin] forced logout 트리거 userKey=<userKey> cutoffMillis=<epochMillis>
+[AdminAudit] event=forced_logout outcome=accepted actorHash=<sha256> targetUserKeyHash=<sha256> cutoffMillis=<epochMillis>
 ```
 
 예:
 
 ```bash
-grep -F "forced logout 트리거 userKey=$FORCE_LOGOUT_USER_KEY" /path/to/app.log | tail -n 1
+FORCE_LOGOUT_TARGET_HASH="$(printf '%s' "$FORCE_LOGOUT_USER_KEY" | sha256sum | cut -d ' ' -f 1)"
+rg -F 'event=forced_logout outcome=accepted' /path/to/app.log \
+  | rg -F "targetUserKeyHash=$FORCE_LOGOUT_TARGET_HASH" | tail -n 1
 ```
 
 확인 포인트:
 
-- `userKey` 가 대상과 일치
+- `targetUserKeyHash`가 대상 userKey의 SHA-256과 일치하고 `actorHash`가 기록됨
 - `cutoffMillis` 가 숫자로 남음
 
 이 숫자는 old/new access token ordering triage용 증적이고, current API contract의 response 필드는 아닙니다.
