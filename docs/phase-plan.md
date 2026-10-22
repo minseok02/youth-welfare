@@ -1,5 +1,20 @@
 # 구현 현황
 
+## 2026-10-22 프론트 의존성 취약점 보완
+
+사용자가 의존성 보완과 Git 정리 PR 마무리(1·2단계)를 승인했습니다. `main` 기준 별도 브랜치 `fix/frontend-dependency-audit`에서 프론트 패키지와 잠금 파일만 보완하고 이 기록을 추가합니다. PR #366의 문서 정리와 PR #365의 기능 변경, 수집 리팩토링·운영 변경은 섞지 않습니다.
+
+- `systematic-debugging` 기준으로 기존 CI의 OSV/npm audit 실패와 현재 감사 결과를 대조했습니다. 보완 전 npm 감사는 영향받는 의존성 경로 13개(High 10·Moderate 3)를 보고했습니다. 기존 OSV의 advisory 50개와는 집계 단위가 다릅니다.
+- 직접 의존성의 최소 허용 버전을 Axios `^1.20.0`, React Router DOM `^7.18.2`, Vite `^8.1.6`으로 올리고, 감사에 걸린 간접 의존성과 필요한 하위 트리만 같은 메이저 범위에서 갱신했습니다. 잠금된 실제 버전은 Axios `1.20.0`, React Router DOM/Router `7.18.4`, Vite `8.3.5`입니다. React·MUI·React Query·ESLint·Playwright 등 나머지 직접 의존성의 잠금 버전은 유지했습니다.
+- [Axios 수정 릴리스](https://github.com/axios/axios/releases/tag/v1.20.0), [React Router 릴리스](https://github.com/remix-run/react-router/releases/tag/react-router%407.18.4), [Vite 보안 안내](https://github.com/vitejs/vite/security/advisories/GHSA-rq7h-c2jc-7f22)와 npm registry의 버전·Node 요구 조건을 확인했습니다. 기존 Node 22 CI·로컬 Node 24 범위에 맞고 메이저 전환·강제 감사 수정·검사 기준 완화는 하지 않았습니다.
+- 원래 작업공간과 공유하던 작업용 node_modules symlink만 확인 후 해제하고 별도 의존성을 설치했습니다. 링크 대상의 원래 의존성 디렉터리는 변경하지 않았습니다. 초기 패키지·작업 기록과 Git 이력 백업, 감사 전후 JSON·잠금 버전 대조는 저장소 밖 `/home/minseok/youth-welfare-dependency-audit.eOX4iO`에 보존합니다.
+
+로컬 검증: Node 24.11.1 / npm 11.6.2에서 독립 `npm ci --ignore-scripts --no-audit --no-fund` 설치 후 단위 테스트 22 suites / 54 tests(실패·skip 0), lint·production build, `npm ls --depth=0`, `npm audit --audit-level=high`를 통과했습니다. 감사 보고는 모든 심각도에서 0건입니다. Java 17의 `DB_USERNAME=app_core_rw RUN_SMTP_SMOKE=false ./gradlew test --tests '*ContractTest' --rerun --no-daemon`은 이 main 기준에서 19 suites / 98 tests, 실패·오류·skip 0입니다. 아직 문서 정리 PR의 추가 계약 테스트 14개를 포함한 기준이 아니므로 그쪽 112개 결과와 구분합니다. 문서 링크·앵커·코드 참조와 `git diff --check`도 통과했습니다. 로컬 Docker가 WSL에서 연결되지 않아 앱·DB·브라우저 연동을 로컬에서 실행하지 않았으며, Node 22와 DB·브라우저 연동의 원격 CI 결과는 별도로 확인합니다.
+
+원격 CI 통과와 변경 검토를 확인한 뒤 사용자 승인 범위에서 의존성 PR을 병합하고, 문서 정리 PR #366에 새 main 기준을 반영해 다시 검증합니다. 운영 배포·데이터·실제 외부 API/AI/발송·기존 PR #365는 변경하지 않습니다.
+
+## 이전 구현 기록
+
 - 2026-06-27: DB 운영 감사/alert와 nightly handoff 축을 다시 닫았다. PR #360/#361/#362로 `schema_migration_history`, 사용자 projection FK(`auth_users`, `user_profiles`, `youth_welfare_pii.user_pii` -> `users`), nightly DB audit artifact, `DB_AUDIT_INTEGRITY` evaluator를 main에 반영했고 운영 RDS에도 migration history/FK를 적용했다. 운영 DB의 projection drift는 `auth_without_users=0`, `profiles_without_users=0`, `pii_without_users=0`, active PII 누락은 `active_users_without_pii=0`, chat snapshot orphan은 `0` 으로 닫혔다. `users_without_pii=9~10` 은 탈퇴/비활성 smoke 계정의 PII 삭제 잔량으로 분리해 경보 기준에서 제외한다. 최신 DB audit artifact로 `evaluate-operational-alert-thresholds.sh` 를 실행하면 `OP_ALERT_STATUS=ok` 다.
 - 2026-06-27: 실제 nightly cron 결과를 확인하다가 cron은 등록되어 있으나 auth observation에서 `403 Invalid CORS request` 로 DB audit 전에 중단될 수 있는 문제를 찾았다. 원인은 nightly wrapper가 `FRONTEND_PUBLIC_BASE_URL=https://youthmoa.kr` 를 알고도 하위 auth smoke의 `SMOKE_TRUSTED_ORIGIN` 기본값을 `http://127.0.0.1:5173` 에 맡긴 것이다. PR #363 merge commit `cb5edb07` 로 `run-nightly-ops-handoff.sh` 가 `SMOKE_TRUSTED_ORIGIN=${FRONTEND_PUBLIC_BASE_URL}` 와 `SMOKE_TRUSTED_REFERER=${SMOKE_TRUSTED_ORIGIN}/` 를 export하게 했고, 축소 nightly 검증에서 `smoke_trusted_origin=https://youthmoa.kr`, `auth=passed`, `db_audit=ok` 를 확인했다.
 - 2026-06-27: AWS/RDS 운영 설정 확인과 백업 복구 리허설은 IAM 권한 적용 전까지 보류다. 현재 실행 역할 `youth-welfare-ops-monitor-v2-role` 로 `iam:PutRolePolicy` 와 `rds:DescribeDBInstances` 가 모두 `AccessDenied` 이며, repo 정책 파일에는 `rds:DescribeDBInstances` 가 들어 있지만 실제 역할에는 아직 반영되지 않았다. privileged AWS actor가 정책을 적용한 뒤 RDS backup retention, latest restorable time, deletion protection, encryption, Multi-AZ, public access를 확인하고 별도 restore DB로 리허설을 진행한다.
