@@ -228,6 +228,18 @@ Gov24 → 추천 AI exclusion → 수집 → 공통 운영 → 인증 순서로 
 
 이 작업은 로컬 커밋 정리입니다. `grilling` 지침에 따라 원격 반영 범위를 질문했으며, 무응답을 푸시·PR 생성·병합 승인으로 간주하지 않습니다. 현재 열린 PR #365(`refactor/admin-dashboard-sections` → `main`)는 별도 작업이므로 변경하지 않았습니다. 원래 작업공간의 중복 미커밋 변경을 지워 깨끗하게 만들지 않았으며, 후속 통합 시 이 기준점과 추가 편집을 다시 대조해야 합니다.
 
+## 2026-10-22 정리 브랜치 푸시와 PR 생성
+
+사용자가 푸시·PR 생성을 승인한 뒤 `origin`을 prune 없이 fetch했습니다. 기준 `origin/main`은 `b6af3ad7`이고 준비한 브랜치는 뒤처짐 없이 4개 커밋 앞선 상태였습니다. 정리용 worktree가 깨끗하고 `git diff -B -M --check origin/main...HEAD`와 문서 참조 검사가 통과함을 재확인했습니다. 애플리케이션·테스트 코드가 바뀌지 않아 앞선 전체 단위 테스트를 새 실행 결과처럼 다시 기록하지 않습니다.
+
+`docs/docs-environment-cleanup`의 `c5727f6d`까지 4개 커밋을 `origin`의 같은 이름 브랜치에 일반 푸시하고 upstream을 설정했습니다. 원격 SHA가 로컬과 일치함을 확인한 뒤 `main` 대상 [PR #366](https://github.com/minseok02/youth-welfare/pull/366)을 생성했습니다. PR 본문에는 문서 중심 163개 파일로 범위가 커진 이유, 실행 계약·CI 변경, 검증 snapshot과 미실행 범위를 구분해 적었습니다. 이 절을 반영하는 후속 커밋은 작업 기록만 추가합니다.
+
+PR 생성 직후 해당 SHA의 [CI 실행](https://github.com/minseok02/youth-welfare/actions/runs/39785991979)에서 security-scan·backend-unit·frontend-browser-smoke가 실행 중이고 codeql-analysis는 skip임을 확인했습니다. 이는 그 시점의 상태이며 최종 성공이 아닙니다. 후속 기록 커밋의 CI도 별도 실행으로 확인해야 합니다.
+
+기록 추가 뒤 Java 17로 계약 테스트를 `--tests '*ContractTest' --rerun --no-daemon` 실행해 20 suites / 112 tests, 실패·오류·skip 0을 확인했습니다. 문서 링크 2,408개와 코드 내 문서 참조 63개에서 로컬 파일·앵커 누락 0건이며 `git diff --check`도 통과했습니다. 이 로컬 검증은 원격 CI 최종 결과가 아닙니다.
+
+병합·자동 병합·PR #365 수정·원격 브랜치 삭제·강제 푸시는 하지 않았습니다. 로컬 백업·복구용 bundle도 업로드하지 않았습니다. 원래 작업공간에 이후 추가된 별도 스킬·지침 편집은 그대로 보존하고 이번 PR에 자동 포함하지 않았습니다. 원래 작업공간을 clean 상태로 만들거나 운영 서버·DB·수집·AI·발송을 변경한 결과가 아닙니다.
+
 ## 다음 작업
 
 다음 범위는 [현재 확인 과제](current-state.md)의 각 항목을 재현 가능한 기능 작업으로 분리하는 것입니다. 추가적인 대규모 문서 통폐합을 필수 선행 작업으로 두지 않습니다. 과거의 `KEEP_OBSERVING` 값은 추천 품질 실험과 운영 관측의 기록으로 남기고, 데이터 유실·보안·계약 불일치 수정의 금지 조건으로 사용하지 않습니다.
