@@ -2,6 +2,8 @@
 
 문서군 진입점: [frontend-qa-docs-index.md](./frontend-qa-docs-index.md)
 
+공개 필터/탭 query와 검색어·챗 세션의 라우터 state를 구분합니다. token/password/cookie/Authorization 원문은 적지 않으며, 식별 상태는 마스킹해서 전후 일치 여부만 기록합니다.
+
 ## 실행 정보
 
 - 날짜:
@@ -32,8 +34,8 @@
   - 네트워크/콘솔 이상:
 - 검색/필터:
   - 입력/조작:
-  - 기대 query:
-  - 실제 query:
+  - 기대/실제 필터 query:
+  - 검색어 `policySearchKeyword` state 유지 / URL 비노출:
   - 복원 여부:
 - 페이지네이션:
   - 이동 page:
@@ -65,7 +67,7 @@
   - `reason` / `state.from`:
 - 로그인 후 원위치 복귀:
   - 로그인 직후 URL:
-  - 복귀된 원래 URL/query:
+  - 복귀된 원래 URL / 공개 query / 라우터 state:
   - post-login action 자동 실행 여부:
 
 ### 4. 세션 만료
@@ -79,6 +81,13 @@
 - 무한 loop 여부:
   - yes/no:
   - network 반복 여부:
+- reset-password query/hash 진입:
+  - 토큰 제거 후 pathname / query·hash 비노출:
+  - 정상 설정 / invalid token 안내:
+  - 뒤로가기·앞으로가기 후 토큰 URL 재노출 여부:
+- unsubscribe hash 진입:
+  - 토큰 URL 제거 / POST JSON 전송 여부 (토큰 값 기록 금지):
+  - 히스토리 왕복 후 토큰 URL 재노출 여부:
 
 ### 5. 북마크
 
@@ -123,13 +132,14 @@
 ### 8. 챗봇
 
 - 세션 생성:
-  - 생성 후 URL `?session=`:
+  - 생성 후 URL의 `session/coachPolicyId` 비노출:
+  - `activeChatSessionId` state 갱신 / 화면 왕복·새로고침 유지:
 - 메시지 전송:
   - 응답/에러:
   - 추천 정책 카드/참조 노출:
 - 세션 삭제:
-  - 삭제 대상 session:
-  - 삭제 후 URL/query 정리:
+  - 삭제 대상 (마스킹):
+  - 삭제 후 선택 state 갱신·제거 / query 비노출:
 
 ## 정적 검증
 

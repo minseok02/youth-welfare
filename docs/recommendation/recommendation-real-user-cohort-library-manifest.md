@@ -1,4 +1,6 @@
-# recommendation real-user cohort library manifest
+# 합성 사용자 cohort 라이브러리
+
+> **격리된 로컬 재현용 합성 계정**입니다. 기존 코드의 `account_origin=REAL_USER` 값과 실제 사람의 운영 표본은 다릅니다. 이 라이브러리로 실사용자 표본 수·CTR·품질 개선을 입증하지 않습니다. seed는 계정과 행동 데이터를 쓰므로 운영/RDS에 실행하지 않습니다. 환경은 [환경 안내](../core/environment-guide.md)를 확인합니다.
 
 문서군 진입점: [recommendation-docs-index.md](./recommendation-docs-index.md)
 
@@ -20,17 +22,19 @@
 ## 기본 원칙
 
 - 이메일 도메인은 `realuser.app`
-  - `account_origin=REAL_USER` 로 분류되게 유지합니다.
+  - 기존 분류 구현에서 `account_origin=REAL_USER`가 되는 테스트 경로입니다. 이 값은 실제 사용자라는 검증 근거가 아니며, 합성/운영 표본 분리는 후속 코드 검토 대상입니다.
 - 계정은 고정 이메일과 고정 `name` 을 사용합니다.
   - rerun 때는 새 계정을 만들지 않고 같은 계정을 재사용합니다.
-- cohort는 4개로 나눕니다.
+- targeted cohort는 아래 5개로 나눕니다.
 - `housing`
 - `housing_leader_path`
 - `education`
 - `job`
 - `finance`
 
-## 현재 라이브러리
+## 기존 로컬 라이브러리 구성
+
+아래 수는 기존 재현 구성의 기록이며 현재 DB 계정 수나 운영 사용자 수가 아닙니다.
 
 - 기존 distributed baseline sample: `30명`
   - broad gate/readiness/evidence 확인용

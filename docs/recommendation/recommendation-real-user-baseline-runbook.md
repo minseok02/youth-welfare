@@ -1,5 +1,7 @@
 # recommendation real-user baseline runbook
 
+> 운영 사용자 관측용 절차입니다. `REAL_USER`는 현재 코드의 분류값이며 실제 사람의 표본이라는 보증이 아닙니다. [합성 cohort](recommendation-real-user-cohort-library-manifest.md)로 만든 계정과 실제 운영 행동을 분리하고 [환경 안내](../core/environment-guide.md)에서 대상을 확인합니다. 아래 과거 gate와 최소 표본 조건은 현재 리팩토링의 일괄 금지 조건이 아닙니다.
+
 문서군 진입점: [recommendation-docs-index.md](./recommendation-docs-index.md)
 
 ## 목적

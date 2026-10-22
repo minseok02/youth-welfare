@@ -5,7 +5,7 @@
 관련 문서:
 
 - [policy-gov24-runtime-audit-runbook.md](./policy-gov24-runtime-audit-runbook.md)
-- [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)
+- [Gov24 데이터 계약과 계획](./policy-gov24-lane-closeout.md#보류와-재검토)
 - [policy-gov24-implementation-checklist.md](./policy-gov24-implementation-checklist.md)
 
 ## 목적

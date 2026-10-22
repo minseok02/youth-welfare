@@ -2,9 +2,9 @@
 
 관련 문서:
 
-- [policy-source-onboarding-playbook.md](../../policy/policy-source-onboarding-playbook.md)
+- [policy-source-onboarding-playbook.md](../../policy/policy-source-onboarding-checklist.md#8-소스별-검토-예시와-출처)
 - [policy-normalization-schema-draft.md](./policy-normalization-schema-draft.md)
-- [policy-source-canonical-onboarding-priority.md](../../policy/policy-source-canonical-onboarding-priority.md)
+- [policy-source-canonical-onboarding-priority.md](../../policy/policy-source-onboarding-checklist.md#초기-확장-검토-순서)
 - [phase-plan.md](../../phase-plan.md)
 
 ## 목적

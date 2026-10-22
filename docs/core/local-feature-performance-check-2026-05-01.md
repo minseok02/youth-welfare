@@ -1,5 +1,7 @@
 # 로컬 기능 시험 및 시간 측정 (2026-05-01)
 
+> 날짜가 고정된 로컬 기능/시간 측정 기록입니다. 현재 서버 상태나 최신 테스트 결과가 아닙니다. 재현 방법과 당시 결과는 보존하되 [환경 안내](environment-guide.md)와 현재 코드에 맞춰 별도 검증합니다.
+
 문서군 진입점: [local-validation-docs-index.md](./local-validation-docs-index.md)
 
 ## 목적

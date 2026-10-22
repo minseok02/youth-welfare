@@ -6,7 +6,7 @@
 
 - [recommendation-review-gate-policy-promotion-checklist.md](./recommendation-review-gate-policy-promotion-checklist.md)
 - [recommendation-ai-exclusion-latest-status-runbook.md](./recommendation-ai-exclusion-latest-status-runbook.md)
-- [recommendation-ai-exclusion-latest-overview-runbook.md](./recommendation-ai-exclusion-latest-overview-runbook.md)
+- [AI exclusion 산출물 조회와 해석](./recommendation-ai-exclusion-latest-status-runbook.md#파일만-읽는-helper)
 - [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
 
 ## 목적

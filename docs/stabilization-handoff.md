@@ -1,5 +1,7 @@
 # Stabilization Handoff
 
+> **2026-06 안정화 단계의 과거 인수인계**입니다. 아래 서버 수치와 기능 동결 방침은 당시 환경에 한정합니다. 현재 작업은 [current-state.md](current-state.md), 로컬/서버 구분은 [환경 안내](core/environment-guide.md), 유효한 운영 절차는 [배포 후 점검](core/final-ops-closeout-checklist.md)을 확인합니다.
+
 ## 현재 모드
 
 현재 active main track은 기능 추가가 아니라 안정화와 회귀 방지입니다.
@@ -32,7 +34,7 @@
 ## 먼저 볼 문서
 
 1. [current-state.md](./current-state.md)
-2. [core/stabilization-checklist.md](core/stabilization-checklist.md)
+2. [core/stabilization-checklist.md](core/final-ops-closeout-checklist.md#attention과-backlog-판정)
 3. [core/final-ops-closeout-checklist.md](core/final-ops-closeout-checklist.md)
 4. [core/ops-baseline-runbook.md](core/ops-baseline-runbook.md)
 5. [recommendation/recommendation-current-state.md](recommendation/recommendation-current-state.md)

@@ -78,9 +78,9 @@ Measure internal API latency with repeated requests:
 - `GET /actuator/health`
 - `GET /api/policies`
 - `GET /api/policies?statusFilter=open`
-- `GET /api/policies/search?keyword=청년`
-- `GET /api/policies/search` with filters and sorting
-- `GET /api/policies/search/suggestions`
+- `POST /api/policies/search` with JSON body `{"keyword":"청년","page":0,"size":20}`
+- `POST /api/policies/search` with filters and sorting in the JSON body
+- `POST /api/policies/search/suggestions` with JSON body `{"keyword":"청년","limit":10}`
 - `GET /api/policies/search/trending`
 - `GET /api/policies/ranking`
 - `GET /api/policies/{id}`
@@ -102,6 +102,8 @@ Script:
 APP_BASE_URL='http://127.0.0.1:8082' RUNS=7 \
   bash deploy/performance/run-local-api-latency-baseline.sh
 ```
+
+The 2026-10-22 script correction uses POST + JSON for search/suggestions. Older GET samples may be method/error responses, not valid search latency baselines; do not compare them as equivalent successful work. Check per-scenario HTTP/error counts: measured HTTP errors now mark the baseline failed and return a nonzero exit after publishing diagnostic artifacts. The keyword stays out of the URL, but request bodies/responses may still contain sensitive data; use approved test inputs.
 
 Short load probe:
 

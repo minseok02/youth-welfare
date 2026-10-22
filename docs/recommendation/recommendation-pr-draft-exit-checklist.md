@@ -1,15 +1,17 @@
-# recommendation PR draft exit checklist
+# 추천 closeout PR draft 판단 기록
+
+> 과거 closeout PR의 draft/review/merge 판단 기록입니다. 본문의 `현재`와 상태 tuple은 당시 기준이며 현재 GitHub PR 상태·승인 기록을 입증하지 않습니다. 과거 명령을 새 작업의 필수 실행 순서로 사용하지 않습니다. 현재 작업은 [추천 현재 상태](recommendation-current-state.md), 파일 조회와 실제 refresh의 차이는 [조회 안내](recommendation-ai-exclusion-latest-status-runbook.md)와 [재수집 안내](recommendation-ai-exclusion-baseline-refresh-runbook.md)를 따릅니다. 과거 gate는 승인된 결함 수정의 일괄 금지 조건이 아닙니다.
 
 문서군 진입점: [recommendation-docs-index.md](./recommendation-docs-index.md)
 
 ## 목적
 
-이 문서는 현재 draft PR인 recommendation / Gov24 closeout 브랜치를
+당시 draft 상태였던 recommendation / Gov24 closeout 브랜치를
 
 - 언제 계속 draft로 두고
 - 언제 reviewer-ready 또는 merge-ready로 올릴지
 
-를 한 장으로 고정합니다.
+판단하던 기준을 보존합니다.
 
 현재 기준 질문은 이것입니다.
 

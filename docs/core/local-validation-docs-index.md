@@ -1,161 +1,43 @@
-# 로컬 검증 문서 묶음
+# 로컬 검증 문서 목차
 
-## 목적
+실행 위치가 로컬이어도 원격 앱·RDS·외부 API를 대상으로 할 수 있습니다. [환경 안내](environment-guide.md)에서 대상과 부작용을 먼저 확인합니다.
 
-로컬 검증 관련 문서가 흩어져 있어도
+## 빠른 검사
 
-- 어떤 검증을 언제 실행하는지
-- 브라우저 없이 API smoke를 어디서 확인하는지
-- 데모/기능 검수 때 어떤 순서로 따라가면 되는지
+- [testing.md](testing.md): backend 단위/통합, frontend 단위/lint/build, 브라우저와 실제 SMTP의 구분.
+- `deploy/smoke/preflight-integration-runtime.sh`: 통합 테스트용 로컬 PostgreSQL/Redis와 계정 준비 상태.
+- 문서 정리: 로컬 링크·앵커·문서 포인터·관련 계약 테스트·`git diff --check`.
 
-를 한 문서에서 바로 찾게 정리합니다.
+## 앱을 사용하는 검사
 
-## 지금 먼저 볼 문서
+| 목적 | 진입점 | 영향 |
+| --- | --- | --- |
+| auth/session | [인증 체크리스트](../auth/auth-operation-checklist.md), `run-local-auth-session-smoke.sh` | 로그인·세션·무효화 상태 변경 가능 |
+| API별 확인 | [runtime-api-smoke-commands.md](runtime-api-smoke-commands.md) | 조회와 write 명령을 절별로 확인 |
+| 브라우저 흐름 | [프론트 QA](../frontend/frontend-qa-docs-index.md) | 가입·프로필·북마크·문의 등 변경 가능 |
+| schema/credential/date drift | [server-runtime-drift-checklist.md](server-runtime-drift-checklist.md) | 로컬 볼륨과 서버 RDS의 절차가 다름 |
+| 운영 상태 | [ops baseline](ops-baseline-runbook.md), [관측](ops-observation-runbook.md) | 명령별 인증·DB 조회·artifact 생성 확인 |
+| 정책 품질 | [quality summary](../policy/policy-quality-summary-runbook.md), [admin runtime](../policy/policy-admin-runtime-runbook.md) | audit와 rebuild/backfill을 구분 |
+| Gov24 | [runtime audit](../policy/policy-gov24-runtime-audit-runbook.md) | 조회와 실제 수집 호출을 구분 |
+| 추천 | [추천 목차](../recommendation/recommendation-docs-index.md), [CTR readiness](../recommendation/recommendation-ctr-readiness-runbook.md) | 합성 seed·refresh·클릭과 실제 사용자 관측을 구분 |
+| 성능 | [성능 목차](../performance/performance-docs-index.md) | 운영 부하·외부 호출·관측 시점 확인 |
 
-### 공통 실행 기준
+## 전체 validation wrapper
 
-- [testing.md](./testing.md)
-- [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)
-- [server-runtime-drift-checklist.md](./server-runtime-drift-checklist.md)
-- [mail-ses-migration-runbook.md](./mail-ses-migration-runbook.md)
-- runtime preflight shell 진입점: `deploy/smoke/preflight-integration-runtime.sh`
+`deploy/smoke/run-local-validation-from-env.sh --quick|--full`은 env·admin 계정·앱 URL을 정규화하는 기존 진입점입니다. `run-local-validation-suite.sh`는 설정을 이미 정규화한 경우의 보조 진입점입니다. 두 wrapper 모두 기본 단위 테스트와 다르며 상태 변경 검사를 포함할 수 있습니다.
 
-### 같이 보면 좋은 문서
+운영에서 로컬 기본 `.env`나 DB 자동 선택에 기대지 않습니다. 서버 명령은 [배포 절차](../deployment.md)를 따릅니다.
 
-- [demo-scenario.md](./demo-scenario.md)
-- [ops-observation-runbook.md](./ops-observation-runbook.md)
-- [policy-quality-summary-runbook.md](../policy/policy-quality-summary-runbook.md)
-- [policy-gov24-runtime-audit-runbook.md](../policy/policy-gov24-runtime-audit-runbook.md)
-- [policy-admin-runtime-runbook.md](../policy/policy-admin-runtime-runbook.md)
-- [recommendation-ctr-readiness-runbook.md](../recommendation/recommendation-ctr-readiness-runbook.md)
-- [performance-docs-index.md](../performance/performance-docs-index.md)
-- [collect-docs-index.md](../collect/collect-docs-index.md)
-- [recommendation-docs-index.md](../recommendation/recommendation-docs-index.md)
-- [frontend-qa-docs-index.md](../frontend/frontend-qa-docs-index.md)
-- [phase-plan.md](../phase-plan.md)
+## 챗봇 runtime 검사
 
-## 문서 역할
+- 대화 branch/후속 질의: `deploy/smoke/run-local-chat-followup-scenario-audit.sh`
+- 대화·코칭·snapshot: `deploy/smoke/run-local-chat-continuity-coaching-smoke.sh`
+- 코칭 링크: `deploy/smoke/run-local-chat-application-coaching-matrix-audit.sh`
+- 운영 표본: `deploy/smoke/run-local-chat-real-user-quality-sample-audit.sh`
+- 운영 지표: `deploy/smoke/run-local-chat-observability-audit.sh`
 
-### 1. 테스트 실행 기준
+follow-up/coaching 검사는 대표 정책 corpus에 의존합니다. `INSUFFICIENT_POLICY_CORPUS` skip을 정상 품질 검증으로 해석하지 않습니다. 실제 호출·저장·AI 비용은 각 스크립트 범위를 확인합니다.
 
-- [testing.md](./testing.md)
+## 데모와 기록
 
-이 문서는
-
-- `./gradlew test`
-- `./gradlew integrationTest`
-- SMTP smoke
-- AWS SES SMTP 전환 런북
-- split-account 계정 복구
-
-를 언제 어떻게 실행하는지 정리한 공통 실행 기준입니다.
-
-### 2. 런타임 API smoke
-
-- [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)
-
-이 문서는
-
-- 로그인
-- refresh
-- 추천 조회/북마크
-- admin status
-- logout
-
-을 curl 기준으로 바로 복사해 돌리는 최소 API smoke 모음입니다.
-
-서버/기존 volume에서 반복되는 migration/admin credential/date drift는
-[server-runtime-drift-checklist.md](./server-runtime-drift-checklist.md) 를 먼저 봅니다.
-
-현재 auth/session revoke closeout의 기본 진입점은
-`deploy/smoke/run-local-auth-session-smoke.sh` 입니다.
-
-현재 로컬 검증 전체 기준선을 다시 확인할 때는
-`deploy/smoke/run-local-validation-from-env.sh` 를 우선 사용합니다.
-이 wrapper는 `.env`, local admin smoke 계정 파일, API base URL override를 같이 정규화하므로
-직접 `run-local-validation-suite.sh` 를 치는 것보다 현재 로컬 환경에서 덜 틀리게 재현됩니다.
-
-`deploy/smoke/run-local-validation-suite.sh` 는
-- env를 이미 명시적으로 정규화한 경우
-- wrapper 없이 raw suite를 호출해야 하는 경우
-의 보조 진입점으로 봅니다.
-
-짧은 재검증은 `--quick`, 전체 기준선은 `--full` 을 사용합니다.
-
-### 3. 데모 시나리오
-
-- [demo-scenario.md](./demo-scenario.md)
-
-이 문서는
-
-- 회원가입
-- 로그인
-- 프로필/우선순위
-- 정책 목록/검색/상세
-- 추천 생성/조회
-- 북마크/알림/refresh/logout
-
-을 발표/기능 검수 순서대로 따라가는 데모 시나리오입니다.
-
-### 4. bounded runtime quality / audit
-
-- [policy-quality-summary-runbook.md](../policy/policy-quality-summary-runbook.md)
-- [policy-gov24-runtime-audit-runbook.md](../policy/policy-gov24-runtime-audit-runbook.md)
-- [policy-admin-runtime-runbook.md](../policy/policy-admin-runtime-runbook.md)
-- [recommendation-ctr-readiness-runbook.md](../recommendation/recommendation-ctr-readiness-runbook.md)
-- [performance-docs-index.md](../performance/performance-docs-index.md)
-
-이 문서군은
-
-- ops baseline compact handoff
-- retrieval/category quality baseline
-- Gov24 runtime closeout / deferred inventory audit
-- bounded admin runtime 응답 baseline
-- CTR readiness baseline
-- performance baseline / load / observability 진입점
-
-을 one-shot smoke/runbook 기준으로 다시 확인할 때 먼저 봅니다.
-
-챗봇 runtime quality를 다시 볼 때는 아래 순서를 우선합니다.
-
-- 대화 이어짐/branch 후속 회귀셋: `deploy/smoke/run-local-chat-followup-scenario-audit.sh`
-- 대화 연속 저장 + 신청 코칭 + snapshot cascade: `deploy/smoke/run-local-chat-continuity-coaching-smoke.sh`
-- 신청 코칭 action link 매트릭스: `deploy/smoke/run-local-chat-application-coaching-matrix-audit.sh`
-- 실사용자 샘플 관측: `deploy/smoke/run-local-chat-real-user-quality-sample-audit.sh`
-- 운영 관측 지표: `deploy/smoke/run-local-chat-observability-audit.sh`
-
-follow-up / coaching 계열 smoke는 대표 정책 corpus가 필요한 데이터 의존 검증입니다. fresh local DB처럼 정책 row가 최소 기준 미만이면 `INSUFFICIENT_POLICY_CORPUS` 로 skip하고, read-only 관측 스크립트는 현재 traffic 지표만 남깁니다. `chat-continuity-coaching-smoke` 는 latest summary/json/note artifact를 함께 남깁니다.
-
-## 읽는 순서
-
-### 빠르게 빌드/테스트만 확인할 때
-
-1. [testing.md](./testing.md)
-
-### 런타임 API를 바로 찍어볼 때
-
-1. [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)
-2. 서버 drift가 의심되면 [server-runtime-drift-checklist.md](./server-runtime-drift-checklist.md)
-3. 전체 baseline 재확인은 `deploy/smoke/run-local-validation-from-env.sh --quick|--full`
-4. 필요하면 각 도메인 문서군 index
-
-### 발표/기능 검수 순서를 준비할 때
-
-1. [demo-scenario.md](./demo-scenario.md)
-2. 필요하면 [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)
-
-### bounded runtime baseline을 다시 확인할 때
-
-1. [ops-observation-runbook.md](./ops-observation-runbook.md)
-2. [policy-quality-summary-runbook.md](../policy/policy-quality-summary-runbook.md)
-3. [policy-gov24-runtime-audit-runbook.md](../policy/policy-gov24-runtime-audit-runbook.md)
-4. [policy-admin-runtime-runbook.md](../policy/policy-admin-runtime-runbook.md)
-5. [recommendation-ctr-readiness-runbook.md](../recommendation/recommendation-ctr-readiness-runbook.md)
-6. [performance-docs-index.md](../performance/performance-docs-index.md)
-
-## 요약
-
-1. 단위/통합 테스트 실행 기준은 [testing.md](./testing.md) 부터 봅니다.
-2. curl 기반 API smoke는 [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md) 를 보고, 전체 baseline은 가능하면 `run-local-validation-from-env.sh` wrapper부터 사용합니다.
-3. 데모/검수 순서는 [demo-scenario.md](./demo-scenario.md) 를 기준으로 잡습니다.
-4. bounded runtime quality/audit baseline은 [ops-observation-runbook.md](./ops-observation-runbook.md), policy/recommendation runbook, [performance-docs-index.md](../performance/performance-docs-index.md) 순으로 먼저 봅니다.
+[demo-scenario.md](demo-scenario.md)는 발표·기능 검수용 시나리오이며 현재 운영 상태의 검증 결과가 아닙니다. 실행한 범위와 미실행 이유는 [phase-plan.md](../phase-plan.md)에 남깁니다.

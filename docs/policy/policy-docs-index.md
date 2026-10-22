@@ -1,156 +1,51 @@
-# Policy 문서 묶음
+# 정책 데이터 문서 목차
 
-## 목적
+현재 계약과 미해결 과제는 [정규화 현재 상태](policy-normalization-current-state.md), 전체 작업은 [current-state](../current-state.md)를 봅니다. 실행 전 [환경 안내](../core/environment-guide.md)로 앱/DB와 쓰기·외부 호출 영향을 확인합니다. 과거 active/deferred/closeout·관측값은 현재 기능 동결이나 서버 상태를 대신하지 않습니다.
 
-`policy-*` 문서가 왜 이렇게 많아졌는지와, 지금 어디부터 읽어야 하는지를 한 문서에서 정리합니다.
+## 현재 계약과 작업
 
-## 왜 문서가 많아졌나
+| 목적 | 문서 |
+| --- | --- |
+| Gov24 저장·label·코드·소비·과거 관측 | [데이터 계약](policy-gov24-lane-closeout.md) |
+| Gov24 변경·검증·자료 수신 | [작업 체크리스트](policy-gov24-implementation-checklist.md) |
+| Status filter·마감 처리 | [필터 설계](policy-status-filter-design.md) |
+| 신규 source 분류·근거·코드·검증 | [온보딩 가이드](policy-source-onboarding-checklist.md), [검토 템플릿](policy-source-onboarding-template.md) |
+| 공식 코드 자산·변환 | [제공 코드북](policy-user-provided-official-codebooks.md) |
+| Gov24 근거·세부 규칙 | [공공데이터 조사](policy-gov24-public-data-source-findings.md), [mapping 초안](policy-gov24-canonical-mapping-draft.md), [UX grouping](policy-gov24-benefit-type-grouping-draft.md) |
+| 추천 저장·projection·응답 호환 | [read-model 설계](policy-normalization-recommendation-read-model.md), [이행 순서](policy-normalization-recommendation-migration-order.md), [응답 bridge 배경](../history/policy/policy-normalization-unified-category-response-bridge.md) |
+| 필터 option/codebook 동기화 제안 | [sync plan](policy-filter-codebook-sync-plan.md) |
 
-`policy-*` 문서군은 canonical normalization, recommendation bridge, replay smoke, source onboarding 조사를 한 번에 끝낸 결과가 아닙니다.
+## 품질 조회와 증거
 
-쪼개진 이유는 세 가지입니다.
+| 볼 문제 | 문서 |
+| --- | --- |
+| Gov24 coverage·raw shape·지원조건 결측 | [runtime audit](policy-gov24-runtime-audit-runbook.md), [support inventory](policy-gov24-support-unmapped-inventory.md) |
+| Retrieval/category daily 관측·분포 | [quality summary](policy-quality-summary-runbook.md); `run-local-policy-quality-observation-suite.sh`의 summary/note/JSON에서 dataset_key·scenario_count·gate·category를 확인 |
+| 필드 누락·중복 후보 | [data quality](policy-data-quality-audit-runbook.md) |
+| 링크 공백·참고 URL | [link quality](policy-link-quality-audit-runbook.md), [YOUTH 표본](policy-link-review-sample-audit-runbook.md) |
+| 신청기간·상태 mismatch | [기간 감사](policy-application-period-quality-audit-runbook.md) |
+| 기관명 누락·source contract | [기관 감사](policy-host-org-quality-audit-runbook.md) |
+| YOUTH 실제 중복 후보 | [후보 감사](policy-youth-duplicate-candidate-audit-runbook.md): 기관·기간·same/mirror URL을 구분 |
+| Triage compact 관측 | [observation](policy-data-triage-observation-runbook.md) |
 
-1. `온통청년`, `복지로`, `Gov24`, `추천`, `OpenAI replay` 를 동시에 바꾸지 않고 작은 local-first task로 나눴습니다.
-2. 실제 로컬 검증 전후에 판단이 많이 바뀌어, 각 단계의 inventory / drift / bridge / blocked source 근거를 따로 남겼습니다.
-3. 일부는 외부 응답이 있어야 다시 열 수 있는 blocked 트랙이라, 구현 문서가 아니라 "왜 지금 못 가는지" 를 남기는 기록이 됐습니다. 다만 `Gov24 서비스분야/사용자구분/지원유형` 은 현재 active 문서 기준으로 더 이상 “공개 codebook 대기”가 아니라 label-first canonical 승격 설계 대상으로 읽습니다.
+wrapper `run-local-policy-quality-summary.sh`, `run-local-gov24-quality-audit.sh`도 환경·권한을 확인한 뒤 사용합니다. 저장 coverage와 실제 추천 정확성은 다릅니다.
 
-그래서 지금 `policy-*` 파일 다수는 현재 구현 설명서라기보다, 정규화/수집/추천 전환의 설계 히스토리와 조사 로그입니다.
+## 상태 변경과 운영 처리
 
-## 지금 먼저 볼 문서
+조회 결과가 있다는 이유로 write를 자동 실행하지 않습니다.
 
-### 현재 코드/로컬 검증 기준
+- 오류 제보·중복·링크의 운영 처리: [triage](policy-data-quality-triage-runbook.md).
+- 중복 queue와 review: [duplicate review](policy-duplicate-review-runbook.md).
+- 링크 queue와 상태 처리: [link review queue](policy-link-review-queue-runbook.md).
+- 만료 상태 재정렬: [status sync](policy-status-sync-runbook.md).
+- reference URL·embedding·retrieval gate·category admin: [bounded runtime](policy-admin-runtime-runbook.md).
 
-- [policy-normalization-current-state.md](./policy-normalization-current-state.md)
-- [policy-gov24-lane-closeout.md](./policy-gov24-lane-closeout.md)
-- [policy-status-filter-design.md](./policy-status-filter-design.md) ← statusFilter 설계 및 온통청년 마감 처리
-- [policy-local-closeout-pending-inventory.md](./policy-local-closeout-pending-inventory.md)
-- [policy-next-active-track-priority.md](./policy-next-active-track-priority.md)
-- [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)
-- [policy-gov24-reopen-checklist.md](./policy-gov24-reopen-checklist.md)
-- [policy-gov24-implementation-checklist.md](./policy-gov24-implementation-checklist.md)
-- [policy-gov24-runtime-audit-runbook.md](./policy-gov24-runtime-audit-runbook.md)
-- [policy-gov24-support-unmapped-inventory.md](./policy-gov24-support-unmapped-inventory.md)
-- [policy-gov24-canonical-mapping-draft.md](./policy-gov24-canonical-mapping-draft.md)
-- [policy-gov24-benefit-type-grouping-draft.md](./policy-gov24-benefit-type-grouping-draft.md)
-- [policy-gov24-public-data-source-findings.md](./policy-gov24-public-data-source-findings.md)
-- [policy-user-provided-official-codebooks.md](./policy-user-provided-official-codebooks.md)
-- [policy-gov24-canonical-promotion-plan.md](./policy-gov24-canonical-promotion-plan.md)
-- [policy-filter-codebook-sync-plan.md](./policy-filter-codebook-sync-plan.md)
-- [policy-admin-runtime-runbook.md](./policy-admin-runtime-runbook.md)
-- [policy-quality-summary-runbook.md](./policy-quality-summary-runbook.md)
-- [policy-data-quality-audit-runbook.md](./policy-data-quality-audit-runbook.md)
-- [policy-link-quality-audit-runbook.md](./policy-link-quality-audit-runbook.md)
-- [policy-link-review-sample-audit-runbook.md](./policy-link-review-sample-audit-runbook.md)
-- [policy-link-review-queue-runbook.md](./policy-link-review-queue-runbook.md)
-- [policy-data-quality-triage-runbook.md](./policy-data-quality-triage-runbook.md)
-- [policy-data-triage-observation-runbook.md](./policy-data-triage-observation-runbook.md)
-- [policy-application-navigator-feasibility.md](./policy-application-navigator-feasibility.md)
-- [policy-application-period-quality-audit-runbook.md](./policy-application-period-quality-audit-runbook.md)
-- [policy-host-org-quality-audit-runbook.md](./policy-host-org-quality-audit-runbook.md)
-- [policy-status-sync-runbook.md](./policy-status-sync-runbook.md)
-- [policy-post-local-closeout-track-split.md](./policy-post-local-closeout-track-split.md)
+실행 결과는 wrapper/command·환경/대상·query override·핵심 data 필드·baseline 차이·실패/skip으로 남깁니다. raw 잔량과 실제 OPEN queue를 구분하고 처리 순서는 triage의 현재 계약을 따릅니다.
 
-현재 practical runtime wrapper:
+## 설계 배경과 제품 제안
 
-- `bash deploy/smoke/run-local-policy-quality-observation-suite.sh`
-- `bash deploy/smoke/run-local-policy-quality-summary.sh`
-- `bash deploy/smoke/run-local-gov24-quality-audit.sh`
+[신청 내비게이터 검토](policy-application-navigator-feasibility.md)는 Gov24 전체형과 온통청년/복지로 보수형 guide grade를 나누는 제안입니다. 현재 구현으로 가정하지 않습니다.
 
-### source onboarding 큰 그림
+`history/policy/policy-normalization-*`의 taxonomy·compat·fact/schema 결정, education/OpenAI replay 실험, 복지로 detail/gap-fill 조사와 [listing 초안](../history/policy/policy-listing-source-schema-draft.md)·[장학금 참조행렬](../history/policy/policy-scholarship-reference-matrix-draft.md)은 고유 근거가 필요할 때 읽습니다. 이력 진입점은 [history 목차](../history-docs-index.md)입니다.
 
-- [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md)
-- [policy-source-onboarding-checklist.md](./policy-source-onboarding-checklist.md)
-- [policy-source-code-entrypoints.md](./policy-source-code-entrypoints.md)
-- [policy-source-onboarding-template.md](./policy-source-onboarding-template.md)
-- [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md)
-- [policy-source-canonical-onboarding-priority.md](./policy-source-canonical-onboarding-priority.md)
-
-### 추천 경계
-
-- [policy-normalization-recommendation-read-model.md](./policy-normalization-recommendation-read-model.md)
-- [policy-normalization-recommendation-migration-order.md](./policy-normalization-recommendation-migration-order.md)
-- [policy-normalization-unified-category-response-bridge.md](../history/policy/policy-normalization-unified-category-response-bridge.md)
-
-## design history 로 읽을 문서
-
-### normalization decision cluster
-
-- `policy-normalization-*`
-
-주로 남아 있는 내용:
-
-- `youth_major`, `YOUTH_MID`, `compat_unified_category` 판단
-- `Gov24` codebook/source blocked 근거
-- `soft signal`, `fact merge`, `schema draft` 같은 canonical 설계 배경
-
-### education replay / experiment cluster
-
-- `policy-normalization-education-*`
-- `openai-replay-*`
-
-주로 남아 있는 내용:
-
-- `교육 -> 교육·직업훈련` 실험 경계
-- replay smoke 절차
-- real OpenAI variability 조사
-
-### source-specific investigation cluster
-
-- `policy-bokjiro-*`
-- `policy-listing-source-schema-draft.md`
-- `policy-scholarship-reference-matrix-draft.md`
-
-주로 남아 있는 내용:
-
-- 복지로 detail/gap-fill 조사
-- listing형 source 분리 스키마 초안
-- 장학금/참조행렬 모델 초안
-
-## blocked / deferred track 문서
-
-아래는 지금 바로 구현을 계속하는 문서가 아니라,
-
-- 외부 source/codebook 응답이 와야 다시 여는 blocked 문서
-- 또는 runtime closeout 뒤 남은 deferred 판단을 정리한 문서
-
-입니다.
-
-- [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)
-- `policy-normalization-gov24-*`
-- `policy-normalization-youth-mid-*`
-
-## 지금 기준으로 기억할 핵심
-
-1. 현재 구현 확인은 [policy-normalization-current-state.md](./policy-normalization-current-state.md)부터 봅니다.
-2. `Gov24` 의 bounded 제품 확장 closeout은 [policy-gov24-lane-closeout.md](./policy-gov24-lane-closeout.md) 를 먼저 봅니다. 여기서 public filter 3축, soft scoring, deferred 범위를 한 번에 읽습니다.
-3. `Gov24` 의 blocked/deferred 경계는 [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)를 먼저 보고, 실제 reopen 여부는 [policy-gov24-reopen-checklist.md](./policy-gov24-reopen-checklist.md) 로 확인합니다.
-4. `Gov24` 를 실제로 붙일 때는 [policy-gov24-implementation-checklist.md](./policy-gov24-implementation-checklist.md) 로 이번 턴 범위를 먼저 고정합니다.
-5. `Gov24` runtime collect가 붙은 뒤 coverage/shape/null-heavy 샘플을 다시 볼 때는 [policy-gov24-runtime-audit-runbook.md](./policy-gov24-runtime-audit-runbook.md) 을 먼저 봅니다.
-6. `Gov24` support fact gap이 어떤 code 군집 때문인지 볼 때는 [policy-gov24-support-unmapped-inventory.md](./policy-gov24-support-unmapped-inventory.md) 를 봅니다.
-7. `Gov24 serviceField/userType/benefitType` 에 대해 지금 바로 확정 가능한 internal rule만 보려면 [policy-gov24-canonical-mapping-draft.md](./policy-gov24-canonical-mapping-draft.md) 를 봅니다.
-8. `Gov24 benefitType` 을 UX group이나 대표 샘플 기준으로 다시 볼 때는 [policy-gov24-benefit-type-grouping-draft.md](./policy-gov24-benefit-type-grouping-draft.md) 를 봅니다. 이 문서는 seed source가 아니라 grouping/QA 참고표입니다.
-9. 공공데이터포털에서 실제로 무엇을 확보했고, `Gov24` 3축이 왜 codebook보다 live inventory로 읽히는지 다시 보려면 [policy-gov24-public-data-source-findings.md](./policy-gov24-public-data-source-findings.md) 를 먼저 봅니다.
-10. 사용자 제공 `행정표준 코드북` 묶음을 어디에 쓸 수 있는지 다시 보려면 [policy-user-provided-official-codebooks.md](./policy-user-provided-official-codebooks.md) 를 먼저 봅니다. 작은 `xlsx` 는 앱 리소스 JSON으로, 큰 `txt` 는 metadata + sample 형태로 고정했습니다.
-11. 다음 policy active track을 다시 고를 때는 [policy-next-active-track-priority.md](./policy-next-active-track-priority.md) 로 과거 우선순위와 현재 close/deferred 해석을 분리합니다.
-12. `Gov24` 를 다음 active track으로 다시 열 때, 무엇을 canonical term으로 올리고 무엇을 deferred 로 남길지 보려면 [policy-gov24-canonical-promotion-plan.md](./policy-gov24-canonical-promotion-plan.md) 을 먼저 봅니다.
-13. 정책 필터 option/codebook 중복을 줄일지 다시 판단할 때는 [policy-filter-codebook-sync-plan.md](./policy-filter-codebook-sync-plan.md) 을 먼저 봅니다. 지금은 runtime API를 만들지 않고 contract test와 generated constants 후보를 우선으로 둡니다.
-14. 정책 admin bounded runtime 경로(`reference-urls/rebuild`, `embeddings/rebuild`, `retrieval-evaluations/gate`, `category-audit`)를 한 장에서 다시 열 때는 [policy-admin-runtime-runbook.md](./policy-admin-runtime-runbook.md) 을 먼저 봅니다. 이 문서가 current one-page runtime runbook 입니다.
-15. retrieval/category 상태를 daily operator 관점으로 compact하게 다시 읽고 싶을 때는 먼저 `bash deploy/smoke/run-local-policy-quality-observation-suite.sh` 를 쓰고, stable artifact `tmp/policy-quality-observation/latest-policy-quality-observation-summary.txt`, `latest-policy-quality-observation-note.md`, `latest-policy-quality-observation.json` 을 먼저 봅니다.
-16. retrieval/category raw baseline 숫자와 category 분포까지 같이 기록하려면 [policy-quality-summary-runbook.md](./policy-quality-summary-runbook.md) 을 먼저 보고, `dataset_key / scenario_count / gate / category summary` 를 같이 남깁니다. 이 문서가 current one-shot summary smoke runbook 입니다.
-17. 지역 외 정책 데이터 품질 축을 다시 볼 때는 [policy-data-quality-audit-runbook.md](./policy-data-quality-audit-runbook.md) 을 먼저 보고, source contract 성격의 필드 누락과 실제 duplicate review queue를 분리해서 읽습니다.
-18. 링크 품질은 [policy-link-quality-audit-runbook.md](./policy-link-quality-audit-runbook.md) 으로 다시 보고, `detail_url + reference_urls_json` 이 모두 비는 row가 어느 source에 몰리는지 먼저 확인합니다.
-19. `YOUTH active visible` 링크 공백이 실제로 어떤 성격인지 다시 좁힐 때는 [policy-link-review-sample-audit-runbook.md](./policy-link-review-sample-audit-runbook.md) 를 먼저 보고, `공고/모집형`, `프로그램형`, `지원금/급부형` bucket 비중을 확인합니다.
-20. queue를 실제로 줄이는 운영 루틴을 다시 시작할 때는 [policy-data-quality-triage-runbook.md](./policy-data-quality-triage-runbook.md) 를 먼저 보고, `오류 제보 -> 링크 review -> 중복 review` 순서와 1회 처리량 기준을 그대로 따릅니다.
-21. 정책별 신청을 사용자가 직접 확정 판단할 수 있게 순서화하는 `신청 내비게이터`를 다시 볼 때는 [policy-application-navigator-feasibility.md](./policy-application-navigator-feasibility.md) 를 먼저 봅니다. Gov24 중심의 전체형, 온통청년/복지로의 보수형 guide grade 경계를 같이 읽습니다.
-22. 신청기간 품질은 [policy-application-period-quality-audit-runbook.md](./policy-application-period-quality-audit-runbook.md) 으로 다시 보고, source contract 누락보다 `ACTIVE/UPCOMING + 과거 마감일` 같은 status/date mismatch를 먼저 봅니다.
-23. 기관명 품질은 [policy-host-org-quality-audit-runbook.md](./policy-host-org-quality-audit-runbook.md) 으로 다시 보고, `BOKJIRO_LOCAL` 의 `host_org` 공백은 parser bug보다 source contract 성격으로 읽습니다.
-24. 신청기간 mismatch를 실제로 정리할 때는 [policy-status-sync-runbook.md](./policy-status-sync-runbook.md) 을 먼저 보고, `POST /api/admin/policies/status-sync` 와 smoke 결과로 `ACTIVE/UPCOMING + 과거 apply_end_date` 잔량이 줄어드는지 봅니다.
-25. duplicate review를 실제 운영 queue로 다시 볼 때는 [policy-duplicate-review-runbook.md](./policy-duplicate-review-runbook.md) 를 먼저 보고, `YOUTH/BOKJIRO_LOCAL` title+host 묶음과 review 상태를 확인합니다.
-26. `YOUTH` duplicate 중 실제 수집 중복 후보만 먼저 좁힐 때는 [policy-youth-duplicate-candidate-audit-runbook.md](./policy-youth-duplicate-candidate-audit-runbook.md) 를 먼저 보고, `same org + same period + same/mirror URL` 후보를 우선 review 합니다.
-27. 신규 API를 어떻게 꽂을지 큰 구조는 [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md)를 먼저 봅니다.
-28. 실제로 새 source를 받을 때는 [policy-source-onboarding-checklist.md](./policy-source-onboarding-checklist.md) 순서대로 판단합니다.
-29. 실제 코드에서 어디를 열지 찾으려면 [policy-source-code-entrypoints.md](./policy-source-code-entrypoints.md)를 봅니다.
-30. 실제 새 source note를 만들 때는 [policy-source-onboarding-template.md](./policy-source-onboarding-template.md)를 복사해서 씁니다.
-31. `phase-plan.md` 나 개별 `policy-*` history 문서는 현재 계약이 아니라 설계/전환 이력일 수 있으므로, 실행 판단은 위 current-state/runbook 문서를 먼저 봅니다.
-32. 실행 결과를 남길 때는 숫자 요약만 적지 말고 wrapper/command, query override, `data.*` 핵심 필드, baseline과 달라진 점까지 같이 적습니다.
-33. `policy-*` 파일 수가 많은 이유는 문서가 과한 것보다, local-first로 잘게 검증한 흔적이 누적된 결과에 가깝습니다.
+외부 codebook 재수입·raw hard eligibility와 현재 runtime/내부 코드의 차이는 [Gov24 보류 경계](policy-gov24-lane-closeout.md#보류와-재검토)를 따릅니다. 초기 정책 우선순위·pending·track split은 [날짜가 있는 계획](policy-gov24-lane-closeout.md#날짜가-있는-관측과-초기-계획)으로 통합됐으며 새 작업 승인이나 버그 수정 금지 규칙이 아닙니다.

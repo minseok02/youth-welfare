@@ -5,7 +5,7 @@
 관련 문서:
 
 - [collect-current-state.md](./collect-current-state.md)
-- [collect-operation-checklist.md](./collect-operation-checklist.md)
+- [수집 실행과 장애 판정](./collect-ops.md#실행-전)
 
 ## 사용법
 

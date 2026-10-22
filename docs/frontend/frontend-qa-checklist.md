@@ -1,5 +1,7 @@
 # Frontend QA Checklist
 
+> [환경 안내](../core/environment-guide.md)에서 대상 앱/DB를 확인합니다. 가입·프로필·비밀번호·북마크·문의·동의 철회 등 상태 변경 시나리오는 배포 origin에 실제 반영될 수 있습니다. 자동 테스트명은 [사용자 흐름 검증](frontend-user-flow-runbook.md)에서 선택합니다.
+
 문서군 진입점: [frontend-qa-docs-index.md](./frontend-qa-docs-index.md)
 
 ## 목적
@@ -16,7 +18,7 @@
 
 실행 원칙:
 
-- 각 단계에서 pass/fail만 보지 말고 `현재 URL`, `query/state`, `reason`, `state.from`, `?session=`/`?tab=` 복원 여부를 바로 기록합니다.
+- 각 단계에서 pass/fail만 보지 말고 `현재 URL`, 공개 필터/`?tab=` query, `state.reason/from/activeChatSessionId`의 복원 여부를 구분해 기록합니다. 토큰·비밀번호와 원문 개인 식별자는 캡처하지 않습니다.
 - 이상 징후가 보이면 같은 단계 안에서 network/console 증거도 같이 남깁니다.
 
 ## 권장 실행 순서
@@ -26,18 +28,18 @@
 ### 1차 고위험 동선
 
 1. `/policies` 검색/필터/페이지네이션 -> 상세 -> 상세 `뒤로가기` -> 브라우저 back
-2. `/chat` 비로그인 접근 -> `/login?reason=login-required` -> 로그인 후 `/chat?session=...` 복귀
+2. `/chat` 비로그인 접근 -> `/login` (`location.state.reason=login-required`) -> 로그인 후 `/chat` 복귀. 기존 선택 세션이 있으면 라우터 state로 확인하고 URL에는 세션 ID를 남기지 않음
 3. `/mypage?tab=` 진입 -> 상세 진입 -> 뒤로가기 -> `?tab=` 복원
 4. 메인/목록/상세/마이페이지 북마크 on/off 일관성
-5. 세션 만료 재현 -> `/login?reason=expired` -> 재로그인 후 복귀
+5. 세션 만료 재현 -> `/login` (`location.state.reason=expired`) -> 재로그인 후 복귀
 
-이 다섯 개는 현재 프론트 구조에서 `searchParams`, `state.from`, `chatFrom`, `postLoginAction`, `?session=`, `?tab=` 계약이 모두 걸려 있는 고위험 동선입니다.
+이 다섯 개는 `searchParams`, `state.from`, `chatFrom`, `postLoginAction`, `activeChatSessionId`, `?tab=` 계약이 함께 걸린 고위험 동선입니다. 세션 ID를 query로 복원하도록 코드를 되돌리지 않습니다.
 
 ### 2차 보강 동선
 
 6. 공개 홈/정책 목록/검색 empty state
 7. 로그인 직후 메인 `가이드 배너 / 추천 보강 CTA`
-8. 정책 검색 query / 필터 / 상세 read-model
+8. 정책 검색 라우터 state / 필터 query / 상세 read-model
 9. 보호 경로 `/chat` 로그인 복귀 -> `/mypage?tab=2` 복귀
 10. 세션 만료 -> `/login` -> 재로그인 / reset-password deep link
 11. 알림함 빈 상태 / unread 알림 / 북마크 재방문
@@ -47,7 +49,7 @@
 15. `/guide` -> `/support` -> 정책 상세 `오류 제보` 역할 구분
 16. 프로필/우선순위 저장 후 새로고침 유지
 17. 추천 refresh/loading/중복 클릭 방지
-18. 챗 세션 생성/메시지 전송/삭제와 `?session=` 정리
+18. 챗 세션 생성/메시지 전송/삭제와 `activeChatSessionId` 갱신·세션 query 비노출
 19. 비밀번호 변경 / 회원탈퇴
 
 즉 시간이 제한되면 1차 고위험 동선부터 먼저 돌리고, 2차 보강 동선은 그 다음에 확인합니다.
@@ -104,8 +106,8 @@
 추가 확인:
 
 - `PoliciesPage` 에서 검색/필터/페이지 상태가 기대대로 유지되는지 확인
-- 현재 기준으로는 같은 URL query에서 같은 상태가 복원돼야 합니다. 유지되지 않으면 제한사항이 아니라 회귀/오류 후보로 기록합니다.
-- 이때 `뒤로가기 전 URL`, `복귀 후 URL`, `남은 query` 를 같이 적습니다.
+- 검색어는 `location.state.policySearchKeyword`, 필터·정렬·페이지는 URL query로 복원돼야 합니다. 유지되지 않으면 회귀/오류 후보로 기록합니다.
+- `뒤로가기 전/후 URL`, 필터 query, 라우터 검색 state를 구분해 기록합니다. 공유 URL만으로 검색어까지 복원되는 계약은 아닙니다.
 
 ### 마이페이지 북마크 -> 상세 -> 뒤로가기
 
@@ -127,7 +129,7 @@
 
 - `/login` 으로 이동
 - 로그인 화면 안내 메시지 표시
-- `reason=login-required`, `state.from` 이 실제로 남았는지 같이 확인
+- `location.state.reason=login-required`, `state.from` 이 실제로 남았는지 확인 (URL reason query 아님)
 
 ### 로그인 후 원래 위치 복귀
 
@@ -136,20 +138,30 @@
 기대 결과:
 
 - 다시 `/chat` 으로 복귀
-- 가능하면 로그인 직후 URL과 복귀 후 URL/query를 둘 다 기록
+- 로그인 직후·복귀 후 URL과 라우터 state를 구분해 기록
+
+### 세션과 일회성 토큰 URL 비노출
+
+- `/chat`에서 세션 선택 → 다른 화면 → 복귀와 새로고침을 확인하고, 선택 세션이 남아 있으면 `location.state.activeChatSessionId`를 대조합니다.
+- legacy `session/coachPolicyId` query 진입은 값을 읽은 뒤 URL에서 제거돼야 합니다. 정상 이동은 라우터 state를 사용하고 공유 URL로 개인 세션을 복원하지 않습니다.
+- 로그아웃·탈퇴 등으로 서버에서 삭제된 세션의 복원을 기대하지 않습니다.
+- reset-password의 query/hash 토큰과 unsubscribe의 hash 토큰은 읽은 뒤 URL에서 제거돼야 합니다. 뒤로가기·앞으로가기에서도 토큰이 다시 노출되지 않는지 확인합니다.
+- 증적에는 URL 정리 여부·상태 코드·마스킹한 상태 비교만 남기고 실제 token/cookie/Authorization 값은 저장하지 않습니다.
 
 ## 4. 정책 검색 / 필터 / 상세
 
-### search query 유지
+### 검색어 state 유지와 URL 비노출
 
-- `/policies?search=...`
+- `/policies`에서 검색어 입력 후 검색 실행
 - 검색 결과 상세 진입
-- 브라우저 back
-- 상세 `뒤로가기`
+- 브라우저 back과 상세 `뒤로가기`를 각각 별도 왕복으로 확인
+- 과거 `/policies?search=...` URL로 진입하면 query가 정리되는지도 별도 확인
 
 기대 결과:
 
-- `search` query가 두 경로 모두 유지돼야 함
+- 두 복귀 경로에서 검색 입력값·검색 결과가 `location.state.policySearchKeyword`로 유지돼야 함
+- URL에 `search`/검색어 query를 남기지 않으며 검색 API는 POST JSON body를 사용해야 함
+- 필터·정렬·페이지 query는 검색어 state와 별도로 유지돼야 함
 
 ### 필터 / 상세 read-model
 
@@ -189,7 +201,7 @@
 
 - local token 제거
 - 무한 refresh loop 없음
-- `/login` 이동 URL의 `reason=expired` 와 실제 toast/message를 같이 기록
+- `/login`의 `location.state.reason=expired`와 실제 toast/message를 같이 기록 (reason URL query 아님)
 
 ### reset-password deep link
 
@@ -199,9 +211,10 @@
 
 기대 결과:
 
-- query token은 hash token URL로 정규화돼야 함
-- query/hash 둘 다 새 비밀번호 설정이 가능해야 함
+- query/hash 토큰을 읽은 뒤 query·hash 없는 `/reset-password`로 정리돼야 함. query→hash 이동이 아님
+- 두 진입 모두 같은 페이지에서 새 비밀번호 설정이 가능해야 함. 새로고침으로 메모리 토큰이 복원되는 계약은 아님
 - invalid token은 만료 안내를 유지하고 로그인으로 보내지 않아야 함
+- invalid token과 수신거부 링크도 히스토리 왕복 뒤 토큰 URL이 다시 나타나지 않아야 함
 
 ### 계정 재로그인 복귀
 
@@ -384,7 +397,7 @@
 
 - 세션/메시지 CRUD가 끊기지 않아야 함
 - 메시지 전송 중에는 중복 전송 UX가 없어야 함
-- 세션 생성/삭제 전후 `?session=` query 변화를 같이 기록
+- 세션 생성/선택/삭제 전후 `location.state.activeChatSessionId` 갱신·제거와 URL의 `session/coachPolicyId` 비노출을 확인
 
 ### 답변 본문 렌더링
 

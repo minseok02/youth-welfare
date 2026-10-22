@@ -1,5 +1,7 @@
 # EC2 + RDS Deployment
 
+> 적용 대상은 **운영 EC2와 RDS**입니다. 로컬 Docker 기동·통합 fixture는 [환경 안내](core/environment-guide.md)와 [testing.md](core/testing.md)를 따릅니다. 아래 bootstrap·재기동·계정/권한 변경은 서버 상태를 바꾸는 절차이며 문서 정리 검증으로 실행하지 않습니다.
+
 이 문서는 `로컬 Docker Compose(app + db + redis)` 와 `운영 EC2 + RDS(app + redis + RDS)` 의 차이와 실제 전환 순서를 한 장으로 정리한다.
 
 최근 보안/운영 hardening 현재 상태는 [core/security-hardening-current-state.md](./core/security-hardening-current-state.md) 를 먼저 본다.
@@ -98,8 +100,10 @@ sudo apt-get install -y postgresql-client
 
 ### 5-2. 운영 env 파일 준비
 
+신규 설정 파일이 없을 때만 예시를 복사합니다. 기존 운영 비밀값을 템플릿으로 덮어쓰지 않습니다. 복사 후 보호된 편집기로 실제 값을 채우며 env 파일 전체를 로그에 출력하지 않습니다.
+
 ```bash
-cp env.production.example .env.production
+(umask 077; cp -n env.production.example .env.production)
 chmod 600 .env.production
 ```
 
@@ -139,9 +143,21 @@ ENV_FILE=.env.production bash deploy/postgres/bootstrap-rds-runtime.sh
 - `DB_RECOMMENDATION_PERSISTENCE_COMMAND_USERNAME`
 - `DB_RECOMMENDATION_PERSISTENCE_COMMAND_PASSWORD`
 
+### 5-4. 운영 runtime env 생성
+
+앱 기동과 Compose preflight 전에 제한된 runtime env를 생성합니다. `.env.production`은 설정 원본/Compose interpolation용이며 앱이 읽는 `.env.runtime.production`을 대신하지 않습니다. preflight도 `docker compose config`를 검사하므로 runtime 파일이 먼저 필요합니다.
+
+```bash
+SOURCE_ENV_FILE=.env.production \
+TARGET_ENV_FILE=.env.runtime.production \
+bash deploy/env/render-app-runtime-env.sh
+```
+
+기본 strict 검사는 필수 key가 누락되면 실패하며 target을 부분 생성하지 않습니다. 성공 시 runtime env 파일은 `600` 권한으로 생성됩니다. 별도 `APP_RUNTIME_ENV_FILE`을 사용한다면 렌더 대상과 Compose 설정을 같은 경로로 맞춥니다. 운영 파일 재생성은 앱 설정을 바꾸는 절차이므로 원본·대상·변경 범위를 먼저 확인합니다.
+
 ## 6. 운영 env preflight
 
-RDS bootstrap이 끝나면 app를 띄우기 전에 env가 올바른지 먼저 확인한다.
+RDS bootstrap과 runtime env 생성이 끝나면 app를 띄우기 전에 env가 올바른지 확인한다.
 
 ```bash
 ENV_FILE=.env.production \
@@ -181,6 +197,8 @@ bash deploy/postgres/verify-rds-runtime-privileges.sh
 
 ## 7. 운영 app/redis 기동
 
+[5-4절](#5-4-운영-runtime-env-생성)의 렌더링과 앞선 preflight·권한 검증이 성공한 뒤 실행합니다.
+
 ```bash
 docker compose --env-file .env.production -f docker-compose.prod.yml up -d redis app
 ```
@@ -200,7 +218,7 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up -d redis
 - `app` 이미지는 [backend/Dockerfile](../backend/Dockerfile) 에서 `UID/GID 10001` non-root 사용자로 실행한다.
 - `app` 은 `read_only: true`, `/tmp` tmpfs, `security_opt: no-new-privileges:true`, `pids_limit: 256`, `mem_limit: 1g` 를 사용한다.
 - `app` 은 DB/JWT/API secret을 compose에 직접 inline하지 않고 `${APP_RUNTIME_ENV_FILE:-.env.runtime.production}` 만 env file로 읽는다.
-- `redis` 는 현재 persistence를 기대하지 않는 운영 구조를 전제로 `read_only: true`, `/data`/`/tmp` tmpfs, `security_opt: no-new-privileges:true`, `pids_limit: 128`, `mem_limit: 256m` 으로 띄운다.
+- `redis` 는 현재 비영속(`--save "" --appendonly no`)이며 `read_only: true`, `/data`/`/tmp` tmpfs, `security_opt: no-new-privileges:true`, `pids_limit: 128`, `mem_limit: 256m` 으로 띄운다. **안전한 캐시 전용 구조라는 뜻이 아니다.** 재시작·재생성으로 revoke/cutoff가 사라지면 미만료 회수 JWT가 다시 허용될 수 있다. [미해결 auth 위험](auth/auth-session-revocation-current-state.md#redis-상태-유실-미해결-위험)을 검토하고 보호 조치 없이 Redis flush/restart를 수행하지 않는다. 이번 문서 보완에서 persistence나 인증 복구 정책은 변경하지 않았다.
 - app가 임시 파일을 써야 하는 경로는 `/tmp` 로 제한되고, Dockerfile entrypoint는 `-Djava.io.tmpdir=/tmp` 를 강제한다.
 
 ## 8. nginx 연결
@@ -252,17 +270,9 @@ bash deploy/nginx/verify-edge-baseline.sh
 
 운영 cutover는 아래 순서로 고정한다.
 
-1. runtime env 렌더링
+1. [runtime env 생성](#5-4-운영-runtime-env-생성)
 
-```bash
-SOURCE_ENV_FILE=.env.production \
-TARGET_ENV_FILE=.env.runtime.production \
-bash deploy/env/render-app-runtime-env.sh
-```
-
-`render-app-runtime-env.sh` 는 기본적으로 운영 app runtime 필수 key가 source env에 모두 있는지 먼저 확인합니다.
-누락이 있으면 target runtime env를 부분 생성하지 않고 실패합니다. 임시 분석 목적의 비엄격 렌더만
-`STRICT_REQUIRED_RUNTIME_ENV=false` 로 우회합니다.
+실제 운영 기동에는 strict 검사를 통과한 파일이 필요합니다. `STRICT_REQUIRED_RUNTIME_ENV=false`는 임시 분석용 우회이며 운영 준비 완료로 처리하지 않습니다.
 
 2. env preflight
 
@@ -311,34 +321,35 @@ bash deploy/smoke/run-prod-cutover-verification.sh
 
 ```bash
 ENV_FILE=.env.production \
+SMOKE_DB_MODE=postgres \
 APP_BASE_URL='http://127.0.0.1:8082' \
 bash deploy/smoke/run-local-runtime-api-smoke.sh
 ```
 
 7. 관리자/운영 smoke
 
-```bash
-ENV_FILE=.env.production \
-ADMIN_EMAIL='<admin email>' \
-ADMIN_PASSWORD='<admin password>' \
-bash deploy/smoke/run-local-admin-dashboard-smoke.sh
-
-ENV_FILE=.env.production \
-ADMIN_EMAIL='<admin email>' \
-ADMIN_PASSWORD='<admin password>' \
-bash deploy/smoke/run-local-auth-session-smoke.sh
-```
-
-관리자 비밀번호를 shell history에 남기고 싶지 않으면:
+아래 smoke는 테스트 계정·로그인·세션 무효화 등 서버 상태를 변경할 수 있습니다. 승인된 대상과 계정으로만 실행합니다. 비밀번호를 명령 문자열이나 `printf '<실제 비밀번호>' ...`에 직접 넣지 않습니다. 다음 Bash 예시는 숨김 입력을 사용하고, xtrace를 끈 서브셸 안에서만 자격증명을 전달합니다.
 
 ```bash
-printf '%s\n' '<admin password>' >/tmp/youth-welfare-admin-smoke-password
-chmod 600 /tmp/youth-welfare-admin-smoke-password
+(
+  set -e
+  set +x
+  IFS= read -r -p '관리자 이메일: ' doc_admin_email
+  IFS= read -r -s -p '관리자 비밀번호: ' doc_admin_password
+  printf '\n'
+  [[ -n "$doc_admin_email" && -n "$doc_admin_password" ]] || exit 1
+  export ADMIN_EMAIL="$doc_admin_email" ADMIN_PASSWORD="$doc_admin_password"
 
-ENV_FILE=.env.production \
-ADMIN_EMAIL='<admin email>' \
-bash deploy/smoke/run-local-admin-forced-logout-smoke.sh
+  ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' \
+    bash deploy/smoke/run-local-admin-dashboard-smoke.sh
+  ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' \
+    bash deploy/smoke/run-local-auth-session-smoke.sh
+  ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' \
+    bash deploy/smoke/run-local-admin-forced-logout-smoke.sh
+)
 ```
+
+이 예시는 비밀번호 파일을 만들지 않고 종료 시 서브셸의 변수도 폐기합니다. 자격증명을 출력하거나 `set -x`를 다시 켜지 않습니다. 같은 실행 사용자/관리자의 프로세스 환경 접근까지 차단하는 비밀 관리 수단은 아닙니다.
 
 `run-local-admin-forced-logout-smoke.sh` 는 아래 우선순위로 admin 자격을 찾는다.
 
@@ -349,7 +360,7 @@ bash deploy/smoke/run-local-admin-forced-logout-smoke.sh
 
 운영 직전 추가 관측은 필요 시 아래를 더 태운다.
 
-- `bash deploy/smoke/run-local-ops-baseline-suite.sh`
+- `ENV_FILE=.env.production SMOKE_DB_MODE=postgres APP_BASE_URL='http://127.0.0.1:8082' bash deploy/smoke/run-local-ops-baseline-suite.sh`
 
 이 순서에서 실패하면 뒤 단계를 진행하지 않고, 실패 단계의 artifact/log를 먼저 남긴다.
 
@@ -373,7 +384,9 @@ bash deploy/smoke/run-local-admin-forced-logout-smoke.sh
 - compose와 env는 환경별로 분리
 - 키 이름은 같고 값만 다르게 유지
 
-## 11. 현재 추천 시작점
+## 11. 기존 인프라 구성 검토 메모
+
+아래 sizing은 기존 검토의 시작점이며 현재 가동 환경의 측정값이나 앞으로 반드시 적용할 사양이 아닙니다. 구성 변경은 최신 부하·복구·운영 요구를 확인한 별도 작업으로 진행합니다.
 
 비용 민감 / 초기 운영 기준:
 

@@ -2,9 +2,7 @@
 
 이 문서는 현재 코드 기준 OpenAI 관련 runtime 계약을 한 장으로 고정합니다.
 
-active 문서 기준 현재 recommendation 트랙은 [recommendation-current-state.md](../recommendation/recommendation-current-state.md) 의
-`KEEP_OBSERVING / WAIT_FOR_REAL_USER_TRAFFIC` 상태입니다.
-즉 recommendation prompt retune은 지금 active lane이 아니고, 이 문서는 **장애/빈 키/응답 이상 시 각 경로가 어떻게 동작해야 하는지** 만 정리합니다.
+현재 작업 범위와 미해결 과제는 [recommendation-current-state.md](../recommendation/recommendation-current-state.md)와 [전체 현재 상태](../current-state.md)를 따릅니다. 과거 `KEEP_OBSERVING / WAIT_FOR_REAL_USER_TRAFFIC`는 당시 품질 튜닝의 관측 방침이며 승인된 정확성·데이터 보존·보안 개선을 금지하지 않습니다. 여기서는 장애 처리와 개인정보 최소화의 구현 경계를 설명합니다.
 
 ## 목적
 
@@ -17,7 +15,7 @@ active 문서 기준 현재 recommendation 트랙은 [recommendation-current-sta
 1. OpenAI는 best-effort 외부 의존성입니다.
 2. 직접 식별자는 prompt/embedding query에 보내지 않습니다.
 3. recommendation 과 chat 은 목적이 다르므로 fallback 계약도 분리해서 읽습니다.
-4. recommendation prompt는 현재 product-deferred lane이라, 기능 튜닝보다 계약 고정이 우선입니다.
+4. prompt·모델·가중치 변경은 기대 동작과 평가 기준을 정한 별도 작업입니다. 현재 구현의 버그를 정상 계약으로 확정하거나 과거 deferred 결론을 일괄 변경 금지 규칙으로 사용하지 않습니다.
 
 ## 외부 제공자 데이터 처리 기준
 
@@ -62,7 +60,7 @@ active 문서 기준 현재 recommendation 트랙은 [recommendation-current-sta
 주의:
 
 - 현재 recommendation prompt는 local 청년 정책 가중 강화 같은 product tuning을 직접 표현하지 않습니다.
-- 이 경계는 [recommendation-primary-audience-exclusion-decision-memo.md](../recommendation/recommendation-primary-audience-exclusion-decision-memo.md) 기준으로 유지합니다.
+- 기존 판단 근거는 [recommendation-primary-audience-exclusion-decision-memo.md](../recommendation/recommendation-primary-audience-exclusion-decision-memo.md)에 있습니다. 당시 관측 결론과 앞으로 승인할 개선 범위를 구분합니다.
 
 ### 2. chat answer generation
 
@@ -111,7 +109,7 @@ active 문서 기준 현재 recommendation 트랙은 [recommendation-current-sta
 - embedding HTTP 실패 / timeout
   - local deterministic embedding 사용
 
-즉 semantic retrieval 은 **서비스 연속성 우선** 경로입니다.
+이는 현재 fallback 분기의 구현 설명입니다. local deterministic 질의 벡터와 OpenAI로 저장한 문서 벡터는 같은 의미 공간이라고 보장할 수 없습니다. fallback이 검색 품질을 보존한다는 뜻이 아니며, 모델·벡터 공간 일치와 장애 시 검색 경로는 [현재 확인 과제](../current-state.md)의 검증 대상입니다.
 
 ### 4. policy chunk embedding rebuild
 
@@ -198,6 +196,6 @@ active 문서 기준 현재 recommendation 트랙은 [recommendation-current-sta
 
 - recommendation: **rule-only / call-failed / partial-missing 상태를 구분하면서 현재 product contract 유지**
 - chat: **grounded answer + fallback 허용**
-- semantic query: **local fallback 허용**
+- semantic query: **현재 local fallback 분기 존재, 저장/질의 벡터 공간 일치는 미해결 검증 과제**
 - embedding rebuild: **local fallback 저장 금지, strict fail**
 - collect batch embedding refresh: **수집 저장 성공 보존, 후처리 실패 warning-only**

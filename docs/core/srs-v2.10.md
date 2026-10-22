@@ -1,4 +1,6 @@
-# 소프트웨어 요구사항 명세서 (SRS) v2.10
+# 소프트웨어 요구사항 명세서 (SRS) v2.15
+
+> 링크 호환을 위해 파일명 `srs-v2.10.md`는 유지합니다. 요구사항 ID와 기대 동작을 코드에 맞춰 임의로 낮추지 않습니다. 현재 구현·미해결 과제는 [현재 상태](../current-state.md), 환경별 적용 범위는 [환경 안내](environment-guide.md)를 확인합니다. 기존 1차/2차·비용 가정은 당시 단계 계획이며 현재 승인된 리팩토링의 일괄 금지 조건이 아닙니다.
 
 현재 구조/계약 문서군 진입점은 [system-docs-index.md](./system-docs-index.md)를 먼저 봅니다.
 
@@ -8,11 +10,29 @@
 |------|------|
 | 문서 버전 | 2.15 |
 | 작성일 | 2026-04-18 |
-| 마지막 정리일 | 2026-05-14 |
+| 마지막 정리일 | 2026-10-22 (요구·구현 차이 명시, 요구사항 변경 승인 아님) |
 | 프로젝트 유형 | 졸업 프로젝트 (2인) |
 | 문서 목적 | 현재 기준 요구사항과 1차/2차 범위 정의 |
 
 ---
+
+## 현재 요구와 구현의 대조
+
+아래는 2026-10-22 저장소 코드 대조 결과이며 운영 서버 재검증 결과가 아닙니다. 원래 FR/NFR 행과 ID는 유지합니다. **미충족 요구를 현재 코드에 맞춰 낮추지 않으며**, 보안상 이미 달라진 전송 방식·제품 변경 후보·데이터 보존 결함을 구분합니다. 요구 변경은 별도 결정과 수용 테스트가 있어야 합니다.
+
+| 경계 | 관련 요구 | 현재 구현과 차이 | 판정 / 다음 조치 |
+| --- | --- | --- | --- |
+| 미입력 프로필 | `FR-01-04` | `RecommendationUserSnapshot`은 누락 나이 25·소득구간 5를 기본값으로 사용 | **미충족 검토**: 미입력/미지정/확인값을 구분하고 조건·가점 회귀 테스트 필요 |
+| 우선순위 선택 | `FR-02-02` | 신규 schema seed는 주거·일자리·교육·금융·문화·마감·참여·가족 8종. 원문의 7개 선택지와 다름 | **제품 변경 검토**: 원문 대체 승인 아님. 선택지·라벨·최대 순위 계약 결정 필요 |
+| 검색/조회 기록 단계 | `FR-04-06`, `FR-06-03` | `search_logs`, `service_view_logs`는 신규 schema와 코드에 존재 | **단계 표기 정정**: 미구현 확장 테이블로 읽지 않음. 실제 DB 적용·보존 기간 준수는 별도 확인 |
+| 신규 후보 보장 | `FR-07-06`, `NFR-03-03` | 기본 최대 50건 + 최근 최대 5건을 중복 제거. 신규 5건 강제 포함·항상 노출을 보장하지 않음 | **미충족**: 후보 수·적합도·중복·표시/알림 슬롯을 분리해 완료 기준 결정 |
+| 정규화·최종 정렬 | `FR-07-08`, `FR-07-09` | 하한 0 기준 정규화, 불일치에 따른 AI 가중치 조정, 우선순위/다양성 후처리 존재 | **설계 차이**: 단순 혼합식으로 순위 재현 불가. 품질 평가 뒤 유지/변경 결정 |
+| 클릭 전송·소유권 | `FR-07-22`, `FR-07-23` | 상세 GET/URL `log_id`로 클릭 변경하지 않음. 인증된 POST + JSON `logId`, 사용자·정책·로그 관계 검사 | **보안 계약 반영 필요**: 클릭 귀속 목적은 유지. URL 변경 방식의 요구를 수정할지는 별도 승인하고 보안 경계를 되돌리지 않음 |
+| 로그 보존·평가 | `FR-07-20`, `FR-07-24`, `FR-07-25` | refresh에서 기존 미클릭 로그 삭제. 생성/알림 준비 로그이며 불변 노출/발송 이력이 아님 | **미충족**: 영구 보관 요구 유지. 유실 방지·노출/발송/클릭 이벤트·평가 분모 설계 및 이행 검증 필요 |
+| 알림 슬롯 단계 | `FR-09-04`~`FR-09-08` | `NotificationSlotSelector`의 `[A,A,B?]`와 A fallback은 이미 구현. 유효 후보가 없으면 3건 미만 가능 | **단계 표기 차이**: 원문의 2차 계획과 구분. 항상 3건/신규 노출 보장은 별도 검증 |
+| 군집·Batch 계획 | `FR-07-01`, `FR-07-02`, `FR-07-10`~`FR-07-13` | 현재 `youth_all`과 실시간 gateway 중심. 군집 분할·Batch는 현재 구현으로 가정하지 않음 | **후속 계획**: 과거 비용/단계 가정은 새로운 도입 금지나 자동 실행 승인 아님 |
+
+코드 경계·계산식·로그 삭제 근거는 [추천 파이프라인](../recommendation/recommendation-pipeline.md), API 전송은 [API 매핑](api-mapping.md), 기능·보안 후속 과제는 [현재 상태](../current-state.md)를 확인합니다. 아래 초기 파이프라인/1차·2차 표는 요구·계획 기록이지 현재 구현을 그대로 재현하는 설명이 아닙니다.
 
 ## 1. 소개
 
@@ -340,10 +360,10 @@
 | 8 | `welfare_service_details` | 정책 상세/추가 링크 | `reference_urls_json` 포함 |
 | 9 | `service_regions` | 정책-지역 다대다 | |
 | 10 | `service_tags` | 정책 태그 | 중복 방지 unique 유지 |
-| 11 | `raw_api_payloads` | 수집 원문 보관 | LIST / DETAIL raw snapshot |
+| 11 | `raw_api_payloads` | 수집 payload snapshot | LIST / DETAIL DTO 재직렬화 포함. 실제 HTTP 원문 그대로의 보존 보장은 아님 |
 | 12 | `api_sync_logs` | 수집 실행 이력 | source별 부분 성공 기록 |
 | 13 | `user_recommendations` | 추천 결과 | `final_score`, `ai_reason`, bookmark |
-| 14 | `recommendation_logs` | 추천 클릭/가중치 이력 | CTR 분석용 |
+| 14 | `recommendation_logs` | 추천 클릭/가중치 이력 | 미클릭 삭제·생성 경로 혼합으로 실제 노출 CTR 분모 아님. 보존 요구 미충족은 위 대조표 참고 |
 | 15 | `score_weights` | Cold Start 가중치 설정 | |
 | 16 | `notifications` | 알림 헤더/재시도 상태 | |
 | 17 | `notification_services` | 알림-정책 매핑 | |
@@ -352,6 +372,8 @@
 | 20 | `chat_retrieval_snapshots` | 챗 메타 복원 | branch/clarification 복구용 |
 | 21 | `policy_chunks` | 챗/검색용 청크 | pgvector 임베딩 대상 |
 | 22 | `user_pii_sync_queue` | request dual-write/retry queue | PII sync/replay 상태 |
+| 23 | `search_logs` | 검색 기록 | 코드/schema에 존재. 과거 2차 표기와 구분 |
+| 24 | `service_view_logs` | 조회수 중복 방지 | 코드/schema에 존재. 실제 DB 적용 여부는 별도 확인 |
 
 #### 후속/선택 확장
 
@@ -361,8 +383,6 @@
 | 13 | `cluster_ai_results` | 군집×정책 AI 결과 (7일 TTL) | Batch AI 전환 시 |
 | 14 | `batch_jobs` | Batch 제출 이력·상태 | Batch AI 전환 시 |
 | 15 | `normalization_stats` | 배치별 p5·p95 | 정규화 고도화 시 |
-| 16 | `search_logs` | 검색 키워드 | 검색 기능 안정화 후 |
-| 17 | `service_view_logs` | 조회수 중복 방지 | 조회수 정교화 시 |
 
 ### 6.2 데이터 보존
 
@@ -418,7 +438,7 @@
 | ai_score 위치 | `user_recommendations`에만 | AI 점수는 유저×서비스 단위. `welfare_services`에 두면 모든 유저가 동일 점수 공유 → 개인화 불가 |
 | user_attributes.attr_type | VARCHAR(30) | ENUM은 새 속성(LIFE_STAGE, 학력 등) 추가 시 ALTER TABLE 필요. VARCHAR + 애플리케이션 Enum으로 유연성 확보 |
 | service_tags UNIQUE KEY | `uq_st (service_id, tag_type, tag_value)` | 중복 태그 삽입 → rule_base_score 이중 합산 버그 방지. RDBMS 무결성 제약 활용 |
-| recommended_at | DATETIME | 실시간 방식에서 DATE만으로 같은 날 중복 구분 불가. DATETIME이 배치 시간도 포괄하여 2차 호환 |
+| recommended_at | PostgreSQL `TIMESTAMP` | 날짜만이 아닌 생성 시각 기록. 과거 DATETIME 표현을 현재 물리 타입으로 정정 (보존 요구 변경 아님) |
 | ai_reason | `user_recommendations`에 저장 | 유저별 AI 추천 이유. 추천 UI 및 알림 템플릿에 직접 표시 |
 | unified_category | `welfare_services` 별도 컬럼 | 3개 API 분류 체계 불일치. 필터 UI 통합을 위해 수집 시 매핑. 원본은 category_main/service_tags 보존 |
 | 군집화 | 1차 youth_all → 2차 나이대×소득 2D | 졸업 전 사용자 수에서 2D는 youth_all 수렴. ClusterService 경계 유지로 2차 교체 용이 |

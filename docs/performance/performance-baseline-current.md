@@ -2,7 +2,7 @@
 
 Last updated: 2026-05-30
 
-This document records the current performance baseline. Raw artifacts are generated under `tmp/performance`.
+This document preserves dated performance baselines, not a newly verified production measurement. Keep each result with its timestamp, commit, environment, corpus and load settings. Some referenced artifacts may exist only on the original host. Raw artifacts are generated under `tmp/performance`; see [environment boundaries](../core/environment-guide.md) before rerunning a command.
 
 ## Current Baseline Commands
 

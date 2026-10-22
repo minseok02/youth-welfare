@@ -1,5 +1,7 @@
 # 추천 / Replay 실행 체크리스트
 
+> 로컬 재현과 서버 관측의 전제는 [환경 안내](../core/environment-guide.md)를 따릅니다. replay·refresh·seed·실제 OpenAI 경로는 조회와 구분합니다. 과거 gate는 당시 튜닝 기준이며 현재 승인된 정확성·데이터 보존 수정의 일괄 금지 조건이 아닙니다.
+
 문서군 진입점: [recommendation-docs-index.md](./recommendation-docs-index.md)
 
 관련 문서:

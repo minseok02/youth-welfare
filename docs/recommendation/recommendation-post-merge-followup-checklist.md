@@ -1,16 +1,18 @@
-# recommendation post-merge follow-up checklist
+# 추천 closeout PR merge 후 인계 기록
+
+> 과거 closeout의 merge 후 관찰·인계 계획입니다. 본문의 상태값·`현재`·명령은 당시 기준이며 실제 merge 완료나 현재 서버 상태를 보장하지 않습니다. 현재 결함과 검증 범위는 [추천 현재 상태](recommendation-current-state.md), 실행 전제는 [환경 안내](../core/environment-guide.md)를 따릅니다. 아래 refresh/readiness 명령을 일반 조회로 자동 실행하지 않으며, 과거 관찰 조건으로 보안·데이터 유실 수정을 보류하지 않습니다.
 
 문서군 진입점: [recommendation-docs-index.md](./recommendation-docs-index.md)
 
 ## 목적
 
-이 문서는 recommendation / Gov24 closeout PR이 merge된 뒤
+당시 recommendation / Gov24 closeout PR의 merge 후를 위해 정리했던
 
 - 바로 남겨야 하는 기록
 - 계속 관찰해야 하는 값
 - `REAL_USER` traffic/cohort가 생겼을 때 다시 열 작업
 
-을 한 장으로 고정합니다.
+인계 기준을 보존합니다.
 
 이 문서는 “merge 전 draft/reviewer-ready 판단”이 아니라 **merge 후 follow-up** 용입니다.
 

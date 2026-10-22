@@ -1,243 +1,65 @@
-# Auth Session Revocation Current State
+# 인증과 세션 회수 계약
 
-문서군 진입점: [auth-docs-index.md](./auth-docs-index.md)
-
-관련 코드:
-
-- [AuthSessionService.java](../../backend/src/main/java/com/example/welfare/user/service/AuthSessionService.java)
-- [AuthAdminRoleService.java](../../backend/src/main/java/com/example/welfare/user/service/AuthAdminRoleService.java)
-- [UserAccountCommandService.java](../../backend/src/main/java/com/example/welfare/user/service/UserAccountCommandService.java)
-- [AccessTokenRevocationService.java](../../backend/src/main/java/com/example/welfare/user/service/AccessTokenRevocationService.java)
-- [UserSessionRevocationService.java](../../backend/src/main/java/com/example/welfare/user/service/UserSessionRevocationService.java)
-- [JwtAuthenticationFilter.java](../../backend/src/main/java/com/example/welfare/global/config/JwtAuthenticationFilter.java)
-- [JwtUtil.java](../../backend/src/main/java/com/example/welfare/global/util/JwtUtil.java)
-- [UserAdminController.java](../../backend/src/main/java/com/example/welfare/user/controller/UserAdminController.java)
-
-관련 문서:
-
-- [auth-logout-revocation-scope-policy.md](../history/auth/auth-logout-revocation-scope-policy.md)
-- [auth-admin-revoke-boundary-policy.md](../history/auth/auth-admin-revoke-boundary-policy.md)
-- [auth-admin-refresh-revoke-policy.md](../history/auth/auth-admin-refresh-revoke-policy.md)
-- [auth-admin-forced-logout-closeout.md](./auth-admin-forced-logout-closeout.md)
-
-## 목적
-
-현재 구현된 auth/session revoke 동작을 한 문서에서 바로 확인할 수 있게 정리합니다.
-
-이 문서는 **현재 source of truth 요약** 입니다.  
-세부 설계 배경은 개별 `auth-admin-forced-logout-*` 문서를 보되, 구현 상태 판단은 이 문서와 실제 코드를 우선합니다.
-
-현재 daily operator entrypoint는 `bash deploy/smoke/run-local-auth-observation-suite.sh` 입니다.
-이 wrapper는 auth/session smoke 묶음을 다시 읽어 `decision_class`, `enabled_smoke_steps`, `operator_reading`, `next_action` 을 compact artifact로 남깁니다.
-세부 경계를 직접 다시 확인할 때만 [auth-operation-checklist.md](./auth-operation-checklist.md) 로 내려가면 됩니다.
-
-## 현재 구현 상태 요약
-
-현재 로컬/코드 기준으로 정리하면 아래 네 경계가 살아 있습니다.
-
-1. `logout`
-2. `withdraw`
-3. `admin allowlist revoke`
-4. `admin forced logout`
+현재 코드의 logout·withdraw·allowlist 변경·forced logout을 구분합니다. 실제 검증은 [실행 체크리스트](auth-operation-checklist.md), auth 분야 진입점은 [목차](auth-docs-index.md)입니다. 아래 즉시 차단 계약은 **Redis revoke 상태가 유지된다는 전제**이며 내구성은 미해결입니다.
 
 ## 1. logout
 
-엔드포인트:
+`POST /api/auth/logout`은 refresh 회수·user-wide access cutoff·bearer-present exact revoke입니다. cookie-only라도 refresh token에서 userKey를 식별할 수 있으면 기존 access를 cutoff로 차단합니다. bearer와 식별 가능한 refresh가 모두 없는 요청의 쿠키 삭제만으로 사용자 세션 회수 성공을 보장하지 않습니다.
 
-- `POST /api/auth/logout`
+old refresh는 401 invalidation 계열, presented access와 refresh 이전 older login access는 `401/A006`이어야 합니다. 호출 맥락상 refresh cookie가 삭제된 뒤의 missing-cookie 응답과 이미 회수한 refresh 원문을 재사용한 응답 코드는 다를 수 있습니다.
 
-현재 계약:
-
-- refresh token 삭제
-- user-wide access cutoff 기록
-- 요청에 `Authorization: Bearer ...` 가 같이 실리면 그 access token exact revoke
-- bearer 없이 cookie-only logout 이어도 같은 userKey의 기존 access token은 cutoff로 차단
-
-구현 위치:
-
-- `AuthSessionService.logout(...)`
-- `AuthSessionService.logoutByUserKey(...)`
-- `AuthSessionService.logoutByRefreshToken(...)`
-- `UserSessionRevocationService.revokeUserSessions(...)`
-- `AccessTokenRevocationService.revoke(...)`
-
-에러/후속 동작:
-
-- old refresh 재사용: `401 / A003` 또는 refresh invalidation 계열로 실패
-- logout 요청에 실렸던 old access token 재사용: `401 / A006`
-- refresh 이전 older login access token 재사용: `401 / A006`
+구현은 [AuthSessionService](../../backend/src/main/java/com/example/welfare/user/service/AuthSessionService.java) → [AuthTokenService](../../backend/src/main/java/com/example/welfare/user/service/AuthTokenService.java)의 logoutByUserKey/logoutByRefreshToken, [UserSessionRevocationService](../../backend/src/main/java/com/example/welfare/user/service/UserSessionRevocationService.java), [AccessTokenRevocationService](../../backend/src/main/java/com/example/welfare/user/service/AccessTokenRevocationService.java)입니다.
 
 ## 2. withdraw
 
-엔드포인트:
-
-- `DELETE /api/users/me`
-
-현재 계약:
-
-- refresh key 삭제
-- 요청에 실린 bearer access token exact revoke
-- user 상태 withdrawn 반영
-- 채팅/속성/우선순위 정리
-
-구현 위치:
-
-- `UserAccountCommandService.withdraw(...)`
-
-에러/후속 동작:
-
-- 탈퇴에 사용한 old access token 재사용: `401 / A006`
-- stale refresh token 재사용: `410 / U003`
+`DELETE /api/users/me`은 refresh 회수·presented bearer exact revoke·withdrawn 상태와 채팅/속성/우선순위 정리입니다. 탈퇴에 사용한 old access는 `401/A006`, stale refresh는 `410/U003` 경계를 확인합니다. 구현은 [UserAccountCommandService](../../backend/src/main/java/com/example/welfare/user/service/UserAccountCommandService.java)입니다.
 
 ## 3. admin allowlist revoke
 
-여기서 말하는 revoke 는 **forced logout이 아니라**:
-
-- `SECURITY_ADMIN_EMAILS` 에서 대상 이메일 제거
-- 앱 재기동
-
-입니다.
-
-현재 계약:
-
-- 이미 발급된 old admin access token: 즉시 회수되지 않음
-- 기존 refresh token: 바로 invalidation 되지 않음
-- 다만 그 refresh로 새 access token을 받으면 `ROLE_ADMIN` 이 빠짐
-
-즉 현재 allowlist revoke 의 의미는:
-
-- `future token issuance에서 admin role 제거`
-
-이지
-
-- `existing session/token 즉시 차단`
-
-이 아닙니다.
-
-관련 코드 경계:
-
-- `AuthAdminRoleService.resolveRoles(...)`
-- `AuthAdminRoleService.initAdminEmails()`
+`SECURITY_ADMIN_EMAILS` 변경을 앱에 적용하면 future token issuance의 ROLE_ADMIN이 바뀝니다. 이미 발급된 admin access와 기존 refresh를 즉시 회수하는 forced logout이 아닙니다. 기존 refresh로 새 token을 받을 때는 현재 allowlist로 role을 다시 계산합니다. 구현은 [AuthAdminRoleService](../../backend/src/main/java/com/example/welfare/user/service/AuthAdminRoleService.java)의 initAdminEmails/resolveRoles입니다. 적용을 위한 앱 변경·재기동은 별도 승인 범위입니다.
 
 ## 4. admin forced logout
 
-엔드포인트:
+`POST /api/admin/users/forced-logout`에 JSON `{"userKey":"..."}`를 전달합니다. 대상 refresh를 회수하고 cutoff를 기록해 old access/refresh를 차단하며, 재로그인한 fresh access는 허용합니다. 응답은 `userKey, accepted=true`이고 cutoffMillis는 응답 필드가 아닙니다.
 
-- `POST /api/admin/users/forced-logout`
-
-request body:
-
-```json
-{
-  "userKey": "..."
-}
-```
-
-현재 계약:
-
-- 특정 `userKey` 의 refresh token 즉시 삭제
-- 특정 `userKey` 의 access cutoff 기록
-- old access token 즉시 차단
-- old refresh token 즉시 차단
-- relogin 후 fresh access token 은 정상 허용
-
-구현 위치:
-
-- write path: `UserAdminController.forceLogoutUserSessions(...)`
-- revoke state write/read: `UserSessionRevocationService`
-- auth gate: `JwtAuthenticationFilter`
+write는 [UserAdminController](../../backend/src/main/java/com/example/welfare/user/controller/UserAdminController.java), 상태 write/read는 UserSessionRevocationService, 인증 gate는 [JwtAuthenticationFilter](../../backend/src/main/java/com/example/welfare/global/config/JwtAuthenticationFilter.java)입니다.
 
 ## Redis key shape
 
-### exact access revoke
+| 용도 | 현재 key·값 |
+| --- | --- |
+| bearer 1개 exact revoke | `access-revoked:{sha256(accessToken)}`; token 남은 만료 시간 동안 차단 |
+| refresh session | `refresh:v2:{sha256(userKey)}`; 값도 refresh token SHA-256 해시 |
+| user-wide cutoff | `access-cutoff:v2:{sha256(userKey)}`; epoch millis, cutoff 이하 발급 token 거부 |
 
-- `access-revoked:{token}`
+legacy `refresh:{userKey}/access-cutoff:{userKey}`는 읽기·정리 호환 경계이지 신규 write 대상이 아닙니다. 원문 token/userKey key를 진단 목적으로 다시 쓰지 않습니다.
 
-용도:
+## Redis 상태 유실: 미해결 위험
 
-- logout/withdraw 에서 요청에 실린 bearer token 1개 즉시 차단
+`docker-compose.prod.yml`은 `--save "" --appendonly no`와 /data tmpfs로 비영속입니다. 재시작·재생성 뒤 revoke/cutoff를 복구하지 못하며, `isAccessAllowed(...)`는 exact revoke와 cutoff가 모두 없으면 access를 허용합니다. 따라서 **아직 만료되지 않은 회수 대상 JWT가 다시 허용될 수 있습니다.**
 
-### refresh revoke
+refresh 소실로 재로그인이 필요한 현상과 old access 재허용은 별개입니다. 재로그인·health UP·단일 logout smoke 통과는 차단 복구 증거가 아닙니다. 운영 Redis를 일반 캐시처럼 flush/restart하지 말고 보호 조치와 영향 범위를 먼저 정합니다.
 
-- `refresh:{userKey}`
-
-용도:
-
-- logout/withdraw/forced logout 시 refresh session 회수
-
-### forced logout cutoff
-
-- `access-cutoff:{userKey}`
-
-값:
-
-- epoch millis 문자열
-
-용도:
-
-- 해당 시점 이전에 발급된 access token 차단
+후속 설계는 영속 세션 버전/회수 시각, Redis 내구성·복구, 장애 시 gate 정책을 비교하고 상태 유실 후 old access 거부를 검증해야 합니다. 문서 감축으로 인증 동작·Redis 설정·실제 세션을 고친 것은 아닙니다.
 
 ## JWT 현재 계약
 
-현재 access token 은 `iatm` claim 을 가집니다.
+access token은 `iatm` claim을 가지며 refresh/notification token에는 없습니다. [JwtUtil](../../backend/src/main/java/com/example/welfare/global/util/JwtUtil.java)의 getIssuedAtMillis/getIssuedAtMillisAllowExpired를 사용합니다. forced-logout cutoff 경계의 `iatm` 없는 legacy admin access는 invalid-format이 아닌 `401/A006` 회수 경계로 처리합니다.
 
-- access token: `iatm` 포함
-- refresh token: `iatm` 없음
-- notification token: `iatm` 없음
-
-관련 helper:
-
-- `JwtUtil.getIssuedAtMillis(...)`
-- `JwtUtil.getIssuedAtMillisAllowExpired(...)`
-
-forced logout 경계에서는:
-
-- `iatm` 없는 legacy admin access token
-  - `401 / A006`
-
-로 처리합니다.
-
-## 현재 A006 이 나오는 대표 경계
-
-1. logout 후 presented old access token 재사용
-2. withdraw 후 presented old access token 재사용
-3. forced logout 이후 old access token 재사용
-4. forced logout 보호 경계에서 `iatm` 없는 legacy admin access token 사용
+A006의 대표 사례는 logout 후 presented/older access, withdraw 후 presented access, forced logout 후 old access와 legacy token입니다.
 
 ## 운영 증적 현재 계약
 
-forced logout response:
-
-- `userKey`
-- `accepted=true`
-
-forced logout 로그:
-
 ```text
-[Admin] forced logout 트리거 userKey=<userKey> cutoffMillis=<epochMillis>
+[AdminAudit] event=forced_logout outcome=accepted actorHash=<sha256> targetUserKeyHash=<sha256> cutoffMillis=<epochMillis>
 ```
 
-현재는 로그에 `actor` 를 넣지 않습니다.
+actor/target 해시와 cutoff를 확인하고 userKey·이메일·JWT 원문을 로그에 추가하지 않습니다. 해시 로그가 존재하는 것과 별도 영속 audit/history table·조회 UI가 있다는 것은 다릅니다.
 
-## 무엇이 design history 문서인가
+## Closeout과 후속 범위
 
-아래 문서들은 구현 전후의 설계 결정을 쪼개서 남긴 기록입니다.
+기존 1차 closeout은 API·Redis cutoff·iatm·filter gate·old token 거부/relogin 회귀의 구현 범위입니다. 영속 audit/history·multi-node 증적·대량 강제 회수·account lock/role revoke 결합은 별도 요구이며, Redis 상태 유실은 별도 보안 결함입니다.
 
-- `auth-admin-forced-logout-api-contract.md`
-- `auth-admin-forced-logout-entrypoint-policy.md`
-- `auth-admin-forced-logout-redis-shape.md`
-- `auth-admin-forced-logout-issued-at-policy.md`
-- `auth-admin-forced-logout-jwt-helper-policy.md`
-- `auth-admin-forced-logout-helper-interface.md`
-- `auth-admin-forced-logout-service-structure-policy.md`
-- 그 외 `auth-admin-forced-logout-*`
+당시 source onboarding/listing 스키마·복지로 detail 후속 우선순위는 현재 전체 개발 순서를 대신하지 않습니다. 현재 결함은 [전체 과제](../current-state.md), source 검토는 [온보딩 가이드](../policy/policy-source-onboarding-checklist.md)를 봅니다.
 
-이 문서들은 왜 현재 구현이 이렇게 되었는지 설명하는 **design history** 로 읽고,
-현재 제품/코드 계약 확인은 이 문서와 실제 코드 기준으로 봅니다.
-
-## 지금 기준의 간단한 결론
-
-1. `logout` 은 이제 refresh 회수 + user-wide access cutoff + bearer-present exact access revoke 입니다.
-2. `withdraw` 는 refresh 회수 + presented access revoke + withdrawn state 반영까지 구현돼 있습니다.
-3. `admin allowlist revoke` 는 즉시 forced logout 이 아니라 future role issuance 변경입니다.
-4. `admin forced logout` 는 이미 구현돼 있고, `POST /api/admin/users/forced-logout` + Redis cutoff + `JwtAuthenticationFilter` gate + `iatm` 계약까지 현재 코드에 반영돼 있습니다.
+개별 forced-logout API/entrypoint/Redis/iatm/helper 설계는 history입니다. [logout 범위](../history/auth/auth-logout-revocation-scope-policy.md), [allowlist 경계](../history/auth/auth-admin-revoke-boundary-policy.md), [refresh role 재계산](../history/auth/auth-admin-refresh-revoke-policy.md), [서비스 책임](../history/auth/auth-admin-forced-logout-service-structure-policy.md)은 배경 근거로 읽고 현재 구현을 대신하지 않습니다.

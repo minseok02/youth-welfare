@@ -1,5 +1,7 @@
 # recommendation observation runbook
 
+> 서버/RDS·로컬 앱과 RDS·로컬 seed의 관측값을 구분합니다. [환경 안내](../core/environment-guide.md)에서 대상과 기준 시점을 확인합니다. `KEEP_OBSERVING`은 관측/품질 튜닝 상태값이지 현재 승인된 리팩토링의 금지 지시가 아닙니다.
+
 문서군 진입점: [recommendation-docs-index.md](./recommendation-docs-index.md)
 
 ## 목적

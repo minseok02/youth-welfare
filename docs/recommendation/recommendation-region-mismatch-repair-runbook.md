@@ -1,5 +1,7 @@
 # recommendation region mismatch repair runbook
 
+> audit와 달리 repair는 사용자 추천을 실제 재생성합니다. [환경 안내](../core/environment-guide.md)와 [현재 추천 위험](recommendation-current-state.md)을 확인하고 북마크·로그 보존 영향부터 검토합니다. 본문 잔량 수치는 당시 로컬 관측이며 현재 운영 DB의 상태가 아닙니다.
+
 문서군 진입점: [recommendation-docs-index.md](./recommendation-docs-index.md)
 
 ## 목적

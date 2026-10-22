@@ -1,16 +1,18 @@
-# recommendation PR review brief
+# 추천 closeout PR 검토 기록
+
+> 과거 recommendation/Gov24 closeout 검토 기록입니다. 본문의 `현재`, `이번 PR`, gate/승인·draft 판정은 당시 표본과 검토 범위에 한정하며 현재 PR 상태나 작업 지시를 뜻하지 않습니다. 현재 구현·미해결 결함은 [추천 현재 상태](recommendation-current-state.md), 산출물 해석은 [조회 안내](recommendation-ai-exclusion-latest-status-runbook.md)를 우선합니다. 과거 관찰 방침으로 승인된 리팩토링·보안·데이터 유실 수정을 막지 않습니다.
 
 문서군 진입점: [recommendation-docs-index.md](./recommendation-docs-index.md)
 
 ## 목적
 
-이 문서는 PR reviewer가 이번 recommendation / Gov24 closeout 변경을
+당시 PR reviewer가 recommendation / Gov24 closeout 변경을
 
 - 어떤 덩어리로 보면 되는지
 - 어디부터 읽으면 되는지
 - 지금 무엇이 아직 blocker인지
 
-를 짧게 파악하게 정리합니다.
+파악하도록 정리한 검토 근거를 보존합니다.
 
 ## 이 PR에서 먼저 볼 세 덩어리
 
@@ -27,7 +29,7 @@
 우선 파일:
 
 - [policy-normalization-current-state.md](../policy/policy-normalization-current-state.md)
-- [policy-gov24-canonical-promotion-plan.md](../policy/policy-gov24-canonical-promotion-plan.md)
+- [Gov24 데이터 계약과 계획](../policy/policy-gov24-lane-closeout.md#label과-내부-코드)
 - [recommendation-current-state.md](./recommendation-current-state.md)
 
 ### 2. recommendation AI exclusion observability
@@ -41,7 +43,7 @@
 
 우선 파일:
 
-- [recommendation-ai-exclusion-latest-overview-runbook.md](./recommendation-ai-exclusion-latest-overview-runbook.md)
+- [AI exclusion 산출물 조회와 해석](./recommendation-ai-exclusion-latest-status-runbook.md#파일만-읽는-helper)
 - [recommendation-ai-exclusion-latest-status-runbook.md](./recommendation-ai-exclusion-latest-status-runbook.md)
 - [recommendation-real-user-exclusion-readiness-check-runbook.md](./recommendation-real-user-exclusion-readiness-check-runbook.md)
 - [recommendation-review-gate-staleness-audit-runbook.md](./recommendation-review-gate-staleness-audit-runbook.md)

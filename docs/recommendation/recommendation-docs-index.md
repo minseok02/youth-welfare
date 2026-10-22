@@ -1,191 +1,94 @@
-# 추천 문서 묶음
+# 추천 문서 목차
 
-## 목적
+현재 구현과 미해결 문제는 [추천 현재 상태](recommendation-current-state.md)를 먼저 확인합니다. [환경 안내](../core/environment-guide.md)에 따라 로컬 seed·로컬 앱과 RDS·서버 관측을 구분합니다.
 
-추천 문서군은 추천 로직 자체보다 관측, gate, AI exclusion, review, Gov24, 과거 audit runbook이 많이 누적되어 있습니다.
+과거 `KEEP_OBSERVING`과 `reopen_allowed=false`는 당시 품질 튜닝/관측의 상태값입니다. 현재 승인된 리팩토링, 데이터 유실·보안·계약 불일치 수정을 일괄 금지하지 않습니다. `account_origin=REAL_USER` 값도 실제 사람의 운영 표본이라는 보증이 아닙니다.
 
-이 문서는 모든 파일을 같은 우선순위로 나열하지 않고, 지금 무엇을 먼저 읽고 어떤 문서는 필요할 때만 내려갈지 고정합니다.
+## 실행 전 구분
 
-## 현재 해석
+- 스크립트 이름의 `local`은 앱·DB 대상을 강제하지 않습니다. 각 runbook의 env·권한·실행 영향을 확인합니다.
+- audit에도 로그인·로컬 artifact 생성이 있을 수 있고, refresh/repair/seed/approval smoke는 앱 또는 DB를 변경합니다.
+- 합성 cohort는 격리된 테스트용입니다. 실제 사용자 관측·CTR·품질 근거와 분리합니다.
+- 운영 gate의 과거 기준선과 현재 관측 결과를 섞지 않으며, 원본 날짜·커밋·표본을 보존합니다.
 
-- 현재 active main track은 recommendation 튜닝이 아니라 관찰 유지입니다.
-- `KEEP_OBSERVING` 또는 `reopen_allowed=false` 이면 score, weight, prompt, source/category balancing을 열지 않습니다.
-- `REAL_USER` 표본과 leader signal이 충분해지고 gate가 실제 review 가능 상태로 바뀔 때만 reopen 문서로 넘어갑니다.
-- 오래된 `2026-05` local audit family는 설계/진단 이력으로 읽고, 현재 운영 판단은 [recommendation-current-state.md](./recommendation-current-state.md), [recommendation-observation-runbook.md](./recommendation-observation-runbook.md), latest artifact를 우선합니다.
+## 진입점과 사용자 계약
 
-## 먼저 볼 문서
+- [ai-reason-memo-contract](recommendation-ai-reason-memo-contract.md)
+- [current-state](recommendation-current-state.md)
+- [pipeline](recommendation-pipeline.md)
+- [similar-users-viewed-policy](recommendation-similar-users-viewed-policy.md)
 
-1. [recommendation-current-state.md](./recommendation-current-state.md)
-2. [recommendation-observation-runbook.md](./recommendation-observation-runbook.md)
-3. [recommendation-operation-checklist.md](./recommendation-operation-checklist.md)
-4. [recommendation-ai-reason-memo-contract.md](./recommendation-ai-reason-memo-contract.md)
-5. [recommendation-pipeline.md](./recommendation-pipeline.md)
+## 운영 관측과 표본
 
-## Daily 관측
+- [concentration-audit-runbook](recommendation-concentration-audit-runbook.md)
+- [ctr-readiness-runbook](recommendation-ctr-readiness-runbook.md)
+- [observation-runbook](recommendation-observation-runbook.md)
+- [operation-checklist](recommendation-operation-checklist.md)
+- [real-user-baseline-runbook](recommendation-real-user-baseline-runbook.md)
+- [real-user-exclusion-readiness-check-runbook](recommendation-real-user-exclusion-readiness-check-runbook.md)
+- [real-user-recheck-checklist](recommendation-real-user-recheck-checklist.md)
+- [reopen-decision-runbook](recommendation-reopen-decision-runbook.md)
+- [replay-template](recommendation-replay-template.md)
+- [similar-users-viewed-audit-runbook](recommendation-similar-users-viewed-audit-runbook.md)
 
-운영 current truth를 compact하게 다시 볼 때:
+## 후보 검색과 저장 차이
 
-```bash
-bash deploy/smoke/run-local-recommendation-observation-suite.sh
-```
+- [gov24-recommendation-audit-runbook](gov24-recommendation-audit-runbook.md)
+- [fresh-saved-gap-audit-runbook](recommendation-fresh-saved-gap-audit-runbook.md)
+- [latest-window-audit-runbook](recommendation-latest-window-audit-runbook.md)
+- [no-priority-gap-audit-runbook](recommendation-no-priority-gap-audit-runbook.md)
+- [pipeline-lane-audit-runbook](recommendation-pipeline-lane-audit-runbook.md)
+- [rebalance-audit-runbook](recommendation-rebalance-audit-runbook.md)
+- [region-window-audit-runbook](recommendation-region-window-audit-runbook.md)
+- [same-profile-fresh-saved-differential-audit-runbook](recommendation-same-profile-fresh-saved-differential-audit-runbook.md)
+- [same-profile-origin-differential-audit-runbook](recommendation-same-profile-origin-differential-audit-runbook.md)
+- [same-profile-path-differential-audit-runbook](recommendation-same-profile-path-differential-audit-runbook.md)
+- [saved-batch-gap-audit-runbook](recommendation-saved-batch-gap-audit-runbook.md)
+- [signal-gap-audit-runbook](recommendation-signal-gap-audit-runbook.md)
 
-운영 서버/RDS:
+## AI 점수와 사유
 
-```bash
-ENV_FILE=.env.production \
-SMOKE_DB_MODE=postgres \
-APP_BASE_URL='http://127.0.0.1:8082' \
-bash deploy/smoke/run-local-recommendation-observation-suite.sh
-```
+- [ai-input-contrast-audit-runbook](recommendation-ai-input-contrast-audit-runbook.md)
+- [ai-prompt-line-contrast-audit-runbook](recommendation-ai-prompt-line-contrast-audit-runbook.md)
+- [ai-reason-contrast-audit-runbook](recommendation-ai-reason-contrast-audit-runbook.md)
+- [ai-reason-coverage-audit-runbook](recommendation-ai-reason-coverage-audit-runbook.md)
+- [ai-stage-gap-audit-runbook](recommendation-ai-stage-gap-audit-runbook.md)
+- [ai-upstream-reason-trace-audit-runbook](recommendation-ai-upstream-reason-trace-audit-runbook.md)
+- [ai-zero-cohort-audit-runbook](recommendation-ai-zero-cohort-audit-runbook.md)
+- [ai-zero-contrast-audit-runbook](recommendation-ai-zero-contrast-audit-runbook.md)
+- [ai-zero-reason-bucket-audit-runbook](recommendation-ai-zero-reason-bucket-audit-runbook.md)
+- [ai-zero-reason-cohort-compare-runbook](recommendation-ai-zero-reason-cohort-compare-runbook.md)
+- [ai-zero-reason-distribution-audit-runbook](recommendation-ai-zero-reason-distribution-audit-runbook.md)
 
-먼저 볼 artifact:
+## Snapshot과 gate 비교
 
-- `tmp/recommendation-observation/latest-recommendation-observation-summary.txt`
-- `tmp/recommendation-observation/latest-recommendation-observation-note.md`
-- `tmp/recommendation-observation/latest-recommendation-observation.json`
+- [AI exclusion 산출물 조회·비교·gate 해석](recommendation-ai-exclusion-latest-status-runbook.md): 기존 파일 기반 helper와 overview/readiness의 차이.
+- [AI exclusion 증거 재수집](recommendation-ai-exclusion-baseline-refresh-runbook.md): suite/snapshot/drift/volatility/refresh 실제 실행과 쓰기·외부 호출 경계.
+- [review-gate-blocker-audit-runbook](recommendation-review-gate-blocker-audit-runbook.md)
+- [review-gate-recent-window-audit-runbook](recommendation-review-gate-recent-window-audit-runbook.md)
+- [review-gate-staleness-audit-runbook](recommendation-review-gate-staleness-audit-runbook.md)
 
-관련 문서:
+## 승인과 상태 변경
 
-- [recommendation-observation-runbook.md](./recommendation-observation-runbook.md)
-- [recommendation-standard-code-coverage-and-observation-closeout.md](./recommendation-standard-code-coverage-and-observation-closeout.md)
-- [recommendation-real-user-baseline-runbook.md](./recommendation-real-user-baseline-runbook.md)
-- [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
+조회용 진단으로 실행하지 않습니다. write 범위·대상·복구와 명시적 작업 범위를 확인합니다.
 
-## Reopen 판단
+- [bounded-promotion-review-runbook](recommendation-bounded-promotion-review-runbook.md)
+- [real-user-cohort-library-manifest](recommendation-real-user-cohort-library-manifest.md)
+- [region-mismatch-repair-runbook](recommendation-region-mismatch-repair-runbook.md)
+- [review-gate-policy-promotion-checklist](recommendation-review-gate-policy-promotion-checklist.md)
+- [review-gate-promotion-approval-record-smoke-runbook](recommendation-review-gate-promotion-approval-record-smoke-runbook.md)
 
-추천 코드를 다시 열 수 있는지 볼 때:
+## 과거 단계와 제안
 
-```bash
-ENV_FILE=.env.production \
-SMOKE_DB_MODE=postgres \
-APP_BASE_URL='http://127.0.0.1:8082' \
-bash deploy/smoke/run-local-recommendation-reopen-precheck.sh
-```
+특정 closeout/PR/관측 시점의 기록입니다. 최신 작업 지시나 기능 완료 증거로 재사용하지 않습니다.
 
-읽는 순서:
+- [단계별 개선 검토 기록](recommendation-next-lane-brief.md)
+- [closeout PR merge 후 인계 기록](recommendation-post-merge-followup-checklist.md)
+- [closeout PR draft 판단 기록](recommendation-pr-draft-exit-checklist.md)
+- [closeout PR 검토 기록](recommendation-pr-review-brief.md)
+- [primary-audience-exclusion-decision-memo](recommendation-primary-audience-exclusion-decision-memo.md)
+- [standard-code-coverage-and-observation-closeout](recommendation-standard-code-coverage-and-observation-closeout.md)
 
-1. [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md)
-2. [recommendation-next-lane-brief.md](./recommendation-next-lane-brief.md)
-3. [recommendation-primary-audience-exclusion-decision-memo.md](./recommendation-primary-audience-exclusion-decision-memo.md)
+## 결과 기록
 
-`reopen_allowed=false` 이면 아래 문서들은 진단 이력으로만 보고, 구현 작업으로 이어가지 않습니다.
-
-## PR / Handoff
-
-PR이나 handoff 맥락에서 현재 recommendation 범위를 읽을 때:
-
-1. [recommendation-pr-review-brief.md](./recommendation-pr-review-brief.md)
-2. [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
-3. [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
-4. [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
-
-## AI Exclusion
-
-AI exclusion 상태를 daily overview로 볼 때:
-
-```bash
-bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh
-```
-
-먼저 볼 문서:
-
-- [recommendation-ai-exclusion-latest-overview-runbook.md](./recommendation-ai-exclusion-latest-overview-runbook.md)
-- [recommendation-ai-exclusion-latest-status-runbook.md](./recommendation-ai-exclusion-latest-status-runbook.md)
-- [recommendation-ai-exclusion-latest-status-export-runbook.md](./recommendation-ai-exclusion-latest-status-export-runbook.md)
-- [recommendation-ai-exclusion-latest-gate-runbook.md](./recommendation-ai-exclusion-latest-gate-runbook.md)
-
-Baseline과 drift를 깊게 볼 때:
-
-- [recommendation-ai-exclusion-suite-runbook.md](./recommendation-ai-exclusion-suite-runbook.md)
-- [recommendation-ai-exclusion-snapshot-runbook.md](./recommendation-ai-exclusion-snapshot-runbook.md)
-- [recommendation-ai-exclusion-snapshot-compare-runbook.md](./recommendation-ai-exclusion-snapshot-compare-runbook.md)
-- [recommendation-ai-exclusion-drift-check-runbook.md](./recommendation-ai-exclusion-drift-check-runbook.md)
-- [recommendation-ai-exclusion-volatility-audit-runbook.md](./recommendation-ai-exclusion-volatility-audit-runbook.md)
-- [recommendation-ai-exclusion-stability-report-runbook.md](./recommendation-ai-exclusion-stability-report-runbook.md)
-- [recommendation-ai-exclusion-drift-classify-runbook.md](./recommendation-ai-exclusion-drift-classify-runbook.md)
-- [recommendation-ai-exclusion-baseline-report-runbook.md](./recommendation-ai-exclusion-baseline-report-runbook.md)
-- [recommendation-ai-exclusion-baseline-refresh-runbook.md](./recommendation-ai-exclusion-baseline-refresh-runbook.md)
-- [recommendation-ai-exclusion-baseline-refresh-compare-runbook.md](./recommendation-ai-exclusion-baseline-refresh-compare-runbook.md)
-- [recommendation-ai-exclusion-baseline-refresh-drift-check-runbook.md](./recommendation-ai-exclusion-baseline-refresh-drift-check-runbook.md)
-
-AI 입력/이유/zero cohort를 조사할 때:
-
-- [recommendation-ai-input-contrast-audit-runbook.md](./recommendation-ai-input-contrast-audit-runbook.md)
-- [recommendation-ai-prompt-line-contrast-audit-runbook.md](./recommendation-ai-prompt-line-contrast-audit-runbook.md)
-- [recommendation-ai-reason-contrast-audit-runbook.md](./recommendation-ai-reason-contrast-audit-runbook.md)
-- [recommendation-ai-reason-coverage-audit-runbook.md](./recommendation-ai-reason-coverage-audit-runbook.md)
-- [recommendation-ai-upstream-reason-trace-audit-runbook.md](./recommendation-ai-upstream-reason-trace-audit-runbook.md)
-- [recommendation-ai-stage-gap-audit-runbook.md](./recommendation-ai-stage-gap-audit-runbook.md)
-- [recommendation-ai-zero-cohort-audit-runbook.md](./recommendation-ai-zero-cohort-audit-runbook.md)
-- [recommendation-ai-zero-contrast-audit-runbook.md](./recommendation-ai-zero-contrast-audit-runbook.md)
-- [recommendation-ai-zero-reason-bucket-audit-runbook.md](./recommendation-ai-zero-reason-bucket-audit-runbook.md)
-- [recommendation-ai-zero-reason-distribution-audit-runbook.md](./recommendation-ai-zero-reason-distribution-audit-runbook.md)
-- [recommendation-ai-zero-reason-cohort-compare-runbook.md](./recommendation-ai-zero-reason-cohort-compare-runbook.md)
-
-## Review Gate
-
-Review gate와 bounded promotion을 볼 때:
-
-- [recommendation-review-gate-blocker-audit-runbook.md](./recommendation-review-gate-blocker-audit-runbook.md)
-- [recommendation-review-gate-staleness-audit-runbook.md](./recommendation-review-gate-staleness-audit-runbook.md)
-- [recommendation-review-gate-recent-window-audit-runbook.md](./recommendation-review-gate-recent-window-audit-runbook.md)
-- [recommendation-review-gate-policy-promotion-checklist.md](./recommendation-review-gate-policy-promotion-checklist.md)
-- [recommendation-review-gate-promotion-approval-record-smoke-runbook.md](./recommendation-review-gate-promotion-approval-record-smoke-runbook.md)
-- [recommendation-bounded-promotion-review-runbook.md](./recommendation-bounded-promotion-review-runbook.md)
-
-같은 프로필에서 example/real-user 차이를 볼 때:
-
-- [recommendation-same-profile-origin-differential-audit-runbook.md](./recommendation-same-profile-origin-differential-audit-runbook.md)
-- [recommendation-same-profile-path-differential-audit-runbook.md](./recommendation-same-profile-path-differential-audit-runbook.md)
-- [recommendation-same-profile-fresh-saved-differential-audit-runbook.md](./recommendation-same-profile-fresh-saved-differential-audit-runbook.md)
-
-## Gov24 / 지역 / 후보 창
-
-Gov24 추천 노출과 점수를 볼 때:
-
-- [gov24-recommendation-audit-runbook.md](./gov24-recommendation-audit-runbook.md)
-- `bash deploy/smoke/run-local-gov24-recommendation-suite.sh`
-- `bash deploy/smoke/run-local-gov24-signal-suite.sh`
-
-지역 mismatch와 stale saved batch를 분리할 때:
-
-- [recommendation-region-mismatch-repair-runbook.md](./recommendation-region-mismatch-repair-runbook.md)
-- [recommendation-region-window-audit-runbook.md](./recommendation-region-window-audit-runbook.md)
-- [recommendation-latest-window-audit-runbook.md](./recommendation-latest-window-audit-runbook.md)
-- [recommendation-pipeline-lane-audit-runbook.md](./recommendation-pipeline-lane-audit-runbook.md)
-- [recommendation-saved-batch-gap-audit-runbook.md](./recommendation-saved-batch-gap-audit-runbook.md)
-- [recommendation-fresh-saved-gap-audit-runbook.md](./recommendation-fresh-saved-gap-audit-runbook.md)
-- [recommendation-rebalance-audit-runbook.md](./recommendation-rebalance-audit-runbook.md)
-- [recommendation-signal-gap-audit-runbook.md](./recommendation-signal-gap-audit-runbook.md)
-
-## 품질 / UX 보조 신호
-
-- [recommendation-ctr-readiness-runbook.md](./recommendation-ctr-readiness-runbook.md)
-- [recommendation-concentration-audit-runbook.md](./recommendation-concentration-audit-runbook.md)
-- [recommendation-no-priority-gap-audit-runbook.md](./recommendation-no-priority-gap-audit-runbook.md)
-- [recommendation-real-user-cohort-library-manifest.md](./recommendation-real-user-cohort-library-manifest.md)
-- [recommendation-real-user-exclusion-readiness-check-runbook.md](./recommendation-real-user-exclusion-readiness-check-runbook.md)
-- [recommendation-similar-users-viewed-policy.md](./recommendation-similar-users-viewed-policy.md)
-- [recommendation-similar-users-viewed-audit-runbook.md](./recommendation-similar-users-viewed-audit-runbook.md)
-
-## 기록 템플릿
-
-- [recommendation-replay-template.md](./recommendation-replay-template.md)
-
-실험/비교 기록은 summary metric만 남기지 말고 wrapper, 입력 env, artifact path, baseline과 달라진 key를 같이 남깁니다.
-
-## 같이 볼 문서
-
-- [policy-normalization-current-state.md](../policy/policy-normalization-current-state.md)
-- [policy-local-closeout-pending-inventory.md](../policy/policy-local-closeout-pending-inventory.md)
-- [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
-- [testing.md](../core/testing.md)
-- [phase-plan.md](../phase-plan.md)
-
-## 요약
-
-1. 현재 상태는 [recommendation-current-state.md](./recommendation-current-state.md) 부터 봅니다.
-2. daily 관측은 [recommendation-observation-runbook.md](./recommendation-observation-runbook.md) 와 `run-local-recommendation-observation-suite.sh` 를 봅니다.
-3. AI exclusion은 [recommendation-ai-exclusion-latest-overview-runbook.md](./recommendation-ai-exclusion-latest-overview-runbook.md) 를 먼저 봅니다.
-4. `reopen_allowed=false` 이면 튜닝 문서로 내려가지 않고 관찰 유지로 handoff 합니다.
-5. 세부 audit runbook은 원인 조사용입니다. current-state와 latest artifact가 항상 우선입니다.
+실제 실행한 wrapper·설정·커밋·환경·artifact·비교 기준과 미실행 부분을 기록합니다. [작업 현황](../phase-plan.md)과 [정리 전 추천 관측](../history/recommendation/recommendation-state-before-doc-cleanup.md)을 구분합니다.

@@ -1,5 +1,7 @@
 # Frontend QA Current State
 
+> 구현 경계와 기존 QA 관측을 함께 담고 있습니다. [환경 안내](../core/environment-guide.md)에서 로컬 dev/Docker와 배포 origin을 구분하고 현재 검증은 실행한 범위만 기록합니다. 상세 사용자 흐름은 [통합 runbook](frontend-user-flow-runbook.md)을 확인합니다.
+
 문서군 진입점: [frontend-qa-docs-index.md](./frontend-qa-docs-index.md)
 
 ## 목적
@@ -50,9 +52,9 @@
 ### 3. 뒤로가기 경계
 
 - [PolicyDetailPage.jsx](../../frontend/src/pages/PolicyDetailPage.jsx) 는 `location.state.from` 과 목록 target fallback을 같이 사용해 `MainPage -> Detail`, `PoliciesPage -> Detail`, `MyPage bookmarks -> Detail` 복귀 문맥을 유지합니다.
-- [PoliciesPage.jsx](../../frontend/src/pages/PoliciesPage.jsx) 는 검색어/필터/정렬/페이지를 `searchParams` 와 동기화하고, 같은 페이지 안의 브라우저 back/forward 에서도 다시 local state로 복원합니다.
+- [PoliciesPage.jsx](../../frontend/src/pages/PoliciesPage.jsx)는 검색어를 `location.state.policySearchKeyword`로 유지하고 필터/정렬/페이지는 `searchParams`와 동기화합니다. 기존 `search` query 입력은 읽되 정상화 후 URL에 다시 쓰지 않습니다.
 - [MyPage.jsx](../../frontend/src/pages/MyPage.jsx) 는 활성 탭을 `?tab=` query와 동기화합니다.
-- [Header.jsx](../../frontend/src/components/Header.jsx), [FloatingNav.jsx](../../frontend/src/components/FloatingNav.jsx) 는 `chatFrom`, `from` 을 이용해 `/chat?session=...`, `/mypage?tab=...` 복귀 문맥을 재사용합니다.
+- [Header.jsx](../../frontend/src/components/Header.jsx), [FloatingNav.jsx](../../frontend/src/components/FloatingNav.jsx)는 `chatFrom`, `from`의 안전한 라우터 상태를 재사용합니다. `/chat`의 선택 세션은 `location.state.activeChatSessionId`, 마이페이지 탭은 `?tab=`으로 구분합니다. [ChatPage.jsx](../../frontend/src/pages/ChatPage.jsx)는 legacy `session/coachPolicyId` query를 읽은 뒤 URL에서 제거하며 다시 쓰지 않습니다.
 
 ### 4. 정책 상세 태그 필터링 (PolicyDetailPage)
 
@@ -124,17 +126,17 @@
   - 로그인 성공 후 `postLoginRecommendationNudge`, `postLoginGuideNudge` 를 메인으로 넘깁니다.
 - [MainPage.jsx](../../frontend/src/pages/MainPage.jsx)
   - guide nudge가 오면 `처음 시작 가이드` 배너가 보여야 합니다.
-  - 우선순위/표준코드 공백 상태에 따라 `추천 품질 우선 개선`, `추천 정확도 보강` CTA가 보여야 합니다.
+  - 우선순위/선택 프로필 공백 상태에 따라 `추천 품질 우선 개선`, `추천 정확도 보강` CTA가 보여야 합니다.
   - `맞춤 재추천 →` 는
     - 우선순위 공백이면 `/mypage?tab=1`
-    - 표준코드 공백이면 `/mypage?tab=0`
+    - 선택 프로필 공백이면 `추천 전 확인` 모달의 `선택 정보 보완하기 →` 를 통해 `/mypage?tab=0`
     으로 이어져야 합니다.
   - `이용가이드 보기 →` 는 `/guide` 로 이어져야 합니다.
 
 ### 11. 정책 검색 / 필터 / 상세 읽기
 
-- `PoliciesPage` 는 `search`, `category`, `region`, `subRegion`, `sort`, `statusFilter` 같은 상태를 URL query와 동기화합니다.
-- 상세 진입 뒤 브라우저 back과 상세 `뒤로가기` 는 search query를 유지해야 합니다.
+- `PoliciesPage`는 `category`, `region`, `subRegion`, `sort`, `statusFilter` 같은 필터를 URL query와 동기화하고 검색어는 라우터 상태로 유지합니다.
+- 상세 진입 뒤 브라우저 back과 상세 `뒤로가기`는 검색어 상태를 유지하되 URL에 `search` query를 남기지 않아야 합니다. URL 공유로 검색어까지 복원된다고 설명하지 않습니다.
 - 데스크톱 필터는 별도 적용 버튼 없이 즉시 URL에 반영돼야 합니다.
 - 상세 read-model 핵심 필드는 `요약 정보`, `지원지역`, `소관기관`, `신청기간` 입니다.
 
@@ -150,9 +152,10 @@
 
 - 세션 만료는 `window.__authExpired` 또는 보호 API `401 -> refresh 401` 경로로 재현됩니다.
 - 두 경우 모두 `/login` 으로 이동하고, 재로그인 후 `/chat` 으로 복귀해야 합니다.
-- `/reset-password?token=...` 는 hash token URL로 정규화된 뒤 새 비밀번호 설정이 가능해야 합니다.
-- `/reset-password#token=...` deep link도 그대로 새 비밀번호 설정이 가능해야 합니다.
+- `/reset-password?token=...`와 `/reset-password#token=...`는 토큰을 메모리로 읽은 뒤 query·hash가 없는 `/reset-password`로 주소를 정리해야 합니다. query를 hash로 옮겨 계속 노출하는 계약이 아닙니다.
+- 두 진입 모두 같은 페이지에서 새 비밀번호 설정이 가능해야 하며, 뒤로가기·앞으로가기 뒤 토큰 URL이 복구되지 않아야 합니다. 새로고침으로 메모리 토큰이 복원된다고 기대하지 않습니다.
 - invalid token은 만료 안내만 보여주고, 로그인으로 강제 이동시키지 않아야 합니다.
+- 수신거부 링크는 `/notifications/unsubscribe#token=...`로 진입해 토큰을 읽고 URL을 정리한 뒤 `POST /api/notifications/unsubscribe` JSON body로 처리합니다. 토큰을 API query나 QA 증적에 남기지 않습니다.
 
 ### 14. 알림 / 북마크 유지 흐름
 
@@ -201,19 +204,19 @@
 - `cd frontend && npm run lint` 통과
 - `cd frontend && npm run test:e2e` 통과
 
-현재 기본 Playwright smoke 범위:
+기본 Playwright smoke 범위 (검색·세션·토큰 계약 설명은 2026-10-22 코드/등록 테스트 대조로 갱신; 아래 과거 실행 결과와 구분):
 
 - `/chat` 비로그인 접근 -> `/login` -> 로그인 후 원 경로 복귀
 - 로그인된 `/chat` 에서 `authExpired` callback 실행 -> `/login` -> 재로그인 후 `/chat` 복귀
 - `/chat` 에서 보호 API `401` + `/api/auth/refresh 401` -> `/login` -> 재로그인 후 `/chat` 복귀
-- `/policies?search=...` -> 상세 -> 브라우저 back / 상세 뒤로가기에서 query 유지
+- `/policies` 검색 -> 상세 -> 브라우저 back / 상세 뒤로가기에서 `location.state.policySearchKeyword` 유지, 검색어 URL query 비노출
 - 홈 `이용가이드` -> `/guide` -> `서비스 문의` -> `/support` -> `이용가이드 보기` 복귀
 - `/mypage?tab=2` 로그인 후 bookmark 목록 -> 상세 -> 뒤로가기에서 `?tab=2` 유지
 - `/mypage?tab=5` 비밀번호 변경 성공 -> 강제 로그아웃 -> `/login` -> 재로그인 후 account tab 복귀
 - 비로그인 정책 상세 bookmark 클릭 -> `/login` -> 로그인 후 bookmark `POST` 정확히 1회 + 최종 bookmarked 상태 반영
-- `/reset-password?token=...` query token 진입 -> hash 정규화 -> 새 비밀번호 설정 -> 새 비밀번호 로그인 성공
-- `/reset-password#token=...` hash 딥링크 진입 -> 새 비밀번호 설정 -> 새 비밀번호 로그인 성공
-- `/reset-password#token=...` invalid token 제출 -> `A008` 만료 안내 노출 + reset-password 화면 유지
+- `/reset-password?token=...` 또는 `#token=...` 진입 -> 토큰 URL 제거 -> 새 비밀번호 설정 -> 새 비밀번호 로그인 성공
+- invalid reset token 진입 -> 토큰 URL 제거 -> `A008` 만료 안내 노출 + reset-password 화면 유지, 히스토리 이동 뒤에도 토큰 URL 비노출
+- `/notifications/unsubscribe#token=...` 진입 -> 토큰 URL 제거 + POST JSON 전송, 히스토리 이동 뒤에도 토큰 URL 비노출
 - 일반 사용자 `/admin/dashboard` 접근 차단
 - `/support` 는 `정책 오류 제보와는 다릅니다` 안내를 노출
 - 정책 상세는 `⚑ 정책 오류 제보` CTA 유지
@@ -226,7 +229,9 @@ opt-in admin Playwright smoke 범위:
 - admin dashboard `summary` 강제 실패 -> `수집 실패 상세`, `검색 실패 상세` 유지
 - admin dashboard `recommendation-breakdowns` 강제 실패 -> 상단 recommendation hero 유지 + 해당 섹션만 error card 전환
 
-같은 날짜의 production build/preview Chromium 수동 검증 기준선:
+같은 날짜의 production build/preview Chromium 수동 검증 기록 (과거 관측):
+
+아래 검색어·챗 세션 URL 유지 결과는 당시 기록으로 보존합니다. 현재 검수는 검색어/선택 세션을 라우터 state로 유지하고 일회성 토큰을 URL에서 제거하는 [검색 기준](frontend-qa-checklist.md#검색어-state-유지와-url-비노출)과 [세션·토큰 기준](frontend-qa-checklist.md#세션과-일회성-토큰-url-비노출)을 적용합니다. 아래 기록을 현재 URL 계약으로 재사용하지 않습니다.
 
 - `/chat?session=...` 비로그인 접근 -> `/login` -> 로그인 후 원 세션 복귀
 - `/mypage?tab=2` 비로그인 접근 -> `/login` -> 로그인 후 원 탭 복귀
@@ -261,8 +266,8 @@ opt-in admin Playwright smoke 범위:
 
 ### 2. 목록 필터 상태의 URL 비영속성
 
-- `PoliciesPage` 검색/필터/정렬/페이지 상태는 현재 URL query와 동기화됩니다.
-- 따라서 상세 진입 후 복귀, 새로고침, 직접 URL 접근에서도 같은 query면 같은 상태가 복원되는 것을 기본 정상으로 봅니다.
+- `PoliciesPage` 필터/정렬/페이지는 URL query, 자유 검색어는 `location.state.policySearchKeyword`로 유지됩니다.
+- 상세 왕복에서는 두 상태를 함께 확인합니다. URL만 공유하거나 직접 입력한 경우 검색어까지 복원된다고 기대하지 않습니다.
 - `statusFilter`, `sort`, `page`, `pageSize`, `category`, `region`, `subRegion`, `sourceType`, `income`, `targetGroup`은 URL query에 동기화됩니다.
   단 기본값(statusFilter="신청가능" 등)은 URL에 포함되지 않으므로, 새로고침 후 기본값으로 복귀하는 건 정상입니다.
 - 지역 Select 변경 시 sort가 자동 전환됩니다: 지역 선택 → `latest`, 전체 복귀 → `views`.
