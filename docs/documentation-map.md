@@ -17,6 +17,7 @@
 | 정보 | 대표 문서 |
 | --- | --- |
 | 시작과 분야별 목차 | [README.md](README.md), 분야별 `*-docs-index.md` |
+| 에이전트 공통 계약과 작업 절차 | [AGENTS.md](../AGENTS.md), [작업 가이드](work-guide.md), [Git 규칙](github-workflow.md). CLAUDE.md는 공통 진입점으로 연결하고 스킬의 사용 조건·절차는 작업 가이드와 각 SKILL.md에서 관리 |
 | 현재 작업 방향·미해결 과제 | [current-state.md](current-state.md) |
 | 기술·모듈·호출 구조 | [project-spec.md](project-spec.md), [architecture.md](architecture.md) |
 | 로컬/서버/원격 DB 구분 | [environment-guide.md](core/environment-guide.md) |

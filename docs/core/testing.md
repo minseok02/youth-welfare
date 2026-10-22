@@ -13,19 +13,13 @@ DB_USERNAME=app_core_rw ./gradlew test --no-daemon
 
 현재 Gradle은 구성 단계에서 bootRun용 설정도 평가하므로, 루트 `.env`의 `DB_USERNAME=root` 같은 값이 단위 테스트 시작을 막을 수 있습니다. 위 inline 값은 설정 검사 충돌을 피하기 위한 것이며 DB에 role을 만들거나 운영 설정을 바꾸는 명령이 아닙니다. env 파일 전체를 shell에 source하지 않습니다.
 
-문서의 경로나 내용을 바꿨다면 해당 `*ContractTest`도 확인합니다. 현재 문서는 Gradle test의 변경 입력으로 추적되지 않을 수 있어, 코드가 그대로면 `UP-TO-DATE`로 검사가 생략됩니다. 문서 계약을 실제로 재검증할 때는 캐시를 우회합니다.
-
-```bash
-DB_USERNAME=app_core_rw ./gradlew test --rerun-tasks --no-daemon
-```
-
-위 명령도 `backend/`에서 실행합니다. Markdown만 변경했더라도 `git diff --check`나 캐시된 성공만으로 검증을 끝내지 않습니다.
-
-문서/스크립트 계약만 실제 재실행하려면 다음처럼 test task의 캐시를 우회할 수 있습니다 (현재 Gradle 8.7 기준).
+문서의 경로나 내용을 바꿨다면 해당 `*ContractTest`도 확인합니다. 현재 문서는 Gradle test의 변경 입력으로 추적되지 않을 수 있어, 코드가 그대로면 `UP-TO-DATE`로 검사가 생략됩니다. 문서/스크립트 계약을 실제 재검증할 때는 `backend/`에서 다음처럼 test task를 재실행합니다 (현재 Gradle 8.7 기준).
 
 ```bash
 DB_USERNAME=app_core_rw ./gradlew test --tests '*ContractTest' --rerun --no-daemon
 ```
+
+관련 테스트를 더 좁힐 수 있으면 해당 클래스를 지정합니다. Markdown만 변경했더라도 관련 계약 검사를 `git diff --check`나 캐시된 성공으로 대신하지 않습니다. 전체 테스트나 의존 task까지 재실행하는 `--rerun-tasks`는 변경 영향·실패 원인상 필요한 경우 사용합니다.
 
 [RuntimeSmokeExecutionContractTest](../../backend/src/test/java/com/example/welfare/global/config/RuntimeSmokeExecutionContractTest.java)는 실제 검증 스크립트를 임시 디렉터리에 복사하고 HTTP/DB/credential helper를 대체해 실행합니다. 추천 클릭 GET/POST·DB 증적, 성능 검색 POST JSON·HTTP 실패 판정, 복구 런북의 대상/Redis guard를 확인합니다. Bash/Python이 필요하며 실제 Docker·DB·Redis·네트워크는 사용하지 않습니다. 이것은 실제 앱 smoke나 브라우저 검증의 대체가 아닙니다.
 
@@ -82,10 +76,10 @@ SMTP_SMOKE_TO='<test recipient>' RUN_SMTP_SMOKE=true \
 ./gradlew test --tests com.example.welfare.notification.gateway.SmtpSmokeTest --rerun-tasks
 ```
 
-SES는 [전환 런북](mail-ses-migration-runbook.md)을 따릅니다. 실제 OpenAI·수집·SMTP·웹푸시·부하 시험과 운영 smoke는 이번 문서 정리의 검증 대상이 아닙니다.
+SES는 [전환 런북](mail-ses-migration-runbook.md)을 따릅니다. 실제 OpenAI·수집·SMTP·웹푸시·부하 시험과 운영 smoke는 일반 단위·문서 검증에 포함하지 않으며, 요청된 검증 범위와 대상·영향이 확인된 경우 실행합니다.
 
 운영 조회/점검 절차는 [배포](../deployment.md), [운영 체크리스트](final-ops-closeout-checklist.md#attention과-backlog-판정), [배포 후 점검](final-ops-closeout-checklist.md)을 따릅니다. `run-local-*` 이름이어도 설정에 따라 운영 앱/DB에 연결될 수 있습니다.
 
 ## 결과 기록
 
-실행 명령, 커밋, 환경·대상, 통과/실패/skip, 미실행 이유를 함께 기록합니다. [phase-plan.md](../phase-plan.md)에 현재 작업의 검증을 남기고, 장기적으로 재사용할 원인·해결만 [troubleshooting-log.md](troubleshooting-log.md)에 남깁니다.
+실행 명령, 커밋, 환경·대상, 통과/실패/skip, 미실행 이유를 함께 보고합니다. 변경 작업의 검증은 [phase-plan.md](../phase-plan.md)에, 장기적으로 재사용할 원인·해결만 [troubleshooting-log.md](troubleshooting-log.md)에 남깁니다. 변경 없는 검토의 기록 범위는 [작업 가이드](../work-guide.md#완료와-기록)를 따릅니다.

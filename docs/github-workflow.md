@@ -67,7 +67,7 @@ docs/docs-github-workflow
 
 추가 원칙:
 
-- 작업마다 새 브랜치를 만든다.
+- 독립적인 해결 목표의 새 작업은 새 브랜치를 만든다. 같은 목표를 이어가는 후속 task는 현재 브랜치를 사용할 수 있다.
 - 브랜치를 너무 오래 끌지 않는다.
 - 중간 브랜치를 base로 하는 연쇄 PR(stacked PR)은 기본값으로 만들지 않는다.
 - 가능하면 `main` 기준 단일 해결 PR로 정리한다.
@@ -207,7 +207,7 @@ PR 범위가 커졌다면 왜 커졌는지 본문에 적는다.
 - 프론트 browser: 테스트용 앱·fixture를 준비한 뒤 `cd frontend && npm run test:e2e`. 배포 origin 대상 검사는 서버 데이터를 변경할 수 있다.
 - 프론트 보안 기준선: `cd frontend && npm audit`
 - 백엔드: `cd backend && DB_USERNAME=app_core_rw ./gradlew test --no-daemon`
-- 문서 계약: `backend/`에서 `DB_USERNAME=app_core_rw ./gradlew test --tests '*ContractTest' --rerun-tasks --no-daemon`. 문서 변경은 test 캐시에 반영되지 않을 수 있으므로 실제 실행 여부를 확인한다.
+- 문서 계약: `backend/`에서 `DB_USERNAME=app_core_rw ./gradlew test --tests '*ContractTest' --rerun --no-daemon`. 문서 변경은 test 캐시에 반영되지 않을 수 있으므로 실제 실행 여부를 확인한다.
 - DB/Redis 흐름: **개발 컴퓨터에서만** `ALLOW_LOCAL_DOCKER_DB=true docker compose --env-file .env -f docker-compose.yml up -d db redis`, `bash deploy/smoke/preflight-integration-runtime.sh` 순서로 준비한 뒤 `cd backend && DB_USERNAME=app_core_rw ./gradlew integrationTest --no-daemon`. 운영 RDS에 fixture를 쓰지 않는다.
 - runtime auth/session 기준선: `APP_BASE_URL=http://127.0.0.1:8082 APP_HEALTH_URL=http://127.0.0.1:8082/actuator/health REQUIRE_RECOMMENDATIONS=false bash deploy/smoke/run-local-runtime-api-smoke.sh`
 - auth/session 보안 경계: `bash deploy/smoke/run-local-admin-forced-logout-smoke.sh`
@@ -227,7 +227,7 @@ runtime/admin smoke는 로그인·세션 무효화 등 상태 변경을 포함�
 
 ## 문서 갱신
 
-작업 완료 후 `docs/phase-plan.md`를 갱신한다.
+코드·설정·문서·스킬을 변경한 작업은 완료 후 `docs/phase-plan.md`를 갱신한다. 변경 없는 조회·검토·상담은 별도 기록 요청이 없으면 보고로 마친다.
 
 - 해당 작업에 완료 여부와 범위를 명시한다. 기존에 없는 `완료`/`진행 예정` 절을 기계적으로 추가하지 않는다.
 - 새로 발견한 기능·운영 문제는 미해결 과제로 남기고 문서 수정 완료와 구분한다.
@@ -237,7 +237,7 @@ runtime/admin smoke는 로그인·세션 무효화 등 상태 변경을 포함�
 
 ## 참고한 외부 스킬
 
-2026-10-22에 아래 원문을 검토하고 필요한 원칙만 프로젝트 기준으로 다시 작성했다. 링크는 검토한 커밋에 고정했다. 스킬은 설치하지 않았으며, 원문의 명령·승인·자동 실행 절차를 통째로 채택한 것은 아니다.
+2026-10-22에 아래 원문을 검토하고 필요한 원칙만 프로젝트 기준으로 다시 작성했다. 링크는 검토한 커밋에 고정했다. 이 표의 Git 관련 스킬은 설치하지 않았으며, 원문의 명령·승인·자동 실행 절차를 통째로 채택한 것은 아니다.
 
 | 원문 | 반영한 부분 | 그대로 가져오지 않은 부분 |
 | --- | --- | --- |
