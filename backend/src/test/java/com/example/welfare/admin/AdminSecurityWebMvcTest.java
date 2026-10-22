@@ -1406,7 +1406,7 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
         given(collectBatchService.collectAllNow()).willReturn(new CollectBatchRunResult(List.of(
-                CollectBatchRunResult.SourceRunResult.success(CollectSource.YOUTH, CollectResult.of(10, 10, 0, 0, 0)),
+                CollectBatchRunResult.SourceRunResult.completed(CollectSource.YOUTH, CollectResult.of(10, 10, 0, 0, 0)),
                 CollectBatchRunResult.SourceRunResult.failure(CollectSource.BOKJIRO_LOCAL, new CustomException(ErrorCode.COLLECT_API_FAILED))
         )));
 
@@ -1417,9 +1417,103 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.completedWithFailures").value(true))
                 .andExpect(jsonPath("$.data.requestedSourceCount").value(2))
                 .andExpect(jsonPath("$.data.failedSourceCount").value(1))
+                .andExpect(jsonPath("$.data.status").value("PARTIAL_SUCCESS"))
+                .andExpect(jsonPath("$.data.succeededSourceCount").value(1))
+                .andExpect(jsonPath("$.data.partialSourceCount").value(0))
                 .andExpect(jsonPath("$.data.sourceResults[1].sourceKey").value("bokjiro-local"))
                 .andExpect(jsonPath("$.data.sourceResults[1].success").value(false))
+                .andExpect(jsonPath("$.data.sourceResults[1].status").value("FAILED"))
                 .andExpect(jsonPath("$.data.sourceResults[1].errorCode").value("COL001"));
+    }
+
+    @Test
+    @DisplayName("항목 일부가 실패한 전체 수집은 HTTP 200과 저장 건수를 유지하면서 부분 실패로 응답한다")
+    void collectAllEndpointReportsItemLevelPartialFailure() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(collectBatchService.collectAllNow()).willReturn(new CollectBatchRunResult(List.of(
+                CollectBatchRunResult.SourceRunResult.completed(CollectSource.GOV24_SUPPORT_CONDITIONS,
+                        CollectResult.of(50, 48, 0, 0, 2)),
+                CollectBatchRunResult.SourceRunResult.completed(CollectSource.YOUTH,
+                        CollectResult.of(10, 10, 0, 0, 0))
+        )));
+
+        mockMvc.perform(post("/api/admin/collect/all")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.completedWithFailures").value(true))
+                .andExpect(jsonPath("$.data.status").value("PARTIAL_SUCCESS"))
+                .andExpect(jsonPath("$.data.requestedSourceCount").value(2))
+                .andExpect(jsonPath("$.data.succeededSourceCount").value(1))
+                .andExpect(jsonPath("$.data.partialSourceCount").value(1))
+                .andExpect(jsonPath("$.data.failedSourceCount").value(0))
+                .andExpect(jsonPath("$.data.sourceResults[0].success").value(false))
+                .andExpect(jsonPath("$.data.sourceResults[0].status").value("PARTIAL_SUCCESS"))
+                .andExpect(jsonPath("$.data.sourceResults[0].requestedCount").value(50))
+                .andExpect(jsonPath("$.data.sourceResults[0].savedCount").value(48))
+                .andExpect(jsonPath("$.data.sourceResults[0].failedCount").value(2));
+    }
+
+    @Test
+    @DisplayName("snapshot 실패는 목록 저장 성공과 별도로 관리자 응답에 노출하고 원래 예외 내용은 숨긴다")
+    void collectAllEndpointExposesListDiffFailureSeparately() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(collectBatchService.collectAllNow()).willReturn(new CollectBatchRunResult(List.of(
+                CollectBatchRunResult.SourceRunResult.completed(CollectSource.GOV24, CollectResult.of(10, 10, 0, 0, 0))
+        ), List.of(CollectBatchRunResult.ListDiffRunResult.failure(CollectSource.GOV24,
+                new IllegalStateException("internal diagnostic must not reach the response")))));
+
+        mockMvc.perform(post("/api/admin/collect/all")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.completedWithFailures").value(true))
+                .andExpect(jsonPath("$.data.status").value("PARTIAL_SUCCESS"))
+                .andExpect(jsonPath("$.data.requestedSourceCount").value(1))
+                .andExpect(jsonPath("$.data.succeededSourceCount").value(1))
+                .andExpect(jsonPath("$.data.partialSourceCount").value(0))
+                .andExpect(jsonPath("$.data.failedSourceCount").value(0))
+                .andExpect(jsonPath("$.data.failedListDiffCount").value(1))
+                .andExpect(jsonPath("$.data.sourceResults[0].savedCount").value(10))
+                .andExpect(jsonPath("$.data.sourceResults[0].success").value(true))
+                .andExpect(jsonPath("$.data.listDiffResults[0].sourceKey").value("gov24"))
+                .andExpect(jsonPath("$.data.listDiffResults[0].status").value("FAILED"))
+                .andExpect(jsonPath("$.data.listDiffResults[0].reason").value("LIST_DIFF_FAILED"))
+                .andExpect(jsonPath("$.data.listDiffResults[0].errorCode").value("IllegalStateException"))
+                .andExpect(jsonPath("$.data.listDiffResults[0].errorMessage")
+                        .value("list diff failed; see application logs with errorCode=IllegalStateException"));
+    }
+
+    @Test
+    @DisplayName("반환된 항목이 전건 실패한 수집은 HTTP 200과 실제 실패 건수를 유지하면서 FAILED로 응답한다")
+    void collectAllEndpointReportsAllItemFailures() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(collectBatchService.collectAllNow()).willReturn(new CollectBatchRunResult(List.of(
+                CollectBatchRunResult.SourceRunResult.completed(CollectSource.GOV24_SUPPORT_CONDITIONS,
+                        CollectResult.of(2, 0, 0, 0, 2))
+        )));
+
+        mockMvc.perform(post("/api/admin/collect/all")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.completedWithFailures").value(true))
+                .andExpect(jsonPath("$.data.status").value("FAILED"))
+                .andExpect(jsonPath("$.data.succeededSourceCount").value(0))
+                .andExpect(jsonPath("$.data.partialSourceCount").value(0))
+                .andExpect(jsonPath("$.data.failedSourceCount").value(1))
+                .andExpect(jsonPath("$.data.sourceResults[0].success").value(false))
+                .andExpect(jsonPath("$.data.sourceResults[0].status").value("FAILED"))
+                .andExpect(jsonPath("$.data.sourceResults[0].failedCount").value(2));
     }
 
     @Test

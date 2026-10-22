@@ -6,6 +6,8 @@
 
 2026-10-21 [로컬 Docker 기록](../phase-plan.md#2026-10-21-로컬-수집-실행-확인)에서는 목록 4개 source 저장은 성공했으나 snapshot 두 테이블 누락으로 list diff가 실패했고 Gov24 support는 48/50 저장·2건 실패였습니다. local fallback 설정으로 strict embedding도 미갱신입니다. HTTP 200·`completedWithFailures=false`·health UP으로 이를 해결 완료 처리하지 않습니다. [DB 진단](../core/db-migration.md#수집-snapshot-테이블-누락)과 별도 기능 작업이 필요합니다.
 
+2026-10-23 코드에서는 항목 부분 실패와 list diff 오류를 아래 결과 계약에 반영하도록 보완했습니다. 이는 실패의 노출·집계 수정이며, 위 로컬 DB의 누락 테이블·지원조건 실패·embedding 미갱신을 실제 복구한 것은 아닙니다.
+
 ## 진입점과 저장
 
 - 수동: `POST /api/admin/collect/all`, `/{sourceKey}`, `/{sourceKey}/async`; 상태는 `GET /{sourceKey}/async-status`입니다.
@@ -14,6 +16,25 @@
 - Dispatch: CollectSource·CollectSourceAdapter·CollectSourceExecutionService → CollectBatchService/CollectAdminService. adapter뿐 아니라 enum·registry·source별 분기도 점검합니다.
 
 저장은 정책 `welfare_services/service_regions/service_tags`, snapshot `raw_api_payloads`, sidecar `service_taxonomies/service_taxonomy_terms/service_taxonomy_summary_slots/service_facts`, 실행 `api_sync_logs`로 나뉩니다. [RawApiPayloadService](../../backend/src/main/java/com/example/welfare/collect/service/RawApiPayloadService.java)는 DTO/객체를 JSON 재직렬화해 sourceType/sourceId/apiCategory로 upsert합니다. 모든 HTTP 원문·이전 버전 보존은 보장하지 않습니다. sidecar 존재·실제 적재와 replay precondition을 따로 확인하며 draft MySQL SQL 자동 적용으로 해결하지 않습니다.
+
+## 전체 수집 결과 계약
+
+`POST /api/admin/collect/all`은 실행 결과를 반환하면 기존 HTTP `200`과 응답 envelope의 `success=true`를 유지합니다. 이것은 모든 수집의 성공을 뜻하지 않습니다. `data.status`와 실행별 결과를 확인합니다.
+
+| `data.status` | 판정 범위 |
+| --- | --- |
+| `SUCCESS` | 반환된 source 실행과 수행한 list diff에서 실패가 보고되지 않음 |
+| `PARTIAL_SUCCESS` | 성공 또는 일부 처리된 실행이 있으나 source의 항목/예외 실패 또는 list diff 오류도 있음 |
+| `FAILED` | 성공 또는 일부 처리된 실행 없이 실패만 보고됨 |
+| `SKIPPED` | 수행한 source 실행·성공한 비교·실패가 없고, 결과가 비어 있거나 비교가 생략됨 |
+
+- `completedWithFailures`는 source 부분 실패·전건/예외 실패·list diff 오류 중 하나라도 있으면 `true`입니다. `false`가 데이터 의미의 정확성, 전체 detail coverage, embedding·추천 완료까지 보증하지는 않습니다.
+- `sourceResults[].success`는 해당 실행이 예외 없이 반환되고 `failedCount=0`일 때만 `true`입니다. `status`는 `SUCCESS`·`PARTIAL_SUCCESS`·`FAILED`로 나뉩니다. `48/50` 저장·2건 실패는 저장 건수를 유지한 `PARTIAL_SUCCESS`이고, 처리/skip/필터 결과 없이 전건 실패하면 `FAILED`입니다. 예외로 건수를 알 수 없을 때는 가짜 항목 실패 건수를 만들지 않습니다.
+- `requestedSourceCount = succeededSourceCount + partialSourceCount + failedSourceCount`입니다. 이는 고유 source 종류가 아니라 실행 entry 수이며 forced/rotation의 같은 lane을 합치지 않습니다. 저장·skip·filtered·failed의 기존 항목 건수도 유지합니다. skip·필터 제외를 자동으로 실패에 합산하지 않으며, 제외가 적절했는지는 별도 품질 검증 대상입니다.
+- `listDiffResults[]`는 sourceKey·jobName·status·reason·안전한 오류 코드/메시지를 별도로 반환합니다. snapshot 저장과 변경 정책 판정이 끝나면 `SUCCESS`, source 실패/부분 실패 때문에 비교하지 않으면 `SKIPPED`, snapshot 저장 또는 정책 판정에서 예외가 나면 `FAILED`입니다. `failedListDiffCount`는 이 비교 오류만 집계하며 성공한 목록 저장을 source 실패로 바꾸거나 항목 건수를 덮어쓰지 않습니다.
+- baseline·임계치 미달·후보 없음·count-drop guard는 정상적으로 끝난 비교의 reason으로 남깁니다. forced detail을 생략했다는 이유만으로 비교 실패를 만들지 않습니다. 오류 원문의 SQL·URL·비밀·PII는 응답에 포함하지 않습니다.
+
+Scheduled 실행도 같은 결과를 계산하고 완료 로그에 전체 status와 성공/부분 실패/실패 실행 수·비교 실패 수를 남깁니다. 이 계약은 `collect/all` 범위이며 개별/async API의 결과 모델이나 DB의 `api_sync_logs` schema를 바꾼 것은 아닙니다.
 
 ## Scheduled와 manual의 차이
 
