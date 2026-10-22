@@ -159,6 +159,14 @@ Gov24 → 추천 AI exclusion → 수집 → 공통 운영 → 인증 순서로 
 
 통합 fixture·브라우저 실행·운영 smoke·DB/Redis/AWS 변경·실제 수집/AI/메일/푸시·원격 CI는 실행하지 않았습니다. 작업 브랜치를 `main`에 병합하거나 수집 리팩토링을 시작한 결과가 아닙니다.
 
+## 2026-10-22 후속 Git 정리: 프론트 단위 테스트 CI 분리
+
+기존 `docs/common-development-rules` 작업공간의 변경을 별도 worktree `docs/docs-environment-cleanup`의 문서 정리 커밋 위에서 분리합니다. 첫 커밋에는 `.github/workflows/ci.yml`의 프론트 단위 테스트 단계와 이 기록만 포함합니다. 작업 지침·스킬은 후속 커밋으로 남기며 원래 작업공간의 파일·브랜치·스테이징은 변경하지 않습니다.
+
+추가된 단계는 기존 `frontend-browser-smoke` job에서 `npm ci` 직후 `npm run test:unit`을 실행합니다. 다른 job·권한·트리거·Node 버전·브라우저/DB 실행 설정은 변경하지 않습니다. 기존 미커밋 파일 9개의 별도 백업과 추적 변경 patch는 `/home/minseok/youth-welfare-git-next.Yiw33p`에 보존했습니다.
+
+검증은 별도 worktree에서 수행했습니다. `frontend/`의 `npm run test:unit`은 22 suites / 54 tests, 실패·skip 0입니다. 로컬 실행은 Node 24.11.1 / npm 11.6.2이며, workflow의 Node 22 실행 결과나 GitHub CI 통과로 해석하지 않습니다. PyYAML로 전후 설정을 파싱해 `npm ci` 뒤·DB 기동 전의 단일 단계만 추가됐음을 비교했습니다. `git diff --check`를 통과했습니다. 앱·DB·브라우저·외부 API는 실행하지 않았습니다.
+
 ## 다음 작업
 
 다음 범위는 [현재 확인 과제](current-state.md)의 각 항목을 재현 가능한 기능 작업으로 분리하는 것입니다. 추가적인 대규모 문서 통폐합을 필수 선행 작업으로 두지 않습니다. 과거의 `KEEP_OBSERVING` 값은 추천 품질 실험과 운영 관측의 기록으로 남기고, 데이터 유실·보안·계약 불일치 수정의 금지 조건으로 사용하지 않습니다.
