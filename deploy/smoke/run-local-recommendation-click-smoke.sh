@@ -31,6 +31,7 @@ SIGNUP_RESPONSE="${ARTIFACT_DIR}/signup.json"
 LOGIN_RESPONSE="${ARTIFACT_DIR}/login.json"
 RECOMMEND_RESPONSE="${ARTIFACT_DIR}/recommendations.json"
 POLICY_RESPONSE="${ARTIFACT_DIR}/policy.json"
+CLICK_RESPONSE="${ARTIFACT_DIR}/click.json"
 DB_ROW_RESPONSE="${ARTIFACT_DIR}/db-row.txt"
 
 cleanup() {
@@ -71,19 +72,6 @@ else:
     print(first.get("id", ""))
     print(first.get("serviceId", ""))
     print(first.get("logId", ""))
-PY
-}
-
-extract_error_code() {
-  local response_file="$1"
-  python3 - "$response_file" <<'PY'
-import json
-import sys
-
-with open(sys.argv[1], "r", encoding="utf-8") as fp:
-    payload = json.load(fp)
-
-print(payload.get("errorCode", ""))
 PY
 }
 
@@ -164,34 +152,54 @@ LOG_ID="${RECOMMENDATION_FIELDS[2]:-}"
 
 if [[ -z "${SERVICE_ID}" || -z "${LOG_ID}" ]]; then
   echo "recommendations refresh returned no clickable rows" >&2
-  cat "${RECOMMEND_RESPONSE}" >&2
   exit 1
 fi
 
-smoke_print_step "policy detail via serviceId=${SERVICE_ID} logId=${LOG_ID}"
+if [[ ! "${SERVICE_ID}" =~ ^[1-9][0-9]*$ || ! "${LOG_ID}" =~ ^[1-9][0-9]*$ ]]; then
+  echo "recommendation serviceId/logId must be positive integer IDs" >&2
+  exit 1
+fi
+
+read_click_state() {
+  smoke_db_query \
+    "SELECT id, service_id, is_clicked, COALESCE(to_char(clicked_at, 'YYYY-MM-DD HH24:MI:SS'), 'NULL')
+     FROM recommendation_logs
+     WHERE id = ${LOG_ID} AND service_id = ${SERVICE_ID};" \
+    > "${DB_ROW_RESPONSE}"
+  DB_CLICKED="$(awk 'NR==1 {print $3}' "${DB_ROW_RESPONSE}")"
+  DB_CLICKED_AT="$(awk 'NR==1 {print $4}' "${DB_ROW_RESPONSE}")"
+}
+
+smoke_print_step "policy detail via serviceId=${SERVICE_ID} (must not mark recommendation click)"
 POLICY_STATUS="$(
-  smoke_http_status GET "${APP_BASE_URL}/api/policies/${SERVICE_ID}?logId=${LOG_ID}" "${POLICY_RESPONSE}" \
+  smoke_http_status GET "${APP_BASE_URL}/api/policies/${SERVICE_ID}" "${POLICY_RESPONSE}" \
     -H "Authorization: Bearer ${ACCESS_TOKEN}"
 )"
-smoke_assert_status 200 "${POLICY_STATUS}" "policy detail click trace" "${POLICY_RESPONSE}"
+smoke_assert_status 200 "${POLICY_STATUS}" "policy detail" "${POLICY_RESPONSE}"
 
-smoke_print_step "verify recommendation_logs click mark"
-smoke_db_query \
-  "SELECT id, service_id, is_clicked, COALESCE(to_char(clicked_at, 'YYYY-MM-DD HH24:MI:SS'), 'NULL')
-   FROM recommendation_logs
-   WHERE id = ${LOG_ID};" \
-  > "${DB_ROW_RESPONSE}"
-
-DB_CLICKED="$(awk 'NR==1 {print $3}' "${DB_ROW_RESPONSE}")"
-DB_CLICKED_AT="$(awk 'NR==1 {print $4}' "${DB_ROW_RESPONSE}")"
-if [[ "${DB_CLICKED}" != "t" && "${DB_CLICKED}" != "true" ]]; then
-  echo "recommendation log click mark missing for log_id=${LOG_ID}" >&2
-  cat "${DB_ROW_RESPONSE}" >&2
+read_click_state
+if [[ ( "${DB_CLICKED}" != "f" && "${DB_CLICKED}" != "false" ) || "${DB_CLICKED_AT}" != "NULL" ]]; then
+  echo "fresh recommendation log must remain unclicked after detail GET for log_id=${LOG_ID}" >&2
   exit 1
 fi
-if [[ "${DB_CLICKED_AT}" == "NULL" ]]; then
+
+smoke_print_step "authenticated recommendation click logId=${LOG_ID}"
+CLICK_STATUS="$(
+  smoke_http_status POST "${APP_BASE_URL}/api/policies/${SERVICE_ID}/recommendation-click" "${CLICK_RESPONSE}" \
+    -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H 'Content-Type: application/json' \
+    -d "{\"logId\":${LOG_ID}}"
+)"
+smoke_assert_status 200 "${CLICK_STATUS}" "recommendation click" "${CLICK_RESPONSE}"
+
+smoke_print_step "verify recommendation_logs click mark"
+read_click_state
+if [[ "${DB_CLICKED}" != "t" && "${DB_CLICKED}" != "true" ]]; then
+  echo "recommendation log click mark missing for log_id=${LOG_ID}" >&2
+  exit 1
+fi
+if [[ -z "${DB_CLICKED_AT}" || "${DB_CLICKED_AT}" == "NULL" ]]; then
   echo "recommendation log clicked_at missing for log_id=${LOG_ID}" >&2
-  cat "${DB_ROW_RESPONSE}" >&2
   exit 1
 fi
 

@@ -83,9 +83,9 @@ declare -a ENDPOINTS=(
   "health|GET|/actuator/health|none"
   "policy_list_default|GET|/api/policies?page=0&size=20|none"
   "policy_list_status_open|GET|/api/policies?page=0&size=20&statusFilter=open|none"
-  "policy_search_keyword|GET|/api/policies/search?keyword=%EC%B2%AD%EB%85%84&page=0&size=20|none"
-  "policy_search_filtered|GET|/api/policies/search?keyword=%EC%B2%AD%EB%85%84&page=0&size=20&statusFilter=open&sort=deadline|none"
-  "policy_suggestions|GET|/api/policies/search/suggestions?keyword=%EC%B2%AD%EB%85%84&limit=10|none"
+  'policy_search_keyword|POST|/api/policies/search|none|{"keyword":"청년","page":0,"size":20}'
+  'policy_search_filtered|POST|/api/policies/search|none|{"keyword":"청년","page":0,"size":20,"statusFilter":"open","sort":"deadline"}'
+  'policy_suggestions|POST|/api/policies/search/suggestions|none|{"keyword":"청년","limit":10}'
   "policy_trending|GET|/api/policies/search/trending?limit=10|none"
   "policy_ranking|GET|/api/policies/ranking?size=20|none"
 )
@@ -111,20 +111,25 @@ measure_endpoint() {
   local auth="$4"
   local run_index="$5"
   local phase="$6"
+  local request_body="${7:-}"
   local response_file="${ARTIFACT_DIR}/responses/${scenario}-${phase}-${run_index}.body"
   local curl_out
   local curl_exit
   local auth_args=()
+  local body_args=()
 
   if [[ "${auth}" == "admin" ]]; then
     auth_args=(-H "Authorization: Bearer ${admin_token}")
+  fi
+  if [[ -n "${request_body}" ]]; then
+    body_args=(-H 'Content-Type: application/json' --data-binary "${request_body}")
   fi
 
   set +e
   curl_out="$(
     curl -sS -o "${response_file}" \
       -w "%{http_code}\t%{time_total}\t%{time_connect}\t%{time_starttransfer}\t%{size_download}" \
-      -X "${method}" "${APP_BASE_URL}${path}" "${auth_args[@]}"
+      -X "${method}" "${APP_BASE_URL}${path}" "${auth_args[@]}" "${body_args[@]}"
   )"
   curl_exit=$?
   set -e
@@ -149,12 +154,12 @@ PY
 }
 
 for endpoint in "${ENDPOINTS[@]}"; do
-  IFS='|' read -r scenario method path auth <<< "${endpoint}"
+  IFS='|' read -r scenario method path auth request_body <<< "${endpoint}"
   for ((i = 1; i <= WARMUP_RUNS; i++)); do
-    measure_endpoint "${scenario}" "${method}" "${path}" "${auth}" "${i}" "warmup"
+    measure_endpoint "${scenario}" "${method}" "${path}" "${auth}" "${i}" "warmup" "${request_body}"
   done
   for ((i = 1; i <= RUNS; i++)); do
-    measure_endpoint "${scenario}" "${method}" "${path}" "${auth}" "${i}" "measure"
+    measure_endpoint "${scenario}" "${method}" "${path}" "${auth}" "${i}" "measure" "${request_body}"
   done
 done
 
@@ -218,7 +223,8 @@ for line in context_path.read_text(encoding="utf-8").splitlines():
 
 summary_json_path.write_text(json.dumps({"context": context, "summary": summary}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
-lines = ["api_latency_baseline=passed", f"sample_count={len(measured)}"]
+has_errors = any(item["error_count"] for item in summary)
+lines = [f"api_latency_baseline={'failed' if has_errors else 'passed'}", f"sample_count={len(measured)}"]
 for item in summary[:20]:
     lines.append(
         f"{item['scenario']} p50_ms={item['p50_ms']:.1f} p95_ms={item['p95_ms']:.1f} "
@@ -234,3 +240,8 @@ echo "artifact_dir=${ARTIFACT_DIR}"
 echo "latest_artifact_dir=${LATEST_DIR}"
 echo "latest_summary=${LATEST_SUMMARY_TXT}"
 echo "latest_json=${LATEST_SUMMARY_JSON}"
+
+if ! grep -qx 'api_latency_baseline=passed' "${SUMMARY_TXT}"; then
+  echo "API latency baseline contains HTTP/transport errors; inspect scenario error counts" >&2
+  exit 1
+fi
