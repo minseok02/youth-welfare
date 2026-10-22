@@ -4,6 +4,10 @@
 
 문서의 로컬·서버·로컬 앱과 원격 DB 환경을 구분하고, 중복 안내와 과거 누적 기록을 정리했습니다. 재검토 오류·검증 스크립트 2개를 보완한 뒤 source 온보딩 6개→2개, 이어 Gov24·추천 AI exclusion·수집·공통 운영·인증 32개→10개로 감축했습니다. 감축 후 운영 인증·데모·프론트 URL 계약·추천 이력의 불일치도 문서에서 보완했습니다. 앱 기능, DB schema, Java 버전, CI 실행 정책, 운영 서버는 변경하지 않았습니다.
 
+이후 2026-10-22 작업 지침 보완에서는 합의한 코드 패턴·예외 승인·Git 규칙을 연결하고 프론트 단위 테스트를 CI에 추가했습니다. 앞선 문서 정리와 구분하며 상세 범위·검증은 아래 해당 기록을 따릅니다.
+
+후속 요청으로 요구사항 확인용 `grilling`을 프로젝트 범위에 추가하고, 구조·구현·DB·프론트·디버깅 관련 스킬 6개를 검토했습니다. 설치한 스킬과 도입 추천 후보를 아래 기록에서 구분합니다.
+
 ## 문서 정리
 
 - 환경 공통 기준: [environment-guide.md](core/environment-guide.md).
@@ -136,6 +140,50 @@ Gov24 → 추천 AI exclusion → 수집 → 공통 운영 → 인증 순서로 
 
 비문서 파일의 해시, SRS 요구 108행·기존 로컬 수집 기록·history/archive 전체, 과거 cron 명령·QA bullet·추천 검토 근거가 작업 시작 시점과 동일함을 대조했습니다. 실제 DB/Redis/운영 환경·cron·수집/AI/발송은 실행·변경하지 않았고 커밋·푸시는 하지 않았습니다. 이번 완료는 위 문서 불일치 보완에 한정하며 기능 결함 해결이나 모든 과거 문장의 재검증을 뜻하지 않습니다.
 
+## 2026-10-22 코드 패턴·Git 작업 지침 보완
+
+- 별도 스킬 설치 없이 `AGENTS.md`를 추가해 기존 `CLAUDE.md`의 환경·보존 계약과 대표 문서로 연결했습니다. 상세 규칙은 중복 작성하지 않았습니다.
+- `work-guide.md`에 Spring 객체 관리·어댑터·전략·빌더·팩토리·템플릿 메서드의 사용 조건과 현재 예시를 기록했습니다. 새 코드·직접 수정부에 우선 적용하고, 규칙 예외는 사전 승인 → 적용·검증 → 최종 채택 판단으로 진행합니다.
+- `github-workflow.md`에 작업 전 변경·스테이징 보존, 실제 커밋 대상 확인, 조건부 worktree 사용, 충돌·공유 이력·변경 폐기·CI 실패 대응을 보완했습니다. 기존 푸시 요청 원칙과 작은 커밋·문제 해결 단위 PR 규칙을 유지했습니다.
+- 외부 Git 관련 스킬 5개의 원문과 검토 커밋을 확인하고 채택·제외한 부분을 Git 문서에 남겼습니다. 고정 메뉴·매번 별도 승인·무조건 전체 검사 등은 프로젝트 절차로 가져오지 않았습니다.
+- `.github/workflows/ci.yml`에 `npm ci` 직후 `npm run test:unit` 단계를 추가했습니다. 앱·DB를 시작하기 전에 단위 테스트 실패를 확인하도록 했습니다.
+
+검증:
+
+- `backend/`에서 `DB_USERNAME=app_core_rw ./gradlew test --tests '*ContractTest' --rerun-tasks --no-daemon`: 20 suites / 112 tests, 실패·오류·skip 0. 5개 Gradle 작업이 실제 실행됐습니다.
+- `frontend/`에서 `npm run test:unit`: 22 suites / 54 tests, 실패·skip 0.
+- CI YAML 구문을 파싱하고 작업 전 설정과 구조를 비교해 `npm ci` 직후 단위 테스트 단계만 추가됐음을 확인했습니다. 변경한 Markdown 5개의 내부 링크·앵커 55개와 변경 범위의 `git diff --check`도 통과했습니다.
+- 작업 전 파일 해시와 대조해 기존 파일 수정은 이 작업의 5개 파일에 한정되고, 새 파일은 `AGENTS.md`뿐임을 확인했습니다. 기존 스테이징 내용과 HEAD 커밋도 보존했습니다.
+
+로컬 작업 브랜치는 `docs/common-development-rules`입니다. 기존 미커밋 변경을 함께 커밋하지 않았으며 푸시·원격 CI·GitHub 보호 규칙 변경은 수행하지 않았습니다. 앱·DB 기동이나 실제 수집·AI·발송·브라우저 검증도 이번 범위에 포함하지 않았습니다.
+
+## 2026-10-22 grilling 추가와 스킬 후보 검토
+
+승인된 요구사항 확인용 `grilling` 본체를 `skill-installer`로 `.agents/skills/grilling`에 설치하고 `skill-creator` 기준으로 프로젝트용 지침을 작성했습니다. 원문 커밋 `5beb35b040e3de97e54fa9e386d7e42d15c295c2`와 MIT 라이선스를 보존했습니다. 호출용 `grill-me` 래퍼는 별도로 설치하지 않았으며, 설치한 본체는 다른 `Skill` 도구에 의존하지 않습니다.
+
+중요한 미결정을 먼저 확인하고 사용자 이해 확인 뒤 종속 구현을 시작합니다. 질문은 독립적인 핵심 1~3개로 나누며, 무응답을 승인으로 해석하지 않습니다. 원문의 추천안 동의 유도·하위 에이전트 의무 사용·모든 미래 분기 질문을 제외했습니다. 평범한 수정과 스킬 평가·설치에는 인터뷰를 강제하지 않습니다. AGENTS.md·CLAUDE.md는 작업 가이드의 대표 절로 연결했습니다.
+
+아래 6개는 설치하지 않은 후보의 검토 결과입니다. 소스 본문과 관련 참고 파일을 확인하고 Java 17 / Spring Boot 3.5 / JPA, 목적별 Hikari datasource, React 19 / Vite / React Query / Zustand와 대조했습니다. 원문 링크는 검토 커밋에 고정했습니다.
+
+| 후보 원문 | 권고 | 프로젝트에서 유용한 점과 조정 조건 |
+| --- | --- | --- |
+| [systematic-debugging](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/systematic-debugging/SKILL.md) | 우선 도입 추천, 프로젝트용 수정 필요 | 재현·최근 변경·실패 경계·단일 가설 검증으로 추측성 수정을 줄임. 원문의 미설치 TDD/검증 스킬 의무 호출, 실패 3회만으로 아키텍처 오류 단정, 근거 없는 비율 주장은 제외. 진단 로그도 기존 PII·비밀정보 제한을 따르고 단순 오류에 불필요한 절차를 늘리지 않음. |
+| [springboot-patterns](https://github.com/affaan-m/ECC/blob/90606c8315ee09cafc303515c5f33024db6b9882/skills/springboot-patterns/SKILL.md) | 도입 추천, 프로젝트용 수정 필요 | 트랜잭션·검증·예외·캐시·비동기·JPA 경계에 직접 활용 가능. 모든 예외를 재시도하는 예제는 재시도 가능 오류·횟수·멱등성(반복 실행해도 의도치 않은 중복 효과가 없는 성질)을 구분하도록 대체. 기존 API 오류 응답, 인증·프록시·발송 계약을 예제로 덮어쓰지 않음. |
+| [supabase-postgres-best-practices](https://github.com/supabase/agent-skills/blob/c9be0e931b7930f7d02126d04774d904c381e7d7/skills/supabase-postgres-best-practices/SKILL.md) | 도입 추천, DB 작업에 한정해 수정 | Supabase 호스팅 없이도 SQL·인덱스·실행계획·연결 수·잠금·최소권한 점검에 유용. 현재 Hikari pool과 목적별 권한을 먼저 확인하고 PgBouncer·Supabase Auth·RLS를 자동 도입하지 않음. 예시의 처리량 수치를 프로젝트 측정값으로 사용하지 않고 운영 schema·권한 변경 권한으로 확대하지 않음. |
+| [vercel-react-best-practices](https://github.com/vercel-labs/agent-skills/blob/063bee94c3f4df8453406c830b0a7df0f2860278/skills/react-best-practices/SKILL.md) | 도입 추천, React/Vite 적용 범위로 수정 | 독립 요청 병렬화, 불필요한 상태·Effect·재렌더 감소, 번들 분리에 활용. Next.js·RSC·Server Actions·`next/dynamic` 예제를 적용하지 않음. SWR 도입 대신 기존 React Query의 캐시·요청 중복 제어를 사용하고 현재 `React.lazy` 경로와 비교. 측정 없이 메모이제이션을 일괄 추가하지 않음. |
+| [java-coding-standards](https://github.com/affaan-m/ECC/blob/90606c8315ee09cafc303515c5f33024db6b9882/skills/java-coding-standards/SKILL.md) | 별도 설치 보류, 공통 Java/Spring 규칙에 필요한 내용 흡수 추천 | 명명·Optional·가독성·예외·타입 안정성은 유용하지만 Spring 스킬과 중복되고 Quarkus 지침이 섞임. JPA entity·수집 미입력에 불변성·non-null을 일괄 강제하지 않음. 테스트 예제의 `@MockBean`은 [Spring Boot 3.5 공식 API](https://docs.spring.io/spring-boot/3.5/api/java/org/springframework/boot/test/mock/mockito/MockBean.html)에서 deprecated이며 현재 테스트가 쓰는 `@MockitoBean`과 대조 필요. |
+| [architecture-patterns](https://github.com/wshobson/agents/blob/0874a27b17a22e2b7c2e2bcd725768e0803cad06/plugins/backend-development/skills/architecture-patterns/SKILL.md) | 구조 설계·의존성 문제 검토에 한정한 조건부 후보 | 모듈 책임·변경 영향·순환 의존성·도메인 용어를 검토하는 자료로 유용. 모든 경계의 인터페이스화·ORM과 도메인 전면 분리·DDD·서비스 분리를 기본 구현 규칙으로 채택하지 않음. 현재 2인 팀의 Spring/JPA 구조에서 해결할 문제·대안·이행 비용을 먼저 비교하고 DB 없는 테스트가 트랜잭션·SQL 검증을 대체한다고 보지 않음. |
+
+인기도는 2026-10-22 GitHub API 조회 기준 저장소 전체 별표 수이며 개별 스킬 추천 수나 효과 검증값이 아닙니다: `obra/superpowers` 303,444, `affaan-m/ECC` 286,113(두 후보가 같은 저장소), `wshobson/agents` 41,538, `vercel-labs/agent-skills` 32,807, `supabase/agent-skills` 2,907. 설치한 `mattpocock/skills` 저장소는 300,456입니다. 원문 적합성과 현재 코드의 근거를 우선해 권고했습니다.
+
+검증:
+
+- `python3 /home/minseok/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/grilling`: 통과. 스킬 frontmatter·이름 등 형식을 확인했습니다.
+- `backend/`에서 `DB_USERNAME=app_core_rw ./gradlew test --tests '*ContractTest' --rerun-tasks --no-daemon`: 20 suites / 112 tests, 실패·오류·skip 0, 5개 Gradle 작업 실제 실행.
+- 변경한 Markdown 5개의 내부 링크·앵커 55개, 원문 MIT 라이선스의 Git blob SHA 일치, 변경 범위 `git diff --check`를 확인했습니다. 작업 전 해시와 대조해 기존 파일 변경은 AGENTS.md·CLAUDE.md·work-guide.md·phase-plan.md 4개에 한정되고 새 파일은 grilling의 SKILL.md·LICENSE·agents/openai.yaml 3개입니다. 기존 스테이징 내용과 HEAD는 보존했습니다.
+
+스킬 파일의 형식 검사는 행동의 정확성이나 모든 다음 작업에서의 선택을 보장하는 검증이 아닙니다. 앱·CI 설정은 이번에 변경하지 않았으며 운영·DB·브라우저·외부 API·원격 CI 실행과 커밋·푸시는 수행하지 않았습니다.
+
 ## 2026-10-22 Git 정리와 리팩토링 기준점 보존
 
 문서 정리 누적분과 실행 검증 도구 보완을 로컬 커밋으로 구분합니다. 수집·정규화 기능 수정, 푸시·PR 생성·병합·원격 브랜치 삭제는 이번 범위가 아닙니다.
@@ -166,6 +214,19 @@ Gov24 → 추천 AI exclusion → 수집 → 공통 운영 → 인증 순서로 
 추가된 단계는 기존 `frontend-browser-smoke` job에서 `npm ci` 직후 `npm run test:unit`을 실행합니다. 다른 job·권한·트리거·Node 버전·브라우저/DB 실행 설정은 변경하지 않습니다. 기존 미커밋 파일 9개의 별도 백업과 추적 변경 patch는 `/home/minseok/youth-welfare-git-next.Yiw33p`에 보존했습니다.
 
 검증은 별도 worktree에서 수행했습니다. `frontend/`의 `npm run test:unit`은 22 suites / 54 tests, 실패·skip 0입니다. 로컬 실행은 Node 24.11.1 / npm 11.6.2이며, workflow의 Node 22 실행 결과나 GitHub CI 통과로 해석하지 않습니다. PyYAML로 전후 설정을 파싱해 `npm ci` 뒤·DB 기동 전의 단일 단계만 추가됐음을 비교했습니다. `git diff --check`를 통과했습니다. 앱·DB·브라우저·외부 API는 실행하지 않았습니다.
+
+## 2026-10-22 후속 Git 정리: 작업 지침·스킬 통합
+
+선행 CI 커밋 `ad9d0533`과 분리해 작업 지침과 기존 `grilling` 스킬을 8개 파일의 커밋으로 정리합니다. 원래 작업공간에서 작성된 지침·스킬 7개 파일의 내용은 백업본 그대로 보존하고, `phase-plan.md`에는 두 작업공간의 기록을 합쳤습니다. 이전 Git 정리 기록·동시 작업 대응 기록·작업 지침 보완 기록·스킬 검토 기록을 삭제하거나 완료 의미를 바꾸지 않았습니다. 추가 스킬 설치나 애플리케이션 리팩토링은 수행하지 않습니다.
+
+검증:
+
+- 별도 worktree의 `backend/`에서 Java 17로 `DB_USERNAME=app_core_rw RUN_SMTP_SMOKE=false ./gradlew test --tests '*ContractTest' --rerun --no-daemon` 실행: 20 suites / 112 tests, 실패·오류·skip 0. test task를 실제 재실행했으며 전체 백엔드·통합 테스트 결과로 확대하지 않습니다.
+- Markdown 260개에서 링크 2,406개를 파싱하고 로컬 파일·앵커와 코드 내 문서 참조 63개를 확인해 누락 0건입니다. 외부 URL의 도달성은 검사하지 않았습니다. 변경 파일의 제한된 고확도 비밀 패턴 검사에서 발견 0건이며 종합 보안 감사가 아닙니다.
+- `quick_validate.py .agents/skills/grilling`과 `git diff --check` 통과. 스킬 형식 검사이지 행동 정확성 보장이 아닙니다.
+- 백업 파일 9개와 원래 작업공간의 현재 내용을 바이트 단위로 대조하고 전체 추적 변경 patch의 SHA-256도 비교했습니다. 원래 HEAD·브랜치·스테이징이 그대로이며, 이 worktree에 합친 기록 외 8개 파일(CI 포함)은 백업본과 일치합니다.
+
+이 작업은 로컬 커밋 정리입니다. `grilling` 지침에 따라 원격 반영 범위를 질문했으며, 무응답을 푸시·PR 생성·병합 승인으로 간주하지 않습니다. 현재 열린 PR #365(`refactor/admin-dashboard-sections` → `main`)는 별도 작업이므로 변경하지 않았습니다. 원래 작업공간의 중복 미커밋 변경을 지워 깨끗하게 만들지 않았으며, 후속 통합 시 이 기준점과 추가 편집을 다시 대조해야 합니다.
 
 ## 다음 작업
 
