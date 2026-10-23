@@ -351,6 +351,27 @@ PR 생성 직후 해당 SHA의 [CI 실행](https://github.com/minseok02/youth-we
 
 검증 결과: 원래 작업공간의 Java 17에서 `DB_USERNAME=app_core_rw RUN_SMTP_SMOKE=false ./gradlew test --tests '*CollectBatchRunResultTest' --tests '*CollectBatchServiceTest' --tests '*AdminSecurityWebMvcTest.collectAllEndpoint*' --tests '*ContractTest' --rerun --no-daemon`을 실제 실행해 23 suites / 140 tests(수집 모델·배치·관리자 API 28개 + 문서 계약 112개), 실패·오류·skip 0을 확인했습니다. test task는 실제 실행됐고 컴파일·리소스 4개 task는 UP-TO-DATE입니다. Markdown 261개·링크 2,423개·코드 참조 63개의 누락 0건과 `git diff --check`를 확인했습니다. 이전 구현·검증 본문과 이후 관측 이력이 그대로이며 `4ca09cef` 이후 코드·테스트·설정·의존성 파일 차이도 없습니다. 앞서 실행한 전체 1,292개를 이번 문서 보완에서 다시 실행한 것은 아니며, 실제 DB/외부 API/브라우저/운영과 원격 CI도 검증 범위에 포함하지 않습니다.
 
+## 2026-10-23 snapshot 패치 준비 — 작업 A
+
+- 문제/근거: `7880dc1a` 기준 조사에서 통합 schema·snapshot migration에는 정의가 있으나 기본 runtime patch 경로에는 생성문이 없었습니다. 2026-10-23 02:26 KST 로컬 Docker DB의 조회 전용 트랜잭션에서 snapshot 테이블 2개와 관련 시퀀스 누락을 확인했습니다. 당시 관측이며 이번 구현에서 실제 DB를 다시 조회하거나 변경하지 않습니다.
+- 의도/범위: 기존 PostgreSQL 데이터와 신규 DB 초기화 경로를 유지하면서 snapshot 전용 생성·최소권한 패치와 좁은 적용/검증 경로를 준비합니다. 일반 수집·재처리 잠금·mapper·집계·Java/FastAPI 변경은 제외하며 다른 worktree의 작업 B 파일은 수정하지 않습니다.
+- 선택/이유: 통합 schema 전체 재적용이나 기존 patch 전체 재실행은 관련 없는 변경을 포함합니다. snapshot만 대상으로 삼고, 생성과 앱/조회 계정 권한을 함께 검증하는 방식으로 제한합니다. `IF NOT EXISTS`만으로 기존의 잘못된 구조를 복구했다고 간주하지 않습니다.
+- 완료 조건: 기존 정의·repository 계약과 일치하는 table/PK/FK/index/sequence, 필요한 앱 SELECT/INSERT·시퀀스 권한과 조회 SELECT를 확인합니다. 명시적 실행 범위·반복 실행 안전성·오류 중단·실행 전제 및 문서 계약을 회귀 검사로 검증합니다. 실제 PostgreSQL 실행을 하지 않은 범위는 미검증으로 남깁니다.
+- 구현: snapshot runtime patch와 고정 로컬 socket/guard·Compose db 라벨을 확인하는 전용 helper를 추가했습니다. helper 기본은 조회 계정의 `--check`, `--apply`는 별도 대상/백업 확인 플래그와 기존 migration 계정을 요구하며 SQL 하나만 전달합니다. SQL은 요구 구조와 실효 권한을 검사하고 적용 모드에서만 생성·최소 grant를 한 트랜잭션으로 수행하도록 구성했습니다. 기존 통합 schema·migration·전체 patch 실행기와 production Java는 변경하지 않았습니다.
+- 재현/검증: 패치 추가 전 새 정적 계약 3건이 파일 누락으로 모두 실패(RED)했고 추가 후 해결했습니다. Java 17에서 `DB_USERNAME=app_core_rw RUN_SMTP_SMOKE=false ./gradlew test --tests '*CollectSnapshotPatchContractTest' --tests '*PostgresRuntimeContractTest' --tests '*PostgresRuntimeScriptContractTest' --tests '*CollectListDiffServiceTest' --rerun --no-daemon`을 실제 실행해 4 suites / 41 tests(신규 계약 15건 포함), 실패·오류·skip 0을 확인했습니다. Bash helper 검사는 임시 트리의 가짜 Docker만 사용하며 기본 읽기 전용 flag·고정 target·적용 전제·잘못된 라벨/인자/계정 거절·psql 오류 전파를 확인합니다. 실제 PostgreSQL parser/DDL/rollback/재실행 검증은 아닙니다.
+- 정적 확인: `bash -n deploy/postgres/apply-local-collect-snapshot-patch.sh`, `git diff --check` 통과. Markdown 261개·링크 2,430개·코드 참조 63개에서 누락 0건입니다. PostgreSQL의 쉼표로 구분한 권한 조회는 어느 하나의 권한만 있어도 true이므로 필요한 권한을 개별 검사했습니다. SQL 오류 중단은 `ON_ERROR_STOP`과 실제 SQL 예외를 사용합니다.
+- 최종 검증/상태: 같은 Java 17 환경에서 `DB_USERNAME=app_core_rw RUN_SMTP_SMOKE=false ./gradlew test --tests '*ContractTest' --tests '*CollectListDiffServiceTest' --rerun --no-daemon`을 실제 실행해 22 suites / 129 tests(전체 계약 127건 + 목록 비교 2건), 실패·오류·skip 0을 확인했습니다. test는 실제 실행됐고 컴파일/리소스 4개 task는 UP-TO-DATE입니다. 앞선 41건은 이 검사들의 부분집합이며 독립 총계로 더하지 않습니다. 작업 A의 로컬 구현·오프라인 검증 준비 범위는 완료했습니다.
+- 남은 적용/제외: 실제 DDL/GRANT/DB 데이터 변경, 신규 DB 초기화·기존 DB integration fixture, 앱/컨테이너 기동, 실제 수집/외부 호출, 커밋·푸시·PR·병합은 수행하지 않았습니다. 별도 적용 전에는 앱/DB 일치·소유/grant 권한·백업/복원·수집 정지/잠금 영향과 SQL/hash를 확인하고, 적용 후 metadata 검사와 최소 저장/비교·재실행 검증을 해야 합니다. 실제 PostgreSQL parser·DDL·rollback·재실행은 미검증이며 성공한 적용의 되돌림을 DROP으로 자동화하지 않습니다. 다른 Codex 작업 B의 구현·검증을 포함한 결과도 아닙니다.
+
+## 2026-10-23 작업 A 독립 커밋 검증
+
+- 의도/범위: 통합 작업 공간을 보존한 채 기준 `7880dc1a`의 A 전용 브랜치에 snapshot 패치·helper·회귀 계약과 A 기록만 반영합니다. B의 application service·잠금 변경·B 기록과 통합 완료 상태는 이 브랜치에 넣지 않습니다. 실제 DB 적용은 별도입니다.
+- 완료 조건: A 전용 파일 원본 일치와 B 변경 부재, 전체 기본 단위 검사·문서 계약의 실제 실행, 링크/공백 확인 후 명시적 staging 내용을 검토하고 로컬 커밋합니다. 기존 원본과 B worktree, 데이터·권한·API 계약을 보존하고 푸시·PR·원격 병합·실제 DB/외부 실행은 하지 않습니다.
+- 검증 환경: 외부 검증 worktree에서 기존 Temurin Java 17.0.18+8을 사용합니다. Gradle wrapper/caches만 별도 `GRADLE_USER_HOME`에 복사했으며 원본 build나 env 파일을 공유·복사하지 않습니다.
+- 독립 전체 검사: 검증 worktree의 `backend/`에서 `DB_USERNAME=app_core_rw RUN_SMTP_SMOKE=false ./gradlew test --offline --rerun --no-daemon`을 실제 실행했습니다. 291 suites / 1,307 tests 중 1,306개 통과, 실패·오류 0, SMTP opt-in 검사 1개 skip이며 5개 task 모두 실행됐습니다. 계약 21 suites / 127건과 snapshot 계약 15건을 포함합니다. B 신규 application service 검사는 없고 관리자 MVC는 기준선 80건·guard는 3건으로 B 변경이 섞이지 않았습니다. XML 보고서는 별도 외부 백업에 보존했습니다.
+- 정적/보존 검사: A 전용 4개 파일의 내용·모드 일치, 전체 변경 7개, 공통 문서의 A 절 원문 및 기존 본문 보존, B 원본과 통합 소스의 보존을 확인했습니다. `git diff --check`, helper의 `bash -n`, Markdown 261개·링크 2,432개·코드 참조 63개 검사에서 누락 0건을 확인했습니다. 실제 PostgreSQL 실행·잠금 경합·외부 수집·운영 반영은 검증하지 않았습니다.
+- 후속 계약/커밋: 결과 문서 반영 뒤 같은 환경에서 `DB_USERNAME=app_core_rw RUN_SMTP_SMOKE=false ./gradlew test --tests '*ContractTest' --offline --rerun --no-daemon`을 실제 재실행해 21 suites / 127 tests, 실패·오류·skip 0을 확인했습니다. test는 실행됐고 나머지 4개 task는 UP-TO-DATE였습니다. 전체 검사에 포함된 계약의 재검증으로 총계에 더하지 않습니다. 이 결과를 명시적 staging 검토 후 A의 독립 로컬 커밋에 함께 담으며 SHA는 통합 작업 공간의 Git 정리 기록에서 관리합니다. 푸시·PR·병합은 하지 않습니다.
+
 ## 다음 작업
 
 다음 범위는 [현재 확인 과제](current-state.md)의 각 항목을 재현 가능한 기능 작업으로 분리하는 것입니다. 추가적인 대규모 문서 통폐합을 필수 선행 작업으로 두지 않습니다. 과거의 `KEEP_OBSERVING` 값은 추천 품질 실험과 운영 관측의 기록으로 남기고, 데이터 유실·보안·계약 불일치 수정의 금지 조건으로 사용하지 않습니다.
