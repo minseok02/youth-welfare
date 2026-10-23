@@ -4,9 +4,9 @@
 
 문서·Git 기준점 정리를 마치고 수집 코드 개선을 시작했습니다. 이후 우선순위는 수집 → 정규화 → 자격조건 → 평가 기반 → 개인별 순위 품질입니다. FastAPI 도입과 Java 업그레이드는 현재 범위가 아니며, 과거 안정화 단계의 일괄 기능 동결 지시는 승인된 리팩토링을 제한하는 작업 규칙으로 사용하지 않습니다.
 
-2026-10-23 첫 수집 결과 판정 보완은 PR #368로 main에 병합됐으며 이번 작업의 기준 커밋은 `7880dc1a`입니다. 항목 부분 실패와 목록 비교 오류를 구분하는 [현재 결과 계약](collect/collect-current-state.md#전체-수집-결과-계약)과 [의도·완료 조건·검증 기록](phase-plan.md#2026-10-23-수집-결과-판정-보완)을 확인합니다. 코드 병합을 운영 반영이나 실제 수집 복구의 증거로 삼지 않습니다.
+2026-10-23 첫 수집 결과 판정 보완은 PR #368로 main에 병합됐으며 분리 작업의 시작 기준 커밋은 `7880dc1a`입니다. 항목 부분 실패와 목록 비교 오류를 구분하는 [현재 결과 계약](collect/collect-current-state.md#전체-수집-결과-계약)과 [의도·완료 조건·검증 기록](phase-plan.md#2026-10-23-수집-결과-판정-보완)을 확인합니다. 코드 병합을 운영 반영이나 실제 수집 복구의 증거로 삼지 않습니다.
 
-복지로·Gov24 [sidecar 재처리의 전역 잠금](collect/collect-current-state.md)을 전용 application service 경계에 반영했습니다. 이 브랜치는 작업 B만 포함하며 [독립 검증·커밋 기록](phase-plan.md#2026-10-23-작업-b-독립-커밋-검증)을 확인합니다. snapshot 전용 패치 준비인 작업 A는 포함하지 않습니다. 실제 DB 잠금 경합·lease 만료·수집 복구·운영 반영은 검증하지 않았습니다.
+A의 [snapshot 전용 패치·검증 경로](core/db-migration.md#snapshot-전용-검증과-별도-적용)는 [PR #370](https://github.com/minseok02/youth-welfare/pull/370)으로 main `1b602b29`에 반영됐습니다. B의 [sidecar 재처리 잠금](collect/collect-current-state.md)은 [PR #369](https://github.com/minseok02/youth-welfare/pull/369)에서 최신 main과 정합화·재검증 중이며 [main 병합 정합화 기록](phase-plan.md#2026-10-23-b-main-병합-정합화)을 확인합니다. 이 브랜치에는 A/B 구현이 모두 있지만 B의 main 병합·실제 DB 적용·수집 복구·운영 반영은 하지 않았습니다.
 
 ## 코드와 환경 기준
 
