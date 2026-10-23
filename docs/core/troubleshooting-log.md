@@ -35,6 +35,13 @@
 - 이유: 비교 실패 때문에 이미 저장한 항목 건수를 없애거나 source 실패 수를 늘리면 재처리 범위를 잘못 판단합니다. 기존 HTTP/envelope 계약·호출 순서·예산은 유지하고 원래 예외 내용은 외부 응답에 노출하지 않습니다.
 - 검증/범위: 수정 전 최소 검사에서 5개 중 3개 실패를 재현한 뒤 수정했습니다. 실제 실행한 후속 검증과 한계는 [작업 현황](../phase-plan.md#2026-10-23-수집-결과-판정-보완), 현재 응답 기준은 [수집 계약](../collect/collect-current-state.md#전체-수집-결과-계약)을 확인합니다. 이 변경은 DB 복구나 실제 외부 수집의 성공 증거가 아닙니다.
 
+## sidecar backfill이 전역 수집 잠금을 거치지 않은 경우 — 작업 B
+
+- 문제/원인: 복지로·Gov24 sidecar backfill controller가 정규화 서비스를 직접 호출해 기존 `collect-global` 실행 가드 밖에서 DB 재처리를 수행했습니다. 잠금 점유 상태의 MVC 최소 회귀 2개에서 기대한 HTTP 409 대신 200을 반환하는 RED를 재현했습니다.
+- 해결/이유: 전용 `CollectSidecarBackfillApplicationService`에서 유효한 scope의 실행을 선택한 뒤 기존 guard를 요청당 한 번 사용합니다. all의 내부 호출도 같은 잠금 안에서 처리하고 기존 lease/heartbeat/최소권한 cleanup은 교체하지 않습니다. scope/missingOnly 오류는 잠금 DB 접근 전에 거절합니다.
+- 트랜잭션 경계: application service에 바깥 `@Transactional`을 추가하면 guard의 finally 해제 뒤 commit될 수 있습니다. 바깥 트랜잭션 없이 기존 하위 서비스/저장소 프록시의 commit/rollback 완료 후 guard가 해제하도록 유지합니다. all은 기존처럼 단계별 커밋 경계를 가집니다.
+- 검증/한계: DB 없는 단위·MVC 회귀와 Spring 트랜잭션 프록시/기록용 transaction manager로 순서를 검사합니다. 실제 명령·결과는 [작업 B 기록](../phase-plan.md#2026-10-23-sidecar-재처리-잠금--작업-b)에 남깁니다. 실제 DB 잠금 경합·lease 만료·운영 데이터 변화는 별도 검증입니다.
+
 ## 기록 형식
 
 각 항목에는 필요한 내용만 남깁니다.

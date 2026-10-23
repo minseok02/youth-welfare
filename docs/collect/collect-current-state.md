@@ -72,7 +72,9 @@ manual Gov24 list는 완료 후 detail/support를 기본 50건씩 follow-up합�
 
 복지로 detail service의 property fallback은 1000ms·429 5회지만 일반 application 설정은 300ms·2회입니다. 둘을 같은 “코드 기본값”으로 섞지 않습니다. runtime override는 둘과 또 다를 수 있습니다.
 
-[CollectExecutionGuard](../../backend/src/main/java/com/example/welfare/collect/service/CollectExecutionGuard.java)는 DB 전역 `collect-global` lock, lease 기본 15분·heartbeat 60초를 사용합니다. 겹친 collect는 `409/COL002`입니다. 현재 lock을 없는 기능으로 보고 Redis 도입을 필수 개선처럼 적지 않습니다. Backfill도 일반 수집과 겹치지 않게 대상 service의 guard를 확인합니다.
+[CollectExecutionGuard](../../backend/src/main/java/com/example/welfare/collect/service/CollectExecutionGuard.java)는 DB 전역 `collect-global` lock, lease 기본 15분·heartbeat 60초를 사용합니다. 겹친 collect는 `409/COL002`입니다. 현재 lock을 없는 기능으로 보고 Redis 도입을 필수 개선처럼 적지 않습니다.
+
+복지로·Gov24 sidecar backfill은 [전용 application service](../../backend/src/main/java/com/example/welfare/collect/service/CollectSidecarBackfillApplicationService.java)에서 scope와 missingOnly 조합을 검증한 뒤 같은 전역 잠금을 요청당 한 번 확보합니다. 복지로 all/list/detail, Gov24 list/regions/support/support-conditions/all과 list missingOnly를 포함하며, all의 내부 단계는 재획득 없이 같은 잠금 안에서 실행합니다. 잠금 점유 시 내부 backfill을 실행하지 않고 `409/COL002`를 반환합니다. application service는 바깥 트랜잭션을 만들지 않으며 기존 하위 서비스·저장소의 commit/rollback 완료 뒤 정상·예외 경로 모두에서 guard가 잠금을 해제합니다. all을 하나의 원자적 DB 트랜잭션으로 바꾸지는 않습니다. 외부 수집 API 재호출 여부·응답 scope/집계·관리자 인증과 운영 rate limit은 기존 계약을 유지합니다.
 
 ## YOUTH 상세 링크와 지역
 

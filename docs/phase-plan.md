@@ -351,6 +351,29 @@ PR 생성 직후 해당 SHA의 [CI 실행](https://github.com/minseok02/youth-we
 
 검증 결과: 원래 작업공간의 Java 17에서 `DB_USERNAME=app_core_rw RUN_SMTP_SMOKE=false ./gradlew test --tests '*CollectBatchRunResultTest' --tests '*CollectBatchServiceTest' --tests '*AdminSecurityWebMvcTest.collectAllEndpoint*' --tests '*ContractTest' --rerun --no-daemon`을 실제 실행해 23 suites / 140 tests(수집 모델·배치·관리자 API 28개 + 문서 계약 112개), 실패·오류·skip 0을 확인했습니다. test task는 실제 실행됐고 컴파일·리소스 4개 task는 UP-TO-DATE입니다. Markdown 261개·링크 2,423개·코드 참조 63개의 누락 0건과 `git diff --check`를 확인했습니다. 이전 구현·검증 본문과 이후 관측 이력이 그대로이며 `4ca09cef` 이후 코드·테스트·설정·의존성 파일 차이도 없습니다. 앞서 실행한 전체 1,292개를 이번 문서 보완에서 다시 실행한 것은 아니며, 실제 DB/외부 API/브라우저/운영과 원격 CI도 검증 범위에 포함하지 않습니다.
 
+## 2026-10-23 sidecar 재처리 잠금 — 작업 B
+
+- 문제/근거: 관리자 복지로·Gov24 sidecar backfill 두 endpoint가 기존 `CollectExecutionGuard`를 거치지 않아 일반 수집과 동시에 실행될 수 있습니다. 기준 SHA `7880dc1a8aa5320b00c528c7e7f5f340fac8b706`의 깨끗한 조사 브랜치에서 `fix/backend-sidecar-backfill-lock`을 분리했습니다.
+- 의도/범위: 전용 application service에서 기존 `collect-global` 잠금을 요청당 한 번 확보하고 모든 내부 backfill 호출이 끝난 뒤 해제합니다. 복지로 all/list/detail, Gov24 list/regions/support/support-conditions/all 및 list missingOnly를 포함합니다.
+- 보존/비목표: URL·파라미터·기본값·검증·응답 scope/집계·관리자 인증·rate limit과 기존 lease/heartbeat/cleanup·트랜잭션 구현을 유지합니다. writer 결과 모델·schema preflight·fact 소유권·SUPPORT mapper·raw 보존·DB/SQL·외부 실행·커밋·푸시는 제외합니다.
+- 선택/이유: controller의 실행 분기만 application service로 옮겨 기존 guard를 재사용합니다. application service에는 바깥 트랜잭션을 추가하지 않아 기존 backfill 서비스/저장소의 commit 또는 rollback이 guard의 finally 해제보다 먼저 끝나도록 합니다.
+- 완료 조건: 최소 회귀 RED 후 GREEN, 모든 scope의 단일 잠금·busy 시 내부 실행 없음과 HTTP 409/COL002·정상/예외 해제·잘못된 scope/missingOnly 조합의 잠금 전 거절·commit/rollback 후 해제 순서를 DB 없는 단위/MVC 검사로 확인합니다. 문서 계약은 `--rerun`으로 실행하고 실제 동시 DB 경합과 구분합니다.
+- 구현 결과: 두 endpoint의 실행 분기를 새 `CollectSidecarBackfillApplicationService`로 위임했습니다. 모든 scope는 검증 후 기존 전역 guard를 한 번 사용하고, all의 내부 순서와 합산·기존 파라미터/기본값/응답·관리자 인증/rate limit을 유지합니다. 기존 guard와 정규화 서비스·writer·저장소·SQL은 수정하지 않았습니다.
+- 검증 환경: 본인 `backend/`, 기존 Temurin Java 17.0.18+8 설치를 읽어 실행했습니다. 상대 worktree의 Gradle wrapper/caches만 본인 `backend/build/gradle-user-home/`에 복사해 `GRADLE_USER_HOME`으로 사용했습니다. 본인 build/project cache는 디렉터리이며 symlink가 아닙니다. 상대 폴더에서 작업 명령을 실행하거나 파일·전역 설정을 수정하지 않았고 실제 env 파일은 열거나 source/복사하지 않았습니다.
+- RED: `DB_USERNAME=app_core_rw RUN_SMTP_SMOKE=false ./gradlew test --tests '*AdminSecurityWebMvcTest.sidecarBackfillRejectsBusyGlobalLock' --no-daemon` — 2 tests / 2 failures, 두 endpoint 모두 기대 HTTP 409 대신 200을 반환했습니다. 구현 뒤 첫 지정 검사에서는 새 테스트의 Gov24 호출 인자 누락으로 compileTestJava가 실패했고 테스트 호출을 바로잡았습니다.
+- GREEN: `DB_USERNAME=app_core_rw RUN_SMTP_SMOKE=false ./gradlew test --tests '*CollectSidecarBackfillApplicationServiceTest' --tests '*CollectExecutionGuardTest' --tests '*AdminSecurityWebMvcTest' --no-daemon` — 실제 test 실행, 3 suites / 141 tests(29 + 4 + 108), 실패·오류·skip 0. RED 2개를 포함해 전체 scope의 단일 잠금/점유 거절, all의 실행 순서·집계, 정상/작업 예외/commit 실패 해제, 잘못된 파라미터의 잠금 전 거절, 기본값·대소문자·alias·인증·rate limit을 확인했습니다. Spring 트랜잭션 프록시와 기록용 transaction manager로 하위 commit/rollback 후 해제 및 바깥 트랜잭션 부재를 검사했으며 실제 DB commit 관측은 아닙니다.
+- 문서/마무리 검증: 같은 Java/cache 환경의 본인 backend에서 `DB_USERNAME=app_core_rw RUN_SMTP_SMOKE=false ./gradlew test --tests '*ContractTest' --rerun --no-daemon` — 20 suites / 112 tests, 실패·오류·skip 0. test task는 실제 실행됐고 나머지 4개 task는 UP-TO-DATE였습니다. `git diff --check`, 허용된 변경 9개 파일·빈 staging 검사와 추가 Markdown 링크/앵커 4개 검사를 통과했습니다. 공통 기록 두 파일은 작업 B의 고유 절만 추가했으며, 그 절을 제외한 본문은 기준 SHA와 동일함을 대조했습니다. 테스트 전체·실제 DB 검증의 대체 결과로 취급하지 않습니다.
+- 미실행/남은 일: 실제 DB·잠금 경합·lease 만료·운영 권한·외부 수집/replay/AI/발송·통합/브라우저 테스트와 원격 CI는 검증하지 않았습니다. writer 성공 집계·fact 소유권·SUPPORT 대상/해석·raw 보존 문제는 별도 범위입니다. DB 적용·staging·커밋·푸시·PR 등 원격 작업을 하지 않고 허용된 로컬 변경만 남깁니다. 주 담당 snapshot 작업과 통합 시 이 작업 B 절 및 troubleshooting의 작업 B 절을 함께 보존해야 합니다.
+
+## 2026-10-23 작업 B 독립 커밋 검증
+
+- 의도/범위: 통합 작업 공간과 원래 B worktree를 보존한 채 기준 `7880dc1a`의 별도 B 준비 브랜치에 sidecar 재처리 전역 잠금·회귀 테스트·B 기록만 반영합니다. A의 snapshot patch/helper/계약 테스트·A 기록과 통합 완료 상태는 이 브랜치에 넣지 않습니다.
+- 완료 조건: B 전용 파일 원본 일치와 A 변경 부재, 전체 기본 단위 검사·문서 계약의 실제 실행, 링크/공백 확인 후 명시적 staging 내용을 검토하고 로컬 커밋합니다. API·lease/heartbeat·트랜잭션·데이터/권한 계약을 보존하고 푸시·PR·원격 병합·실제 DB/외부 실행은 하지 않습니다.
+- 검증 환경: A의 커밋 뒤 깨끗한 검증 worktree를 기준 커밋에서 새 B 브랜치로 전환해 재사용합니다. 기존 Temurin Java 17.0.18+8과 별도 Gradle wrapper/caches만 사용하고 원본 env·build는 공유하지 않습니다.
+- 독립 전체 검사: 검증 worktree의 `backend/`에서 `DB_USERNAME=app_core_rw RUN_SMTP_SMOKE=false ./gradlew test --offline --rerun --no-daemon`을 실제 실행했습니다. 291 suites / 1,350 tests 중 1,349개 통과, 실패·오류 0, SMTP opt-in 검사 1개 skip이며 compileJava·compileTestJava·test가 실행되고 리소스 2개 task는 UP-TO-DATE였습니다. 계약 20 suites / 112건과 application service 29건·guard 4건·관리자 MVC 108건을 포함하며 A의 snapshot 신규 계약은 없습니다. XML 보고서는 별도 외부 백업에 보존했습니다.
+- 정적/보존 검사: B 전용 7개 파일의 내용·모드 일치, 전체 변경 10개, 공통 문서의 B 절 원문 및 기존 본문 보존, B 원본과 통합 소스의 보존을 확인했습니다. `git diff --check`, Markdown 261개·링크 2,428개·코드 참조 63개 검사에서 누락 0건을 확인했습니다. 실제 DB 잠금 경합·lease 만료·운영 권한·외부 수집/발송은 검증하지 않았습니다.
+- 후속 계약/커밋: 결과 문서 반영 뒤 같은 환경에서 `DB_USERNAME=app_core_rw RUN_SMTP_SMOKE=false ./gradlew test --tests '*ContractTest' --offline --rerun --no-daemon`을 실제 재실행해 20 suites / 112 tests, 실패·오류·skip 0을 확인했습니다. test는 실행됐고 나머지 4개 task는 UP-TO-DATE였습니다. 전체 검사에 포함된 계약의 재검증으로 총계에 더하지 않습니다. 이 결과를 명시적 staging 검토 후 B의 독립 로컬 커밋에 함께 담으며 SHA는 통합 작업 공간의 Git 정리 기록에서 관리합니다. 푸시·PR·병합은 하지 않습니다.
+
 ## 다음 작업
 
 다음 범위는 [현재 확인 과제](current-state.md)의 각 항목을 재현 가능한 기능 작업으로 분리하는 것입니다. 추가적인 대규모 문서 통폐합을 필수 선행 작업으로 두지 않습니다. 과거의 `KEEP_OBSERVING` 값은 추천 품질 실험과 운영 관측의 기록으로 남기고, 데이터 유실·보안·계약 불일치 수정의 금지 조건으로 사용하지 않습니다.

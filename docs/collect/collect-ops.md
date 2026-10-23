@@ -27,6 +27,8 @@ RDS-backed 앱의 DB 이력을 볼 때는 `ENV_FILE=.env.production SMOKE_DB_MOD
 | Gov24 결측/지역 replay | `/gov24-sidecars-backfill?scope=list&missingOnly=true` 또는 `scope=regions` |
 | 뒤집힌 연령 | `POST /inverted-age-backfill?sourceType=...`: 저장 DETAIL snapshot replay. 실제 limit 정규화를 확인 |
 
+복지로·Gov24 sidecar replay는 [전용 application service](../../backend/src/main/java/com/example/welfare/collect/service/CollectSidecarBackfillApplicationService.java)를 통해 일반 수집과 같은 `collect-global` 잠금을 요청당 한 번 사용합니다. all의 내부 단계도 같은 잠금 안에서 실행하며, 점유 중이면 DB 재처리를 시작하지 않고 `409/COL002`를 반환합니다. 잘못된 scope와 Gov24의 list 이외 missingOnly 조합은 잠금 획득 전에 거절합니다. 기존 하위 트랜잭션의 commit/rollback이 끝난 후 정상·예외 경로에서 잠금을 해제하며, all의 이미 커밋된 앞 단계까지 되돌리는 새 바깥 트랜잭션은 없습니다. 관리자 인증·운영 rate limit과 기존 응답·집계는 유지합니다.
+
 상한은 [CollectAdminController](../../backend/src/main/java/com/example/welfare/collect/controller/CollectAdminController.java)를 기준으로 합니다.
 
 - 일반 `maxCallsPerRun=1..5000`; source별 override 지원 범위는 service/controller에서 확인합니다.
