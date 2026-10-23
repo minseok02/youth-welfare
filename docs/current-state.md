@@ -6,7 +6,7 @@
 
 2026-10-23 첫 수집 결과 판정 보완은 PR #368로 main에 병합됐으며 분리 작업의 시작 기준 커밋은 `7880dc1a`입니다. 항목 부분 실패와 목록 비교 오류를 구분하는 [현재 결과 계약](collect/collect-current-state.md#전체-수집-결과-계약)과 [의도·완료 조건·검증 기록](phase-plan.md#2026-10-23-수집-결과-판정-보완)을 확인합니다. 코드 병합을 운영 반영이나 실제 수집 복구의 증거로 삼지 않습니다.
 
-A의 [snapshot 전용 패치·검증 경로](core/db-migration.md#snapshot-전용-검증과-별도-적용)는 [PR #370](https://github.com/minseok02/youth-welfare/pull/370)으로 main `1b602b29`에 반영됐습니다. B의 [sidecar 재처리 잠금](collect/collect-current-state.md)은 [PR #369](https://github.com/minseok02/youth-welfare/pull/369)에서 최신 main을 일반 병합하고 통합 로컬 검사를 마쳤습니다. [main 정합화](phase-plan.md#2026-10-23-b-main-병합-정합화)와 [통합 기록 마무리](phase-plan.md#2026-10-23-수집-기반-통합-기록-마무리), [병합·전달 기록](phase-plan.md#2026-10-23-snapshot-병합과-b-main-정합화)을 확인하며 새 head의 원격 CI는 이전 head 결과와 구분합니다. 이 브랜치에는 A/B 구현이 모두 있지만 B의 main 병합·실제 DB 적용·수집 복구·운영 반영은 하지 않았습니다.
+A의 [snapshot 전용 패치·검증 경로](core/db-migration.md#snapshot-전용-검증과-별도-적용)와 B의 [sidecar 재처리 잠금](collect/collect-current-state.md)은 각각 [PR #370](https://github.com/minseok02/youth-welfare/pull/370)과 [PR #369](https://github.com/minseok02/youth-welfare/pull/369)로 main `21838bc7`에 반영됐습니다. [B 병합·main 최종 확인](phase-plan.md#2026-10-23-b-병합과-main-최종-확인)에 해당 SHA의 PR/main CI 결과를 구분해 남겼습니다. 원본 작업 공간의 기준도 같은 main으로 맞추고 [고유 문서 기록을 통합](phase-plan.md#2026-10-23-원본-작업-공간-main-정합화)했습니다. 기능 파일 변경 없이 문서만 보완했으며 실제 DB 적용·수집 복구·운영 반영은 수행하지 않았습니다.
 
 ## 코드와 환경 기준
 
