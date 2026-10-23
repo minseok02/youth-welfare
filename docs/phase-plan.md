@@ -437,7 +437,11 @@ PR 생성 직후 해당 SHA의 [CI 실행](https://github.com/minseok02/youth-we
 - A main 검증: 병합 후 [main CI 39913747412](https://github.com/minseok02/youth-welfare/actions/runs/39913747412)에서 security-scan·backend-unit·frontend-browser-smoke가 success, CodeQL은 skipped임을 확인했습니다. CI의 임시 DB 검증을 기존 DB에 대한 전용 패치 적용으로 해석하지 않습니다.
 - B main 정합화: 공유된 B head `cc5b5c39`에서 `origin/main`을 `--no-ff --no-commit`으로 일반 병합했습니다. 예상한 공통 문서 current-state·phase-plan·troubleshooting 3개만 내용 충돌이며 코드 충돌은 없습니다. 원래 A/B 작업 절과 독립 검증 절을 보존해 해결한 후 merge commit `5d595749`를 만들었으며 부모는 `cc5b5c39`와 `1b602b29`입니다. 공유 이력 재작성이나 강제 푸시는 하지 않았습니다.
 - B 통합 로컬 검증: 검증 worktree의 Java 17·별도 cache에서 `DB_USERNAME=app_core_rw RUN_SMTP_SMOKE=false ./gradlew test --offline --rerun --no-daemon`을 실제 실행했습니다. 292 suites / 1,365 tests 중 1,364개 통과·SMTP 1개 skip, 실패·오류 0입니다. A/B 기능 파일 11개의 내용·모드 일치와 새 main 기준 diff 10개 파일, 원본 작업 공간·과거 기록 보존을 확인했습니다. merge commit 뒤 최종 통합 기록만 별도 문서 커밋으로 반영합니다.
-- 상태: 최종 문서 계약·전달과 새 B head의 원격 CI 확인은 이어서 진행합니다. B 자체의 main 병합·실제 DB 적용·수집/운영 반영은 하지 않았습니다.
+- 최종 문서 커밋: `36979dbe`에서 current-state와 phase-plan 두 문서만 보완했습니다. 원래/독립 A·B 기록과 통합 검사·커밋 준비·PR/CI·A 병합 기록을 고유 절로 보존했습니다. Java 17·별도 cache에서 `DB_USERNAME=app_core_rw RUN_SMTP_SMOKE=false ./gradlew test --tests '*ContractTest' --offline --rerun --no-daemon`을 실제 실행해 21 suites / 127건, 실패·오류·skip 0을 확인했습니다. 기능 파일은 앞선 merge snapshot과 같고 문서 링크/앵커 2,445개·코드 참조 63개 누락 0 및 공백 검사를 통과했습니다.
+- 전달 상태: B head를 `cc5b5c39 → 36979dbe`로 일반 fast-forward 푸시했습니다. 원격 main `1b602b29`·새 B head 일치를 확인했고 PR #369의 base/main·3개 커밋·변경 파일 10개를 대조했습니다. PR 본문을 실제 통합 검사·공통 문서 정리·새 head 기준으로 갱신했습니다. 새 head의 [CI 39915007250](https://github.com/minseok02/youth-welfare/actions/runs/39915007250)는 실행 중이며 이전 head의 CI를 재사용하지 않습니다.
+- 새 head CI/검토 상태: `36979dbe`의 CI `39915007250`이 completed / success이고 backend-unit·security-scan·frontend-browser-smoke가 모두 통과했으며 CodeQL은 skipped입니다. 조회 경로별 중간 진행 표시 차이와 상세 job API의 502가 있어, 해당 SHA의 최신 실행 목록과 PR 검사 결과를 교차 확인했습니다. CI를 재실행하거나 검증 기준을 바꾸지는 않았습니다. 최신 base/head·미해결 리뷰/스레드 부재를 다시 확인해 PR #369를 초안에서 검토 가능한 상태로 전환하고 본문도 최종 결과로 갱신했습니다.
+- 최종 로컬 확인: 원본 보존본의 현재 상태/작업 기록을 갱신하고 Java 17·별도 cache에서 `DB_USERNAME=app_core_rw RUN_SMTP_SMOKE=false ./gradlew test --tests '*ContractTest' --offline --rerun --no-daemon`을 실제 재실행해 21 suites / 127건, 실패·오류·skip 0을 확인했습니다. test 실행·나머지 4개 task UP-TO-DATE입니다. 최종 원격 CI/검토 가능 결과만 이 절에서 갱신하며 각 검증 snapshot을 혼합하거나 재합산하지 않습니다.
+- 완료/남은 일: A 병합·main CI와 B의 main 정합화·최종 통합 기록 커밋·일반 푸시·새 head CI·검토 가능 전환까지 완료했습니다. B 자체의 main 병합과 실제 DB 적용·수집/운영 반영은 남아 있습니다. 원래 통합 작업 공간·B 원본·기존 PR #365와 기존 브랜치를 보존하고, 공유 이력 재작성·강제 푸시·브랜치/worktree 삭제는 하지 않았습니다.
 
 ## 2026-10-23 B main 병합 정합화
 
@@ -453,6 +457,28 @@ PR 생성 직후 해당 SHA의 [CI 실행](https://github.com/minseok02/youth-we
 - 보존/선택: 기능 파일과 설정·SQL·회귀 테스트는 정합화 커밋에서 바꾸지 않습니다. 당시 관측의 미커밋/미병합 상태는 해당 작업 시점의 기록으로 보존하고 현재 구현·병합 상태는 current-state에서 구분합니다. 추가적인 기능 수정·문서 대규모 통폐합·B main 병합·실제 DB 적용은 범위가 아닙니다.
 - 완료 조건: 두 문서만의 diff, 원래/통합 기록 보존과 기능 파일 원본 일치, 문서 계약의 실제 재실행·링크/공백 확인 후 별도 문서 커밋합니다. 전체 기본 단위 검사는 기능 파일이 같은 `5d595749`의 1,365건 결과와 연결하며 문서 계약 127건은 그 부분집합을 새 문서 상태에서 재검증합니다. 새 head의 원격 CI는 PR #369에서 별도로 확인합니다.
 - 실제 검증/결과: 같은 Java 17·별도 cache 환경에서 `DB_USERNAME=app_core_rw RUN_SMTP_SMOKE=false ./gradlew test --tests '*ContractTest' --offline --rerun --no-daemon`을 실제 실행해 21 suites / 127 tests, 실패·오류·skip 0을 확인했습니다. test 실행·나머지 4개 task UP-TO-DATE입니다. Markdown 261개·링크 2,445개·코드 참조 63개 누락 0과 `git diff --check`, A/B 기능 파일 원본 일치·과거/통합 기록 보존을 확인했습니다. 이 결과를 두 문서만의 독립 커밋에 담아 일반 푸시하며 새 head의 원격 CI 결과와 검토 가능 전환은 PR에서 확인합니다. 최종 문서 상태에서는 전체 기본 단위 검사를 다시 돌리지 않았고 동일 기능 파일의 앞선 merge snapshot 검사와 새 문서 계약 검사를 연결합니다.
+
+## 2026-10-23 B 병합과 main 최종 확인
+
+- 의도/승인 범위: 사용자가 다음 단계인 B 검토·병합을 승인했습니다. PR #369의 최신 head `36979dbe`·main `1b602b29`·파일 범위·CI·리뷰를 다시 확인한 후 기대 head를 지정해 merge commit 방식으로 병합합니다. 병합 결과의 main CI와 코드/문서 보존을 확인하고 현재 상태·실제 검증 결과를 갱신합니다.
+- 사전 확인/보존: 해당 head의 CI `39915007250`은 success이고 활성 보안·백엔드·브라우저 검사가 통과했으며 CodeQL은 조건부 제외입니다. 관측 시 미해결 리뷰/스레드가 없고 충돌 없이 병합 가능했습니다. main 보호/merge 허용·자동 브랜치 삭제 비활성을 다시 확인했고, 통합 보존본 14개와 B 원본 9개 변경·빈 index·전용 검증 worktree를 외부 파일/patch/bundle로 보존했습니다.
+- 완료 조건/비목표: 원격 main의 병합 SHA·부모·tree가 검증한 코드와 일치하는지 확인하고 해당 main SHA의 CI를 PR CI와 구분해 확인합니다. 로컬 기록 갱신 후 계약·링크/공백과 원본 보존을 확인합니다. 기존 PR #365·브랜치/worktree 삭제, 공유 이력 재작성·강제 푸시, 실제 DB 조회/적용·수집·발송·운영 배포는 제외합니다.
+- B 병합 결과: 기대 head `36979dbe`를 지정한 PR #369의 merge 요청이 성공했고, 원격 main은 `21838bc7`입니다. 부모가 이전 main `1b602b29`와 B head `36979dbe`이며 tree `e29dc78e`가 이미 검증한 PR tree와 정확히 같음을 fetch 후 대조했습니다. 전용 검증 worktree는 변경 없이 깨끗하며 원본 작업 공간들은 유지했습니다.
+- 원본 차이 분류: 통합 보존본의 변경 14개를 새 main `21838bc7`의 blob·파일 모드와 대조했습니다. 12개는 내용/모드가 같고 실제 차이는 current-state·phase-plan 두 문서의 상태/기록입니다. 원본 작업 공간의 기준 브랜치·index를 그대로 보존하므로 Source Control 표시는 남아 있습니다. 이 변경들을 통째로 다시 커밋하지 않으며 원본 정합화는 별도 범위입니다.
+- 로컬 기록 검증: 현재 상태/병합 기록 갱신 뒤 Java 17·별도 cache에서 `DB_USERNAME=app_core_rw RUN_SMTP_SMOKE=false ./gradlew test --tests '*ContractTest' --offline --rerun --no-daemon`을 실제 재실행해 21 suites / 127건, 실패·오류·skip 0을 확인했습니다. test 실행·나머지 4개 task UP-TO-DATE입니다. 로컬 전체 기본 단위 검사를 다시 실행한 것은 아니며 이미 검증한 PR tree와 새 main tree가 같다는 근거와 병합 후 원격 CI를 함께 확인합니다.
+- main CI/완료 결과: main `21838bc7`의 [CI 39917674425](https://github.com/minseok02/youth-welfare/actions/runs/39917674425)가 completed / success입니다. security-scan·backend-unit·frontend-browser-smoke가 모두 success, CodeQL은 조건부 skipped임을 해당 SHA의 push 실행 목록과 job 결과로 대조했습니다. PR CI와 main CI를 구분했고 검증 기준 변경·실패 무시·CI 재실행은 하지 않았습니다.
+- 완료/남은 범위: A PR #370과 B PR #369는 모두 main에 병합됐고 B 병합 후 main CI까지 확인했습니다. 기존 PR #365, A/B 전용 브랜치·원본 14개/B 원본 9개 변경·빈 index·깨끗한 검증 worktree를 보존합니다. 로컬 원본의 main 기준 정합화와 실제 DB 적용·수집 복구·운영 반영은 별도 작업입니다. 원본 보존본의 현재 상태/이번 기록 두 문서만 갱신했고 신규 기능 수정·공유 이력 재작성·강제 푸시·브랜치/worktree 삭제는 수행하지 않았습니다.
+
+## 2026-10-23 원본 작업 공간 main 정합화
+
+- 의도/승인 범위: 사용자가 다음 단계인 원본 작업 공간 정합화를 승인했습니다. 원격 main `21838bc7`을 기준으로 동일한 12개 파일의 중복 변경 표시를 해소하고, current-state·phase-plan 두 문서의 고유 기록과 main의 추가 기록을 모두 보존해 문서 전용 로컬 커밋으로 정리합니다. 이번 범위에는 푸시·PR 생성·추가 병합·브랜치/worktree 삭제·실제 DB/외부 실행을 포함하지 않습니다.
+- 선택/보존: 기존 통합 브랜치는 남기고 `docs/docs-collection-main-reconciliation`을 분리합니다. 빈 staging·main 조상 관계와 다른 worktree의 main 미사용을 확인한 뒤 로컬 main을 fast-forward하고 새 문서 브랜치의 기준/index만 `git reset --mixed`로 전진시킵니다. 작업 파일 내용은 유지하며 전후 전체 Git 가시 파일의 digest를 대조합니다. 원래 14개 파일·B 원본 9개 파일과 patch/커밋 bundle은 외부 백업으로 보존했습니다.
+- 문서 병합 기준: main에만 있는 A/B 독립 검증·main 정합화·통합 기록 마무리 4개 절을 유지합니다. 원본에만 있는 B 최종 병합 기록과 이번 정합화 절을 추가하고, 양쪽에 있는 A/B 정합화 절은 main의 의도/완료 조건/관측을 포함하는 로컬의 후속 결과로 갱신합니다. 중간 진행 문구와 완료 결과를 중복해 현재 상태처럼 남기지 않습니다.
+- 완료 조건: 메타데이터 전진 직후 작업 파일 digest 불변·문서 2개만 변경, 문서 병합 뒤 과거/main/원본 고유 기록 보존·그 외 파일 main 일치, Java 17의 문서 계약 실제 재실행·링크/공백 검사를 확인합니다. 명시적 문서 staging 검토 후 두 파일만 로컬 커밋해 원본 작업 공간을 깨끗하게 만듭니다. 실제 실행 결과와 미검증 범위는 완료 후 갱신합니다.
+- 기준 정합화 결과: 기존 통합 브랜치는 `7880dc1a`에 보존하고 새 문서 브랜치와 로컬 main을 `21838bc7` 기준으로 전진시켰습니다. index도 main tree와 같고 staging은 비어 있으며, Git 가시 파일 1,699개의 전후 digest가 같아 작업 파일 내용/모드가 유지됐습니다. 변경 표시는 14개에서 문서 2개로 줄었습니다.
+- 문서 통합 결과: main에만 있던 독립 A/B 검증·main 정합화·통합 기록 마무리 4개 절을 원문 그대로 추가하고, 원본의 B 최종 병합 기록을 유지했습니다. 공통 A/B 정합화 절은 main의 모든 비상태 행을 포함하는 로컬 후속 결과를 사용했습니다. main의 단일 진행 예정 행은 그 완료 결과로 대체하며 의도·완료 조건·관측을 삭제하지 않았습니다.
+- 실제 검증: Java 17·별도 Gradle cache에서 `DB_USERNAME=app_core_rw RUN_SMTP_SMOKE=false ./gradlew test --tests '*ContractTest' --offline --rerun --no-daemon`을 실제 실행해 21 suites / 127 tests, 실패·오류·skip 0을 확인했습니다. test 실행·나머지 4개 task UP-TO-DATE입니다. Markdown 261개·링크 2,446개·코드 참조 63개에서 누락 0, 제한된 고신뢰 secret 패턴 탐지 0건과 공백 검사를 통과했습니다. 전체 기본 단위 검사를 다시 실행한 것은 아니며 기능 파일은 검증된 main과 같습니다.
+- 완료/남은 범위: main과 원본의 고유 기록 보존, 다른 worktree·기존 브랜치 보존과 문서 2개만의 diff를 확인했습니다. 이 결과를 명시적 staging 검토 후 문서 전용 로컬 커밋에 담아 현재 작업 공간을 깨끗하게 정리합니다. 커밋 SHA는 최종 보고와 외부 검증 기록에 연결합니다. 이번 문서 커밋의 푸시·PR·원격 CI는 실행하지 않았으며 실제 DB 적용·수집·발송·운영 반영도 하지 않았습니다.
 
 ## 다음 작업
 
