@@ -42,6 +42,13 @@
 - 보존: 계정 생성·전역 grant·기존 데이터 변경·자동 ALTER/DROP은 추가하지 않습니다. 검증 실패는 중단하며 실제 적용의 대상·백업·승인·복구 전제는 별도로 확인합니다.
 - 검증/한계: 정적 SQL 계약과 가짜 Docker를 사용한 실제 Bash 실행 회귀를 검사합니다. 실제 PostgreSQL 적용/rollback/재실행과 수집 복구는 미검증이며, 결과는 [작업 A 기록](../phase-plan.md#2026-10-23-snapshot-패치-준비--작업-a), 절차는 [DB 변경 안내](db-migration.md#snapshot-전용-검증과-별도-적용)를 확인합니다.
 
+## sidecar backfill이 전역 수집 잠금을 거치지 않은 경우 — 작업 B
+
+- 문제/원인: 복지로·Gov24 sidecar backfill controller가 정규화 서비스를 직접 호출해 기존 `collect-global` 실행 가드 밖에서 DB 재처리를 수행했습니다. 잠금 점유 상태의 MVC 최소 회귀 2개에서 기대한 HTTP 409 대신 200을 반환하는 RED를 재현했습니다.
+- 해결/이유: 전용 `CollectSidecarBackfillApplicationService`에서 유효한 scope의 실행을 선택한 뒤 기존 guard를 요청당 한 번 사용합니다. all의 내부 호출도 같은 잠금 안에서 처리하고 기존 lease/heartbeat/최소권한 cleanup은 교체하지 않습니다. scope/missingOnly 오류는 잠금 DB 접근 전에 거절합니다.
+- 트랜잭션 경계: application service에 바깥 `@Transactional`을 추가하면 guard의 finally 해제 뒤 commit될 수 있습니다. 바깥 트랜잭션 없이 기존 하위 서비스/저장소 프록시의 commit/rollback 완료 후 guard가 해제하도록 유지합니다. all은 기존처럼 단계별 커밋 경계를 가집니다.
+- 검증/한계: DB 없는 단위·MVC 회귀와 Spring 트랜잭션 프록시/기록용 transaction manager로 순서를 검사합니다. 실제 명령·결과는 [작업 B 기록](../phase-plan.md#2026-10-23-sidecar-재처리-잠금--작업-b)에 남깁니다. 실제 DB 잠금 경합·lease 만료·운영 데이터 변화는 별도 검증입니다.
+
 ## 기록 형식
 
 각 항목에는 필요한 내용만 남깁니다.

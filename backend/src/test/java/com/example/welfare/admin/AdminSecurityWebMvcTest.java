@@ -45,6 +45,10 @@ import com.example.welfare.admin.dashboard.service.AdminPolicyRegionCorrectionSe
 import com.example.welfare.admin.dashboard.service.AdminSupportInquiryService;
 import com.example.welfare.collect.controller.CollectAdminController;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillService;
+import com.example.welfare.collect.repository.CollectExecutionLockRepository;
+import com.example.welfare.collect.repository.CollectExecutionLockCleanupCommandRepository;
+import com.example.welfare.collect.service.CollectExecutionGuard;
+import com.example.welfare.collect.service.CollectSidecarBackfillApplicationService;
 import com.example.welfare.collect.dto.AsyncCollectStatusResponse;
 import com.example.welfare.collect.service.CollectAdminService;
 import com.example.welfare.collect.service.CollectAsyncJobService;
@@ -91,7 +95,11 @@ import com.example.welfare.user.service.UserPiiSyncStatusService;
 import com.example.welfare.user.service.AdminAccessAuthorityService;
 import com.example.welfare.user.service.UserSessionRevocationService;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -107,6 +115,8 @@ import java.util.List;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -121,7 +131,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         UserAdminController.class,
         AdminDashboardController.class
 })
-@Import({SecurityConfig.class, JacksonConfig.class})
+@Import({SecurityConfig.class, JacksonConfig.class, CollectExecutionGuard.class,
+        CollectSidecarBackfillApplicationService.class})
 class AdminSecurityWebMvcTest {
 
     @Autowired
@@ -135,6 +146,10 @@ class AdminSecurityWebMvcTest {
     private CollectAsyncJobService collectAsyncJobService;
     @MockitoBean
     private NormalizedPolicySidecarBackfillService normalizedPolicySidecarBackfillService;
+    @MockitoBean
+    private CollectExecutionLockRepository collectExecutionLockRepository;
+    @MockitoBean
+    private CollectExecutionLockCleanupCommandRepository collectExecutionLockCleanupCommandRepository;
     @MockitoBean
     private YouthDetailCollectService youthDetailCollectService;
     @MockitoBean
@@ -2991,6 +3006,144 @@ class AdminSecurityWebMvcTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("C001"));
+    }
+
+    @BeforeEach
+    void allowSidecarBackfillExecution() {
+        given(collectExecutionLockRepository.tryAcquire(eq("collect-global"), any(), any(), any())).willReturn(true);
+        given(collectExecutionLockCleanupCommandRepository.release(eq("collect-global"), any())).willReturn(true);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"bokjiro", "gov24"})
+    @DisplayName("sidecar backfill은 전역 잠금 점유 시 실행하지 않고 HTTP 409/COL002를 반환한다")
+    void sidecarBackfillRejectsBusyGlobalLock(String provider) throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+        given(collectExecutionLockRepository.tryAcquire(eq("collect-global"), any(), any(), any())).willReturn(false);
+        var result = new NormalizedPolicySidecarBackfillService.BackfillResult(1, 1, 0, 0);
+        given(normalizedPolicySidecarBackfillService.backfillBokjiroListSidecars(25)).willReturn(result);
+        given(normalizedPolicySidecarBackfillService.backfillGov24ListSidecars(25)).willReturn(result);
+
+        mockMvc.perform(post("/api/admin/collect/" + provider + "-sidecars-backfill")
+                        .param("scope", "list")
+                        .param("limitPerSource", "25")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("COL002"));
+
+        then(normalizedPolicySidecarBackfillService).shouldHaveNoInteractions();
+        then(collectExecutionLockCleanupCommandRepository).shouldHaveNoInteractions();
+    }
+
+    @ParameterizedTest
+    @CsvSource({"bokjiro,ALL,false,all,2", "bokjiro,list,false,list,1", "bokjiro,detail,false,detail,1",
+            "gov24,list,false,gov24-list,1", "gov24,regions,false,gov24-regions,1",
+            "gov24,support,false,gov24-support,1", "gov24,support-conditions,false,gov24-support-conditions,1",
+            "gov24,all,false,gov24-all,3", "gov24,list,true,gov24-list-missing,1"})
+    @DisplayName("sidecar scope와 alias는 기존 응답·집계를 유지하고 요청당 전역 잠금을 한 번 사용한다")
+    void sidecarBackfillPreservesScopesAndCounts(String provider, String scope, boolean missingOnly,
+                                                String responseScope, int calls) throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+        var result = new NormalizedPolicySidecarBackfillService.BackfillResult(2, 1, 0, 1);
+        given(normalizedPolicySidecarBackfillService.backfillBokjiroListSidecars(25)).willReturn(result);
+        given(normalizedPolicySidecarBackfillService.backfillBokjiroDetailSidecars(25)).willReturn(result);
+        given(normalizedPolicySidecarBackfillService.backfillGov24ListSidecars(25)).willReturn(result);
+        given(normalizedPolicySidecarBackfillService.backfillGov24ListRegions(25)).willReturn(result);
+        given(normalizedPolicySidecarBackfillService.backfillGov24SupportConditionSidecars(25)).willReturn(result);
+        given(normalizedPolicySidecarBackfillService.backfillGov24MissingListSidecars(25)).willReturn(result);
+
+        mockMvc.perform(post("/api/admin/collect/" + provider + "-sidecars-backfill")
+                        .param("scope", scope)
+                        .param("missingOnly", Boolean.toString(missingOnly))
+                        .param("limitPerSource", "25")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.scope").value(responseScope))
+                .andExpect(jsonPath("$.data.limitPerSource").value(25))
+                .andExpect(jsonPath("$.data.scannedCount").value(2 * calls))
+                .andExpect(jsonPath("$.data.upsertedCount").value(calls))
+                .andExpect(jsonPath("$.data.missingServiceCount").value(0))
+                .andExpect(jsonPath("$.data.failedCount").value(calls));
+
+        then(collectExecutionLockRepository).should().tryAcquire(eq("collect-global"), any(), any(), any());
+        then(collectExecutionLockCleanupCommandRepository).should().release(eq("collect-global"), any());
+        then(adminOperationRateLimitService).should().checkMutationLimit(any(), eq("collect:" + provider + "-sidecars-backfill"));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"bokjiro,all", "gov24,gov24-list"})
+    @DisplayName("sidecar 기본 scope와 limitPerSource=0의 전체 처리 계약을 유지한다")
+    void sidecarBackfillPreservesDefaults(String provider, String responseScope) throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+        var result = new NormalizedPolicySidecarBackfillService.BackfillResult(1, 1, 0, 0);
+        given(normalizedPolicySidecarBackfillService.backfillBokjiroListSidecars(0)).willReturn(result);
+        given(normalizedPolicySidecarBackfillService.backfillBokjiroDetailSidecars(0)).willReturn(result);
+        given(normalizedPolicySidecarBackfillService.backfillGov24ListSidecars(0)).willReturn(result);
+
+        mockMvc.perform(post("/api/admin/collect/" + provider + "-sidecars-backfill")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.scope").value(responseScope))
+                .andExpect(jsonPath("$.data.limitPerSource").value(0))
+                .andExpect(jsonPath("$.data.scannedCount").value("bokjiro".equals(provider) ? 2 : 1));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"bokjiro,unknown,false,0", "gov24,unknown,false,0", "gov24,all,true,0",
+            "gov24,regions,true,0", "gov24,support,true,0", "gov24,support-conditions,true,0",
+            "bokjiro,list,false,-1", "gov24,list,false,-1",
+            "bokjiro,list,false,1001", "gov24,list,false,1001", "gov24,bad.scope,false,0"})
+    @DisplayName("잘못된 sidecar 파라미터는 잠금과 backfill DB 작업 전에 HTTP 400으로 거절한다")
+    void sidecarBackfillRejectsInvalidParametersBeforeLock(String provider, String scope,
+                                                         boolean missingOnly, int limit) throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+
+        mockMvc.perform(post("/api/admin/collect/" + provider + "-sidecars-backfill")
+                        .param("scope", scope)
+                        .param("missingOnly", Boolean.toString(missingOnly))
+                        .param("limitPerSource", Integer.toString(limit))
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        then(collectExecutionLockRepository).shouldHaveNoInteractions();
+        then(normalizedPolicySidecarBackfillService).shouldHaveNoInteractions();
+        then(collectExecutionLockCleanupCommandRepository).shouldHaveNoInteractions();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"bokjiro", "gov24"})
+    @DisplayName("sidecar 쓰기 rate limit 거절 시 잠금과 backfill을 실행하지 않는다")
+    void sidecarBackfillPreservesRateLimit(String provider) throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+        org.mockito.Mockito.doThrow(new CustomException(ErrorCode.ADMIN_OPERATION_RATE_LIMIT_EXCEEDED))
+                .when(adminOperationRateLimitService)
+                .checkMutationLimit(any(), eq("collect:" + provider + "-sidecars-backfill"));
+
+        mockMvc.perform(post("/api/admin/collect/" + provider + "-sidecars-backfill")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isTooManyRequests());
+
+        then(collectExecutionLockRepository).shouldHaveNoInteractions();
+        then(normalizedPolicySidecarBackfillService).shouldHaveNoInteractions();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"bokjiro", "gov24"})
+    @DisplayName("sidecar backfill은 일반 사용자와 비로그인 요청을 실행 전에 차단한다")
+    void sidecarBackfillRequiresAdmin(String provider) throws Exception {
+        mockAuthenticatedToken("user-token", List.of(new SimpleGrantedAuthority("ROLE_USER")));
+
+        mockMvc.perform(post("/api/admin/collect/" + provider + "-sidecars-backfill")
+                        .header("Authorization", "Bearer user-token"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/admin/collect/" + provider + "-sidecars-backfill"))
+                .andExpect(status().isUnauthorized());
+
+        then(collectExecutionLockRepository).shouldHaveNoInteractions();
+        then(normalizedPolicySidecarBackfillService).shouldHaveNoInteractions();
     }
 
     @Test

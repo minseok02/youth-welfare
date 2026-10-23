@@ -9,6 +9,7 @@ import com.example.welfare.collect.service.CollectBatchService;
 import com.example.welfare.collect.service.CollectBatchRunResult;
 import com.example.welfare.collect.service.CollectResult;
 import com.example.welfare.collect.service.CollectSource;
+import com.example.welfare.collect.service.CollectSidecarBackfillApplicationService;
 import com.example.welfare.collect.dto.InvertedAgeBackfillResponse;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
@@ -52,7 +53,7 @@ public class CollectAdminController {
     private final CollectBatchService collectBatchService;
     private final CollectAdminService collectAdminService;
     private final CollectAsyncJobService collectAsyncJobService;
-    private final NormalizedPolicySidecarBackfillService normalizedPolicySidecarBackfillService;
+    private final CollectSidecarBackfillApplicationService collectSidecarBackfillApplicationService;
     private final AdminOperationRateLimitService adminOperationRateLimitService;
 
     @PostMapping("/all")
@@ -195,13 +196,8 @@ public class CollectAdminController {
         adminOperationRateLimitService.checkMutationLimit(actorKey(authenticatedUser), "collect:bokjiro-sidecars-backfill");
         int effectiveLimitPerSource = normalizeSidecarBackfillLimitPerSource(limitPerSource);
         String normalizedScope = scope.toLowerCase(Locale.ROOT);
-        NormalizedPolicySidecarBackfillService.BackfillResult result = switch (normalizedScope) {
-            case "all" -> normalizedPolicySidecarBackfillService.backfillBokjiroListSidecars(effectiveLimitPerSource)
-                    .plus(normalizedPolicySidecarBackfillService.backfillBokjiroDetailSidecars(effectiveLimitPerSource));
-            case "list" -> normalizedPolicySidecarBackfillService.backfillBokjiroListSidecars(effectiveLimitPerSource);
-            case "detail" -> normalizedPolicySidecarBackfillService.backfillBokjiroDetailSidecars(effectiveLimitPerSource);
-            default -> throw new CustomException(ErrorCode.INVALID_INPUT);
-        };
+        NormalizedPolicySidecarBackfillService.BackfillResult result =
+                collectSidecarBackfillApplicationService.backfillBokjiro(normalizedScope, effectiveLimitPerSource);
 
         log.info("[Admin] 복지로 sidecar backfill 수동 트리거 scope={} limitPerSource={} scanned={} upserted={} missing={} failed={}",
                 normalizedScope,
@@ -236,26 +232,9 @@ public class CollectAdminController {
         adminOperationRateLimitService.checkMutationLimit(actorKey(authenticatedUser), "collect:gov24-sidecars-backfill");
         int effectiveLimitPerSource = normalizeSidecarBackfillLimitPerSource(limitPerSource);
         String normalizedScope = scope.toLowerCase(Locale.ROOT);
-        NormalizedPolicySidecarBackfillService.BackfillResult result;
-        String responseScope = "gov24-" + normalizedScope;
-        if (missingOnly) {
-            if (!"list".equals(normalizedScope)) {
-                throw new CustomException(ErrorCode.INVALID_INPUT);
-            }
-            responseScope = "gov24-list-missing";
-            result = normalizedPolicySidecarBackfillService.backfillGov24MissingListSidecars(effectiveLimitPerSource);
-        } else {
-            result = switch (normalizedScope) {
-                case "list" -> normalizedPolicySidecarBackfillService.backfillGov24ListSidecars(effectiveLimitPerSource);
-                case "regions" -> normalizedPolicySidecarBackfillService.backfillGov24ListRegions(effectiveLimitPerSource);
-                case "support", "support-conditions" ->
-                        normalizedPolicySidecarBackfillService.backfillGov24SupportConditionSidecars(effectiveLimitPerSource);
-                case "all" -> normalizedPolicySidecarBackfillService.backfillGov24ListSidecars(effectiveLimitPerSource)
-                        .plus(normalizedPolicySidecarBackfillService.backfillGov24ListRegions(effectiveLimitPerSource))
-                        .plus(normalizedPolicySidecarBackfillService.backfillGov24SupportConditionSidecars(effectiveLimitPerSource));
-                default -> throw new CustomException(ErrorCode.INVALID_INPUT);
-            };
-        }
+        NormalizedPolicySidecarBackfillService.BackfillResult result =
+                collectSidecarBackfillApplicationService.backfillGov24(normalizedScope, effectiveLimitPerSource, missingOnly);
+        String responseScope = missingOnly ? "gov24-list-missing" : "gov24-" + normalizedScope;
 
         log.info("[Admin] Gov24 sidecar backfill 수동 트리거 scope={} missingOnly={} limitPerSource={} scanned={} upserted={} missing={} failed={}",
                 normalizedScope,

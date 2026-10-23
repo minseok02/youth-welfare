@@ -16,6 +16,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 class CollectExecutionGuardTest {
 
@@ -43,11 +44,33 @@ class CollectExecutionGuardTest {
         CollectExecutionLockCleanupCommandRepository cleanupRepository = mock(CollectExecutionLockCleanupCommandRepository.class);
         when(repository.tryAcquire(eq(CollectExecutionGuard.GLOBAL_LOCK_NAME), any(), any(), any())).thenReturn(false);
         CollectExecutionGuard guard = new CollectExecutionGuard(repository, cleanupRepository, 15L, 60L);
+        AtomicBoolean executed = new AtomicBoolean(false);
 
-        assertThatThrownBy(() -> guard.runExclusive("collect-all", () -> {}))
+        assertThatThrownBy(() -> guard.runExclusive("collect-all", () -> executed.set(true)))
                 .isInstanceOf(CustomException.class)
                 .satisfies(exception -> assertThat(((CustomException) exception).getErrorCode())
                         .isEqualTo(ErrorCode.COLLECT_ALREADY_RUNNING));
+        assertThat(executed).isFalse();
+        verifyNoInteractions(cleanupRepository);
+    }
+
+    @Test
+    @DisplayName("task 예외를 그대로 전파하면서 획득한 전역 잠금은 해제한다")
+    void runExclusiveReleasesLockWhenTaskThrows() {
+        CollectExecutionLockRepository repository = mock(CollectExecutionLockRepository.class);
+        CollectExecutionLockCleanupCommandRepository cleanupRepository = mock(CollectExecutionLockCleanupCommandRepository.class);
+        when(repository.tryAcquire(eq(CollectExecutionGuard.GLOBAL_LOCK_NAME), any(), any(), any())).thenReturn(true);
+        when(cleanupRepository.release(eq(CollectExecutionGuard.GLOBAL_LOCK_NAME), any())).thenReturn(true);
+        CollectExecutionGuard guard = new CollectExecutionGuard(repository, cleanupRepository, 15L, 60L);
+        IllegalStateException failure = new IllegalStateException("backfill failed");
+
+        assertThatThrownBy(() -> guard.runExclusive("collect-bokjiro-sidecars-backfill", () -> {
+            throw failure;
+        })).isSameAs(failure);
+
+        var owner = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(repository).tryAcquire(eq(CollectExecutionGuard.GLOBAL_LOCK_NAME), owner.capture(), any(), any());
+        verify(cleanupRepository).release(CollectExecutionGuard.GLOBAL_LOCK_NAME, owner.getValue());
     }
 
     @Test
